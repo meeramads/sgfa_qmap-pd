@@ -19,10 +19,21 @@ from sklearn.preprocessing import StandardScaler
 import get_data
 #visualization module
 import visualization
+import logging
+from datetime import datetime
 
 from utils import get_infparams, get_robustK
 
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
+logging.info('Starting run_analysis.py')
+
 def models(X, hypers, args):
+    logging.debug(f"Running models with X shape: {X.shape}, hypers: {hypers}, args: {args}")
 
     N, M, Dm = X.shape[0], args.num_sources, hypers['Dm'] 
     D, K, percW = sum(Dm), args.K, hypers['percW']
@@ -136,8 +147,8 @@ def main(args):
             hypers = pickle.load(parameters)       
 
     for i in range(args.num_runs):          
-        print('Initialisation: ', i+1)
-        print('----------------------------------')
+        logging.info(f'Initialisation: {i+1}')
+        logging.info('----------------------------------')
         
         if 'synthetic' in args.dataset:  
             # Generate synthetic data 
@@ -168,7 +179,7 @@ def main(args):
             with open(res_path, 'wb') as parameters:
                 pickle.dump(0, parameters)
             
-            print(f'Running Model...') 
+            logging.info('Running Model...') 
             seed = np.random.randint(0,50)
             rng_key = jax.random.PRNGKey(seed)
             start = time.time()
@@ -181,7 +192,7 @@ def main(args):
             # Save model
             with open(res_path, 'wb') as parameters:
                 pickle.dump(mcmc_samples, parameters)
-                print('Inferred parameters saved.')
+                logging.info('Inferred parameters saved.')
             
         if not os.path.exists(robparams_path) and os.stat(res_path).st_size > 5:    
             
@@ -202,9 +213,9 @@ def main(args):
                         rob_params.update({'tauW_inf': inf_params['tauW']}) 
                     with open(robparams_path, 'wb') as parameters:
                         pickle.dump(rob_params, parameters)
-                        print('Robust parameters saved')  
+                        logging.info('Robust parameters saved')  
                 else:
-                    print('No robust components found') 
+                    logging.warning('No robust components found') 
             else:
                 W = np.mean(inf_params['W'][0],axis=0)
                 Z = np.mean(inf_params['Z'][0],axis=0)

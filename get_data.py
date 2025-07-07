@@ -4,8 +4,12 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 from scipy.stats import invgamma
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 def synthetic_data(hypers, args):
+    logging.info("Generating synthetic data")
 
     M = args.num_sources #number of data sources
     N = 150 #number of samples/examples 
@@ -29,6 +33,7 @@ def synthetic_data(hypers, args):
     
     #sigmas
     sigma = np.array([3, 6, 4])
+    logging.debug(f"Z shape: {Z.shape}, sigma: {sigma}")
     
     # Implement regularized horsesho prior over W
     #lambda W
@@ -182,7 +187,7 @@ def genfi(data_dir):
 
         with open(arrays_path, 'wb') as parameters:
             pickle.dump(arrays, parameters)
-            print('Model saved')
+            logging.info('Model saved')
     else:
         with open(arrays_path, 'rb') as parameters:
             arrays = pickle.load(parameters) 

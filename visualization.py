@@ -10,8 +10,12 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import f_oneway, ttest_ind
 from sklearn.metrics.pairwise import cosine_similarity
+import logging
+
+logging.captureWarnings(True)
 
 def synthetic_data(res_dir, true_params, args, hypers):
+    logging.info(f"Starting visualization for {res_dir}")
     
     ofile = open(f'{res_dir}/results.txt','w')
     
@@ -470,6 +474,7 @@ def find_bestrun(res_dir, args, ofile):
                 exp_logs[0,r]), file=ofile)             
         else:
             print('The model output file is empty!')
+            logging.error('The model output file is empty!')
             sys.exit(1)
     return exp_logs, ofile    
 

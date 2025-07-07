@@ -1,7 +1,10 @@
 import numpy as np
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 def get_robustK(thrs, args, params, d_comps):
-
+    logging.info("Running get_robustK")
     #Initialize parameters
     ncomps = args.K
     nchs = args.num_chains
@@ -115,7 +118,7 @@ def get_robustK(thrs, args, params, d_comps):
             if args.reghsZ:
                 cZ = cZ[idx_rows,:]; cZ = cZ[:,idx_cols]
                 if cZ.size == 0:
-                    print('No samples survived!')
+                    logging.warning('No samples survived!')
                     success = False
         W = W[idx_rows,:,:]; W = W[:,:,idx_cols]
         Z = Z[idx_rows,:,:]; Z = Z[:,:,idx_cols]
@@ -127,7 +130,7 @@ def get_robustK(thrs, args, params, d_comps):
         X_rob_final = [X_rob[i] for i in range(len(X_rob)) if X_rob[i] != []]
         X_rob = X_rob_final 
     else: 
-        print('No robust components found!')
+        logging.warning('No robust components found!')
         success = False            
     
     #create dictionary with robust params (save the posterior mean for most parameters)
