@@ -1,0 +1,45 @@
+name: sfga-qmap-conda
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - certifi
+  - charset-normalizer
+  - contourpy
+  - cycler
+  - fonttools
+  - h5py
+  - idna
+  - jax
+  - jaxlib
+  - joblib
+  - kiwisolver
+  - lxml
+  - matplotlib
+  - ml_dtypes
+  - multipledispatch
+  - nibabel
+  - nilearn
+  - numpy=1.23.5
+  - opt_einsum
+  - packaging
+  - pandas
+  - pillow
+  - pyparsing
+  - python-dateutil
+  - pytz
+  - requests
+  - scikit-learn
+  - scipy
+  - seaborn
+  - six
+  - threadpoolctl
+  - tqdm
+  - tzdata
+  - urllib3
+  - pip
+  - pip:
+      - nltools==0.5.0
+      - numpyro==0.13.2
+      - pynv==0.3
