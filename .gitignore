@@ -1,6 +1,58 @@
 __pycache__/
 *.pyc
-env/
-.venv/
-*.egg-info/
+*.pyo
+*.pyd
+*.so
+
+# Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# Environment files
+.env
+.venv/
+venv/
+env/
+*.env
+*.venv
+
+# Results and output
+results/
+*.dictionary
+*.log
+*.out
+*.tmp
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VSCode settings
+.vscode/
+
+# Data files
+*.csv
+*.tsv
+*.xlsx
+*.h5
+*.nii
+*.nii.gz
+
+# Ignore generated plots and images
+*.png
+*.svg
+*.jpg
+*.jpeg
+
+# Ignore pickle files
+*.pkl
+*.pickle
+
+# Ignore test outputs
+htmlcov/
+.coverage
+
+# Ignore Python build
+build/
+dist/
+*.egg-info/
