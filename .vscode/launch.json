@@ -1,0 +1,47 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run with synthetic data",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_analysis.py",
+      "args": [
+        "--dataset", "synthetic",
+        "--num_samples", "1000",
+        "--K", "4",
+        "--num_chains", "1",
+        "--percW", "0.25"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Run with synthetic data (10 factors)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_analysis.py",
+      "args": [
+        "--dataset", "synthetic",
+        "--num_samples", "1000",
+        "--K", "10",
+        "--num_chains", "1",
+        "--percW", "0.25"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Run with real data (QMAP)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_analysis.py",
+      "args": [
+        "--dataset", "qmap",
+        "--num_samples", "1000",
+        "--K", "4",
+        "--num_chains", "1",
+        "--percW", "0.25"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}
