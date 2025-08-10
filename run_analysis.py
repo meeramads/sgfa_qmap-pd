@@ -19,6 +19,7 @@ from sklearn.preprocessing import StandardScaler
 import get_data
 #visualization module
 import visualization
+#logging
 import logging
 from datetime import datetime
 
@@ -269,7 +270,16 @@ if __name__ == "__main__":
                         help='use "cpu" or "gpu".')
     parser.add_argument("--noise", nargs='?', default=0, type=int, 
                     help='Add noise to synthetic data (1=yes, 0=no)')
+    parser.add_argument("--seed", nargs='?', default=None, type=int, 
+                    help='Random seed for reproducibility (int). If not set, a random seed is used.')
     args = parser.parse_args()
+    
+    # Set the seed for reproducibility
+    if args.seed is not None:
+        seed = args.seed
+    else:
+        seed = np.random.randint(0, 100000)
+    np.random.seed(seed)
     
     numpyro.set_platform(args.device)
     numpyro.set_host_device_count(args.num_chains)
