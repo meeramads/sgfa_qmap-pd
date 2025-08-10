@@ -56,3 +56,8 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+
+# --- allow tracked data for this project ---
+!qMAP-PD_data/
+!qMAP-PD_data/**/*.tsv
+!qMAP-PD_data/**/*.nii
