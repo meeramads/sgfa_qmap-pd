@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import invgamma
 import logging
 
+from loader_qmap_pd import load_qmap_pd
+
 logging.basicConfig(level=logging.INFO)
 
 def synthetic_data(hypers, args):
@@ -74,148 +76,27 @@ def synthetic_data(hypers, args):
 
     return data
 
-def genfi(data_dir):
+def qmap_pd(data_dir: str, imaging_as_single_view: bool = True, id_col_hint: str | None = None):
+    return load_qmap_pd(
+        data_dir=data_dir,
+        imaging_as_single_view=imaging_as_single_view,
+        id_col_hint=id_col_hint,
+    )
 
-    arrays_path = f'{data_dir}/arrays.dictionary'
-    if not os.path.exists(arrays_path):
-        
-        #load data
-        df_data = pd.read_excel(f'{data_dir}/DATA_GENFI_PROJECT23.xlsx', engine='openpyxl')
-        #Choose patients from visit=11
-        df_data_red = df_data[(df_data['Visit'] == 11)]
-        #remove TBK1 subtype
-        df_data_red = df_data_red[(df_data_red['Genetic Group'] != 'TBK1')]
-        #remove controls
-        df_data_red = df_data_red[(df_data_red['Genetic status 2'] != 0)]
-        #select symptomatic individuals only
-        df_data_red = df_data_red[(df_data_red['Genetic status 1'] == 'A')]  
-        #IDs of subjects
-        ids = df_data_red['Blinded Code']
-
-        #Brain data
-        df_brain_vol = df_data_red.iloc[:, 71:106].copy() #get all GM volumes
-        df_brain_vol = df_brain_vol.drop(columns=['Pons','Brain Stem','Total_Brain',
-                        'Frontal lobe volume','Temporal lobe volume','Parietal lobe volume',
-                        'Occipital lobe volume', 'Cingulate volume','Insula volume'])                
-        df_brain_vol['Cerebellum'] = df_data_red['Total Cerebellum']
-        #select rows with nans to remove
-        brain_mat = df_brain_vol.to_numpy()
-        keep_rows = np.arange(brain_mat.shape[0])
-        ids_nans = np.any(np.isnan(brain_mat),axis=1)
-        keep_rows = keep_rows[~ids_nans] 
-        
-        #Questionnaires
-        df_clinical = df_data_red.iloc[:, 21:65]
-        df_clinical = df_clinical.drop(columns=['FTLD-CDR-GLOBAL', 'BEHAV-SOB (Total Behaviour)', 
-                                    'Blinded Code.2', 'Blinded Site.2', 'Visit.2'])
-        #select rows with nans to remove
-        num_nans = df_clinical.isnull().sum(axis=1).to_numpy()
-        thr = df_clinical.shape[1]/3 # 33%
-        for r in keep_rows:
-            if num_nans[r] > thr:
-                keep_rows = keep_rows[keep_rows != r]
-        
-        #confounds
-        df_conf = df_data_red[['Age at visit (Years)','Gender (0=F, 1=M)','Education (Years)','TIV mm3']]
-        C = df_conf.to_numpy()
-        C = C[keep_rows, :]   
-
-        #Clean dfs and save them        
-        #brain clean
-        df_brain_vol_clean = df_brain_vol.iloc[keep_rows,:]
-        brain_mat = brain_mat[keep_rows, :]
-        #compute asymmetry
-        b_cols = list(df_brain_vol_clean)
-        TV_right = np.zeros((keep_rows.size,1)) 
-        TV_left = np.zeros((keep_rows.size,1)) 
-        for i in range(len(b_cols)):
-            if 'Right' in b_cols[i]:
-                TV_right[:,0] += brain_mat[:,i]
-            elif 'Left' in b_cols[i]:
-                TV_left[:,0] += brain_mat[:,i]
-        asymmetry = np.log(np.abs(TV_left-TV_right)/(TV_left+TV_right))       
-        brain_mat = np.c_[brain_mat, asymmetry]
-        df_brain_vol_clean['Asymmetry'] = pd.Series(asymmetry[:,0], index=df_brain_vol_clean.index)       
-        df_brain_vol_clean.to_csv(f'{data_dir}/visit11_brainvols_{keep_rows.size}subjs.csv')
-        
-        #clinical clean
-        df_clinical_clean = df_clinical.iloc[keep_rows,:]
-        clinical_mat = df_clinical_clean.to_numpy()
-        perc_nans = np.zeros((1,len(list(df_clinical_clean))))
-        cols = list(df_clinical_clean)
-        rm_cols = []; pmiss=20
-        for j in range(len(cols)):
-            perc_nans[0,j] = (df_clinical_clean[cols[j]].isnull().sum()/keep_rows.size) * 100
-            id_na = pd.isna(df_clinical_clean[cols[j]]) * 1
-            ids = np.arange(keep_rows.size)
-            clinical_mat[ids[id_na==1],j] = np.nanmedian(clinical_mat[:,j])
-            if perc_nans[0,j] > pmiss:
-                rm_cols.append(cols[j])
-        
-        #remove cols with more than 10% of missing values
-        clinical_mat = clinical_mat[:, perc_nans[0,:] < pmiss]
-        df_clinical_clean = df_clinical_clean.drop(columns= rm_cols)
-        df_clinical_clean.to_csv(f'{data_dir}/visit11_clinicaldata_{keep_rows.size}subjs.csv')
-
-        #histograms behavioural variables
-        distfolder = f'{data_dir}/vars_dists/'
-        if not os.path.exists(distfolder):
-            os.makedirs(distfolder) 
-        for col in list(df_clinical_clean):
-            plt.figure()
-            plt.hist(df_clinical_clean[col], bins=30)
-            plt.title(col)
-            plt.savefig(f'{distfolder}{col}.png'); plt.close()
-        
-        #confounds clean
-        df_conf_clean = df_conf.iloc[keep_rows,:]
-        df_conf_clean.to_csv(f'{data_dir}/visit11_confounds_{keep_rows.size}subjs.csv')
-
-        #save clean data
-        df_data_clean = df_data_red.iloc[keep_rows,:]
-        df_data_clean.to_csv(f'{data_dir}/visit11_data_{keep_rows.size}subjs.csv')
-        #get var labels
-        labels_file = f'{data_dir}/var_labels.csv'
-        if not os.path.exists(arrays_path):
-            labels = list(df_brain_vol_clean.columns) + list(df_clinical_clean.columns)
-            df_vars = pd.DataFrame(columns=['labels'])
-            df_vars['labels'] = labels
-            df_vars.to_csv(labels_file)
-
-        #create a dict with brain, clinical data and C arrays
-        arrays = {'X1': brain_mat, 'X2': clinical_mat, 'C': C, 'nans_cols_cli': perc_nans}
-
-        with open(arrays_path, 'wb') as parameters:
-            pickle.dump(arrays, parameters)
-            logging.info('Model saved')
+def get_data(dataset: str, data_dir: str, **kwargs):
+    ds = dataset.lower()
+    if ds in {"qmap_pd", "qmap-pd", "qmap"}:
+        return qmap_pd(data_dir, **kwargs)
+    elif ds in {"synthetic", "toy"}:
+        # optional: keep or remove
+        syn = synthetic_data(hypers={"slab_df": 1.0, "slab_scale": 1.0}, args=type("A", (), {"num_sources":3})())
+        return {
+            "X_list": [syn["X"]],
+            "view_names": ["synthetic"],
+            "feature_names": {"synthetic": [f"f{i}" for i in range(syn["X"].shape[1])]},
+            "subject_ids": [f"s{i}" for i in range(syn["X"].shape[0])],
+            "clinical": pd.DataFrame(index=[f"s{i}" for i in range(syn["X"].shape[0])]),
+            "meta": {"Dm": syn["Dm"]},
+        }
     else:
-        with open(arrays_path, 'rb') as parameters:
-            arrays = pickle.load(parameters) 
-    
-    N = arrays.get('X1').shape[0]    
-    df_data = pd.read_csv(f'{data_dir}/visit11_data_{N}subjs.csv')
-    
-    #Deconfound brain and clinical data separately
-    X1 = arrays['X1'] - np.dot(arrays['C'], np.dot(np.linalg.pinv(arrays['C']), arrays['X1']))
-    X2 = arrays['X2'] - np.dot(arrays['C'], np.dot(np.linalg.pinv(arrays['C']), arrays['X2']))
-    Dm = np.array([X1.shape[1], X2.shape[1]])
-    X = np.concatenate((X1, X2), axis=1) 
-
-    #Subtypes
-    ids = df_data['Blinded Code']
-    Y = np.zeros((N, 1))
-    labels = []
-    for i in range(N):
-        if 'C9ORF' in ids[i]:
-            Y[i,0] = 1
-            labels.append('C9orf72')
-        elif 'GRN' in ids[i]:
-            Y[i,0] = 2
-            labels.append('GRN')
-        elif 'MAPT' in ids[i]:
-            Y[i,0] = 3
-            labels.append('MAPT')
-    
-    # Store data
-    data = {'X': X, 'Y': Y, 'Dm': Dm, 'labels': labels}       
-    return data
+        raise ValueError(f"Unknown dataset: {dataset}")
