@@ -14,6 +14,15 @@ import logging
 
 logging.captureWarnings(True)
 
+plt.rcParams.update({
+    "font.size": 12,
+    "axes.titlesize": 14,
+    "axes.labelsize": 12,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "figure.constrained_layout.use": True,
+})
+
 def synthetic_data(res_dir, true_params, args, hypers):
     logging.info(f"Starting visualization for {res_dir}")
     
@@ -160,7 +169,7 @@ def synthetic_data(res_dir, true_params, args, hypers):
         # Plot percentage of subtype representation in each component (Inferred)
         total_scores = np.sum(scores_inf,axis=0)
         x = np.arange(scores_inf.shape[1])
-        colors = ['#fdbb84', '#2b8cbe', '#99d8c9']; width=0.2; b_diff = -width
+        colors = ['#fdbb84', '#2b8cbe', '#99d8c9']; width=0.2; height=0.3;b_diff = -width
         plt.figure(figsize=(7, 6), dpi=300)
         dpi = plt.gcf().get_dpi()
         fontsize = 7 * (dpi / 100)
@@ -189,270 +198,6 @@ def synthetic_data(res_dir, true_params, args, hypers):
         
         #Plot inferred parameters                                                   
         plot_param(rob_params, inf_paths, args, cids=None, tr_vals=true_params)              
-
-def genfi(data, res_dir, args):
-    
-    ofile = open(f'{res_dir}/results.txt','w')
-    
-    #Find best initialisation
-    exp_logs, ofile = find_bestrun(res_dir, args, ofile)
-    brun = np.nanargmax(exp_logs)+1
-    print('Best run: ', brun, file=ofile) 
-
-    # plot dir
-    plot_path = f'{res_dir}/plots_{brun}'
-    if not os.path.exists(plot_path):
-        os.makedirs(plot_path)
-        os.makedirs(f'{plot_path}/svgs')
-
-    #Total variance explained by real data
-    X = data.get('X')
-    Y = data.get('Y')
-    #standardise matrices
-    X_stand = StandardScaler().fit_transform(X)
-    Tvar = np.trace(np.dot(X_stand.T,X_stand))
-
-    #Get model's outputs
-    rparams_path = f'{res_dir}/[{brun}]Robust_params.dictionary'
-    if os.stat(rparams_path).st_size > 5:       
-        with open(rparams_path, 'rb') as parameters:
-            rob_params = pickle.load(parameters)
-        
-        #calculate variance explained by each factor
-        var_comps = []
-        X_inf = rob_params['infX']
-        for k in range(len(X_inf)):
-            var_Xk = np.trace(np.dot(X_inf[k][0].T, X_inf[k][0]))/Tvar
-            var_comps.append(var_Xk)
-
-        #Scree Plot
-        varexp_comps = np.array(var_comps) 
-        ids_var = np.argsort(-varexp_comps)
-        varexp_comps = varexp_comps[ids_var]
-        x = np.arange(len(var_comps)+1)
-        cum_var = [0]
-        for i in range(1, varexp_comps.size+1):
-            if i == 1:
-                cum_var.append(varexp_comps[i-1]*100)
-            else:
-                cum_var.append(varexp_comps[i-1]*100 + cum_var[i-1])
-        plt.figure(figsize=(5,5), dpi=300)
-        plt.plot(x, cum_var, 'ko-', linewidth=2)
-        plt.xlabel('Factors'); plt.ylabel('Covariance explained (%)') 
-        plt.xticks(x, [f'{i}' for i in range(x.size)])   
-        plt.savefig(f'{plot_path}/Scree_plot.png')
-        plt.savefig(f'{plot_path}/svgs/Scree_plot.svg')
-        plt.close()
-
-        #plot weights and print total explained variance (and per component)
-        df_var = pd.read_csv(f'../data/GENFI/var_labels.csv') 
-        W = rob_params.get('W')[:,ids_var]
-        print(f'\nTotal variance explained: {np.around(sum(var_comps) * 100, 2)}\n', file=ofile)
-        cli_labels = list(df_var.iloc[28:,1])
-        brain_labels = list(df_var.iloc[0:28,1])
-
-        if 'sparseGFA' in args.model:
-        
-            # Create all non-imaging loadings figure
-            fig, axes = plt.subplots(1, len(var_comps), figsize=(20, 10), dpi=300)
-            axes = axes.flatten()
-            for j in range(len(var_comps)):
-                # Extract clinical weights for the current component
-                w_cli = W[28:, j]
-                
-                # Determine colors based on signs of weights
-                colours = ['#b15352' if w > 0 else '#5ba3b4' for w in w_cli]
-                
-                # Plot the bar plot on the current subplot
-                ax = axes[j]
-                ax.barh(np.arange(w_cli.size), w_cli, color=colours)
-                ax.set_xlabel('Loadings')
-                ax.set_title(f'Factor {j+1}')
-                ax.set_xlim([-0.5, 0.5])
-                ax.set_yticks(np.arange(w_cli.size))
-                if j == 0:
-                    ax.set_ylabel('Non-imaging variables')
-                    ax.set_yticklabels(cli_labels, fontsize=10)
-                else:
-                    ax.set_yticklabels([])
-                ax.tick_params(axis='x', labelsize=10)
-                #ax.set_facecolor("white")
-            plt.tight_layout()
-            plt.savefig(f'{plot_path}/all_NIloadings.png')
-            plt.savefig(f'{plot_path}/svgs/all_NIloadings.svg')
-            plt.close()
-
-            # Create all brain loadings figure
-            fig, axes = plt.subplots(1, len(var_comps), figsize=(20, 10), dpi=300)
-            axes = axes.flatten()
-            for j in range(len(var_comps)):
-                # Extract clinical weights for the current component
-                w_brain = W[0:28,j]
-                
-                # Determine colors based on signs of weights
-                colours = ['#b15352' if w > 0 else '#5ba3b4' for w in w_brain]
-                
-                # Plot the bar plot on the current subplot
-                ax = axes[j]
-                ax.barh(np.arange(w_brain.size), w_brain, color=colours)
-                ax.set_xlabel('Loadings')
-                ax.set_title(f'Factor {j+1}')
-                ax.set_xlim([-0.5, 0.5])
-                ax.set_yticks(np.arange(w_brain.size))
-                if j == 0:
-                    ax.set_ylabel('Brain variables')
-                    ax.set_yticklabels(brain_labels, fontsize=10)
-                else:
-                    ax.set_yticklabels([])
-                ax.tick_params(axis='x', labelsize=10)
-                #ax.set_facecolor("white")
-            plt.tight_layout()
-            plt.savefig(f'{plot_path}/all_brainloadings.png')
-            plt.savefig(f'{plot_path}/svgs/all_brainloadings.svg')
-            plt.close()
-        
-        # Get top components
-        top = 4
-        if len(var_comps) > top:
-            pass
-        else:
-            top = len(var_comps)
-        
-        for j in range(top):
-
-            print(f'Variance explained by cmp {j+1}: {np.around(var_comps[j] * 100, 2)}', file=ofile) 
-            # Plot clinical weights 
-            w_cli = W[28:,j]
-            w_sort = w_cli[np.argsort(w_cli)]
-           
-            # Determine colors based on signs of weights
-            colours = ['#b15352' if w > 0 else '#5ba3b4' for w in w_sort]
-            
-            plt.figure(figsize=(4,7), dpi=300)
-            ax = plt.axes()
-            #ax.set_facecolor("white")     
-            plt.barh(np.arange(w_cli.size), w_sort, color = colours)
-            plt.ylabel('Non-imaging variables'); plt.xlabel('Loadings'); plt.xlim([-0.5,0.5])
-            plt.yticks(np.arange(w_cli.size).tolist(), [cli_labels[np.argsort(w_cli)[i]] for i in range(len(cli_labels))], fontsize=9); plt.xticks(fontsize=9)
-            plt.tight_layout()
-            plt.savefig(f'{plot_path}/NI_loadings{j+1}.png') 
-            plt.savefig(f'{plot_path}/svgs/NI_loadings{j+1}.svg') 
-            plt.close()
-
-            # Plot brain weights + Asymmetry
-            w_brain = W[0:28,j]
-            w_sort = w_brain[np.argsort(w_brain)]
-        
-            # Determine colors based on signs of weights
-            colours = ['#b15352' if w > 0 else '#5ba3b4' for w in w_sort]
-
-            plt.figure(figsize=(4,7),dpi=300)
-            ax = plt.axes()
-            #ax.set_facecolor("white")     
-            plt.barh(np.arange(w_brain.size), w_sort, color = colours)
-            plt.ylabel('Brain variables'); plt.xlabel('Loadings'); plt.xlim([-0.5,0.5])
-            plt.yticks(np.arange(w_brain.size).tolist(), [brain_labels[np.argsort(w_brain)[i]] for i in range(len(brain_labels))], fontsize=9); plt.xticks(fontsize=9)
-            plt.tight_layout()
-            plt.savefig(f'{plot_path}/Brain_loadings{j+1}.png')
-            plt.savefig(f'{plot_path}/svgs/Brain_loadings{j+1}.svg')
-            plt.close()
-
-        # Plot robust components
-        abs_mean_scores, scores_dist = plot_components(rob_params, top, ids_var, plot_path)
-        
-        # Plot absolute mean score of each subtype in each factor
-        total_scores = np.sum(abs_mean_scores,axis=0)
-        x = np.arange(abs_mean_scores.shape[1])
-        colors = ['#fdbb84', '#2b8cbe', '#99d8c9']
-        width=0.3; b_diff = -width
-        plt.figure(figsize=(7, 5), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 5 * (dpi / 100)
-        for s in range(abs_mean_scores.shape[0]):
-            plt.bar(x+b_diff, abs_mean_scores[s,:]/total_scores, width=width, color=colors[s])
-            b_diff += width
-        plt.xticks(x, [f'{i+1}' for i in range(x.size)], fontsize=0.8*fontsize)
-        plt.ylim([0, 1]); plt.yticks(fontsize=0.8*fontsize)
-        plt.xlabel('Factors', fontsize=fontsize); plt.ylabel('Factor contributions', fontsize=fontsize)
-        plt.legend(['C9orf72','GRN', 'MAPT'], fontsize=0.85*fontsize); plt.tight_layout()
-        plt.savefig(f'{plot_path}/Subtype_scores.png')
-        plt.savefig(f'{plot_path}/svgs/Subtype_scores.svg')
-        plt.close()
-        
-        # Plot absolute mean score of each subtype in each factor (top)
-        x = np.arange(top)
-        height=0.2; b_diff = -height
-        plt.figure(figsize=(4, 5), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 5 * (dpi / 100)
-        for s in range(abs_mean_scores.shape[0]):
-            plt.barh(x+b_diff, width=abs_mean_scores[s,0:top]/total_scores[0:top], height=height, color=colors[s])
-            b_diff += height
-        plt.yticks(x, [f'{i+1}' for i in range(top)], fontsize=0.8*fontsize); plt.xticks(fontsize=0.8*fontsize)
-        plt.xlabel('Factor contributions', fontsize=fontsize); plt.ylabel('Factors', fontsize=fontsize)
-        plt.legend(['C9orf72','GRN', 'MAPT'], fontsize=0.85*fontsize); plt.tight_layout()
-        plt.savefig(f'{plot_path}/Subtype_scores_top{top}.png')
-        plt.savefig(f'{plot_path}/svgs/Subtype_scores_top{top}.svg')
-        plt.close()
-
-        # Plot boxplot
-        plt.figure(figsize=(7, 5), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 5 * (dpi / 100)
-        C9 = [scores_dist['s1'][:,i] for i in range(top)]
-        GRN = [scores_dist['s2'][:,i] for i in range(top)]
-        MAPT = [scores_dist['s3'][:,i] for i in range(top)]
-        ticks = [f'Factor {i+1}' for i in range(top)]
-        C9_plot = plt.boxplot(C9, positions=np.array(np.arange(len(C9)))*2.0-0.6, widths=0.5)
-        GRN_plot = plt.boxplot(GRN,positions=np.array(np.arange(len(GRN)))*2.0, widths=0.5)
-        MAPT_plot = plt.boxplot(MAPT, positions=np.array(np.arange(len(MAPT)))*2.0+0.6, widths=0.5)    
-        define_box_properties(C9_plot, '#fdbb84', 'C9orf72')
-        define_box_properties(GRN_plot, '#2b8cbe', 'GRN')
-        define_box_properties(MAPT_plot, '#99d8c9', 'MAPT')
-        plt.xticks(np.arange(0, len(ticks) * 2, 2), ticks, fontsize=0.8*fontsize)
-        plt.yticks(fontsize=0.8*fontsize)
-        plt.legend(fontsize=0.8*fontsize)
-        plt.xlim(-2, len(ticks)*2)
-        plt.ylabel('Absolute latent scores', fontsize=fontsize)
-        plt.savefig(f'{plot_path}/Subtype_scores_boxplot.png', dpi=300)
-        plt.savefig(f'{plot_path}/svgs/Subtype_scores_boxplot.svg')
-        plt.close()
-        
-        # Compute F statistic
-        scores = np.abs(rob_params['Z'][:, ids_var])
-        N = scores.shape[0]
-        df_subjs = pd.read_csv(f'../data/GENFI/visit11_data_{N}subjs.csv')
-        ids = list(df_subjs['Blinded Code'])
-        ns = [sum(['C9ORF' in x for x in ids]),
-                sum(['GRN' in x for x in ids]),
-                sum(['MAPT' in x for x in ids])]
-        g1 = scores[0:ns[0],:] # C9ORF
-        g2 = scores[ns[0]:ns[0]+ns[1],:] #GRN
-        g3 = scores[ns[0]+ns[1]:,:] # MAPT
-        comps = [f'Factor {i+1}' for i in range(scores.shape[1])]
-        
-        #all
-        stats_all = f_oneway(g1,g2,g3)
-        df_all = pd.DataFrame(index=comps,columns= ['F score', 'p-value'])
-        df_all['F score'] = stats_all[0]; df_all['p-value'] = stats_all[1]
-        df_all.to_csv(f'{plot_path}/Ftest.csv')
-
-        #Compute separate t tests
-        #g1vg2
-        stats_g1g2 = ttest_ind(g1,g2)
-        df_g1g2 = pd.DataFrame(index=comps,columns= ['t', 'p-value'])
-        df_g1g2['t'] = stats_g1g2[0]; df_g1g2['p-value'] = stats_g1g2[1]
-        df_g1g2.to_csv(f'{plot_path}/Ttest_C9vGRN.csv')
-        #g2vg3
-        stats_g2g3 = ttest_ind(g2,g3)
-        df_g2g3 = pd.DataFrame(index=comps,columns= ['t', 'p-value'])
-        df_g2g3['t'] = stats_g2g3[0]; df_g2g3['p-value'] = stats_g2g3[1]
-        df_g2g3.to_csv(f'{plot_path}/Ttest_MAPTvGRN.csv')
-        #g1vg3
-        stats_g1g3 = ttest_ind(g1,g3)
-        df_g1g3 = pd.DataFrame(index=comps,columns= ['t', 'p-value'])
-        df_g1g3['t'] = stats_g1g3[0]; df_g1g3['p-value'] = stats_g1g3[1]
-        df_g1g3.to_csv(f'{plot_path}/Ttest_C9vMAPT.csv')
 
 def find_bestrun(res_dir, args, ofile):
     
@@ -759,3 +504,104 @@ def define_box_properties(plot_name, color_code, label):
     # use plot function to draw a small line to name the legend.
     plt.plot([], c=color_code, label=label)
     plt.legend()
+
+
+# === qMAP-PD multi-view visualizations ===
+def _split_W_by_views(W, Dm, view_names):
+    """Split stacked W (D,K) into per-view blocks [(vname, Wv)]."""
+    parts, d = [], 0
+    for m, vname in enumerate(view_names):
+        Wv = W[d:d+Dm[m], :]
+        parts.append((vname, Wv))
+        d += Dm[m]
+    return parts
+
+def _plot_topk_bar_matrix(Wv, feature_names, vname, topk=20):
+    """Bar plots of top-|w| features per component for one view."""
+    n_feat, n_comp = Wv.shape
+    topk = min(topk, n_feat)
+    fig = plt.figure(figsize=(10, max(3, 1.2 * n_comp)))
+    fig.subplots_adjust(hspace=0.4)
+    for j in range(n_comp):
+        ax = fig.add_subplot(n_comp, 1, j + 1)
+        w = Wv[:, j]
+        idx = np.argsort(np.abs(w))[::-1][:topk]
+        ax.bar(range(topk), w[idx])
+        ax.set_xticks(range(topk))
+        ax.set_xticklabels([feature_names[i] for i in idx], rotation=60, ha="right")
+        ax.axhline(0, lw=0.8, color="#999999")
+        ax.set_ylabel(f"C{j+1}")
+        if j == 0:
+            ax.set_title(f"{vname} — top-{topk} |w|")
+    return fig
+
+def qmap_pd(data, res_dir, args, hypers, topk=20):
+    """
+    Multi-view plotting for qMAP-PD runs.
+    Expects:
+      - data: dict from qmap_pd loader (view_names, feature_names, subject_ids)
+      - hypers: contains Dm (list of feature counts per view)
+    Produces:
+      - per-view bar plots (PNG+SVG)
+      - subject score heatmap (PNG+SVG)
+    """
+    # choose best run (reuse your helper)
+    ofile = open(f"{res_dir}/results.txt", "w")
+    exp_logs, ofile = find_bestrun(res_dir, args, ofile)
+    brun = int(np.nanargmax(exp_logs) + 1)
+    print("Best run: ", brun, file=ofile)
+    ofile.close()
+
+    # plot dir
+    plot_path = f"{res_dir}/plots_{brun}"
+    os.makedirs(plot_path, exist_ok=True)
+    os.makedirs(f"{plot_path}/svgs", exist_ok=True)
+
+    # prefer robust params, fallback to model samples mean
+    rob_path = f"{res_dir}/[{brun}]Robust_params.dictionary"
+    mdl_path = f"{res_dir}/[{brun}]Model_params.dictionary"
+
+    W = Z = None
+    if os.path.exists(rob_path) and os.stat(rob_path).st_size > 5:
+        with open(rob_path, "rb") as f:
+            rp = pickle.load(f)
+        W, Z = rp.get("W"), rp.get("Z")
+
+    if (W is None or Z is None) and os.path.exists(mdl_path) and os.stat(mdl_path).st_size > 5:
+        with open(mdl_path, "rb") as f:
+            smp = pickle.load(f)
+        W = np.asarray(smp["W"])
+        Z = np.asarray(smp["Z"])
+        if W.ndim > 2: W = W.mean(axis=0)
+        if Z.ndim > 2: Z = Z.mean(axis=0)
+
+    if W is None or Z is None:
+        raise RuntimeError("Could not load W/Z from results — make sure inference finished.")
+
+    # split W per view and plot
+    Dm = np.array(hypers["Dm"], dtype=int)
+    view_names = data.get("view_names", [f"view{i}" for i in range(len(Dm))])
+    feat_names = data.get("feature_names", {})
+    sub_ids = data.get("subject_ids", None)
+
+    # Per-view: top‑k bar plots
+    for vname, Wv in _split_W_by_views(W, Dm, view_names):
+        feats = feat_names.get(vname, [f"f{i}" for i in range(Wv.shape[0])])
+        fig = _plot_topk_bar_matrix(Wv, feats, vname, topk=topk)
+        fig.savefig(f"{plot_path}/bar_{vname}.png", dpi=200, bbox_inches="tight")
+        fig.savefig(f"{plot_path}/svgs/bar_{vname}.svg", bbox_inches="tight")
+        plt.close(fig)
+
+    # Scores heatmap (Z)
+    plt.figure(figsize=(8, 5), dpi=300)
+    sns.heatmap(Z, vmin=-np.max(np.abs(Z)), vmax=np.max(np.abs(Z)),
+                cmap="vlag", yticklabels=False, xticklabels=[f"C{i+1}" for i in range(Z.shape[1])])
+    plt.xlabel("Components"); plt.ylabel("Subjects")
+    plt.title("Subject scores (Z)")
+    if sub_ids is not None and len(sub_ids) == Z.shape[0] and len(sub_ids) <= 100:
+        ax = plt.gca()
+        ax.set_yticks(range(len(sub_ids)))
+        ax.set_yticklabels(sub_ids, fontsize=8)
+    plt.savefig(f"{plot_path}/scores_heatmap.png", bbox_inches="tight")
+    plt.savefig(f"{plot_path}/svgs/scores_heatmap.svg", bbox_inches="tight")
+    plt.close()
