@@ -33,11 +33,16 @@ logging.basicConfig(
 )
 logging.info('Starting run_analysis.py')
 
-def models(X, hypers, args):
-    logging.debug(f"Running models with X shape: {X.shape}, hypers: {hypers}, args: {args}")
+def models(X_list, hypers, args):
+    #logging.debug(f"Running models with X shape: {X.shape}, hypers:{hypers}, args: {args}")
+    
+    logging.debug(f"Running models with M={args.num_sources}, N={X_list[0].shape[0]}, Dm={list(hypers['Dm'])}")
 
-    N, M, Dm = X.shape[0], args.num_sources, hypers['Dm'] 
-    D, K, percW = sum(Dm), args.K, hypers['percW']
+    N, M, Dm = X_list[0].shape[0], args.num_sources, jnp.array(hypers['Dm'])
+    assert len(X_list) == M, "Number of data sources does not match the number of provided datasets."
+    for m in range(M):
+        assert X_list[m].shape[0] == N, f"Data source {m+1} has inconsistent number of samples."
+    D, K, percW = int(Dm.sum()), args.K, hypers['percW']
 
     # Sample sigma
     sigma = numpyro.sample("sigma", dist.Gamma(hypers['a_sigma'], 
@@ -79,39 +84,43 @@ def models(X, hypers, args):
         cWtmp = numpyro.sample("cW", dist.InverseGamma(0.5 * hypers['slab_df'], 
             0.5 * hypers['slab_df']), sample_shape=(M,K))
         cW = hypers['slab_scale'] * jnp.sqrt(cWtmp)
-        pW = np.round((percW/100) * Dm)
+        pW = jnp.round((percW / 100.0) * Dm).astype(int)
+        pW = jnp.clip(pW, 1, Dm - 1)
+
         d = 0
         for m in range(M): 
+            X_m = jnp.asarray(X_list[m])
             scaleW = pW[m] / ((Dm[m] - pW[m]) * jnp.sqrt(N)) 
             #sample tau W
             tauW =  numpyro.sample(f'tauW{m+1}', 
                 dist.TruncatedCauchy(scale=scaleW * 1/jnp.sqrt(sigma[0,m])))     
             lmbW_sqr = jnp.reshape(jnp.square(lmbW[d:d+Dm[m],:]), (Dm[m],K))
-            lmbW_tilde = jnp.sqrt(cW[m,:] ** 2 * lmbW_sqr / \
+            lmbW_tilde = jnp.sqrt(cW[m,:] ** 2 * lmbW_sqr / 
                 (cW[m,:] ** 2 + tauW ** 2 * lmbW_sqr))
             W = W.at[d:d+Dm[m],:].set(W[d:d+Dm[m],:] * lmbW_tilde * tauW)
             #sample X
             numpyro.sample(f'X{m+1}', dist.Normal(jnp.dot(Z,W[d:d+Dm[m],:].T), 
-                1/jnp.sqrt(sigma[0,m])), obs=X[:,d:d+Dm[m]])
+                1/jnp.sqrt(sigma[0,m])), obs=X_m)
             d += Dm[m]
     elif args.model == 'GFA':
         # Implement ARD prior over W
         alpha = numpyro.sample("alpha", dist.Gamma(1e-3, 1e-3), sample_shape=(M,K))
         d = 0
         for m in range(M): 
+            X_m = jnp.asarray(X_list[m])
             W = W.at[d:d+Dm[m],:].set(W[d:d+Dm[m],:]* (1/jnp.sqrt(alpha[m,:])))
             #sample X
             numpyro.sample(f'X{m+1}', dist.Normal(jnp.dot(Z,W[d:d+Dm[m],:].T), 
-                1/jnp.sqrt(sigma[0,m])), obs=X[:,d:d+Dm[m]])
+                1/jnp.sqrt(sigma[0,m])), obs=X_m)
             d += Dm[m]
 
-def run_inference(model, args, rng_key, X, hypers):
+def run_inference(model, args, rng_key, X_list, hypers):
     
     # Run inference using Hamiltonian Monte Carlo
-    kernel = NUTS(model)
+    kernel = NUTS(model, target_accept_prob=0.9, max_tree_depth=12)
     mcmc = MCMC(kernel, num_warmup=args.num_warmup, num_samples=args.num_samples, 
         num_chains=args.num_chains)
-    mcmc.run(rng_key, X, hypers, args, extra_fields=('potential_energy',))    
+    mcmc.run(rng_key, X_list, hypers, args, extra_fields=('potential_energy',))    
     #mcmc.print_summary() 
     return mcmc
 
@@ -162,14 +171,17 @@ def main(args):
                 with open(data_path, 'rb') as parameters:
                     data = pickle.load(parameters)
             X = data['X'] 
-        elif 'genfi' in args.dataset:
-            datafolder = f'../data/GENFI'
-            data = get_data.genfi(datafolder)
-            X = data['X']
-            Y = data['Y'] 
-            #standardise matrices
-            X = StandardScaler().fit_transform(X)
-        hypers.update({'Dm': data.get('Dm')})                                 
+        elif 'qmap' in args.dataset:
+            data = get_data.qmap_pd(args.data_dir, imaging_as_single_view=True)
+            X_list = data['X_list']
+            view_names = data['view_names']
+            args.num_sources = len(X_list)
+            # X = np.concatenate(X_list, axis=1)          # in case of single data view
+            Y = None
+            
+        hypers.update({'Dm': [x.shape[1] for x in X_list] if 'X_list' in locals() else data.get('Dm')})
+
+                          
                                                       
         # RUN MODEL
         res_path = f'{res_dir}/[{i+1}]Model_params.dictionary'
@@ -184,7 +196,7 @@ def main(args):
             seed = np.random.randint(0,50)
             rng_key = jax.random.PRNGKey(seed)
             start = time.time()
-            MCMCout = run_inference(models, args, rng_key, X, hypers)
+            MCMCout = run_inference(models, args, rng_key, X_list, hypers)
             mcmc_samples = MCMCout.get_samples()
             # Compute sampling performance 
             mcmc_samples.update({'time_elapsed': (time.time() - start)/60})
@@ -220,8 +232,8 @@ def main(args):
             else:
                 W = np.mean(inf_params['W'][0],axis=0)
                 Z = np.mean(inf_params['Z'][0],axis=0)
-                X = [[np.dot(Z,W.T)]]
-                rob_params = {'W': W, 'Z': Z, 'infX': X} 
+                X_recon = np.dot(Z, W.T)
+                rob_params = {'W': W, 'Z': Z, 'infX': X_recon}  
                 with open(robparams_path, 'wb') as parameters:
                     pickle.dump(rob_params, parameters)     
 
@@ -229,13 +241,13 @@ def main(args):
     if 'synthetic' in args.dataset:
         visualization.synthetic_data(res_dir, data, args, hypers)
     else:
-        visualization.genfi(data, res_dir, args)
+        visualization.qmap_pd(data, res_dir, args, hypers)
 
 if __name__ == "__main__":
 
     # Define arguments to run analysis
-    dataset = 'genfi'
-    if 'genfi' in dataset:
+    dataset = 'qmap'
+    if 'qmap' in dataset:
         num_samples = 5000
         K = 20
         num_sources = 2
@@ -264,8 +276,9 @@ if __name__ == "__main__":
     parser.add_argument("--reghsZ", nargs='?', default=True, type=bool)
     parser.add_argument("--percW", nargs='?', default=33, type=int, 
                         help='percentage of relevant variables in each source')
-    parser.add_argument("--dataset", nargs='?', default=dataset, type=str, 
-                        help='choose dataset')
+    parser.add_argument("--dataset", type=str, default="qmap_pd",
+                        choices=["qmap_pd", "synthetic"])
+    parser.add_argument("--data_dir", type=str, default="qMAP-PD_data")
     parser.add_argument("--device", default='cpu', type=str, 
                         help='use "cpu" or "gpu".')
     parser.add_argument("--noise", nargs='?', default=0, type=int, 
