@@ -16,12 +16,13 @@ from numpyro.infer import MCMC, NUTS
 #sklearn
 from sklearn.preprocessing import StandardScaler
 #generate/ load data
-import get_data
+from get_data import get_data
 #visualization module
 import visualization
 #logging
 import logging
 from datetime import datetime
+from loader_qmap_pd import load_qmap_pd
 
 from utils import get_infparams, get_robustK
 
@@ -172,7 +173,7 @@ def main(args):
                     data = pickle.load(parameters)
             X = data['X'] 
         elif 'qmap' in args.dataset:
-            data = get_data.qmap_pd(args.data_dir, imaging_as_single_view=True)
+            data = get_data.qmap_pd(args.data_dir, imaging_as_single_view=False)
             X_list = data['X_list']
             view_names = data['view_names']
             args.num_sources = len(X_list)
@@ -285,6 +286,14 @@ if __name__ == "__main__":
                     help='Add noise to synthetic data (1=yes, 0=no)')
     parser.add_argument("--seed", nargs='?', default=None, type=int, 
                     help='Random seed for reproducibility (int). If not set, a random seed is used.')
+    parser.add_argument("--clinical_rel", type=str,             default="data_clinical/pd_motor_gfa_data_cleaned.tsv")
+    parser.add_argument("--volumes_rel", type=str, default="volume_matrices")
+    parser.add_argument("--id_col", type=str, default="sid")
+    parser.add_argument(
+        "--roi_views",
+        action="store_true",
+        help="If set, keep separate ROI views (SN/Putamen/Lentiform). If not set, concatenates imaging."
+    )
     args = parser.parse_args()
     
     # Set the seed for reproducibility
