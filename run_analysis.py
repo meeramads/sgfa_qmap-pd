@@ -16,13 +16,11 @@ from numpyro.infer import MCMC, NUTS
 #sklearn
 from sklearn.preprocessing import StandardScaler
 #generate/ load data
-from get_data import get_data
+import get_data
 #visualization module
 import visualization
 #logging
 import logging
-from datetime import datetime
-from loader_qmap_pd import load_qmap_pd
 
 from utils import get_infparams, get_robustK
 
@@ -173,7 +171,7 @@ def main(args):
                     data = pickle.load(parameters)
             X = data['X'] 
         elif 'qmap' in args.dataset:
-            data = get_data.qmap_pd(args.data_dir, imaging_as_single_view=False)
+            data = get_data.get_data(args)
             X_list = data['X_list']
             view_names = data['view_names']
             args.num_sources = len(X_list)
