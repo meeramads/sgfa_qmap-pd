@@ -281,16 +281,14 @@ if __name__ == "__main__":
     parser.add_argument("--device", default='cpu', type=str, 
                         help='use "cpu" or "gpu".')
     parser.add_argument("--noise", nargs='?', default=0, type=int, 
-                    help='Add noise to synthetic data (1=yes, 0=no)')
-    parser.add_argument("--seed", nargs='?', default=None, type=int, 
-                    help='Random seed for reproducibility (int). If not set, a random seed is used.')
-    parser.add_argument("--clinical_rel", type=str,             default="data_clinical/pd_motor_gfa_data_cleaned.tsv")
+                        help='Add noise to synthetic data (1=yes, 0=no)')
+    parser.add_argument("--seed", nargs='?', default=None, type=int,
+                        help='Random seed for reproducibility (int). If not set, a random seed is used.')
+    parser.add_argument("--clinical_rel", type=str, default="data_clinical/pd_motor_gfa_data_cleaned.tsv")
     parser.add_argument("--volumes_rel", type=str, default="volume_matrices")
     parser.add_argument("--id_col", type=str, default="sid")
-    parser.add_argument(
-        "--roi_views",
-        action="store_true",
-        help="If set, keep separate ROI views (SN/Putamen/Lentiform). If not set, concatenates imaging."
+    parser.add_argument("--roi_views",action="store_true", 
+                        help="If set, keep separate ROI views (SN/Putamen/Lentiform). If not set, concatenates imaging."
     )
     args = parser.parse_args()
     
