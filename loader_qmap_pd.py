@@ -21,7 +21,7 @@ def load_qmap_pd(
     data_dir: str,
     clinical_rel: str = "data_clinical/pd_motor_gfa_data_cleaned.tsv",
     volumes_rel: str = "volume_matrices",
-    imaging_as_single_view: bool = False,   # keep ROIs separate for sparse GFA
+    imaging_as_single_view: bool = False,   # keep ROIs separate
     drop_constant_clinical: bool = True,
     id_col: str = "sid",
 ) -> Dict[str, Any]:

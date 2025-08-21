@@ -1,3 +1,4 @@
+from typing import Dict, Any 
 import numpy as np
 import pandas as pd
 import os
@@ -76,12 +77,21 @@ def synthetic_data(hypers, args):
 
     return data
 
-def qmap_pd(data_dir: str, imaging_as_single_view: bool = True, id_col_hint: str | None = None):
+def load_dataset_qmap_pd(args) -> Dict[str, Any]:
+    """
+    Load qMAP-PD as either:
+      - separate ROI views (SN, Putamen, Lentiform) + clinical, when args.roi_views is True
+      - a single concatenated imaging view + clinical, when args.roi_views is False
+    """
     return load_qmap_pd(
-        data_dir=data_dir,
-        imaging_as_single_view=imaging_as_single_view,
-        id_col_hint=id_col_hint,
+        data_dir=args.data_dir,
+        clinical_rel=args.clinical_rel,
+        volumes_rel=args.volumes_rel,
+        imaging_as_single_view=not args.roi_views,
+        drop_constant_clinical=True,
+        id_col=args.id_col,
     )
+
 
 def get_data(dataset: str, data_dir: str, **kwargs):
     ds = dataset.lower()
