@@ -19,7 +19,7 @@ def _transform_with(mu: np.ndarray, sd: np.ndarray, X: np.ndarray) -> np.ndarray
 # ---------- main loader ----------
 def load_qmap_pd(
     data_dir: str,
-    clinical_rel: str = "data_clinical/pd_motor_gfa_data_cleaned.tsv",
+    clinical_rel: str = "data_clinical/pd_motor_gfa_data.tsv",
     volumes_rel: str = "volume_matrices",
     imaging_as_single_view: bool = False,   # keep ROIs separate
     drop_constant_clinical: bool = True,
