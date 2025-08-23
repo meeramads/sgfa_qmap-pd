@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import invgamma
 import logging
 
-from loader_qmap_pd import load_qmap_pd
+from loader_qmap_pd import load_qmap_pd as qmap_pd
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -83,7 +84,7 @@ def load_dataset_qmap_pd(args) -> Dict[str, Any]:
       - separate ROI views (SN, Putamen, Lentiform) + clinical, when args.roi_views is True
       - a single concatenated imaging view + clinical, when args.roi_views is False
     """
-    return load_qmap_pd(
+    return qmap_pd(
         data_dir=args.data_dir,
         clinical_rel=args.clinical_rel,
         volumes_rel=args.volumes_rel,
@@ -106,6 +107,7 @@ def get_data(dataset: str, data_dir: str, **kwargs):
             "feature_names": {"synthetic": [f"f{i}" for i in range(syn["X"].shape[1])]},
             "subject_ids": [f"s{i}" for i in range(syn["X"].shape[0])],
             "clinical": pd.DataFrame(index=[f"s{i}" for i in range(syn["X"].shape[0])]),
+            "Dm": syn["Dm"], 
             "meta": {"Dm": syn["Dm"]},
         }
     else:
