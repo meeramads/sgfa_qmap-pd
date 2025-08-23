@@ -7,6 +7,7 @@ import sys
 import numpy as np
 #jax
 import jax
+from jax import lax
 import jax.numpy as jnp
 import jax.random 
 #numpyro
@@ -21,6 +22,8 @@ import get_data
 import visualization
 #logging
 import logging
+from loader_qmap_pd import load_qmap_pd as qmap_pd
+
 
 from utils import get_infparams, get_robustK
 
@@ -37,11 +40,15 @@ def models(X_list, hypers, args):
     
     logging.debug(f"Running models with M={args.num_sources}, N={X_list[0].shape[0]}, Dm={list(hypers['Dm'])}")
 
-    N, M, Dm = X_list[0].shape[0], args.num_sources, jnp.array(hypers['Dm'])
+    N, M = X_list[0].shape[0], args.num_sources
+    Dm_np = np.array(hypers['Dm'], dtype=int)   # <- static (Python / NumPy)
+    Dm = jnp.array(Dm_np)                       # <- JAX for computations
     assert len(X_list) == M, "Number of data sources does not match the number of provided datasets."
     for m in range(M):
         assert X_list[m].shape[0] == N, f"Data source {m+1} has inconsistent number of samples."
-    D, K, percW = int(Dm.sum()), args.K, hypers['percW']
+    D = int(Dm_np.sum())        # <- Python int (ok for sample_shape)
+    K = args.K
+    percW = hypers['percW']
 
     # Sample sigma
     sigma = numpyro.sample("sigma", dist.Gamma(hypers['a_sigma'], 
@@ -92,26 +99,44 @@ def models(X_list, hypers, args):
             scaleW = pW[m] / ((Dm[m] - pW[m]) * jnp.sqrt(N)) 
             #sample tau W
             tauW =  numpyro.sample(f'tauW{m+1}', 
-                dist.TruncatedCauchy(scale=scaleW * 1/jnp.sqrt(sigma[0,m])))     
-            lmbW_sqr = jnp.reshape(jnp.square(lmbW[d:d+Dm[m],:]), (Dm[m],K))
+                dist.TruncatedCauchy(scale=scaleW * 1/jnp.sqrt(sigma[0,m]))) 
+            width = int(Dm_np[m])    
+            lmbW_chunk = lax.dynamic_slice(lmbW, (d, 0), (width, K))
+     
+            lmbW_sqr = jnp.square(lmbW_chunk)
             lmbW_tilde = jnp.sqrt(cW[m,:] ** 2 * lmbW_sqr / 
                 (cW[m,:] ** 2 + tauW ** 2 * lmbW_sqr))
-            W = W.at[d:d+Dm[m],:].set(W[d:d+Dm[m],:] * lmbW_tilde * tauW)
+            W_chunk = lax.dynamic_slice(W, (d, 0), (width, K))
+
+            W_chunk = W_chunk * lmbW_tilde * tauW
+
+            W = lax.dynamic_update_slice(W, W_chunk, (d, 0))
             #sample X
-            numpyro.sample(f'X{m+1}', dist.Normal(jnp.dot(Z,W[d:d+Dm[m],:].T), 
+            W_chunk = lax.dynamic_slice(W, (d, 0), (width, K))
+
+            numpyro.sample(f'X{m+1}', dist.Normal(jnp.dot(Z, W_chunk.T), 
                 1/jnp.sqrt(sigma[0,m])), obs=X_m)
-            d += Dm[m]
+            d += width
     elif args.model == 'GFA':
         # Implement ARD prior over W
         alpha = numpyro.sample("alpha", dist.Gamma(1e-3, 1e-3), sample_shape=(M,K))
         d = 0
         for m in range(M): 
             X_m = jnp.asarray(X_list[m])
-            W = W.at[d:d+Dm[m],:].set(W[d:d+Dm[m],:]* (1/jnp.sqrt(alpha[m,:])))
+            
+            width = int(Dm_np[m])    
+            
+            W_chunk = lax.dynamic_slice(W, (d, 0), (width, K))
+
+            W_chunk = W_chunk * (1/jnp.sqrt(alpha[m,:]))
+
+            W = lax.dynamic_update_slice(W, W_chunk, (d, 0))
             #sample X
-            numpyro.sample(f'X{m+1}', dist.Normal(jnp.dot(Z,W[d:d+Dm[m],:].T), 
+            W_chunk = lax.dynamic_slice(W, (d, 0), (width, K))
+
+            numpyro.sample(f'X{m+1}', dist.Normal(jnp.dot(Z, W_chunk.T), 
                 1/jnp.sqrt(sigma[0,m])), obs=X_m)
-            d += Dm[m]
+            d += width
 
 def run_inference(model, args, rng_key, X_list, hypers):
     
@@ -131,10 +156,7 @@ def main(args):
         flag = f'K{args.K}_{args.num_chains}chs_pW{args.percW}_s{args.num_samples}'
     
     if args.model == 'sparseGFA':
-        if args.reghsZ:
-            flag_regZ = '_reghsZ'
-        else:
-            flag_regZ = '_hsZ'
+        flag_regZ = '_reghsZ' if args.reghsZ else '_hsZ'
     else:
         flag_regZ = ''
     
@@ -171,43 +193,60 @@ def main(args):
                     data = pickle.load(parameters)
             X = data['X'] 
         elif 'qmap' in args.dataset:
-            data = get_data.get_data(args)
+            data = get_data.get_data(
+                dataset=args.dataset,
+                data_dir=args.data_dir,
+                clinical_rel=args.clinical_rel,
+                volumes_rel=args.volumes_rel,
+                imaging_as_single_view=not args.roi_views,  # <-- convert here
+                id_col=args.id_col,
+            ) 
             X_list = data['X_list']
             view_names = data['view_names']
             args.num_sources = len(X_list)
             # X = np.concatenate(X_list, axis=1)          # in case of single data view
             Y = None
             
+            logging.info(f"qMAP-PD views: {view_names} | Dm = {[x.shape[1] for x in X_list]}")
+
         hypers.update({'Dm': [x.shape[1] for x in X_list] if 'X_list' in locals() else data.get('Dm')})
 
-                          
                                                       
         # RUN MODEL
         res_path = f'{res_dir}/[{i+1}]Model_params.dictionary'
         robparams_path = f'{res_dir}/[{i+1}]Robust_params.dictionary'
-        if not os.path.exists(res_path):
-            
-            # Create an empty file 
-            with open(res_path, 'wb') as parameters:
-                pickle.dump(0, parameters)
-            
-            logging.info('Running Model...') 
-            seed = np.random.randint(0,50)
-            rng_key = jax.random.PRNGKey(seed)
-            start = time.time()
-            MCMCout = run_inference(models, args, rng_key, X_list, hypers)
-            mcmc_samples = MCMCout.get_samples()
-            # Compute sampling performance 
-            mcmc_samples.update({'time_elapsed': (time.time() - start)/60})
-            pe = MCMCout.get_extra_fields()['potential_energy']
-            mcmc_samples.update({'exp_logdensity': jnp.mean(-pe)})
-            # Save model
-            with open(res_path, 'wb') as parameters:
-                pickle.dump(mcmc_samples, parameters)
+
+        # Run if file doesn't exist OR is tiny/corrupted
+        if (not os.path.exists(res_path)) or (os.path.getsize(res_path) <= 5):
+            try:
+                logging.info('Running Model...')
+                seed = np.random.randint(0, 50)
+                rng_key = jax.random.PRNGKey(seed)
+                start = time.time()
+
+                MCMCout = run_inference(models, args, rng_key, X_list, hypers)
+                mcmc_samples = MCMCout.get_samples()
+
+                # Compute sampling performance
+                mcmc_samples.update({'time_elapsed': (time.time() - start)/60})
+                pe = MCMCout.get_extra_fields()['potential_energy']
+                mcmc_samples.update({'exp_logdensity': jnp.mean(-pe)})
+
+                # Save model only after success
+                with open(res_path, 'wb') as parameters:
+                    pickle.dump(mcmc_samples, parameters)
                 logging.info('Inferred parameters saved.')
+            except Exception:
+                logging.exception("MCMC run failed; not saving any placeholder.")
+                # ensure no tiny/corrupt file remains
+                if os.path.exists(res_path) and os.path.getsize(res_path) <= 5:
+                    try:
+                        os.remove(res_path)
+                    except OSError:
+                        pass
+                continue  # move to next initialisation
             
-        if not os.path.exists(robparams_path) and os.stat(res_path).st_size > 5:    
-            
+        if (not os.path.exists(robparams_path)) and (os.path.getsize(res_path) > 5):    
             #Get inferred parameters within each chain
             with open(res_path, 'rb') as parameters:
                 mcmc_samples = pickle.load(parameters)
@@ -225,12 +264,12 @@ def main(args):
                         rob_params.update({'tauW_inf': inf_params['tauW']}) 
                     with open(robparams_path, 'wb') as parameters:
                         pickle.dump(rob_params, parameters)
-                        logging.info('Robust parameters saved')  
+                    logging.info('Robust parameters saved')  
                 else:
                     logging.warning('No robust components found') 
             else:
-                W = np.mean(inf_params['W'][0],axis=0)
-                Z = np.mean(inf_params['Z'][0],axis=0)
+                W = np.mean(inf_params['W'][0], axis=0)
+                Z = np.mean(inf_params['Z'][0], axis=0)
                 X_recon = np.dot(Z, W.T)
                 rob_params = {'W': W, 'Z': Z, 'infX': X_recon}  
                 with open(robparams_path, 'wb') as parameters:
@@ -241,7 +280,6 @@ def main(args):
         visualization.synthetic_data(res_dir, data, args, hypers)
     else:
         visualization.qmap_pd(data, res_dir, args, hypers)
-
 if __name__ == "__main__":
 
     # Define arguments to run analysis
@@ -284,7 +322,7 @@ if __name__ == "__main__":
                         help='Add noise to synthetic data (1=yes, 0=no)')
     parser.add_argument("--seed", nargs='?', default=None, type=int,
                         help='Random seed for reproducibility (int). If not set, a random seed is used.')
-    parser.add_argument("--clinical_rel", type=str, default="data_clinical/pd_motor_gfa_data_cleaned.tsv")
+    parser.add_argument("--clinical_rel", type=str, default="data_clinical/pd_motor_gfa_data.tsv")
     parser.add_argument("--volumes_rel", type=str, default="volume_matrices")
     parser.add_argument("--id_col", type=str, default="sid")
     parser.add_argument("--roi_views",action="store_true", 
