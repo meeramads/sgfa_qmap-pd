@@ -37,7 +37,7 @@ def synthetic_data(res_dir, true_params, args, hypers):
     plot_path = f'{res_dir}/plots_{brun}'
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
-        os.makedirs(f'{plot_path}/svgs')   
+        os.makedirs(f'{plot_path}/svgs', exist_ok=True)   
             
     # Plot generated training data
     pathX = f'{plot_path}/trueX'
@@ -109,7 +109,7 @@ def synthetic_data(res_dir, true_params, args, hypers):
         plt.yticks(x, [f'{i+1}' for i in range(Z_true.shape[1])], fontsize=0.8*fontsize)
         plt.xlim([0,1]); plt.xticks(fontsize=0.85*fontsize)
         plt.ylabel('Factors', fontsize=fontsize); plt.xlabel('Factor contributions',fontsize=fontsize)
-        plt.legend(['Group 1','Group 2','Group 3'], fontsize=0.85*fontsize); plt.tight_layout()
+        plt.legend(['Group 1','Group 2','Group 3'], fontsize=0.85*fontsize)
         plt.savefig(f'{plot_path}/trueSubtype_scores.png')
         plt.savefig(f'{plot_path}/svgs/trueSubtype_scores.svg'); plt.close()
 
@@ -179,7 +179,7 @@ def synthetic_data(res_dir, true_params, args, hypers):
         plt.yticks(x, [f'{i+1}' for i in range(Z_inf.shape[1])], fontsize=0.8*fontsize)
         plt.xlim([0,1]); plt.xticks(fontsize=0.8*fontsize)
         plt.ylabel('Factors', fontsize=fontsize); plt.xlabel('Factor contributions',fontsize=fontsize)
-        plt.legend(['Group 1','Group 2','Group 3'], fontsize=0.9*fontsize); plt.tight_layout()
+        plt.legend(['Group 1','Group 2','Group 3'], fontsize=0.9*fontsize)
         plt.savefig(f'{plot_path}/infSubtype_scores.png')
         plt.savefig(f'{plot_path}/svgs/infSubtype_scores.svg'); plt.close()
 
@@ -423,7 +423,7 @@ def plot_param(params, paths, args, cids=None, tr_vals=False):
     if 'tauW_inf' in params:
         tau = params['tauW_inf']
         pathtau = paths['tauW']
-        f, axes = plt.subplots(args.num_sources, 1, figsize=(8,6))
+        f, axes = plt.subplots(args.num_sources, 1, figsize=(8,6), constrained_layout=True)
         f.subplots_adjust(hspace=0.5, wspace=0.2)
         for m, ax in zip(range(args.num_sources), axes.flat):
             sns.histplot(tau[:,m], ax=ax, color='#2b8cbe')
@@ -436,7 +436,7 @@ def plot_param(params, paths, args, cids=None, tr_vals=False):
     if 'sigma_inf' in params:
         sigma = params['sigma_inf']
         pathsig = paths['sigma']
-        f, axes = plt.subplots(args.num_sources, 1, figsize=(8,6))
+        f, axes = plt.subplots(args.num_sources, 1, figsize=(8,6), constrained_layout=True)
         f.subplots_adjust(hspace=0.5, wspace=0.2)
         for m, ax in zip(range(args.num_sources), axes.flat):
             sns.histplot(sigma[:,m], ax=ax, color='#2b8cbe')
@@ -461,8 +461,8 @@ def plot_X(data, args, hypers, path, true_data=False):
         else:
             X_k = data[k][0]    
             X += X_k
-        fig, axes = plt.subplots(ncols=args.num_sources)
-        fig.subplots_adjust(wspace=0.02)
+        fig, axes = plt.subplots(ncols=args.num_sources, constrained_layout=True)
+        # removed: subplots_adjust (using default or constrained layout)
         Dm = hypers['Dm']; d = 0
         for m in range(args.num_sources):
             if m < args.num_sources - 1:
@@ -521,7 +521,7 @@ def _plot_topk_bar_matrix(Wv, feature_names, vname, topk=20):
     n_feat, n_comp = Wv.shape
     topk = min(topk, n_feat)
     fig = plt.figure(figsize=(10, max(3, 1.2 * n_comp)))
-    fig.subplots_adjust(hspace=0.4)
+    # removed: subplots_adjust (using default or constrained layout)
     for j in range(n_comp):
         ax = fig.add_subplot(n_comp, 1, j + 1)
         w = Wv[:, j]
