@@ -191,7 +191,19 @@ def main(args):
             else:
                 with open(data_path, 'rb') as parameters:
                     data = pickle.load(parameters)
+            
+            # Convert synthetic data to multi-view format
             X = data['X'] 
+            Dm = data['Dm']
+            X_list = []
+            d = 0
+            for m in range(args.num_sources):
+                X_list.append(X[:, d:d+Dm[m]])
+                d += Dm[m]
+            
+            # Update hypers with Dm
+            hypers.update({'Dm': Dm})
+            
         elif 'qmap' in args.dataset:
             data = get_data.get_data(
                 dataset=args.dataset,
@@ -204,13 +216,11 @@ def main(args):
             X_list = data['X_list']
             view_names = data['view_names']
             args.num_sources = len(X_list)
-            # X = np.concatenate(X_list, axis=1)          # in case of single data view
-            Y = None
             
             logging.info(f"qMAP-PD views: {view_names} | Dm = {[x.shape[1] for x in X_list]}")
-
-        hypers.update({'Dm': [x.shape[1] for x in X_list] if 'X_list' in locals() else data.get('Dm')})
-
+            
+            # Update hypers with Dm
+            hypers.update({'Dm': [x.shape[1] for x in X_list]})
                                                       
         # RUN MODEL
         res_path = f'{res_dir}/[{i+1}]Model_params.dictionary'
@@ -246,7 +256,7 @@ def main(args):
                         pass
                 continue  # move to next initialisation
             
-        if (not os.path.exists(robparams_path)) and (os.path.getsize(res_path) > 5):    
+        if (not os.path.exists(robparams_path)) and os.path.exists(res_path) and (os.path.getsize(res_path) > 5):    
             #Get inferred parameters within each chain
             with open(res_path, 'rb') as parameters:
                 mcmc_samples = pickle.load(parameters)
@@ -280,6 +290,7 @@ def main(args):
         visualization.synthetic_data(res_dir, data, args, hypers)
     else:
         visualization.qmap_pd(data, res_dir, args, hypers)
+
 if __name__ == "__main__":
 
     # Define arguments to run analysis
