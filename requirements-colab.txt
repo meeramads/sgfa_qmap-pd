@@ -1,7 +1,7 @@
 # Core
-# numpy>=1.26.0 ##overwritten in JAX install
-# scipy>=1.11.0 ##overwritten in JAX install
-# matplotlib>=3.8.0
+numpy>=1.26.0 ##overwritten in JAX install
+scipy>=1.11.0 ##overwritten in JAX install
+matplotlib>=3.8.0
 
 # Neuroimaging stack
 nibabel>=5.2.0
