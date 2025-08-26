@@ -31,8 +31,8 @@ plt.rcParams.update({
     "axes.spines.top": False,
     "axes.spines.right": False,
     "axes.grid": True,
-    "axes.grid.alpha": 0.3,
     "grid.linewidth": 0.5,
+    "grid.alpha": 0.3,
 })
 
 # Professional color schemes
