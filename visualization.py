@@ -302,6 +302,10 @@ def find_bestrun(res_dir, args, ofile):
                 print(f'Run {r+1}: Log density = {exp_logs[r]:.2f}', file=ofile)
             except Exception as e:
                 logging.warning(f"Could not load run {r+1}: {e}")
+    
+    # Check if any valid runs exist
+    if np.all(np.isnan(exp_logs)):
+        raise RuntimeError("No successful MCMC runs found. All runs failed.")
         
     return exp_logs, ofile
 
