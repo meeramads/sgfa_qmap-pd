@@ -3,10 +3,10 @@ import os
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from matplotlib.pyplot import gcf
 import seaborn as sns
 import numpy as np
-#sklearn
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import f_oneway, ttest_ind
 from sklearn.metrics.pairwise import cosine_similarity
@@ -14,594 +14,481 @@ import logging
 
 logging.captureWarnings(True)
 
+# Publication-ready matplotlib settings
 plt.rcParams.update({
-    "font.size": 12,
-    "axes.titlesize": 14,
-    "axes.labelsize": 12,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
+    "font.family": "Arial",
+    "font.size": 10,
+    "axes.titlesize": 12,
+    "axes.labelsize": 11,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "legend.fontsize": 9,
+    "figure.dpi": 300,
+    "savefig.dpi": 300,
+    "savefig.bbox": "tight",
+    "savefig.pad_inches": 0.1,
     "figure.constrained_layout.use": True,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "axes.grid.alpha": 0.3,
+    "grid.linewidth": 0.5,
 })
 
+# Professional color schemes
+COLORS = {
+    'primary': '#2E86C1',
+    'secondary': '#E74C3C', 
+    'tertiary': '#28B463',
+    'quaternary': '#F39C12',
+    'neutral': '#5D6D7E',
+    'light_gray': '#BDC3C7',
+    'groups': ['#3498DB', '#E74C3C', '#28B463', '#F39C12', '#9B59B6', '#E67E22']
+}
+
 def synthetic_data(res_dir, true_params, args, hypers):
-    logging.info(f"Starting visualization for {res_dir}")
+    """Generate publication-ready plots for synthetic data analysis."""
+    logging.info(f"Starting improved visualization for {res_dir}")
     
-    ofile = open(f'{res_dir}/results.txt','w')
-    
-    #Find best initialisation
-    exp_logs, ofile = find_bestrun(res_dir, args, ofile)
-    brun = np.nanargmax(exp_logs)+1
-    print('Best run: ', brun, file=ofile) 
+    with open(f'{res_dir}/results.txt','w') as ofile:
+        # Find best initialisation
+        exp_logs, _ = find_bestrun(res_dir, args, ofile)
+        brun = np.nanargmax(exp_logs) + 1
+        print(f'Best run: {brun}', file=ofile) 
 
-    # plot dir
+    # Create plot directories
     plot_path = f'{res_dir}/plots_{brun}'
-    if not os.path.exists(plot_path):
-        os.makedirs(plot_path)
-        os.makedirs(f'{plot_path}/svgs', exist_ok=True)   
-            
-    # Plot generated training data
-    pathX = f'{plot_path}/trueX'
-    plot_X(true_params, args, hypers, pathX, true_data=True)   
+    os.makedirs(plot_path, exist_ok=True)
+    os.makedirs(f'{plot_path}/publication', exist_ok=True)
     
-    #Plot true parameters
-    params_paths = {
-        'W': f'{plot_path}/trueW',
-        'Z': f'{plot_path}/trueZ',
-        'Z_svg': f'{plot_path}/svgs/trueZ',
-        'lmbW': f'{plot_path}/truelmbW',
-        'lmbZ': f'{plot_path}/truelmbZ'} 
-    plot_param(true_params, params_paths, args)
-
+    # Load robust parameters
     rparams_path = f'{res_dir}/[{brun}]Robust_params.dictionary'
-    if os.stat(rparams_path).st_size > 5:       
+    if not os.path.exists(rparams_path) or os.stat(rparams_path).st_size <= 5:
+        logging.error("No robust parameters found")
+        return
         
-        with open(rparams_path, 'rb') as parameters:
-            rob_params = pickle.load(parameters) 
-                
-        #Plot inferred X
-        X_rob = rob_params['infX']
-        pathX = f'{plot_path}/infX'
-        plot_X(X_rob, args, hypers, pathX)
+    with open(rparams_path, 'rb') as f:
+        rob_params = pickle.load(f)
+    
+    # Generate publication plots
+    _plot_ground_truth_components(true_params, plot_path, args, hypers)
+    _plot_inferred_components(rob_params, true_params, plot_path, args, hypers)
+    _plot_factor_comparison(true_params, rob_params, plot_path, args)
+    _plot_subgroup_analysis(true_params, rob_params, plot_path, args)
 
-        # Calculate scores per true component
-        Z_true = true_params['Z']
-        ns = int(Z_true.shape[0]/Z_true.shape[1])
-        scores_true = np.zeros((Z_true.shape[1], Z_true.shape[1]))
-        scores_dist = np.zeros((Z_true.shape[1], Z_true.shape[1], ns))
-        for k in range(Z_true.shape[1]):
-            for s in range(Z_true.shape[1]):
-                scores_true[s,k] = np.mean(np.abs(Z_true[ns*s:ns*(s+1),k]))
-                scores_dist[s,k,:] = np.abs(Z_true[ns*s:ns*(s+1),k])
+def _plot_ground_truth_components(true_params, plot_path, args, hypers):
+    """Plot ground truth components with professional styling."""
+    
+    # Ground truth factor loadings (W)
+    W_true = true_params['W']
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+    
+    Dm = hypers['Dm']
+    d = 0
+    view_names = ['Neuroimaging', 'Cognitive', 'Clinical']
+    
+    for m in range(args.num_sources):
+        W_view = W_true[d:d+Dm[m], :]
+        im = axes[m].imshow(W_view, aspect='auto', cmap='RdBu_r', 
+                           vmin=-np.max(np.abs(W_true)), vmax=np.max(np.abs(W_true)))
+        axes[m].set_title(f'{view_names[m]}\n({Dm[m]} features)', fontweight='bold')
+        axes[m].set_xlabel('Latent Factors')
+        axes[m].set_ylabel('Features')
+        axes[m].set_xticks(range(W_true.shape[1]))
+        axes[m].set_xticklabels([f'F{i+1}' for i in range(W_true.shape[1])])
+        d += Dm[m]
+    
+    # Add colorbar
+    cbar = fig.colorbar(im, ax=axes, fraction=0.02, pad=0.04)
+    cbar.set_label('Loading Weight', rotation=270, labelpad=15)
+    
+    plt.suptitle('Ground Truth Factor Loadings', fontsize=14, fontweight='bold')
+    plt.savefig(f'{plot_path}/publication/ground_truth_loadings.png')
+    plt.savefig(f'{plot_path}/publication/ground_truth_loadings.pdf')
+    plt.close()
+    
+    # Ground truth latent factors (Z)
+    Z_true = true_params['Z']
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    im = ax.imshow(Z_true.T, aspect='auto', cmap='RdBu_r', 
+                   vmin=-np.max(np.abs(Z_true)), vmax=np.max(np.abs(Z_true)))
+    ax.set_xlabel('Subjects')
+    ax.set_ylabel('Latent Factors')
+    ax.set_yticks(range(Z_true.shape[1]))
+    ax.set_yticklabels([f'Factor {i+1}' for i in range(Z_true.shape[1])])
+    ax.set_title('Ground Truth Latent Factor Scores', fontsize=14, fontweight='bold')
+    
+    cbar = fig.colorbar(im, fraction=0.02, pad=0.04)
+    cbar.set_label('Factor Score', rotation=270, labelpad=15)
+    
+    plt.savefig(f'{plot_path}/publication/ground_truth_factors.png')
+    plt.savefig(f'{plot_path}/publication/ground_truth_factors.pdf')
+    plt.close()
 
-        #Create boxplot
-        S1 = [scores_dist[0,i,:] for i in range(Z_true.shape[1])]
-        S2 = [scores_dist[1,i,:] for i in range(Z_true.shape[1])]
-        S3 = [scores_dist[2,i,:] for i in range(Z_true.shape[1])]
-        ticks = [f'Factor {i+1}' for i in range(Z_true.shape[1])]
+def _plot_inferred_components(rob_params, true_params, plot_path, args, hypers):
+    """Plot inferred components with matched ground truth."""
+    
+    Z_inf = rob_params['Z']
+    W_inf = rob_params['W']
+    Z_true = true_params['Z']
+    
+    # Match factors using cosine similarity
+    if Z_inf.shape[1] == Z_true.shape[1]:
+        Z_matched, W_matched = _match_factors(Z_inf, W_inf, Z_true, true_params['W'])
+    else:
+        Z_matched, W_matched = Z_inf, W_inf
+    
+    # Plot matched inferred loadings
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+    
+    Dm = hypers['Dm']
+    d = 0
+    view_names = ['Neuroimaging', 'Cognitive', 'Clinical']
+    
+    for m in range(args.num_sources):
+        W_view = W_matched[d:d+Dm[m], :]
+        im = axes[m].imshow(W_view, aspect='auto', cmap='RdBu_r', 
+                           vmin=-np.max(np.abs(W_matched)), vmax=np.max(np.abs(W_matched)))
+        axes[m].set_title(f'{view_names[m]}\n({Dm[m]} features)', fontweight='bold')
+        axes[m].set_xlabel('Latent Factors')
+        axes[m].set_ylabel('Features')
+        axes[m].set_xticks(range(W_matched.shape[1]))
+        axes[m].set_xticklabels([f'F{i+1}' for i in range(W_matched.shape[1])])
+        d += Dm[m]
+    
+    cbar = fig.colorbar(im, ax=axes, fraction=0.02, pad=0.04)
+    cbar.set_label('Loading Weight', rotation=270, labelpad=15)
+    
+    plt.suptitle('Inferred Factor Loadings', fontsize=14, fontweight='bold')
+    plt.savefig(f'{plot_path}/publication/inferred_loadings.png')
+    plt.savefig(f'{plot_path}/publication/inferred_loadings.pdf')
+    plt.close()
+    
+    # Plot inferred latent factors
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    im = ax.imshow(Z_matched.T, aspect='auto', cmap='RdBu_r', 
+                   vmin=-np.max(np.abs(Z_matched)), vmax=np.max(np.abs(Z_matched)))
+    ax.set_xlabel('Subjects')
+    ax.set_ylabel('Latent Factors')
+    ax.set_yticks(range(Z_matched.shape[1]))
+    ax.set_yticklabels([f'Factor {i+1}' for i in range(Z_matched.shape[1])])
+    ax.set_title('Inferred Latent Factor Scores', fontsize=14, fontweight='bold')
+    
+    cbar = fig.colorbar(im, fraction=0.02, pad=0.04)
+    cbar.set_label('Factor Score', rotation=270, labelpad=15)
+    
+    plt.savefig(f'{plot_path}/publication/inferred_factors.png')
+    plt.savefig(f'{plot_path}/publication/inferred_factors.pdf')
+    plt.close()
 
-        plt.figure(figsize=(6, 5), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 6 * (dpi / 100)
-        S1_plot = plt.boxplot(S1, positions=np.array(np.arange(len(S1)))*2.0-0.6, widths=0.5)
-        S2_plot = plt.boxplot(S2, positions=np.array(np.arange(len(S2)))*2.0, widths=0.5)
-        S3_plot = plt.boxplot(S3, positions=np.array(np.arange(len(S3)))*2.0+0.6, widths=0.5)
+def _match_factors(Z_inf, W_inf, Z_true, W_true):
+    """Match inferred factors to ground truth using cosine similarity."""
+    sim_matrix = cosine_similarity(Z_true.T, Z_inf.T)
+    
+    Z_matched = np.zeros_like(Z_true)
+    W_matched = np.zeros_like(W_true)
+    
+    for k in range(Z_true.shape[1]):
+        best_match = np.argmax(np.abs(sim_matrix[k, :]))
+        if sim_matrix[k, best_match] > 0:
+            Z_matched[:, k] = Z_inf[:, best_match]
+            W_matched[:, k] = W_inf[:, best_match]
+        else:
+            Z_matched[:, k] = -Z_inf[:, best_match]
+            W_matched[:, k] = -W_inf[:, best_match]
+    
+    return Z_matched, W_matched
+
+def _plot_factor_comparison(true_params, rob_params, plot_path, args):
+    """Create factor correlation and reconstruction plots."""
+    
+    Z_true = true_params['Z']
+    Z_inf = rob_params['Z']
+    
+    if Z_inf.shape[1] != Z_true.shape[1]:
+        logging.warning("Cannot compare factors: different number of components")
+        return
+    
+    Z_matched, _ = _match_factors(Z_inf, rob_params['W'], Z_true, true_params['W'])
+    
+    # Factor correlation plot
+    fig, axes = plt.subplots(1, Z_true.shape[1], figsize=(12, 3))
+    if Z_true.shape[1] == 1:
+        axes = [axes]
+    
+    for k in range(Z_true.shape[1]):
+        r = np.corrcoef(Z_true[:, k], Z_matched[:, k])[0, 1]
+        axes[k].scatter(Z_true[:, k], Z_matched[:, k], alpha=0.6, 
+                       color=COLORS['primary'], s=20)
+        axes[k].plot([Z_true[:, k].min(), Z_true[:, k].max()], 
+                    [Z_true[:, k].min(), Z_true[:, k].max()], 
+                    '--', color=COLORS['secondary'], alpha=0.8, linewidth=2)
+        axes[k].set_xlabel('True Factor Scores')
+        axes[k].set_ylabel('Inferred Factor Scores')
+        axes[k].set_title(f'Factor {k+1}\nr = {r:.3f}', fontweight='bold')
+        axes[k].grid(True, alpha=0.3)
+    
+    plt.suptitle('Factor Recovery Performance', fontsize=14, fontweight='bold')
+    plt.savefig(f'{plot_path}/publication/factor_correlation.png')
+    plt.savefig(f'{plot_path}/publication/factor_correlation.pdf')
+    plt.close()
+
+def _plot_subgroup_analysis(true_params, rob_params, plot_path, args):
+    """Analyze subgroup-specific factor patterns."""
+    
+    Z_true = true_params['Z']
+    Z_inf = rob_params['Z']
+    
+    if Z_inf.shape[1] != Z_true.shape[1]:
+        return
+    
+    Z_matched, _ = _match_factors(Z_inf, rob_params['W'], Z_true, true_params['W'])
+    
+    # Assuming 3 equal-sized groups as in synthetic data
+    N = Z_true.shape[0]
+    group_size = N // 3
+    group_labels = ['Group 1', 'Group 2', 'Group 3']
+    
+    # Calculate group-specific factor scores
+    fig, axes = plt.subplots(2, Z_true.shape[1], figsize=(12, 8))
+    
+    for k in range(Z_true.shape[1]):
+        # True scores by group
+        for g in range(3):
+            start_idx = g * group_size
+            end_idx = (g + 1) * group_size if g < 2 else N
+            
+            true_scores = np.abs(Z_true[start_idx:end_idx, k])
+            inf_scores = np.abs(Z_matched[start_idx:end_idx, k])
+            
+            axes[0, k].boxplot([true_scores], positions=[g], widths=0.6,
+                             patch_artist=True, 
+                             boxprops=dict(facecolor=COLORS['groups'][g], alpha=0.7))
+            axes[1, k].boxplot([inf_scores], positions=[g], widths=0.6,
+                             patch_artist=True,
+                             boxprops=dict(facecolor=COLORS['groups'][g], alpha=0.7))
         
-        # setting colors for each groups
-        define_box_properties(S1_plot, '#fdbb84', 'Group 1')
-        define_box_properties(S2_plot, '#2b8cbe', 'Group 2')
-        define_box_properties(S3_plot, '#99d8c9', 'Group 3')
-        plt.xticks(np.arange(0, len(ticks) * 2, 2), ticks,fontsize=0.85*fontsize); plt.xlim(-2, len(ticks)*2)
-        plt.yticks(fontsize=0.85*fontsize); plt.ylabel('Absolute latent scores', fontsize=fontsize)
-        plt.legend(fontsize=0.85*fontsize)
-        plt.savefig(f'{plot_path}/trueSubtype_scores_boxplot.png')
-        plt.savefig(f'{plot_path}/svgs/trueSubtype_scores_boxplot.svg'); plt.close()
-
-        # Plot percentage of subtype representation in each component (True)
-        total_scores = np.sum(scores_true,axis=0)
-        x = np.arange(scores_true.shape[1])
-        colors = ['#fdbb84', '#2b8cbe', '#99d8c9']; height=0.3; b_diff = -height
-        plt.figure(figsize=(6, 5), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 6 * (dpi / 100)
-        for s in range(scores_true.shape[0]):
-            plt.barh(x+b_diff, width=scores_true[s,:]/total_scores, height=height, color=colors[s])
-            b_diff += height
-        plt.yticks(x, [f'{i+1}' for i in range(Z_true.shape[1])], fontsize=0.8*fontsize)
-        plt.xlim([0,1]); plt.xticks(fontsize=0.85*fontsize)
-        plt.ylabel('Factors', fontsize=fontsize); plt.xlabel('Factor contributions',fontsize=fontsize)
-        plt.legend(['Group 1','Group 2','Group 3'], fontsize=0.85*fontsize)
-        plt.savefig(f'{plot_path}/trueSubtype_scores.png')
-        plt.savefig(f'{plot_path}/svgs/trueSubtype_scores.svg'); plt.close()
-
-        #Match factors
-        Z_tmp = rob_params['Z']
-        W_tmp = rob_params['W']
-        new_comps = []
-        if Z_tmp.shape[1] == Z_true.shape[1]:
-            Z_inf = np.zeros((Z_true.shape[0], Z_true.shape[1]))
-            W_inf = np.zeros((W_tmp.shape[0], W_tmp.shape[1]))
-            sim_matrix = cosine_similarity(Z_true.T, Z_tmp.T)
-            for k1 in range(Z_true.shape[1]):
-                maxsim = np.argmax(np.abs(sim_matrix[k1,:]))
-                new_comps.append(int(maxsim))
-                if sim_matrix[k1, maxsim] > 0:
-                    Z_inf[:,k1] = Z_tmp[:,maxsim]
-                    W_inf[:,k1] = W_tmp[:,maxsim]
-                else:       
-                    Z_inf[:,k1] = -Z_tmp[:,maxsim]
-                    W_inf[:,k1] = -W_tmp[:,maxsim]
-            rob_params['Z'] = Z_inf
-            rob_params['W'] = W_inf
-        else:     
-            Z_inf = rob_params['Z']
-
-        # Calculate scores per inferred component
-        scores_inf = np.zeros((Z_true.shape[1], Z_inf.shape[1]))
-        scores_dist = np.zeros((Z_true.shape[1], Z_inf.shape[1], ns))
-        for k in range(Z_inf.shape[1]):
-            for s in range(Z_true.shape[1]):
-                scores_inf[s,k] = np.mean(np.abs(Z_inf[ns*s:ns*(s+1),k]))
-                scores_dist[s,k,:] = np.abs(Z_inf[ns*s:ns*(s+1),k])
+        axes[0, k].set_title(f'Factor {k+1}', fontweight='bold')
+        axes[0, k].set_ylabel('True |Factor Score|')
+        axes[1, k].set_ylabel('Inferred |Factor Score|')
+        axes[1, k].set_xlabel('Subgroups')
         
-        #Create boxplot
-        S1 = [scores_dist[0,i,:] for i in range(Z_inf.shape[1])]
-        S2 = [scores_dist[1,i,:] for i in range(Z_inf.shape[1])]
-        S3 = [scores_dist[2,i,:] for i in range(Z_inf.shape[1])]
-        ticks = [f'Factor {i+1}' for i in range(Z_inf.shape[1])]
-
-        plt.figure(figsize=(6, 4.5), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 6 * (dpi / 100)
-        S1_plot = plt.boxplot(S1, positions=np.array(np.arange(len(S1)))*2.0-0.6, widths=0.5)
-        S2_plot = plt.boxplot(S2, positions=np.array(np.arange(len(S2)))*2.0, widths=0.5)
-        S3_plot = plt.boxplot(S3, positions=np.array(np.arange(len(S3)))*2.0+0.6, widths=0.5)
-        
-        # setting colors for each groups
-        define_box_properties(S1_plot, '#fdbb84', 'Group 1')
-        define_box_properties(S2_plot, '#2b8cbe', 'Group 2')
-        define_box_properties(S3_plot, '#99d8c9', 'Group 3')
-        plt.xticks(np.arange(0, len(ticks) * 2, 2), ticks,fontsize=0.85*fontsize); plt.xlim(-2, len(ticks)*2)
-        plt.yticks(fontsize=0.85*fontsize); plt.ylabel('Absolute latent scores', fontsize=fontsize)
-        plt.legend(fontsize=0.85*fontsize)
-        plt.savefig(f'{plot_path}/infSubtype_scores_boxplot.png')
-        plt.savefig(f'{plot_path}/svgs/infSubtype_scores_boxplot.svg'); plt.close()
-        
-        # Plot percentage of subtype representation in each component (Inferred)
-        total_scores = np.sum(scores_inf,axis=0)
-        x = np.arange(scores_inf.shape[1])
-        colors = ['#fdbb84', '#2b8cbe', '#99d8c9']; width=0.2; height=0.3;b_diff = -width
-        plt.figure(figsize=(7, 6), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 7 * (dpi / 100)
-        for s in range(scores_inf.shape[0]):
-            plt.barh(x+b_diff, width=scores_inf[s,:]/total_scores, height=height, color=colors[s])
-            b_diff += height
-        plt.yticks(x, [f'{i+1}' for i in range(Z_inf.shape[1])], fontsize=0.8*fontsize)
-        plt.xlim([0,1]); plt.xticks(fontsize=0.8*fontsize)
-        plt.ylabel('Factors', fontsize=fontsize); plt.xlabel('Factor contributions',fontsize=fontsize)
-        plt.legend(['Group 1','Group 2','Group 3'], fontsize=0.9*fontsize)
-        plt.savefig(f'{plot_path}/infSubtype_scores.png')
-        plt.savefig(f'{plot_path}/svgs/infSubtype_scores.svg'); plt.close()
-
-        #Dictionary with paths to plot the parameters
-        inf_paths = {
-            'W': f'{plot_path}/infW',
-            'lmbW': f'{plot_path}/inflmbW',
-            'cW': f'{plot_path}/infcW',
-            'tauW': f'{plot_path}/inftauW',
-            'sigma': f'{plot_path}/infsigma',
-            'Z': f'{plot_path}/infZ',
-            'Z_svg': f'{plot_path}/svgs/infZ',
-            'tauZ': f'{plot_path}/inftauZ',
-            'lmbZ': f'{plot_path}/inflmbZ',
-            'cZ': f'{plot_path}/infcZ'}
-        
-        #Plot inferred parameters                                                   
-        plot_param(rob_params, inf_paths, args, cids=None, tr_vals=true_params)              
+        for ax in axes[:, k]:
+            ax.set_xticks(range(3))
+            ax.set_xticklabels(group_labels)
+            ax.grid(True, alpha=0.3)
+    
+    axes[0, 0].set_ylabel('True |Factor Score|')
+    axes[1, 0].set_ylabel('Inferred |Factor Score|')
+    
+    plt.suptitle('Subgroup-Specific Factor Analysis', fontsize=14, fontweight='bold')
+    plt.savefig(f'{plot_path}/publication/subgroup_analysis.png')
+    plt.savefig(f'{plot_path}/publication/subgroup_analysis.pdf')
+    plt.close()
 
 def find_bestrun(res_dir, args, ofile):
+    """Find the best run based on log density."""
+    exp_logs = np.full(args.num_runs, np.nan)
     
-    # Find the best run
-    exp_logs = np.nan * np.ones((1, args.num_runs))
     for r in range(args.num_runs):
         res_path = f'{res_dir}/[{r+1}]Model_params.dictionary'
-        if os.stat(res_path).st_size > 5:
-            with open(res_path, 'rb') as parameters:
-                mcmc_samples = pickle.load(parameters)
-
-            #get expected log joint density
-            exp_logs[0,r] = mcmc_samples['exp_logdensity']
-            print('Run: ', r + 1, file=ofile)
-            print('MCMC elapsed time: {:.2f} h'.format(
-                mcmc_samples['time_elapsed']/60), file=ofile)
-
-            print('Expected log joint density: {:.2f}\n'.format(
-                exp_logs[0,r]), file=ofile)             
-        else:
-            print('The model output file is empty!')
-            logging.error('The model output file is empty!')
-            sys.exit(1)
-    return exp_logs, ofile    
-
-def plot_components(params, top, ids_var, path):
-
-    #Plot components for GENFI
-    X = params['infX']
-    N = params['Z'].shape[0]
-    data_dir = '../data/GENFI'
-    df_subjs = pd.read_csv(f'{data_dir}/visit11_data_{N}subjs.csv')
-    ids = list(df_subjs['Blinded Code'])
-    subtype_labels = df_subjs["Genetic Group"]
-    df_var = pd.read_csv(f'{data_dir}/var_labels.csv')
-
-    #subtype colors
-    colors = ['#fdbb84', '#2b8cbe', '#99d8c9']
-    subtype_lut = dict(zip(subtype_labels.unique(), colors))
-    subtype_colors = subtype_labels.map(subtype_lut)
-    subtype_colors.name = ''      
-    
-    #feature colors
-    view_labels = df_var['view']
-    view_lut = dict(zip(view_labels.unique(), ['#993404', '#fec44f']))
-    view_colors = [view_labels.map(view_lut)]
-    var_labels = list(df_var['new_labels'])
-
-    Z = params['Z']
-    Z = Z[:, ids_var]
-    lcomps = [f'Factor {k+1}' for k in range(Z.shape[1])]
-    
-    # Plot clustermap all comps
-    df_Z = pd.DataFrame(Z, columns = lcomps)
-    cm = sns.clustermap(df_Z, 
-                    vmin=np.min(Z), 
-                    vmax=np.max(Z), 
-                    cmap="vlag", 
-                    center=0.00,
-                    row_colors=subtype_colors,
-                    row_cluster=False,
-                    col_cluster=False,
-                    xticklabels=True,
-                    yticklabels=False,
-                    figsize=(7.5,5)
-                    )                   
-    for label in subtype_labels.unique():
-        cm.ax_row_dendrogram.bar(0, 0, color=subtype_lut[label], label=label, linewidth=0)   
-    cm.ax_row_dendrogram.legend(loc="center", ncol=1, bbox_transform=gcf().transFigure) 
-    cm.ax_row_dendrogram.legend(title='Genetic group', loc="center", ncol=1, bbox_transform=gcf().transFigure)   
-    plt.savefig(f'{path}/infZ_ord.png')
-    plt.savefig(f'{path}/svgs/infZ_ord.svg')
-    plt.close()
-
-    # Plot clustermap top comps
-    df_Z = pd.DataFrame(Z[:,:top], columns = lcomps[:top])
-    cm = sns.clustermap(df_Z, 
-                    vmin=np.min(Z[:,:top]), 
-                    vmax=np.max(Z[:,:top]), 
-                    cmap="vlag", 
-                    center=0.00,
-                    row_colors=subtype_colors,
-                    row_cluster=False,
-                    col_cluster=False,
-                    xticklabels=True,
-                    yticklabels=False,
-                    figsize=(6,4.5)
-                    )                   
-    for label in subtype_labels.unique():
-        cm.ax_row_dendrogram.bar(0, 0, color=subtype_lut[label], label=label, linewidth=0)   
-    cm.ax_row_dendrogram.legend(loc="center", ncol=1, bbox_transform=gcf().transFigure) 
-    cm.ax_row_dendrogram.legend(title='Genetic group', loc="center", ncol=1, bbox_transform=gcf().transFigure)
-    plt.savefig(f'{path}/infZ_ord_top.png')
-    plt.savefig(f'{path}/svgs/infZ_ord_top.svg')
-    plt.close()
-
-    nsubt = [sum(['C9ORF' in x for x in ids]),
-            sum(['GRN' in x for x in ids]),
-            sum(['MAPT' in x for x in ids])]  
-    subtype_scores = np.zeros((len(nsubt), len(X)))
-    scores_dict = {'s1': np.zeros((nsubt[0], len(X))),
-                's2': np.zeros((nsubt[1], len(X))),
-                's3': np.zeros((nsubt[2], len(X)))}
-    
-    for k in range(len(X)):
-        z_k = Z[:,k]
-            
-        #Subtypes
-        ns = 0
-        for s in range(len(nsubt)):
-            z = z_k[ns:ns+nsubt[s]]
-            subtype_scores[s,k] = np.mean(np.abs(z))
-            scores_dict[f's{s+1}'][:,k] = np.abs(z)
-            ns += nsubt[s]
-
-    for k in range(top):
-        z_k = Z[:,k]
-        df_X = pd.DataFrame(X[ids_var[k]][0], columns = var_labels) 
-
-        #Individual scores (clustermap)
-        df_Z = pd.DataFrame(z_k, columns = [f'Factor {k+1}'])
-        cm = sns.clustermap(df_Z, 
-                        vmin=np.min(Z), 
-                        vmax=np.max(Z), 
-                        cmap="vlag", 
-                        center=0.00,
-                        row_colors=subtype_colors,
-                        row_cluster=False,
-                        col_cluster=False,
-                        xticklabels=True,
-                        yticklabels=False,
-                        figsize=(2.5,5)
-                        )                   
-        for label in subtype_labels.unique():
-            cm.ax_col_dendrogram.bar(0, 0, color=subtype_lut[label], label=label, linewidth=0)   
-        cm.ax_col_dendrogram.legend(loc="center", ncol=1, bbox_transform=gcf().transFigure) 
-        cm.ax_col_dendrogram.legend(title='Genetic group', loc="center", fontsize=8, ncol=1, bbox_transform=gcf().transFigure)   
-        plt.savefig(f'{path}/infZ_clustermap_comp{k+1}.png', dpi=300) 
-        plt.savefig(f'{path}/svgs/infZ_clustermap_comp{k+1}.svg') 
-        plt.close()
-
-        # Plot components on data space
-        cm = sns.clustermap(df_X.T, 
-                vmin=np.min(X[ids_var[k]][0]), 
-                vmax=np.max(X[ids_var[k]][0]), 
-                cmap="vlag", 
-                center=0.00,
-                row_colors=view_colors,
-                col_colors=subtype_colors,
-                row_cluster=True,
-                col_cluster=True,
-                xticklabels=False,
-                yticklabels=True,
-                figsize=(11.5,11.5)
-                )                   
-        for label in subtype_labels.unique():
-            cm.ax_col_dendrogram.bar(0, 0, color=subtype_lut[label], label=label, linewidth=0)   
-        cm.ax_col_dendrogram.legend(loc="center", ncol=1, bbox_transform=gcf().transFigure)  
-        cm.ax_col_dendrogram.legend(title='Genetic Group', loc="center", ncol=1, bbox_transform=gcf().transFigure)   
-
-        for label in view_labels.unique():
-            cm.ax_row_dendrogram.bar(0, 0, color=view_lut[label], label=label, linewidth=0)   
-        cm.ax_row_dendrogram.legend(title='Modality',loc="upper left", ncol=1, bbox_transform=gcf().transFigure)            
-        plt.savefig(f'{path}/infX_comp{k+1}.png', dpi=300)
-        plt.savefig(f'{path}/svgs/infX_comp{k+1}.svg')
-        plt.close()
-    
-    return subtype_scores, scores_dict     
-
-def plot_param(params, paths, args, cids=None, tr_vals=False):
-    
-    lcomps = list(range(1, params['W'].shape[1]+1))
-    #plot W
-    if 'W' in params:
-        W = params['W']
-        pathW = paths['W']
-        sns.heatmap(W, vmin=-np.max(np.abs(W)), vmax=np.max(np.abs(W)), cmap="vlag", 
-                    yticklabels=False, xticklabels=list(map(str, lcomps)))
-        plt.xlabel('Factors', fontsize=11); plt.ylabel('D', fontsize=11) 
-        plt.title('Loading matrices (W)', fontsize=12)                
-        plt.savefig(f'{pathW}.png', dpi=200); plt.close()
-    
-    #plot lambda W
-    if 'lmbW' in params:
-        if cids is not None:
-            lmbW = params['lmbW'][:,cids]
-        else:
-            lmbW = params['lmbW']
-        pathlmbW = paths['lmbW'] 
-        sns.heatmap(lmbW, vmin=-np.max(np.abs(lmbW)), vmax=np.max(np.abs(lmbW)), cmap="vlag", 
-                    yticklabels=False, xticklabels=list(map(str, lcomps)))
-        plt.xlabel('Factors'); plt.ylabel('D')  
-        plt.savefig(f'{pathlmbW}.png'); plt.close()
-    
-    #plot Z
-    if 'Z' in params:
-        Z = params['Z']
-        pathZ = paths['Z']
-        pathZ_svg = paths['Z_svg']
-        plt.figure(figsize=(6, 5), dpi=300)
-        dpi = plt.gcf().get_dpi()
-        fontsize = 6 * (dpi / 100)
-        sns.heatmap(Z, vmin=-np.max(np.abs(Z)), vmax=np.max(np.abs(Z)), cmap="vlag", 
-                    yticklabels=False, xticklabels=list(map(str, lcomps)))     
-        plt.xlabel('Factors', fontsize=fontsize); plt.ylabel('Latent variables', fontsize=fontsize) 
-        plt.xticks(fontsize=0.85*fontsize) 
-        plt.savefig(f'{pathZ}.png')
-        plt.savefig(f'{pathZ_svg}.svg'); plt.close()
-    
-    #plot lambda Z
-    if 'lmbZ' in params:
-        if cids is not None:
-            lmbZ = params['lmbZ'][:,cids]
-        else:
-            lmbZ = params['lmbZ']
-        pathlmbZ = paths['lmbZ'] 
-        sns.heatmap(lmbZ, vmin=-np.max(np.abs(lmbZ)), vmax=np.max(np.abs(lmbZ)), cmap="vlag", 
-                    yticklabels=False, xticklabels=list(map(str, lcomps)))
-        plt.xlabel('Factors'); plt.ylabel('Training samples')
-        plt.savefig(f'{pathlmbZ}.png'); plt.close()
-    
-    #plot tau W
-    if 'tauW_inf' in params:
-        tau = params['tauW_inf']
-        pathtau = paths['tauW']
-        f, axes = plt.subplots(args.num_sources, 1, figsize=(8,6), constrained_layout=True)
-        f.subplots_adjust(hspace=0.5, wspace=0.2)
-        for m, ax in zip(range(args.num_sources), axes.flat):
-            sns.histplot(tau[:,m], ax=ax, color='#2b8cbe')
-            if 'synthetic' in args.dataset:
-                ax.axvline(x=tr_vals['tauW'][0,m], color='red')
-            ax.set_title(f'View {m+1}'); ax.set_ylabel('Number of samples')
-        plt.savefig(f'{pathtau}.png'); plt.close()                        
-    
-    #Plot sigmas
-    if 'sigma_inf' in params:
-        sigma = params['sigma_inf']
-        pathsig = paths['sigma']
-        f, axes = plt.subplots(args.num_sources, 1, figsize=(8,6), constrained_layout=True)
-        f.subplots_adjust(hspace=0.5, wspace=0.2)
-        for m, ax in zip(range(args.num_sources), axes.flat):
-            sns.histplot(sigma[:,m], ax=ax, color='#2b8cbe')
-            if 'synthetic' in args.dataset:
-                ax.axvline(x=tr_vals['sigma'][m], color='red')
-            ax.set_title(f'View {m+1}'); ax.set_ylabel('Number of samples')
-        plt.savefig(f'{pathsig}.png'); plt.close()         
-
-def plot_X(data, args, hypers, path, true_data=False):
-    
-    if true_data:
-        X = np.dot(data['Z'], data['W'].T)
-        K = data['Z'].shape[1]
-    else:    
-        X = np.zeros((data[0][0].shape[0], data[0][0].shape[1]))
-        K = len(data)
-    for k in range(K):
-        if true_data:
-            z = np.reshape(data['Z'][:,k], (data['Z'].shape[0], 1)) 
-            w = np.reshape(data['W'][:,k], (data['W'].shape[0], 1))
-            X_k = np.dot(z,w.T)
-        else:
-            X_k = data[k][0]    
-            X += X_k
-        fig, axes = plt.subplots(ncols=args.num_sources, constrained_layout=True)
-        # removed: subplots_adjust (using default or constrained layout)
-        Dm = hypers['Dm']; d = 0
-        for m in range(args.num_sources):
-            if m < args.num_sources - 1:
-                sns.heatmap(X_k[:,d:d+Dm[m]], 
-                        vmin=np.min(X_k), 
-                        vmax=np.max(X_k), 
-                        cmap="vlag", 
-                        ax=axes[m],
-                        cbar=False,
-                        xticklabels=False,
-                        yticklabels=False)    
-            else:
-                sns.heatmap(X_k[:,d:d+Dm[m]], 
-                        vmin=np.min(X_k), 
-                        vmax=np.max(X_k), 
-                        cmap="vlag",  
-                        ax=axes[m],
-                        cbar=True,
-                        xticklabels=False,
-                        yticklabels=False)                  
-            d += Dm[m]
-        plt.title(f'Factor {k+1} (Input space)')                 
-        plt.savefig(f'{path}_comp{k+1}.png'); plt.close() 
-    
-    #Plot X 
-    plt.figure()    
-    sns.heatmap(X, 
-                vmin=np.min(X), 
-                vmax=np.max(X), 
-                cmap="vlag", 
-                xticklabels=False,
-                yticklabels=False)
-    plt.xlabel('D'); plt.ylabel('N')                    
-    plt.savefig(f'{path}.png'); plt.close()
-
-def define_box_properties(plot_name, color_code, label):
-    for k, v in plot_name.items():
-        plt.setp(plot_name.get(k), color=color_code)  
-    # use plot function to draw a small line to name the legend.
-    plt.plot([], c=color_code, label=label)
-    plt.legend()
-
-
-# === qMAP-PD multi-view visualizations ===
-def _split_W_by_views(W, Dm, view_names):
-    """Split stacked W (D,K) into per-view blocks [(vname, Wv)]."""
-    parts, d = [], 0
-    for m, vname in enumerate(view_names):
-        Wv = W[d:d+Dm[m], :]
-        parts.append((vname, Wv))
-        d += Dm[m]
-    return parts
-
-def _plot_topk_bar_matrix(Wv, feature_names, vname, topk=20):
-    """Bar plots of top-|w| features per component for one view."""
-    n_feat, n_comp = Wv.shape
-    topk = min(topk, n_feat)
-    fig = plt.figure(figsize=(10, max(3, 1.2 * n_comp)))
-    # removed: subplots_adjust (using default or constrained layout)
-    for j in range(n_comp):
-        ax = fig.add_subplot(n_comp, 1, j + 1)
-        w = Wv[:, j]
-        idx = np.argsort(np.abs(w))[::-1][:topk]
-        ax.bar(range(topk), w[idx])
-        ax.set_xticks(range(topk))
-        ax.set_xticklabels([feature_names[i] for i in idx], rotation=60, ha="right")
-        ax.axhline(0, lw=0.8, color="#999999")
-        ax.set_ylabel(f"C{j+1}")
-        if j == 0:
-            ax.set_title(f"{vname} — top-{topk} |w|")
-    return fig
+        if os.path.exists(res_path) and os.stat(res_path).st_size > 5:
+            try:
+                with open(res_path, 'rb') as f:
+                    mcmc_samples = pickle.load(f)
+                exp_logs[r] = mcmc_samples['exp_logdensity']
+                print(f'Run {r+1}: Log density = {exp_logs[r]:.2f}', file=ofile)
+            except Exception as e:
+                logging.warning(f"Could not load run {r+1}: {e}")
+        
+    return exp_logs, ofile
 
 def qmap_pd(data, res_dir, args, hypers, topk=20):
     """
-    Multi-view plotting for qMAP-PD runs.
-    Expects:
-      - data: dict from qmap_pd loader (view_names, feature_names, subject_ids)
-      - hypers: contains Dm (list of feature counts per view)
-    Produces:
-      - per-view bar plots (PNG+SVG)
-      - subject score heatmap (PNG+SVG)
+    Create publication-ready plots for qMAP-PD multi-view analysis.
     """
-    # choose best run (reuse your helper)
-    ofile = open(f"{res_dir}/results.txt", "w")
-    exp_logs, ofile = find_bestrun(res_dir, args, ofile)
-    brun = int(np.nanargmax(exp_logs) + 1)
-    print("Best run: ", brun, file=ofile)
-    ofile.close()
+    # Find best run
+    with open(f"{res_dir}/results.txt", "w") as ofile:
+        exp_logs, _ = find_bestrun(res_dir, args, ofile)
+        brun = int(np.nanargmax(exp_logs) + 1)
+        print(f"Best run: {brun}", file=ofile)
 
-    # plot dir
+    # Create directories
     plot_path = f"{res_dir}/plots_{brun}"
     os.makedirs(plot_path, exist_ok=True)
-    os.makedirs(f"{plot_path}/svgs", exist_ok=True)
+    os.makedirs(f"{plot_path}/publication", exist_ok=True)
 
-    # prefer robust params, fallback to model samples mean
+    # Load results
+    W, Z = _load_results(res_dir, brun)
+    if W is None or Z is None:
+        raise RuntimeError("Could not load W/Z from results")
+
+    # Extract data info
+    Dm = np.array(hypers["Dm"], dtype=int)
+    view_names = data.get("view_names", [f"View {i+1}" for i in range(len(Dm))])
+    feat_names = data.get("feature_names", {})
+    sub_ids = data.get("subject_ids", None)
+
+    # Generate publication plots
+    _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk)
+    _plot_subject_scores(Z, sub_ids, plot_path)
+    _plot_component_summary(W, Z, Dm, view_names, plot_path)
+
+def _load_results(res_dir, brun):
+    """Load W and Z matrices from results."""
     rob_path = f"{res_dir}/[{brun}]Robust_params.dictionary"
     mdl_path = f"{res_dir}/[{brun}]Model_params.dictionary"
 
-    W = Z = None
+    # Try robust parameters first
     if os.path.exists(rob_path) and os.stat(rob_path).st_size > 5:
         with open(rob_path, "rb") as f:
             rp = pickle.load(f)
-        W, Z = rp.get("W"), rp.get("Z")
+        return rp.get("W"), rp.get("Z")
 
-    if (W is None or Z is None) and os.path.exists(mdl_path) and os.stat(mdl_path).st_size > 5:
+    # Fallback to model samples
+    if os.path.exists(mdl_path) and os.stat(mdl_path).st_size > 5:
         with open(mdl_path, "rb") as f:
             smp = pickle.load(f)
         W = np.asarray(smp["W"])
         Z = np.asarray(smp["Z"])
         if W.ndim > 2: W = W.mean(axis=0)
         if Z.ndim > 2: Z = Z.mean(axis=0)
+        return W, Z
 
-    if W is None or Z is None:
-        raise RuntimeError("Could not load W/Z from results — make sure inference finished.")
+    return None, None
 
-    # split W per view and plot
-    Dm = np.array(hypers["Dm"], dtype=int)
-    view_names = data.get("view_names", [f"view{i}" for i in range(len(Dm))])
-    feat_names = data.get("feature_names", {})
-    sub_ids = data.get("subject_ids", None)
+def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
+    """Create professional loading plots for each view."""
+    d = 0
+    
+    for m, (vname, dim) in enumerate(zip(view_names, Dm)):
+        Wv = W[d:d+dim, :]
+        features = feat_names.get(vname, [f"Feature {i+1}" for i in range(dim)])
+        
+        # Create figure with subplots for each component
+        n_comp = Wv.shape[1]
+        fig, axes = plt.subplots(n_comp, 1, figsize=(10, 2*n_comp))
+        if n_comp == 1:
+            axes = [axes]
+        
+        for j in range(n_comp):
+            w = Wv[:, j]
+            # Get top features by absolute weight
+            top_idx = np.argsort(np.abs(w))[::-1][:topk]
+            top_weights = w[top_idx]
+            top_features = [features[i] for i in top_idx]
+            
+            # Create horizontal bar plot
+            colors = [COLORS['primary'] if x >= 0 else COLORS['secondary'] for x in top_weights]
+            bars = axes[j].barh(range(len(top_weights)), top_weights, color=colors, alpha=0.8)
+            
+            axes[j].set_yticks(range(len(top_weights)))
+            axes[j].set_yticklabels(top_features, fontsize=8)
+            axes[j].set_xlabel('Loading Weight')
+            axes[j].set_title(f'Component {j+1}', fontweight='bold')
+            axes[j].axvline(0, color='black', linewidth=0.8)
+            axes[j].grid(True, alpha=0.3, axis='x')
+            
+            # Invert y-axis so highest weights are at top
+            axes[j].invert_yaxis()
+        
+        plt.suptitle(f'{vname} - Top {topk} Features by |Loading Weight|', 
+                    fontsize=14, fontweight='bold')
+        plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.png")
+        plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.pdf")
+        plt.close()
+        
+        d += dim
 
-    # Per-view: top‑k bar plots
-    for vname, Wv in _split_W_by_views(W, Dm, view_names):
-        feats = feat_names.get(vname, [f"f{i}" for i in range(Wv.shape[0])])
-        fig = _plot_topk_bar_matrix(Wv, feats, vname, topk=topk)
-        fig.savefig(f"{plot_path}/bar_{vname}.png", dpi=200, bbox_inches="tight")
-        fig.savefig(f"{plot_path}/svgs/bar_{vname}.svg", bbox_inches="tight")
-        plt.close(fig)
-
-    # Scores heatmap (Z)
-    plt.figure(figsize=(8, 5), dpi=300)
-    sns.heatmap(Z, vmin=-np.max(np.abs(Z)), vmax=np.max(np.abs(Z)),
-                cmap="vlag", yticklabels=False, xticklabels=[f"C{i+1}" for i in range(Z.shape[1])])
-    plt.xlabel("Components"); plt.ylabel("Subjects")
-    plt.title("Subject scores (Z)")
-    if sub_ids is not None and len(sub_ids) == Z.shape[0] and len(sub_ids) <= 100:
-        ax = plt.gca()
-        ax.set_yticks(range(len(sub_ids)))
-        ax.set_yticklabels(sub_ids, fontsize=8)
-    plt.savefig(f"{plot_path}/scores_heatmap.png", bbox_inches="tight")
-    plt.savefig(f"{plot_path}/svgs/scores_heatmap.svg", bbox_inches="tight")
+def _plot_subject_scores(Z, sub_ids, plot_path):
+    """Create professional subject scores heatmap."""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Create heatmap
+    im = ax.imshow(Z.T, aspect='auto', cmap='RdBu_r', 
+                   vmin=-np.max(np.abs(Z)), vmax=np.max(np.abs(Z)))
+    
+    # Labels and formatting
+    ax.set_xlabel('Subjects')
+    ax.set_ylabel('Components')
+    ax.set_yticks(range(Z.shape[1]))
+    ax.set_yticklabels([f'C{i+1}' for i in range(Z.shape[1])])
+    ax.set_title('Subject Component Scores', fontsize=14, fontweight='bold')
+    
+    # Add subject IDs if reasonable number
+    if sub_ids is not None and len(sub_ids) <= 50:
+        ax.set_xticks(range(0, len(sub_ids), max(1, len(sub_ids)//10)))
+        ax.set_xticklabels([sub_ids[i] for i in range(0, len(sub_ids), max(1, len(sub_ids)//10))], 
+                          rotation=45, ha='right', fontsize=8)
+    
+    # Colorbar
+    cbar = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.04)
+    cbar.set_label('Component Score', rotation=270, labelpad=15)
+    
+    plt.savefig(f"{plot_path}/publication/subject_scores.png")
+    plt.savefig(f"{plot_path}/publication/subject_scores.pdf")
     plt.close()
+
+def _plot_component_summary(W, Z, Dm, view_names, plot_path):
+    """Create component summary visualization."""
+    n_comp = W.shape[1]
+    fig, axes = plt.subplots(2, n_comp, figsize=(3*n_comp, 8))
+    
+    if n_comp == 1:
+        axes = axes.reshape(-1, 1)
+    
+    d = 0
+    colors = COLORS['groups'][:len(view_names)]
+    
+    for j in range(n_comp):
+        # Top panel: View-wise loading magnitudes
+        view_magnitudes = []
+        for m, dim in enumerate(Dm):
+            Wv = W[d:d+dim, j]
+            view_magnitudes.append(np.mean(np.abs(Wv)))
+            d_temp = d + dim if m < len(Dm)-1 else d + dim
+            d = d_temp if m == len(Dm)-1 else d
+        d = 0
+        
+        bars = axes[0, j].bar(range(len(view_names)), view_magnitudes, 
+                             color=colors, alpha=0.8)
+        axes[0, j].set_xticks(range(len(view_names)))
+        axes[0, j].set_xticklabels(view_names, rotation=45, ha='right')
+        axes[0, j].set_ylabel('Mean |Loading|')
+        axes[0, j].set_title(f'Component {j+1}', fontweight='bold')
+        axes[0, j].grid(True, alpha=0.3, axis='y')
+        
+        # Bottom panel: Subject score distribution
+        axes[1, j].hist(Z[:, j], bins=20, color=COLORS['primary'], alpha=0.7, density=True)
+        axes[1, j].axvline(0, color='black', linestyle='--', alpha=0.8)
+        axes[1, j].set_xlabel('Component Score')
+        axes[1, j].set_ylabel('Density')
+        axes[1, j].grid(True, alpha=0.3)
+        
+        # Update d for next iteration
+        d = sum(Dm[:m+1]) if m < len(Dm)-1 else 0
+    
+    plt.suptitle('Component Summary Statistics', fontsize=16, fontweight='bold')
+    plt.savefig(f"{plot_path}/publication/component_summary.png")
+    plt.savefig(f"{plot_path}/publication/component_summary.pdf")
+    plt.close()
+
+def define_box_properties(plot_name, color_code, label):
+    """Helper function for box plot styling - kept for legacy compatibility."""
+    for k, v in plot_name.items():
+        plt.setp(plot_name.get(k), color=color_code)
+    plt.plot([], c=color_code, label=label)
+    plt.legend()
+
+# Simplified legacy functions for backward compatibility
+def plot_param(params, paths, args, cids=None, tr_vals=False):
+    """Legacy function - use new plotting functions instead."""
+    logging.warning("plot_param is deprecated - use new visualization functions")
+    pass
+
+def plot_X(data, args, hypers, path, true_data=False):
+    """Legacy function - use new plotting functions instead."""
+    logging.warning("plot_X is deprecated - use new visualization functions")
+    pass
