@@ -17,15 +17,7 @@ Python implementation of sparse GFA that can be used to identify latent disease 
     pip install -r requirements.txt
 ```
 ## Running on Colab (GPU runtime)
-- Open folder in Colab
-- Select Runtime >> Change runtime type and select one of the GPU hardware accelerators
-- Install dependencies
-```
-    !pip install -r requirements-colab.txt
-```
-- Install GPU-enabled JAX and NumPyro
-```
-    !pip install -U "jax[cuda12]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-    !pip install numpyro
-```
-- Add flag ```--device gpu``` when calling ```run_analysis.py```
+- Open ```run-Colab_GPU.ipynb``` in Colab
+- Go to Runtime >> Change runtime type and select one of the GPU hardware accelerators (IMPORTANT)
+- Run cells in ```run-Colab_GPU.ipynb``` to set up the environment for Colab to run the project using GPUs
+- To train the model, call  ``` !py310cuda run_analysis.py``` with the flag ```--device gpu```. Apply other flags as desired.
