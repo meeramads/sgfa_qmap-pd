@@ -4,7 +4,7 @@ scipy>=1.11.0
 matplotlib>=3.8.0
 
 # Neuroimaging stack
-nibabel>=5.1.0
+nibabel>=5.2.0
 nilearn>=0.10.2
 nltools>=0.5.0
 h5py>=3.10.0
