@@ -14,9 +14,9 @@ import logging
 
 logging.captureWarnings(True)
 
-# Publication-ready matplotlib settings
+# Publication-ready matplotlib settings - Colab compatible
 plt.rcParams.update({
-    "font.family": "Arial",
+    "font.family": "DejaVu Sans",  # Available in Colab
     "font.size": 10,
     "axes.titlesize": 12,
     "axes.labelsize": 11,
@@ -208,7 +208,7 @@ def _plot_factor_comparison(true_params, rob_params, plot_path, args):
     Z_inf = rob_params['Z']
     
     if Z_inf.shape[1] != Z_true.shape[1]:
-        logging.warning("Cannot compare factors: different number of components")
+        logging.warning("Cannot compare factors: different number of latent factors")
         return
     
     Z_matched, _ = _match_factors(Z_inf, rob_params['W'], Z_true, true_params['W'])
@@ -338,7 +338,7 @@ def qmap_pd(data, res_dir, args, hypers, topk=20):
     # Generate publication plots
     _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk)
     _plot_subject_scores(Z, sub_ids, plot_path)
-    _plot_component_summary(W, Z, Dm, view_names, plot_path)
+    _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path)
 
 def _load_results(res_dir, brun):
     """Load W and Z matrices from results."""
@@ -363,6 +363,34 @@ def _load_results(res_dir, brun):
 
     return None, None
 
+def _shorten_imaging_labels(feature_names):
+    """Shorten long imaging feature names for better readability."""
+    shortened = []
+    for name in feature_names:
+        if "::" in name:
+            # Extract region and voxel number: "volume_putamen_voxels::v1234" -> "putamen::v1234"
+            parts = name.split("::")
+            if len(parts) == 2:
+                region_part = parts[0]
+                voxel_part = parts[1]
+                
+                # Extract region name
+                if "putamen" in region_part:
+                    region = "putamen"
+                elif "lentiform" in region_part:
+                    region = "lentiform"
+                elif "_sn_" in region_part:
+                    region = "sn"
+                else:
+                    region = region_part.replace("volume_", "").replace("_voxels", "")
+                
+                shortened.append(f"{region}::{voxel_part}")
+            else:
+                shortened.append(name)
+        else:
+            shortened.append(name)
+    return shortened
+
 def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
     """Create professional loading plots for each view."""
     d = 0
@@ -371,9 +399,15 @@ def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
         Wv = W[d:d+dim, :]
         features = feat_names.get(vname, [f"Feature {i+1}" for i in range(dim)])
         
+        # Shorten imaging labels for readability
+        if 'imaging' in vname or any('volume_' in f for f in features[:5]):
+            features = _shorten_imaging_labels(features)
+        
         # Create figure with subplots for each component
         n_comp = Wv.shape[1]
-        fig, axes = plt.subplots(n_comp, 1, figsize=(10, 2*n_comp))
+        # Make plots taller for better label readability
+        height_per_comp = 3 if ('clinical' in vname or 'imaging' in vname) else 2
+        fig, axes = plt.subplots(n_comp, 1, figsize=(10, height_per_comp*n_comp))
         if n_comp == 1:
             axes = [axes]
         
@@ -389,16 +423,18 @@ def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
             bars = axes[j].barh(range(len(top_weights)), top_weights, color=colors, alpha=0.8)
             
             axes[j].set_yticks(range(len(top_weights)))
-            axes[j].set_yticklabels(top_features, fontsize=8)
+            # Smaller font for clinical and imaging features due to long names
+            label_fontsize = 7 if ('clinical' in vname or 'imaging' in vname) else 8
+            axes[j].set_yticklabels(top_features, fontsize=label_fontsize)
             axes[j].set_xlabel('Loading Weight')
-            axes[j].set_title(f'Component {j+1}', fontweight='bold')
+            axes[j].set_title(f'Latent Factor {j+1}', fontweight='bold')
             axes[j].axvline(0, color='black', linewidth=0.8)
             axes[j].grid(True, alpha=0.3, axis='x')
             
             # Invert y-axis so highest weights are at top
             axes[j].invert_yaxis()
         
-        plt.suptitle(f'{vname} - Top {topk} Features by |Loading Weight|', 
+        plt.suptitle(f'{vname.title()} - Top {topk} Features by Absolute Loading Weight', 
                     fontsize=14, fontweight='bold')
         plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.png")
         plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.pdf")
@@ -416,10 +452,10 @@ def _plot_subject_scores(Z, sub_ids, plot_path):
     
     # Labels and formatting
     ax.set_xlabel('Subjects')
-    ax.set_ylabel('Components')
+    ax.set_ylabel('Latent Factors')
     ax.set_yticks(range(Z.shape[1]))
-    ax.set_yticklabels([f'C{i+1}' for i in range(Z.shape[1])])
-    ax.set_title('Subject Component Scores', fontsize=14, fontweight='bold')
+    ax.set_yticklabels([f'LF{i+1}' for i in range(Z.shape[1])])
+    ax.set_title('Subject Latent Factor Scores', fontsize=14, fontweight='bold')
     
     # Add subject IDs if reasonable number
     if sub_ids is not None and len(sub_ids) <= 50:
@@ -429,14 +465,14 @@ def _plot_subject_scores(Z, sub_ids, plot_path):
     
     # Colorbar
     cbar = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.04)
-    cbar.set_label('Component Score', rotation=270, labelpad=15)
+    cbar.set_label('Latent Factor Score', rotation=270, labelpad=15)
     
     plt.savefig(f"{plot_path}/publication/subject_scores.png")
     plt.savefig(f"{plot_path}/publication/subject_scores.pdf")
     plt.close()
 
-def _plot_component_summary(W, Z, Dm, view_names, plot_path):
-    """Create component summary visualization."""
+def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
+    """Create latent factor summary visualization."""
     n_comp = W.shape[1]
     fig, axes = plt.subplots(2, n_comp, figsize=(3*n_comp, 8))
     
@@ -461,22 +497,22 @@ def _plot_component_summary(W, Z, Dm, view_names, plot_path):
         axes[0, j].set_xticks(range(len(view_names)))
         axes[0, j].set_xticklabels(view_names, rotation=45, ha='right')
         axes[0, j].set_ylabel('Mean |Loading|')
-        axes[0, j].set_title(f'Component {j+1}', fontweight='bold')
+        axes[0, j].set_title(f'Latent Factor {j+1}', fontweight='bold')
         axes[0, j].grid(True, alpha=0.3, axis='y')
         
         # Bottom panel: Subject score distribution
         axes[1, j].hist(Z[:, j], bins=20, color=COLORS['primary'], alpha=0.7, density=True)
         axes[1, j].axvline(0, color='black', linestyle='--', alpha=0.8)
-        axes[1, j].set_xlabel('Component Score')
+        axes[1, j].set_xlabel('Latent Factor Score')
         axes[1, j].set_ylabel('Density')
         axes[1, j].grid(True, alpha=0.3)
         
         # Update d for next iteration
         d = sum(Dm[:m+1]) if m < len(Dm)-1 else 0
     
-    plt.suptitle('Component Summary Statistics', fontsize=16, fontweight='bold')
-    plt.savefig(f"{plot_path}/publication/component_summary.png")
-    plt.savefig(f"{plot_path}/publication/component_summary.pdf")
+    plt.suptitle('Latent Factor Summary Statistics', fontsize=16, fontweight='bold')
+    plt.savefig(f"{plot_path}/publication/latent_factor_summary.png")
+    plt.savefig(f"{plot_path}/publication/latent_factor_summary.pdf")
     plt.close()
 
 def define_box_properties(plot_name, color_code, label):
