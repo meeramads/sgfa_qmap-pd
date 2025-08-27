@@ -103,11 +103,11 @@ def _plot_ground_truth_components(true_params, plot_path, args, hypers):
         d += Dm[m]
     
     # Add colorbar with proper positioning
-    cbar = fig.colorbar(im, ax=axes, fraction=0.046, pad=0.08, shrink=0.8)
+    cbar = fig.colorbar(im, ax=axes, fraction=0.02, pad=0.1, aspect=20)
     cbar.set_label('Loading Weight', rotation=270, labelpad=15)
     
     plt.suptitle('Ground Truth Factor Loadings', fontsize=14, fontweight='bold')
-    plt.subplots_adjust(top=0.75, hspace=0.3, wspace=0.4, right=0.85)
+    plt.subplots_adjust(top=0.75, hspace=0.3, wspace=0.4, right=0.88)
     plt.savefig(f'{plot_path}/publication/ground_truth_loadings.png')
     plt.savefig(f'{plot_path}/publication/ground_truth_loadings.pdf')
     plt.close()
@@ -163,11 +163,11 @@ def _plot_inferred_components(rob_params, true_params, plot_path, args, hypers):
         axes[m].set_xticklabels([f'F{i+1}' for i in range(W_matched.shape[1])])
         d += Dm[m]
     
-    cbar = fig.colorbar(im, ax=axes, fraction=0.046, pad=0.08, shrink=0.8)
+    cbar = fig.colorbar(im, ax=axes, fraction=0.02, pad=0.1, aspect=20)
     cbar.set_label('Loading Weight', rotation=270, labelpad=15)
     
     plt.suptitle('Inferred Factor Loadings', fontsize=14, fontweight='bold')
-    plt.subplots_adjust(top=0.75, hspace=0.3, wspace=0.4, right=0.85)
+    plt.subplots_adjust(top=0.75, hspace=0.3, wspace=0.4, right=0.88)
     plt.savefig(f'{plot_path}/publication/inferred_loadings.png')
     plt.savefig(f'{plot_path}/publication/inferred_loadings.pdf')
     plt.close()
