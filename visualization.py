@@ -14,7 +14,7 @@ import logging
 
 logging.captureWarnings(True)
 
-# Publication-ready matplotlib settings - Colab compatible
+# Publication-ready matplotlib settings with improved spacing
 plt.rcParams.update({
     "font.family": "DejaVu Sans",  # Available in Colab
     "font.size": 10,
@@ -27,15 +27,18 @@ plt.rcParams.update({
     "savefig.dpi": 300,
     "savefig.bbox": "tight",
     "savefig.pad_inches": 0.1,
-    "figure.constrained_layout.use": True,
+    # Remove constrained_layout to avoid conflicts with subplots_adjust
+    # "figure.constrained_layout.use": True,  
     "axes.spines.top": False,
     "axes.spines.right": False,
     "axes.grid": True,
     "grid.linewidth": 0.5,
     "grid.alpha": 0.3,
+    "figure.subplot.hspace": 0.8,
+    "figure.subplot.wspace": 0.5,
 })
 
-# Professional color schemes
+# Color schemes
 COLORS = {
     'primary': '#2E86C1',
     'secondary': '#E74C3C', 
@@ -103,6 +106,7 @@ def _plot_ground_truth_components(true_params, plot_path, args, hypers):
     cbar.set_label('Loading Weight', rotation=270, labelpad=15)
     
     plt.suptitle('Ground Truth Factor Loadings', fontsize=14, fontweight='bold')
+    plt.tight_layout(pad=2.0)
     plt.savefig(f'{plot_path}/publication/ground_truth_loadings.png')
     plt.savefig(f'{plot_path}/publication/ground_truth_loadings.pdf')
     plt.close()
@@ -122,6 +126,7 @@ def _plot_ground_truth_components(true_params, plot_path, args, hypers):
     cbar = fig.colorbar(im, fraction=0.02, pad=0.04)
     cbar.set_label('Factor Score', rotation=270, labelpad=15)
     
+    plt.tight_layout(pad=2.0)
     plt.savefig(f'{plot_path}/publication/ground_truth_factors.png')
     plt.savefig(f'{plot_path}/publication/ground_truth_factors.pdf')
     plt.close()
@@ -161,6 +166,7 @@ def _plot_inferred_components(rob_params, true_params, plot_path, args, hypers):
     cbar.set_label('Loading Weight', rotation=270, labelpad=15)
     
     plt.suptitle('Inferred Factor Loadings', fontsize=14, fontweight='bold')
+    plt.tight_layout(pad=2.0)
     plt.savefig(f'{plot_path}/publication/inferred_loadings.png')
     plt.savefig(f'{plot_path}/publication/inferred_loadings.pdf')
     plt.close()
@@ -179,6 +185,7 @@ def _plot_inferred_components(rob_params, true_params, plot_path, args, hypers):
     cbar = fig.colorbar(im, fraction=0.02, pad=0.04)
     cbar.set_label('Factor Score', rotation=270, labelpad=15)
     
+    plt.tight_layout(pad=2.0)
     plt.savefig(f'{plot_path}/publication/inferred_factors.png')
     plt.savefig(f'{plot_path}/publication/inferred_factors.pdf')
     plt.close()
@@ -214,7 +221,7 @@ def _plot_factor_comparison(true_params, rob_params, plot_path, args):
     Z_matched, _ = _match_factors(Z_inf, rob_params['W'], Z_true, true_params['W'])
     
     # Factor correlation plot
-    fig, axes = plt.subplots(1, Z_true.shape[1], figsize=(12, 3))
+    fig, axes = plt.subplots(1, Z_true.shape[1], figsize=(4*Z_true.shape[1], 3))
     if Z_true.shape[1] == 1:
         axes = [axes]
     
@@ -235,6 +242,7 @@ def _plot_factor_comparison(true_params, rob_params, plot_path, args):
             axes[k].legend(loc='upper left', fontsize=8)
     
     plt.suptitle('Factor Recovery Performance', fontsize=14, fontweight='bold')
+    plt.tight_layout(pad=2.0)
     plt.savefig(f'{plot_path}/publication/factor_correlation.png')
     plt.savefig(f'{plot_path}/publication/factor_correlation.pdf')
     plt.close()
@@ -256,7 +264,7 @@ def _plot_subgroup_analysis(true_params, rob_params, plot_path, args):
     group_labels = ['Group 1', 'Group 2', 'Group 3']
     
     # Calculate group-specific factor scores
-    fig, axes = plt.subplots(2, Z_true.shape[1], figsize=(12, 8))
+    fig, axes = plt.subplots(2, Z_true.shape[1], figsize=(4*Z_true.shape[1], 10))
     
     for k in range(Z_true.shape[1]):
         # True scores by group
@@ -294,6 +302,7 @@ def _plot_subgroup_analysis(true_params, rob_params, plot_path, args):
     axes[1, 0].set_ylabel('Inferred |Factor Score|')
     
     plt.suptitle('Subgroup-Specific Factor Analysis', fontsize=14, fontweight='bold')
+    plt.tight_layout(pad=2.0)
     plt.savefig(f'{plot_path}/publication/subgroup_analysis.png')
     plt.savefig(f'{plot_path}/publication/subgroup_analysis.pdf')
     plt.close()
@@ -415,10 +424,10 @@ def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
         
         # Create figure with subplots for each component
         n_comp = Wv.shape[1]
-        # Make plots taller for better label readability - extra height for y-axis spacing
-        height_per_comp = 4 if ('clinical' in vname or 'imaging' in vname) else 2
+        # Increase height per component for better spacing
+        height_per_comp = 5 if ('clinical' in vname or 'imaging' in vname) else 3
         fig, axes = plt.subplots(n_comp, 1, figsize=(10, height_per_comp*n_comp))
-        plt.subplots_adjust(hspace=0.5)  # Increased spacing between subplots
+        
         if n_comp == 1:
             axes = [axes]
         
@@ -447,6 +456,7 @@ def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
         
         plt.suptitle(f'{vname.title()} - Top {topk} Features by Absolute Loading Weight', 
                     fontsize=14, fontweight='bold')
+        plt.tight_layout(pad=2.0)
         plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.png")
         plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.pdf")
         plt.close()
@@ -478,6 +488,7 @@ def _plot_subject_scores(Z, sub_ids, plot_path):
     cbar = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.04)
     cbar.set_label('Latent Factor Score', rotation=270, labelpad=15)
     
+    plt.tight_layout(pad=2.0)
     plt.savefig(f"{plot_path}/publication/subject_scores.png")
     plt.savefig(f"{plot_path}/publication/subject_scores.pdf")
     plt.close()
@@ -486,7 +497,6 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
     """Create latent factor summary visualization."""
     n_comp = W.shape[1]
     fig, axes = plt.subplots(2, n_comp, figsize=(3*n_comp, 8))
-    plt.subplots_adjust(hspace=0.4, wspace=0.3)  # Add spacing between subplots
     
     if n_comp == 1:
         axes = axes.reshape(-1, 1)
@@ -532,6 +542,7 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
         d = sum(Dm[:m+1]) if m < len(Dm)-1 else 0
     
     plt.suptitle('Latent Factor Summary Statistics', fontsize=16, fontweight='bold')
+    plt.tight_layout(pad=2.0)
     plt.savefig(f"{plot_path}/publication/latent_factor_summary.png")
     plt.savefig(f"{plot_path}/publication/latent_factor_summary.pdf")
     plt.close()
