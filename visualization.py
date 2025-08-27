@@ -405,9 +405,10 @@ def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
         
         # Create figure with subplots for each component
         n_comp = Wv.shape[1]
-        # Make plots taller for better label readability
-        height_per_comp = 3 if ('clinical' in vname or 'imaging' in vname) else 2
+        # Make plots taller for better label readability - extra height for y-axis spacing
+        height_per_comp = 4 if ('clinical' in vname or 'imaging' in vname) else 2
         fig, axes = plt.subplots(n_comp, 1, figsize=(10, height_per_comp*n_comp))
+        plt.subplots_adjust(hspace=0.5)  # Increased spacing between subplots
         if n_comp == 1:
             axes = [axes]
         
@@ -475,6 +476,7 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
     """Create latent factor summary visualization."""
     n_comp = W.shape[1]
     fig, axes = plt.subplots(2, n_comp, figsize=(3*n_comp, 8))
+    plt.subplots_adjust(hspace=0.4, wspace=0.3)  # Add spacing between subplots
     
     if n_comp == 1:
         axes = axes.reshape(-1, 1)
@@ -506,6 +508,9 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
         axes[1, j].set_xlabel('Latent Factor Score')
         axes[1, j].set_ylabel('Density')
         axes[1, j].grid(True, alpha=0.3)
+        
+        # Reduce number of x-axis ticks to prevent crowding
+        axes[1, j].locator_params(axis='x', nbins=5)
         
         # Update d for next iteration
         d = sum(Dm[:m+1]) if m < len(Dm)-1 else 0
