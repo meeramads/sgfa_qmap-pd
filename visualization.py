@@ -27,14 +27,11 @@ plt.rcParams.update({
     "savefig.dpi": 300,
     "savefig.bbox": "tight",
     "savefig.pad_inches": 0.1,
-    # Remove constrained_layout to avoid conflicts with subplots_adjust
-    # "figure.constrained_layout.use": True,  
     "axes.spines.top": False,
     "axes.spines.right": False,
     "axes.grid": True,
     "grid.linewidth": 0.5,
     "grid.alpha": 0.3,
-    # Add default spacing parameters for better plot separation
     "figure.subplot.hspace": 0.8,  # Increased vertical spacing between subplots
     "figure.subplot.wspace": 0.5,  # Increased horizontal spacing between subplots
 })
@@ -329,6 +326,232 @@ def find_bestrun(res_dir, args, ofile):
         
     return exp_logs, ofile
 
+# =============================================================================
+# FIXED LEGACY FUNCTIONS - THESE ARE CRITICAL FOR run_analysis.py TO WORK
+# =============================================================================
+
+def plot_param(params, paths, args, cids=None, tr_vals=False):
+    """
+    Plot parameter matrices (W, Z, lambda, etc.) with professional styling.
+    This function is called by run_analysis.py and must work.
+    """
+    
+    lcomps = list(range(1, params['W'].shape[1]+1))
+    
+    # Plot W (loading matrix)
+    if 'W' in params:
+        W = params['W']
+        pathW = paths['W']
+        
+        plt.figure(figsize=(max(8, W.shape[1]*0.8), max(6, W.shape[0]*0.03)))
+        
+        # Use improved colormap and styling
+        sns.heatmap(W, 
+                   vmin=-np.max(np.abs(W)), 
+                   vmax=np.max(np.abs(W)), 
+                   cmap="RdBu_r",
+                   yticklabels=False, 
+                   xticklabels=[f'F{i}' for i in lcomps],
+                   cbar_kws={'label': 'Loading Weight'})
+        
+        plt.xlabel('Latent Factors', fontsize=12)
+        plt.ylabel('Features', fontsize=12) 
+        plt.title('Factor Loading Matrix (W)', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'{pathW}.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    # Plot lambda W (sparsity parameters)
+    if 'lmbW' in params:
+        if cids is not None:
+            lmbW = params['lmbW'][:,cids]
+        else:
+            lmbW = params['lmbW']
+        pathlmbW = paths['lmbW'] 
+        
+        plt.figure(figsize=(max(8, lmbW.shape[1]*0.8), max(6, lmbW.shape[0]*0.03)))
+        sns.heatmap(lmbW, 
+                   vmin=0, 
+                   vmax=np.max(lmbW), 
+                   cmap="viridis",
+                   yticklabels=False, 
+                   xticklabels=[f'F{i}' for i in lcomps],
+                   cbar_kws={'label': 'Sparsity Parameter'})
+        
+        plt.xlabel('Latent Factors', fontsize=12)
+        plt.ylabel('Features', fontsize=12)
+        plt.title('Sparsity Parameters (λW)', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'{pathlmbW}.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    # Plot Z (latent factors)
+    if 'Z' in params:
+        Z = params['Z']
+        pathZ = paths['Z']
+        pathZ_svg = paths['Z_svg']
+        
+        plt.figure(figsize=(max(8, Z.shape[1]*0.8), max(6, Z.shape[0]*0.03)))
+        sns.heatmap(Z, 
+                   vmin=-np.max(np.abs(Z)), 
+                   vmax=np.max(np.abs(Z)), 
+                   cmap="RdBu_r",
+                   yticklabels=False, 
+                   xticklabels=[f'F{i}' for i in lcomps],
+                   cbar_kws={'label': 'Factor Score'})
+        
+        plt.xlabel('Latent Factors', fontsize=12)
+        plt.ylabel('Subjects', fontsize=12) 
+        plt.title('Latent Factor Scores (Z)', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'{pathZ}.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'{pathZ_svg}.svg', bbox_inches='tight')
+        plt.close()
+    
+    # Plot lambda Z (subject-specific sparsity)
+    if 'lmbZ' in params:
+        if cids is not None:
+            lmbZ = params['lmbZ'][:,cids]
+        else:
+            lmbZ = params['lmbZ']
+        pathlmbZ = paths['lmbZ'] 
+        
+        plt.figure(figsize=(max(8, lmbZ.shape[1]*0.8), max(6, lmbZ.shape[0]*0.03)))
+        sns.heatmap(lmbZ, 
+                   vmin=0, 
+                   vmax=np.max(lmbZ), 
+                   cmap="plasma",
+                   yticklabels=False, 
+                   xticklabels=[f'F{i}' for i in lcomps],
+                   cbar_kws={'label': 'Subject Sparsity'})
+        
+        plt.xlabel('Latent Factors', fontsize=12)
+        plt.ylabel('Subjects', fontsize=12)
+        plt.title('Subject Sparsity Parameters (λZ)', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'{pathlmbZ}.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    # Plot tau W (global scale parameters)
+    if 'tauW_inf' in params:
+        tau = params['tauW_inf']
+        pathtau = paths['tauW']
+        
+        fig, axes = plt.subplots(args.num_sources, 1, figsize=(8, 2*args.num_sources))
+        if args.num_sources == 1:
+            axes = [axes]
+        
+        for m, ax in zip(range(args.num_sources), axes):
+            ax.hist(tau[:,m], bins=30, alpha=0.7, color=COLORS['primary'], edgecolor='black')
+            if tr_vals and 'tauW' in tr_vals:
+                ax.axvline(x=tr_vals['tauW'][0,m], color=COLORS['secondary'], 
+                          linestyle='--', linewidth=2, label='True Value')
+                ax.legend()
+            ax.set_title(f'View {m+1}', fontweight='bold')
+            ax.set_ylabel('Density')
+            ax.grid(True, alpha=0.3)
+        
+        axes[-1].set_xlabel('τW (Global Scale)')
+        plt.suptitle('Global Scale Parameters', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'{pathtau}.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    # Plot sigmas (noise parameters)
+    if 'sigma_inf' in params:
+        sigma = params['sigma_inf']
+        pathsig = paths['sigma']
+        
+        fig, axes = plt.subplots(args.num_sources, 1, figsize=(8, 2*args.num_sources))
+        if args.num_sources == 1:
+            axes = [axes]
+        
+        for m, ax in zip(range(args.num_sources), axes):
+            ax.hist(sigma[:,m], bins=30, alpha=0.7, color=COLORS['tertiary'], edgecolor='black')
+            if tr_vals and 'sigma' in tr_vals:
+                ax.axvline(x=tr_vals['sigma'][m], color=COLORS['secondary'], 
+                          linestyle='--', linewidth=2, label='True Value')
+                ax.legend()
+            ax.set_title(f'View {m+1}', fontweight='bold')
+            ax.set_ylabel('Density')
+            ax.grid(True, alpha=0.3)
+        
+        axes[-1].set_xlabel('σ (Noise Precision)')
+        plt.suptitle('Noise Parameters', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'{pathsig}.png', dpi=300, bbox_inches='tight')
+        plt.close()
+
+def plot_X(data, args, hypers, path, true_data=False):
+    """
+    Plot data matrices X with improved styling.
+    This function is called by run_analysis.py and must work.
+    """
+    
+    if true_data:
+        X = np.dot(data['Z'], data['W'].T)
+        K = data['Z'].shape[1]
+    else:    
+        X = np.zeros((data[0][0].shape[0], data[0][0].shape[1]))
+        K = len(data)
+    
+    for k in range(K):
+        if true_data:
+            z = np.reshape(data['Z'][:,k], (data['Z'].shape[0], 1)) 
+            w = np.reshape(data['W'][:,k], (data['W'].shape[0], 1))
+            X_k = np.dot(z,w.T)
+        else:
+            X_k = data[k][0]    
+            X += X_k
+        
+        # Create subplot for each data source
+        fig, axes = plt.subplots(1, args.num_sources, figsize=(4*args.num_sources, 5))
+        if args.num_sources == 1:
+            axes = [axes]
+        
+        Dm = hypers['Dm']
+        d = 0
+        view_names = ['Neuroimaging', 'Cognitive', 'Clinical'][:args.num_sources]
+        
+        for m in range(args.num_sources):
+            X_m = X_k[:,d:d+Dm[m]]
+            
+            im = axes[m].imshow(X_m.T, aspect='auto', cmap="RdBu_r", 
+                               vmin=np.min(X_k), vmax=np.max(X_k))
+            axes[m].set_xlabel('Subjects')
+            axes[m].set_ylabel('Features')
+            axes[m].set_title(f'{view_names[m]}\n({Dm[m]} features)', fontweight='bold')
+            
+            if m == args.num_sources - 1:  # Add colorbar to last subplot
+                cbar = fig.colorbar(im, ax=axes[m])
+                cbar.set_label('Value')
+            
+            d += Dm[m]
+        
+        plt.suptitle(f'Factor {k+1} - Data Space Reconstruction', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'{path}_comp{k+1}.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    # Plot complete data matrix
+    plt.figure(figsize=(10, 6))
+    im = plt.imshow(X.T, aspect='auto', cmap="RdBu_r", 
+                    vmin=np.min(X), vmax=np.max(X))
+    plt.xlabel('Subjects', fontsize=12)
+    plt.ylabel('Features', fontsize=12)
+    plt.title('Complete Data Matrix', fontsize=14, fontweight='bold')
+    
+    cbar = plt.colorbar(im)
+    cbar.set_label('Value')
+    
+    plt.tight_layout()
+    plt.savefig(f'{path}.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+# =============================================================================
+# ENHANCED qMAP-PD VISUALIZATION (IMPROVED VERSION OF YOUR FUNCTIONS)
+# =============================================================================
+
 def qmap_pd(data, res_dir, args, hypers, topk=20):
     """
     Create publication-ready plots for qMAP-PD multi-view analysis.
@@ -508,12 +731,11 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
     for j in range(n_comp):
         # Top panel: View-wise loading magnitudes
         view_magnitudes = []
+        d_temp = 0
         for m, dim in enumerate(Dm):
-            Wv = W[d:d+dim, j]
+            Wv = W[d_temp:d_temp+dim, j]
             view_magnitudes.append(np.mean(np.abs(Wv)))
-            d_temp = d + dim if m < len(Dm)-1 else d + dim
-            d = d_temp if m == len(Dm)-1 else d
-        d = 0
+            d_temp += dim
         
         bars = axes[0, j].bar(range(len(view_names)), view_magnitudes, 
                              color=colors, alpha=0.8)
@@ -538,9 +760,6 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
         
         # Reduce number of x-axis ticks to prevent crowding
         axes[1, j].locator_params(axis='x', nbins=5)
-        
-        # Update d for next iteration
-        d = sum(Dm[:m+1]) if m < len(Dm)-1 else 0
     
     plt.suptitle('Latent Factor Summary Statistics', fontsize=16, fontweight='bold')
     plt.subplots_adjust(top=0.80, hspace=0.4, wspace=0.3)
@@ -554,14 +773,3 @@ def define_box_properties(plot_name, color_code, label):
         plt.setp(plot_name.get(k), color=color_code)
     plt.plot([], c=color_code, label=label)
     plt.legend()
-
-# Simplified legacy functions for backward compatibility
-def plot_param(params, paths, args, cids=None, tr_vals=False):
-    """Legacy function - use new plotting functions instead."""
-    logging.warning("plot_param is deprecated - use new visualization functions")
-    pass
-
-def plot_X(data, args, hypers, path, true_data=False):
-    """Legacy function - use new plotting functions instead."""
-    logging.warning("plot_X is deprecated - use new visualization functions")
-    pass
