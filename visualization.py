@@ -220,15 +220,19 @@ def _plot_factor_comparison(true_params, rob_params, plot_path, args):
     
     for k in range(Z_true.shape[1]):
         r = np.corrcoef(Z_true[:, k], Z_matched[:, k])[0, 1]
-        axes[k].scatter(Z_true[:, k], Z_matched[:, k], alpha=0.6, 
-                       color=COLORS['primary'], s=20)
-        axes[k].plot([Z_true[:, k].min(), Z_true[:, k].max()], 
+        scatter = axes[k].scatter(Z_true[:, k], Z_matched[:, k], alpha=0.6, 
+                       color=COLORS['primary'], s=20, label='Observed')
+        line = axes[k].plot([Z_true[:, k].min(), Z_true[:, k].max()], 
                     [Z_true[:, k].min(), Z_true[:, k].max()], 
-                    '--', color=COLORS['secondary'], alpha=0.8, linewidth=2)
+                    '--', color=COLORS['secondary'], alpha=0.8, linewidth=2, label='Perfect Recovery')
         axes[k].set_xlabel('True Factor Scores')
         axes[k].set_ylabel('Inferred Factor Scores')
         axes[k].set_title(f'Factor {k+1}\nr = {r:.3f}', fontweight='bold')
         axes[k].grid(True, alpha=0.3)
+        
+        # Add legend to first plot only
+        if k == 0:
+            axes[k].legend(loc='upper left', fontsize=8)
     
     plt.suptitle('Factor Recovery Performance', fontsize=14, fontweight='bold')
     plt.savefig(f'{plot_path}/publication/factor_correlation.png')
@@ -263,10 +267,10 @@ def _plot_subgroup_analysis(true_params, rob_params, plot_path, args):
             true_scores = np.abs(Z_true[start_idx:end_idx, k])
             inf_scores = np.abs(Z_matched[start_idx:end_idx, k])
             
-            axes[0, k].boxplot([true_scores], positions=[g], widths=0.6,
+            box1 = axes[0, k].boxplot([true_scores], positions=[g], widths=0.6,
                              patch_artist=True, 
                              boxprops=dict(facecolor=COLORS['groups'][g], alpha=0.7))
-            axes[1, k].boxplot([inf_scores], positions=[g], widths=0.6,
+            box2 = axes[1, k].boxplot([inf_scores], positions=[g], widths=0.6,
                              patch_artist=True,
                              boxprops=dict(facecolor=COLORS['groups'][g], alpha=0.7))
         
@@ -279,6 +283,12 @@ def _plot_subgroup_analysis(true_params, rob_params, plot_path, args):
             ax.set_xticks(range(3))
             ax.set_xticklabels(group_labels)
             ax.grid(True, alpha=0.3)
+            
+        # Add legend to first factor only to avoid repetition
+        if k == 0:
+            legend_elements = [mpatches.Patch(color=COLORS['groups'][g], alpha=0.7, label=group_labels[g]) 
+                             for g in range(3)]
+            axes[0, k].legend(handles=legend_elements, loc='upper right', fontsize=8)
     
     axes[0, 0].set_ylabel('True |Factor Score|')
     axes[1, 0].set_ylabel('Inferred |Factor Score|')
@@ -501,6 +511,12 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
         axes[0, j].set_ylabel('Mean |Loading|')
         axes[0, j].set_title(f'Latent Factor {j+1}', fontweight='bold')
         axes[0, j].grid(True, alpha=0.3, axis='y')
+        
+        # Add legend to first subplot only to avoid repetition
+        if j == 0:
+            legend_elements = [mpatches.Patch(color=colors[i], alpha=0.8, label=view_names[i]) 
+                             for i in range(len(view_names))]
+            axes[0, j].legend(handles=legend_elements, loc='upper right', fontsize=8)
         
         # Bottom panel: Subject score distribution
         axes[1, j].hist(Z[:, j], bins=20, color=COLORS['primary'], alpha=0.7, density=True)
