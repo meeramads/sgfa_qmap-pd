@@ -495,7 +495,7 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
         bars = axes[0, j].bar(range(len(view_names)), view_magnitudes, 
                              color=colors, alpha=0.8)
         axes[0, j].set_xticks(range(len(view_names)))
-        axes[0, j].set_xticklabels(view_names, rotation=45, ha='right')
+        axes[0, j].set_xticklabels(view_names, rotation=0, ha='center')
         axes[0, j].set_ylabel('Mean |Loading|')
         axes[0, j].set_title(f'Latent Factor {j+1}', fontweight='bold')
         axes[0, j].grid(True, alpha=0.3, axis='y')
