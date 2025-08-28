@@ -3,42 +3,32 @@ import os
 import time
 import pickle
 import sys
-#numpy
 import numpy as np
-#jax
 import jax
 from jax import lax
 import jax.numpy as jnp
 import jax.random 
-#numpyro
 import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS
-#sklearn
 from sklearn.preprocessing import StandardScaler
-#generate/ load data
+#generate/load data
 import get_data
 #visualization module
 import visualization
 #logging
 import logging
 from loader_qmap_pd import load_qmap_pd as qmap_pd
+
+# Import preprocessing classes
 from preprocessing import AdvancedPreprocessor, cross_validate_source_combinations
 
 from utils import get_infparams, get_robustK
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-)
-logging.info('Starting run_analysis.py')
-
-# == CONDITIONAL IMPORTS ==
-# Import CV module only when needed to avoid dependency issues
+# Import CV classes (with error handling)
 CV_AVAILABLE = False
 try:
-    from crossvalidation import (
+    from cross_validation import (
         SparseBayesianGFACrossValidator, 
         CVConfig
     )
@@ -46,6 +36,13 @@ try:
     logging.info("Cross-validation module available")
 except ImportError:
     logging.info("Cross-validation module not available - will run standard analysis only")
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
+logging.info('Starting run_analysis.py')
 
 # == MODEL CODE ==
 def models(X_list, hypers, args):
@@ -80,7 +77,7 @@ def models(X_list, hypers, args):
                 0.5 * hypers['slab_df']), sample_shape=(1,K))
             cZ = hypers['slab_scale'] * jnp.sqrt(cZtmp)
             
-            # Get regularized Z
+            # Get regularised Z
             lmbZ_sqr = jnp.square(lmbZ)
             for k in range(K):    
                 lmbZ_tilde = jnp.sqrt(lmbZ_sqr[:,k] * cZ[0,k] ** 2 / \
@@ -95,7 +92,7 @@ def models(X_list, hypers, args):
     #sample W
     W = numpyro.sample("W",dist.Normal(0,1), sample_shape=(D,K))
     if 'sparseGFA' in args.model:
-        # Implement regularized horseshoe prior over W
+        # Implement regularised horseshoe prior over W
         #sample lambda W 
         lmbW =  numpyro.sample("lmbW", dist.TruncatedCauchy(scale=1), sample_shape=(D,K))
         #sample cW
@@ -160,13 +157,13 @@ def run_inference(model, args, rng_key, X_list, hypers):
     #mcmc.print_summary() 
     return mcmc
 
-# == NEW ORCHESTRATION FUNCTIONS ==
+# == CV ORCHESTRATION FUNCTIONS ==
 
 def run_cross_validation_analysis(args, X_list, hypers, data):
-    """Orchestrate cross-validation analysis using crossvalidation.py module."""
+    """Orchestrate cross-validation analysis using unified crossvalidation.py module."""
     if not CV_AVAILABLE:
         logging.error("Cross-validation requested but module not available!")
-        logging.error("Make sure crossvalidation.py and its dependencies are installed")
+        logging.error("Make sure crossvalidation.py is properly installed")
         return None
     
     logging.info("=== ORCHESTRATING CROSS-VALIDATION ANALYSIS ===")
@@ -226,7 +223,7 @@ def should_run_cv_analysis(args):
     """Determine if we should run cross-validation analysis."""
     return getattr(args, 'run_cv', False) or getattr(args, 'cv_only', False)
 
-# == ENHANCED MAIN FUNCTION ==
+# == MAIN FUNCTION ==
 
 def main(args):                           
     #Make directory to save results
@@ -305,7 +302,7 @@ def main(args):
             volumes_rel=args.volumes_rel,
             imaging_as_single_view=not args.roi_views,
             id_col=args.id_col,
-            # Enhanced preprocessing parameters
+            # Advanced preprocessing parameters
             enable_advanced_preprocessing=getattr(args, 'enable_preprocessing', False),
             imputation_strategy=getattr(args, 'imputation_strategy', 'median'),
             feature_selection_method=getattr(args, 'feature_selection', 'variance'),
@@ -481,7 +478,7 @@ def main(args):
         except Exception as e:
             logging.warning(f"Could not create comprehensive visualization: {e}")
 
-    # == FINAL SUMMARY ==
+    # == LOG FINAL SUMMARY ==
     logging.info("=" * 60)
     logging.info("ANALYSIS COMPLETE")
     logging.info("=" * 60)
