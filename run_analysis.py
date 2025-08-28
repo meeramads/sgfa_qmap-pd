@@ -7,7 +7,7 @@ import numpy as np
 import jax
 from jax import lax
 import jax.numpy as jnp
-import jax.random 
+import jax.random
 import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS
@@ -19,13 +19,19 @@ import visualization
 #logging
 import logging
 from loader_qmap_pd import load_qmap_pd as qmap_pd
-
-# Import preprocessing classes
 from preprocessing import AdvancedPreprocessor, cross_validate_source_combinations
 
 from utils import get_infparams, get_robustK
 
-# Import CV classes (with error handling)
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
+logging.info('Starting run_analysis.py')
+
+# == CONDITIONAL IMPORTS ==
+# Import CV module only when needed to avoid dependency issues
 CV_AVAILABLE = False
 try:
     from cross_validation import (
@@ -37,16 +43,9 @@ try:
 except ImportError:
     logging.info("Cross-validation module not available - will run standard analysis only")
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-)
-logging.info('Starting run_analysis.py')
-
 # == MODEL CODE ==
 def models(X_list, hypers, args):
-
+    """Sparse GFA model with optional regularized horseshoe priors."""
     logging.debug(f"Running models with M={args.num_sources}, N={X_list[0].shape[0]}, Dm={list(hypers['Dm'])}")
 
     N, M = X_list[0].shape[0], args.num_sources
@@ -157,13 +156,13 @@ def run_inference(model, args, rng_key, X_list, hypers):
     #mcmc.print_summary() 
     return mcmc
 
-# == CV ORCHESTRATION FUNCTIONS ==
+# == ORCHESTRATION FUNCTIONS ==
 
 def run_cross_validation_analysis(args, X_list, hypers, data):
-    """Orchestrate cross-validation analysis using unified crossvalidation.py module."""
+    """Orchestrate cross-validation analysis using cross_validation.py module."""
     if not CV_AVAILABLE:
         logging.error("Cross-validation requested but module not available!")
-        logging.error("Make sure crossvalidation.py is properly installed")
+        logging.error("Make sure crossvalidation.py and its dependencies are installed")
         return None
     
     logging.info("=== ORCHESTRATING CROSS-VALIDATION ANALYSIS ===")
@@ -302,7 +301,7 @@ def main(args):
             volumes_rel=args.volumes_rel,
             imaging_as_single_view=not args.roi_views,
             id_col=args.id_col,
-            # Advanced preprocessing parameters
+            # Enhanced preprocessing parameters
             enable_advanced_preprocessing=getattr(args, 'enable_preprocessing', False),
             imputation_strategy=getattr(args, 'imputation_strategy', 'median'),
             feature_selection_method=getattr(args, 'feature_selection', 'variance'),
@@ -510,7 +509,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=" Sparse GFA with reg. horseshoe priors")
     
-    # == ORIGINAL ARGUMENTS ==
+    # == ORIGINAL ARGUMENTS (UNCHANGED) ==
     parser.add_argument("--model", nargs="?", default='sparseGFA', type=str, 
                         help='add horseshoe prior over the latent variables')
     parser.add_argument("--num-samples", nargs="?", default=num_samples, type=int, 
