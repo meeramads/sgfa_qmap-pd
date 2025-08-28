@@ -15,6 +15,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import logging
+import contextlib
+from pathlib import Path
+import gc
 
 try:
     from qmap_gfa_weight2mri_python import add_to_qmap_visualization
@@ -24,28 +27,114 @@ except ImportError:
 
 logging.captureWarnings(True)
 
-plt.rcParams.update({
-    "font.family": "DejaVu Sans",
-    "font.size": 10,
-    "axes.titlesize": 12,
-    "axes.labelsize": 11,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "legend.fontsize": 9,
-    "figure.dpi": 300,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.1,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "axes.grid": True,
-    "grid.linewidth": 0.5,
-    "grid.alpha": 0.3,
-    "figure.subplot.hspace": 0.8,  
-    "figure.subplot.wspace": 0.5, 
-})
+# == UTILITY FUNCTIONS ==
+@contextlib.contextmanager
+def safe_plotting_context(figsize=None, dpi=300):
+    """Context manager for safe plotting with automatic cleanup."""
+    import matplotlib.pyplot as plt
+    
+    original_backend = plt.get_backend()
+    
+    if figsize:
+        plt.rcParams['figure.figsize'] = figsize
+    plt.rcParams['figure.dpi'] = dpi
+    plt.rcParams['savefig.dpi'] = dpi
+    
+    try:
+        yield plt
+    except Exception as e:
+        logging.error(f"Plotting error: {e}")
+        raise
+    finally:
+        plt.close('all')
+        gc.collect()
+        try:
+            plt.switch_backend(original_backend)
+        except:
+            pass
 
-# Professional color schemes
+def save_plot_safely(fig, filepath, formats=['png', 'pdf'], **kwargs):
+    """Save plot in multiple formats with error handling."""
+    from pathlib import Path
+    
+    filepath = Path(filepath)
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    
+    save_params = {
+        'dpi': 300,
+        'bbox_inches': 'tight',
+        'pad_inches': 0.1,
+        'facecolor': 'white',
+        'edgecolor': 'none'
+    }
+    save_params.update(kwargs)
+    
+    saved_files = []
+    for fmt in formats:
+        try:
+            save_path = filepath.with_suffix(f'.{fmt}')
+            fig.savefig(save_path, format=fmt, **save_params)
+            saved_files.append(str(save_path))
+            logging.debug(f"Saved plot: {save_path}")
+        except Exception as e:
+            logging.error(f"Failed to save plot as {fmt}: {e}")
+    
+    return saved_files
+
+def setup_plotting_style():
+    """Set up consistent plotting style across all visualizations."""
+    import matplotlib.pyplot as plt
+    
+    style_params = {
+        "font.family": "DejaVu Sans",
+        "font.size": 10,
+        "axes.titlesize": 12,
+        "axes.labelsize": 11,
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "legend.fontsize": 9,
+        "figure.dpi": 300,
+        "savefig.dpi": 300,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.1,
+        "savefig.facecolor": "white",
+        "savefig.edgecolor": "none",
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.grid": True,
+        "grid.linewidth": 0.5,
+        "grid.alpha": 0.3,
+        "figure.subplot.hspace": 0.8,  
+        "figure.subplot.wspace": 0.5,
+        "figure.constrained_layout.use": True,
+        "axes.formatter.use_mathtext": True,
+    }
+    
+    plt.rcParams.update(style_params)
+
+def visualization_with_error_handling(func):
+    """Decorator for visualization functions to add error handling."""
+    def wrapper(*args, **kwargs):
+        try:
+            setup_plotting_style()
+            result = func(*args, **kwargs)
+            gc.collect()
+            return result
+        except Exception as e:
+            logging.error(f"Visualization function {func.__name__} failed: {e}")
+            logging.exception("Full traceback:")
+            try:
+                import matplotlib.pyplot as plt
+                plt.close('all')
+                gc.collect()
+            except:
+                pass
+            raise
+    return wrapper
+
+setup_plotting_style()
+
+# Color schemes
 COLORS = {
     'primary': '#2E86C1',
     'secondary': '#E74C3C', 
@@ -1245,57 +1334,59 @@ def _shorten_imaging_labels(feature_names):
     return shortened
 
 def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
-    """Create loading plots for each view."""
+    """Create loading plots for each view with improved error handling."""
     d = 0
+    plot_path = Path(plot_path)
     
     for m, (vname, dim) in enumerate(zip(view_names, Dm)):
-        Wv = W[d:d+dim, :]
-        features = feat_names.get(vname, [f"Feature {i+1}" for i in range(dim)])
-        
-        # Shorten imaging labels for readability
-        if 'imaging' in vname or any('volume_' in f for f in features[:5]):
-            features = _shorten_imaging_labels(features)
-        
-        # Create figure with subplots for each component
-        n_comp = Wv.shape[1]
-        # Increase height per component for better spacing
-        height_per_comp = 5 if ('clinical' in vname or 'imaging' in vname) else 3
-        fig, axes = plt.subplots(n_comp, 1, figsize=(10, height_per_comp*n_comp))
-        
-        if n_comp == 1:
-            axes = [axes]
-        
-        for j in range(n_comp):
-            w = Wv[:, j]
-            # Get top features by absolute weight
-            top_idx = np.argsort(np.abs(w))[::-1][:topk]
-            top_weights = w[top_idx]
-            top_features = [features[i] for i in top_idx]
+        try:
+            Wv = W[d:d+dim, :]
+            features = feat_names.get(vname, [f"Feature {i+1}" for i in range(dim)])
             
-            # Create horizontal bar plot
-            colors = [COLORS['primary'] if x >= 0 else COLORS['secondary'] for x in top_weights]
-            bars = axes[j].barh(range(len(top_weights)), top_weights, color=colors, alpha=0.8)
+            # Shorten imaging labels for readability
+            if 'imaging' in vname or any('volume_' in f for f in features[:5]):
+                features = _shorten_imaging_labels(features)
             
-            axes[j].set_yticks(range(len(top_weights)))
-            # Smaller font for clinical and imaging features
-            label_fontsize = 7 if ('clinical' in vname or 'imaging' in vname) else 8
-            axes[j].set_yticklabels(top_features, fontsize=label_fontsize)
-            axes[j].set_xlabel('Loading Weight')
-            axes[j].set_title(f'Latent Factor {j+1}', fontweight='bold')
-            axes[j].axvline(0, color='black', linewidth=0.8)
-            axes[j].grid(True, alpha=0.3, axis='x')
-            
-            # Invert y-axis so highest weights are at top
-            axes[j].invert_yaxis()
-        
-        plt.suptitle(f'{vname.title()} - Top {topk} Features by Absolute Loading Weight', 
-                    fontsize=14, fontweight='bold')
-        plt.subplots_adjust(top=0.83, hspace=0.4)
-        plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.png")
-        plt.savefig(f"{plot_path}/publication/loadings_{vname.lower().replace(' ', '_')}.pdf")
-        plt.close()
-        
-        d += dim
+            with safe_plotting_context() as plt:
+                # Create figure with subplots for each component
+                n_comp = Wv.shape[1]
+                height_per_comp = 5 if ('clinical' in vname or 'imaging' in vname) else 3
+                fig, axes = plt.subplots(n_comp, 1, figsize=(10, height_per_comp*n_comp))
+                
+                if n_comp == 1:
+                    axes = [axes]
+                
+                for j in range(n_comp):
+                    w = Wv[:, j]
+                    top_idx = np.argsort(np.abs(w))[::-1][:topk]
+                    top_weights = w[top_idx]
+                    top_features = [features[i] for i in top_idx]
+                    
+                    colors = [COLORS['primary'] if x >= 0 else COLORS['secondary'] for x in top_weights]
+                    bars = axes[j].barh(range(len(top_weights)), top_weights, color=colors, alpha=0.8)
+                    
+                    axes[j].set_yticks(range(len(top_weights)))
+                    label_fontsize = 7 if ('clinical' in vname or 'imaging' in vname) else 8
+                    axes[j].set_yticklabels(top_features, fontsize=label_fontsize)
+                    axes[j].set_xlabel('Loading Weight')
+                    axes[j].set_title(f'Latent Factor {j+1}', fontweight='bold')
+                    axes[j].axvline(0, color='black', linewidth=0.8)
+                    axes[j].grid(True, alpha=0.3, axis='x')
+                    axes[j].invert_yaxis()
+                
+                plt.suptitle(f'{vname.title()} - Top {topk} Features by Absolute Loading Weight', 
+                            fontsize=14, fontweight='bold')
+                plt.subplots_adjust(top=0.83, hspace=0.4)
+                
+                # Save using safe save function
+                base_path = plot_path / "publication" / f"loadings_{vname.lower().replace(' ', '_')}"
+                save_plot_safely(fig, base_path)
+                
+        except Exception as e:
+            logging.error(f"Failed to create loading plot for {vname}: {e}")
+            continue
+        finally:
+            d += dim
 
 def _plot_subject_scores(Z, sub_ids, plot_path):
     """Create professional subject scores heatmap."""
@@ -1594,9 +1685,13 @@ def plot_model_comparison(results_dict, output_path):
     
     logging.info(f"Model comparison plot saved to {output_path}")
 
+# Apply error handling to main visualization functions
+synthetic_data = visualization_with_error_handling(synthetic_data)
+qmap_pd = visualization_with_error_handling(qmap_pd)
+
 # Export key functions for backward compatibility
 __all__ = [
     'synthetic_data', 'qmap_pd', 'plot_param', 'plot_X', 'find_bestrun',
     'define_box_properties', 'plot_preprocessing_summary', 'plot_cv_results',
-    'plot_consensus_subtypes', 'create_all_visualizations', 'plot_model_comparison'
+    'plot_consensus_subtypes', 'create_all_visualizations', 'plot_model_comparison', 'safe_plotting_context', 'save_plot_safely', 'setup_plotting_style'
 ]
