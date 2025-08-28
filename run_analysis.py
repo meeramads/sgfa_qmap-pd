@@ -43,6 +43,15 @@ try:
 except ImportError:
     logging.info("Cross-validation module not available - will run standard analysis only")
 
+# Import weight-to-MRI module
+try:
+    from qmap_gfa_weight2mri_python import FactorToMRIMapper, integrate_with_visualization
+    FACTOR_MAPPING_AVAILABLE = True
+    logging.info("Factor-to-MRI mapping module available")
+except ImportError:
+    FACTOR_MAPPING_AVAILABLE = False
+    logging.info("Factor-to-MRI mapping module not available")
+
 # == MODEL CODE ==
 def models(X_list, hypers, args):
     """Sparse GFA model with optional regularized horseshoe priors."""
@@ -476,6 +485,45 @@ def main(args):
             
         except Exception as e:
             logging.warning(f"Could not create comprehensive visualization: {e}")
+            
+    # == FACTOR-TO-MRI MAPPING ==
+    if run_standard and getattr(args, 'create_factor_maps', False) and FACTOR_MAPPING_AVAILABLE:
+        logging.info("=== CREATING FACTOR-TO-MRI MAPPINGS ===")
+        try:
+            # Load best run results
+            with open(f'{standard_res_dir}/results.txt', 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    if line.startswith('Best run:'):
+                        brun = int(line.split(':')[1].strip())
+                        break
+                else:
+                    brun = 1
+            
+            # Load factor loadings
+            rob_path = f'{standard_res_dir}/[{brun}]Robust_params.dictionary'
+            if os.path.exists(rob_path) and os.path.getsize(rob_path) > 5:
+                with open(rob_path, 'rb') as f:
+                    rob_params = pickle.load(f)
+                W = rob_params.get('W')
+                
+                if W is not None:
+                    # Create factor maps
+                    reference_mri = getattr(args, 'reference_mri', None)
+                    factor_maps = integrate_with_visualization(
+                        standard_res_dir, data, W, args.data_dir,
+                        factor_indices=list(range(min(10, W.shape[1])))  # Map first 10 factors
+                    )
+                    
+                    logging.info("Factor-to-MRI mapping completed successfully")
+                    logging.info(f"Generated {sum(len(maps) for maps in factor_maps.values())} NIfTI files")
+                else:
+                    logging.warning("No factor loadings found for mapping")
+            else:
+                logging.warning("No robust parameters found for factor mapping")
+                
+        except Exception as e:
+            logging.error(f"Factor-to-MRI mapping failed: {e}")
 
     # == LOG FINAL SUMMARY ==
     logging.info("=" * 60)
@@ -586,6 +634,14 @@ if __name__ == "__main__":
     cv_group.add_argument("--cv_group_col", type=str, default=None,
                          help="Clinical variable for grouped cross-validation")
 
+    # == WEIGHT TO MRI INTEGRATION ARGUMENTS ==
+    parser.add_argument("--create_factor_maps", action="store_true",
+                       help="Create NIfTI files mapping factor loadings back to brain space")
+    parser.add_argument("--factor_maps_dir", type=str, default="factor_maps",
+                       help="Directory name for factor map outputs")
+    parser.add_argument("--reference_mri", type=str, default=None,
+                       help="Path to reference MRI (if different from standard location)")
+    
     # == OUTPUT CONTROL ==
     parser.add_argument("--create_comprehensive_viz", action="store_true",
                        help="Create comprehensive visualization combining all analyses")
