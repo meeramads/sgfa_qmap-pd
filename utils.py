@@ -2,6 +2,8 @@ import numpy as np
 import logging
 import contextlib
 import gc
+from pathlib import Path
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -202,6 +204,289 @@ def estimate_memory_requirements(n_subjects, n_features, n_factors, n_chains, n_
         )
     
     return estimated_gb
+
+def ensure_directory(path):
+    """
+    Ensure directory exists, create if necessary.
+    
+    Parameters
+    ----------
+    path : str or Path
+        Directory path to create
+        
+    Returns
+    -------
+    path : Path
+        Resolved Path object
+    """
+    path = Path(path)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+def safe_file_path(directory, filename):
+    """
+    Create safe file path with proper cross-platform handling.
+    
+    Parameters
+    ----------
+    directory : str or Path
+        Directory path
+    filename : str
+        Filename
+        
+    Returns
+    -------
+    path : Path
+        Safe file path
+    """
+    return Path(directory) / filename
+
+def validate_file_exists(filepath, description="File"):
+    """
+    Validate that a file exists with informative error message.
+    
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to file
+    description : str
+        Description of file for error message
+        
+    Raises
+    ------
+    FileNotFoundError
+        If file does not exist
+    """
+    filepath = Path(filepath)
+    if not filepath.exists():
+        raise FileNotFoundError(
+            f"{description} not found: {filepath}\n"
+            f"Please check the path and ensure the file exists."
+        )
+
+def create_results_structure(base_dir, dataset, model, flag, flag_regZ):
+    """
+    Create standardized results directory structure.
+    
+    Parameters
+    ----------
+    base_dir : str
+        Base results directory (e.g., '../results')
+    dataset : str
+        Dataset name
+    model : str
+        Model name
+    flag : str
+        Parameter flag string
+    flag_regZ : str
+        Regularization flag string
+        
+    Returns
+    -------
+    results_dir : Path
+        Created results directory
+    """
+    base_path = Path(base_dir)
+    results_dir = base_path / dataset / f"{model}_{flag}{flag_regZ}"
+    ensure_directory(results_dir)
+    return results_dir
+
+def get_model_files(results_dir, run_id):
+    """
+    Get standardized model file paths for a given run.
+    
+    Parameters
+    ----------
+    results_dir : str or Path
+        Results directory
+    run_id : int
+        Run identifier
+        
+    Returns
+    -------
+    files : dict
+        Dictionary of file paths
+    """
+    results_dir = Path(results_dir)
+    
+    files = {
+        'model_params': results_dir / f"[{run_id}]Model_params.dictionary",
+        'robust_params': results_dir / f"[{run_id}]Robust_params.dictionary",
+        'hyperparameters': results_dir / "hyperparameters.dictionary",
+        'results_txt': results_dir / "results.txt",
+        'plots_dir': results_dir / f"plots_{run_id}",
+        'publication_dir': results_dir / f"plots_{run_id}" / "publication",
+        'preprocessing_dir': results_dir / f"plots_{run_id}" / "preprocessing",
+        'factor_maps_dir': results_dir / f"plots_{run_id}" / "factor_maps"
+    }
+    
+    return files
+
+def safe_pickle_load(filepath, description="File"):
+    """
+    Safely load pickle file with error handling.
+    
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to pickle file
+    description : str
+        Description for error messages
+        
+    Returns
+    -------
+    data : object
+        Loaded data or None if failed
+    """
+    import pickle
+    
+    filepath = Path(filepath)
+    
+    if not filepath.exists():
+        logging.error(f"{description} not found: {filepath}")
+        return None
+    
+    if filepath.stat().st_size <= 5:
+        logging.error(f"{description} is empty or corrupted: {filepath}")
+        return None
+    
+    try:
+        with open(filepath, 'rb') as f:
+            data = pickle.load(f)
+        logging.debug(f"Successfully loaded {description}: {filepath}")
+        return data
+    except Exception as e:
+        logging.error(f"Failed to load {description} from {filepath}: {e}")
+        return None
+
+def safe_pickle_save(data, filepath, description="File"):
+    """
+    Safely save pickle file with error handling.
+    
+    Parameters
+    ----------
+    data : object
+        Data to save
+    filepath : str or Path
+        Path to save file
+    description : str
+        Description for logging
+        
+    Returns
+    -------
+    success : bool
+        True if saved successfully
+    """
+    import pickle
+    
+    filepath = Path(filepath)
+    
+    # Ensure directory exists
+    ensure_directory(filepath.parent)
+    
+    try:
+        with open(filepath, 'wb') as f:
+            pickle.dump(data, f)
+        
+        # Verify file was saved and is not empty
+        if filepath.stat().st_size > 5:
+            logging.debug(f"Successfully saved {description}: {filepath}")
+            return True
+        else:
+            logging.error(f"Failed to save {description}: file is empty after save")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Failed to save {description} to {filepath}: {e}")
+        return False
+
+def backup_file(filepath, max_backups=5):
+    """
+    Create backup of existing file before overwriting.
+    
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to file to backup
+    max_backups : int
+        Maximum number of backups to keep
+    """
+    filepath = Path(filepath)
+    
+    if not filepath.exists():
+        return
+    
+    # Find next backup number
+    backup_num = 1
+    while backup_num <= max_backups:
+        backup_path = filepath.with_suffix(f"{filepath.suffix}.bak{backup_num}")
+        if not backup_path.exists():
+            break
+        backup_num += 1
+    
+    if backup_num <= max_backups:
+        try:
+            import shutil
+            shutil.copy2(filepath, backup_path)
+            logging.debug(f"Created backup: {backup_path}")
+        except Exception as e:
+            logging.warning(f"Failed to create backup of {filepath}: {e}")
+    else:
+        logging.warning(f"Maximum backups ({max_backups}) reached for {filepath}")
+
+def clean_filename(filename):
+    """
+    Clean filename for cross-platform compatibility.
+    
+    Parameters
+    ----------
+    filename : str
+        Original filename
+        
+    Returns
+    -------
+    clean_name : str
+        Cross-platform safe filename
+    """
+    import re
+    
+    # Replace problematic characters
+    clean_name = re.sub(r'[<>:"/\\|?*]', '_', filename)
+    
+    # Remove multiple underscores
+    clean_name = re.sub(r'_+', '_', clean_name)
+    
+    # Remove leading/trailing underscores and dots
+    clean_name = clean_name.strip('_.')
+    
+    # Ensure not too long (max 255 chars for most filesystems)
+    if len(clean_name) > 200:
+        name, ext = os.path.splitext(clean_name)
+        clean_name = name[:200-len(ext)] + ext
+    
+    return clean_name
+
+def get_relative_path(filepath, base_path):
+    """
+    Get relative path from base directory.
+    
+    Parameters
+    ----------
+    filepath : str or Path
+        Full path to file
+    base_path : str or Path
+        Base directory path
+        
+    Returns
+    -------
+    rel_path : str
+        Relative path string
+    """
+    try:
+        return str(Path(filepath).relative_to(Path(base_path)))
+    except ValueError:
+        # If files are on different drives (Windows), return absolute path
+        return str(Path(filepath).resolve())
 
 def get_robustK(thrs, args, params, d_comps):
     logging.info("Running get_robustK")
