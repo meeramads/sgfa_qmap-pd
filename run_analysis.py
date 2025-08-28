@@ -392,10 +392,33 @@ def should_run_cv_analysis(args):
 
 def main(args):                           
     
-    # Validate and setup arguments
-    args = validate_and_setup_args(args)
-
-    # Make directory to save results
+    # === PARAMETER VALIDATION ===
+    try:
+        args = validate_and_setup_args(args)
+    except (ValueError, RuntimeError, FileNotFoundError) as e:
+        logging.error(f"Parameter validation failed: {e}")
+        sys.exit(1)
+    
+    # === MEMORY CHECK ===
+    from utils import check_available_memory, estimate_memory_requirements
+    
+    available_memory = check_available_memory()
+    
+    # Estimate memory for qMAP-PD (rough estimates)
+    if args.dataset == 'qmap_pd':
+        # These will be updated once data is loaded
+        estimated_memory = estimate_memory_requirements(
+            n_subjects=100,  # rough estimate
+            n_features=2000,  # rough estimate  
+            n_factors=args.K,
+            n_chains=args.num_chains,
+            n_samples=args.num_samples
+        )
+    
+    # === RESULTS DIRECTORY SETUP ===
+    from utils import create_results_structure, ensure_directory
+    
+    # Create flag strings
     if 'synthetic' in args.dataset: 
         flag = f'K{args.K}_{args.num_chains}chs_pW{args.percW}_s{args.num_samples}_addNoise{args.noise}'
     else:
@@ -412,182 +435,218 @@ def main(args):
     
     logging.info(f"Analysis plan: Standard={run_standard}, CV={run_cv}")
     
-    # Create result directories
+    # Create result directories using Path
+    results_base = Path('../results')
+    
     if run_standard:
-        standard_res_dir = f'../results/{args.dataset}/{args.model}_{flag}{flag_regZ}'     
-        if not os.path.exists(standard_res_dir):
-            os.makedirs(standard_res_dir)  
+        standard_res_dir = create_results_structure(
+            results_base, args.dataset, args.model, flag, flag_regZ
+        )
+        logging.info(f"Standard results directory: {standard_res_dir}")
     
     if run_cv:
-        cv_res_dir = f'../results/{args.dataset}_cv/{args.model}_{flag}{flag_regZ}_cv'     
-        if not os.path.exists(cv_res_dir):
-            os.makedirs(cv_res_dir)
+        cv_res_dir = create_results_structure(
+            results_base, f"{args.dataset}_cv", args.model, flag, f"{flag_regZ}_cv"
+        )
+        logging.info(f"CV results directory: {cv_res_dir}")
 
-    # Set up hyperparameters (shared between standard and CV)
+    # === HYPERPARAMETERS SETUP ===
     hp_dir = standard_res_dir if run_standard else cv_res_dir
-    hp_path = f'{hp_dir}/hyperparameters.dictionary'
-    if not os.path.exists(hp_path):   
+    hp_path = hp_dir / 'hyperparameters.dictionary'
+    
+    from utils import safe_pickle_load, safe_pickle_save
+    
+    hypers = safe_pickle_load(hp_path, "Hyperparameters")
+    if hypers is None:   
         hypers = {'a_sigma': 1, 'b_sigma': 1,
                 'nu_local': 1, 'nu_global': 1,
                 'slab_scale': 2, 'slab_df': 4, 
                 'percW': args.percW}
-        with open(hp_path, 'wb') as parameters:
-            pickle.dump(hypers, parameters)        
-    else:
-        with open(hp_path, 'rb') as parameters:
-            hypers = pickle.load(parameters)       
+        
+        if not safe_pickle_save(hypers, hp_path, "Hyperparameters"):
+            logging.error("Failed to save hyperparameters")
+            return
 
-    # == DATA LOADING (SHARED) ==
+    # === DATA LOADING (with memory monitoring) ===
     logging.info("=== LOADING AND PREPARING DATA ===")
     
-    if 'synthetic' in args.dataset:  
-        # Generate synthetic data (only need to do this once)
-        data_path = f'{hp_dir}/synthetic_data.dictionary'
-        if not os.path.exists(data_path):
-            data = get_data.synthetic_data(hypers, args)
-            with open(data_path, 'wb') as parameters:
-                pickle.dump(data, parameters)
-        else:
-            with open(data_path, 'rb') as parameters:
-                data = pickle.load(parameters)
-        
-        # Convert synthetic data to multi-view format
-        X = data['X'] 
-        Dm = data['Dm']
-        X_list = []
-        d = 0
-        for m in range(args.num_sources):
-            X_list.append(X[:, d:d+Dm[m]])
-            d += Dm[m]
-        
-        # Update hypers with Dm
-        hypers.update({'Dm': Dm})
-        
-    elif 'qmap' in args.dataset:
-        data = get_data.get_data(
-            dataset=args.dataset,
-            data_dir=args.data_dir,
-            clinical_rel=args.clinical_rel,
-            volumes_rel=args.volumes_rel,
-            imaging_as_single_view=not args.roi_views,
-            id_col=args.id_col,
-            # Enhanced preprocessing parameters
-            enable_advanced_preprocessing=getattr(args, 'enable_preprocessing', False),
-            imputation_strategy=getattr(args, 'imputation_strategy', 'median'),
-            feature_selection_method=getattr(args, 'feature_selection', 'variance'),
-            n_top_features=getattr(args, 'n_top_features', None),
-            missing_threshold=getattr(args, 'missing_threshold', 0.1),
-            variance_threshold=getattr(args, 'variance_threshold', 0.0),
-            target_variable=getattr(args, 'target_variable', None),
-            cross_validate_sources=getattr(args, 'cross_validate_sources', False),
-            optimize_preprocessing=getattr(args, 'optimize_preprocessing', False),
-        ) 
-        
-        X_list = data['X_list']
-        view_names = data['view_names']
-        args.num_sources = len(X_list)
+    from utils import memory_monitoring_context
     
-        logging.info(f"qMAP-PD views: {view_names} | Dm = {[x.shape[1] for x in X_list]}")
-    
-        # Log preprocessing results if available
-        if 'preprocessing' in data:
-            prep_results = data['preprocessing']
-            logging.info("=== Preprocessing Applied ===")
-            for view, stats in prep_results['feature_reduction'].items():
-                logging.info(f"{view}: {stats['original']} → {stats['processed']} features "
-                       f"({stats['reduction_ratio']:.2%} retained)")
+    with memory_monitoring_context("Data loading"):
+        if 'synthetic' in args.dataset:  
+            # Generate synthetic data
+            data_path = hp_dir / 'synthetic_data.dictionary'
+            data = safe_pickle_load(data_path, "Synthetic data")
+            
+            if data is None:
+                data = get_data.synthetic_data(hypers, args)
+                if not safe_pickle_save(data, data_path, "Synthetic data"):
+                    logging.error("Failed to save synthetic data")
+                    return
+            
+            # Convert synthetic data to multi-view format
+            X = data['X'] 
+            Dm = data['Dm']
+            X_list = []
+            d = 0
+            for m in range(args.num_sources):
+                X_list.append(X[:, d:d+Dm[m]])
+                d += Dm[m]
+            
+            # Update hypers with Dm
+            hypers.update({'Dm': Dm})
+            
+        elif 'qmap' in args.dataset:
+            data = get_data.get_data(
+                dataset=args.dataset,
+                data_dir=args.data_dir,
+                clinical_rel=args.clinical_rel,
+                volumes_rel=args.volumes_rel,
+                imaging_as_single_view=not args.roi_views,
+                id_col=args.id_col,
+                # Enhanced preprocessing parameters
+                enable_advanced_preprocessing=getattr(args, 'enable_preprocessing', False),
+                imputation_strategy=getattr(args, 'imputation_strategy', 'median'),
+                feature_selection_method=getattr(args, 'feature_selection', 'variance'),
+                n_top_features=getattr(args, 'n_top_features', None),
+                missing_threshold=getattr(args, 'missing_threshold', 0.1),
+                variance_threshold=getattr(args, 'variance_threshold', 0.0),
+                target_variable=getattr(args, 'target_variable', None),
+                cross_validate_sources=getattr(args, 'cross_validate_sources', False),
+                optimize_preprocessing=getattr(args, 'optimize_preprocessing', False),
+            ) 
+            
+            X_list = data['X_list']
+            view_names = data['view_names']
+            args.num_sources = len(X_list)
         
-            if 'source_validation' in prep_results:
-                logging.info("Best source combinations by RMSE:")
-                sorted_combos = sorted(prep_results['source_validation'].items(), 
-                                 key=lambda x: x[1]['rmse_mean'])
-                for combo, results in sorted_combos[:3]:  # Top 3
-                    logging.info(f"  {combo}: {results['rmse_mean']:.4f} ± {results['rmse_std']:.4f}")
-    
-        # Update hypers with processed Dm
-        hypers.update({'Dm': [x.shape[1] for x in X_list]})
+            logging.info(f"qMAP-PD views: {view_names} | Dm = {[x.shape[1] for x in X_list]}")
+        
+            # Log preprocessing results if available
+            if 'preprocessing' in data:
+                prep_results = data['preprocessing']
+                logging.info("=== Preprocessing Applied ===")
+                for view, stats in prep_results['feature_reduction'].items():
+                    logging.info(f"{view}: {stats['original']} → {stats['processed']} features "
+                           f"({stats['reduction_ratio']:.2%} retained)")
+            
+                if 'source_validation' in prep_results:
+                    logging.info("Best source combinations by RMSE:")
+                    sorted_combos = sorted(prep_results['source_validation'].items(), 
+                                     key=lambda x: x[1]['rmse_mean'])
+                    for combo, results in sorted_combos[:3]:  # Top 3
+                        logging.info(f"  {combo}: {results['rmse_mean']:.4f} ± {results['rmse_std']:.4f}")
+        
+            # Update hypers with processed Dm
+            hypers.update({'Dm': [x.shape[1] for x in X_list]})
 
-        # Save preprocessing results if available
-        if 'preprocessing' in data:
-            prep_path = f'{hp_dir}/preprocessing_results.dictionary'
-            with open(prep_path, 'wb') as f:
-                pickle.dump(data['preprocessing'], f)
-                logging.info(f"Preprocessing results saved to {prep_path}")
+            # Save preprocessing results if available
+            if 'preprocessing' in data:
+                prep_path = hp_dir / 'preprocessing_results.dictionary'
+                if not safe_pickle_save(data['preprocessing'], prep_path, "Preprocessing results"):
+                    logging.warning("Failed to save preprocessing results")
 
-    # == CROSS-VALIDATION ANALYSIS ==
+    # Update memory estimates with actual data
+    if args.dataset == 'qmap_pd':
+        n_subjects = X_list[0].shape[0]
+        n_features = sum(X.shape[1] for X in X_list)
+        
+        logging.info(f"Actual data size: {n_subjects} subjects, {n_features} features")
+        
+        estimate_memory_requirements(
+            n_subjects=n_subjects,
+            n_features=n_features,
+            n_factors=args.K,
+            n_chains=args.num_chains,
+            n_samples=args.num_samples
+        )
+
+    # === CROSS-VALIDATION ANALYSIS ===
     cv_results = None
     if run_cv:
         logging.info("=== RUNNING CROSS-VALIDATION ANALYSIS ===")
         try:
-            cv_result = run_cross_validation_analysis(args, X_list, hypers, data)
-            if cv_result is not None:
-                cv_results, cv_object = cv_result
-                
-                # Save CV results
-                cv_object.save_results(cv_res_dir, "cv_analysis")
-                logging.info(f"CV results saved to {cv_res_dir}")
-                
-                # Create CV visualizations
-                try:
-                    from visualization import plot_cv_results
-                    plot_cv_results(cv_results, cv_res_dir, "cv_analysis")
-                    logging.info("CV visualizations created")
-                except Exception as e:
-                    logging.warning(f"Could not create CV visualizations: {e}")
-            else:
-                logging.error("Cross-validation analysis failed")
+            with memory_monitoring_context("Cross-validation"):
+                cv_result = run_cross_validation_analysis(args, X_list, hypers, data)
+                if cv_result is not None:
+                    cv_results, cv_object = cv_result
+                    
+                    # Save CV results
+                    cv_object.save_results(cv_res_dir, "cv_analysis")
+                    logging.info(f"CV results saved to {cv_res_dir}")
+                    
+                    # Create CV visualizations
+                    try:
+                        from visualization import plot_cv_results
+                        plot_cv_results(cv_results, cv_res_dir, "cv_analysis")
+                        logging.info("CV visualizations created")
+                    except Exception as e:
+                        logging.warning(f"Could not create CV visualizations: {e}")
+                else:
+                    logging.error("Cross-validation analysis failed")
         except Exception as e:
             logging.error(f"Cross-validation analysis failed: {e}")
             if getattr(args, 'cv_only', False):
                 logging.error("CV-only mode requested but CV failed - exiting")
                 return
 
-    # == STANDARD MCMC ANALYSIS ==
+    # === STANDARD MCMC ANALYSIS ===
     if run_standard:
         logging.info("=== RUNNING STANDARD MCMC ANALYSIS ===")
+        
+        from utils import get_model_files
         
         for i in range(args.num_runs):          
             logging.info(f'Initialisation: {i+1}')
             logging.info('----------------------------------')
-                                                          
+            
+            # Get file paths using utility function
+            files = get_model_files(standard_res_dir, i+1)
+            
             # RUN MODEL
-            res_path = f'{standard_res_dir}/[{i+1}]Model_params.dictionary'
-            robparams_path = f'{standard_res_dir}/[{i+1}]Robust_params.dictionary'
+            res_path = files['model_params']
+            robparams_path = files['robust_params']
 
-            # Run if file doesn't exist OR is tiny/corrupted
-            if (not os.path.exists(res_path)) or (os.path.getsize(res_path) <= 5):
+            # Run if file doesn't exist OR is empty
+            if (not res_path.exists()) or (res_path.stat().st_size <= 5):
                 try:
                     logging.info('Running MCMC Model...')
                     seed = np.random.randint(0, 50)
                     rng_key = jax.random.PRNGKey(seed)
-                    start = time.time()
+                    
+                    with memory_monitoring_context(f"MCMC run {i+1}"):
+                        start = time.time()
+                        MCMCout = run_inference(models, args, rng_key, X_list, hypers)
+                        mcmc_samples = MCMCout.get_samples()
 
-                    MCMCout = run_inference(models, args, rng_key, X_list, hypers)
-                    mcmc_samples = MCMCout.get_samples()
-
-                    # Compute sampling performance
-                    mcmc_samples.update({'time_elapsed': (time.time() - start)/60})
-                    pe = MCMCout.get_extra_fields()['potential_energy']
-                    mcmc_samples.update({'exp_logdensity': jnp.mean(-pe)})
+                        # Compute sampling performance
+                        mcmc_samples.update({'time_elapsed': (time.time() - start)/60})
+                        pe = MCMCout.get_extra_fields()['potential_energy']
+                        mcmc_samples.update({'exp_logdensity': jnp.mean(-pe)})
 
                     # Save model only after success
-                    with open(res_path, 'wb') as parameters:
-                        pickle.dump(mcmc_samples, parameters)
+                    if not safe_pickle_save(mcmc_samples, res_path, f"MCMC samples run {i+1}"):
+                        logging.error(f"Failed to save MCMC samples for run {i+1}")
+                        continue
+                        
                     logging.info('Inferred parameters saved.')
+                    
                 except Exception as e:
-                    logging.exception("MCMC run failed; not saving any placeholder.")
-                    # ensure no tiny/corrupt file remains
-                    if os.path.exists(res_path) and os.path.getsize(res_path) <= 5:
+                    logging.exception(f"MCMC run {i+1} failed")
+                    # Clean up any corrupt file
+                    if res_path.exists() and res_path.stat().st_size <= 5:
                         try:
-                            os.remove(res_path)
+                            res_path.unlink()
                         except OSError:
                             pass
                     continue  # move to next initialisation
                 
-            if (not os.path.exists(robparams_path)) and os.path.exists(res_path) and (os.path.getsize(res_path) > 5):    
-                #Get inferred parameters within each chain
-                with open(res_path, 'rb') as parameters:
-                    mcmc_samples = pickle.load(parameters)
+            # Process robust parameters
+            if (not robparams_path.exists()) and res_path.exists() and (res_path.stat().st_size > 5):    
+                mcmc_samples = safe_pickle_load(res_path, f"MCMC samples run {i+1}")
+                if mcmc_samples is None:
+                    continue
+                    
                 inf_params, data_comps = get_infparams(mcmc_samples, hypers, args)
 
                 if args.num_chains > 1:
@@ -600,9 +659,11 @@ def main(args):
                         rob_params.update({'sigma_inf': inf_params['sigma'], 'infX': X_rob})
                         if 'sparseGFA' in args.model:
                             rob_params.update({'tauW_inf': inf_params['tauW']}) 
-                        with open(robparams_path, 'wb') as parameters:
-                            pickle.dump(rob_params, parameters)
-                        logging.info('Robust parameters saved')  
+                        
+                        if not safe_pickle_save(rob_params, robparams_path, f"Robust parameters run {i+1}"):
+                            logging.error(f"Failed to save robust parameters for run {i+1}")
+                        else:
+                            logging.info('Robust parameters saved')  
                     else:
                         logging.warning('No robust components found') 
                 else:
@@ -610,69 +671,75 @@ def main(args):
                     Z = np.mean(inf_params['Z'][0], axis=0)
                     X_recon = np.dot(Z, W.T)
                     rob_params = {'W': W, 'Z': Z, 'infX': X_recon}  
-                    with open(robparams_path, 'wb') as parameters:
-                        pickle.dump(rob_params, parameters)     
+                    
+                    if not safe_pickle_save(rob_params, robparams_path, f"Robust parameters run {i+1}"):
+                        logging.error(f"Failed to save robust parameters for run {i+1}")
 
-        # Standard visualization
-        if 'synthetic' in args.dataset:
-            # Need to reload synthetic data for visualization
-            with open(f'{standard_res_dir}/synthetic_data.dictionary', 'rb') as f:
-                true_params = pickle.load(f)
-            visualization.synthetic_data(standard_res_dir, true_params, args, hypers)
-        else:
-            visualization.qmap_pd(data, standard_res_dir, args, hypers)
+        # === VISUALIZATION ===
+        with memory_monitoring_context("Visualization"):
+            if 'synthetic' in args.dataset:
+                # Need to reload synthetic data for visualization
+                true_params = safe_pickle_load(standard_res_dir / 'synthetic_data.dictionary', "Synthetic data")
+                if true_params:
+                    visualization.synthetic_data(str(standard_res_dir), true_params, args, hypers)
+            else:
+                visualization.qmap_pd(data, str(standard_res_dir), args, hypers)
 
-    # == COMPREHENSIVE VISUALIZATION ==
+    # === COMPREHENSIVE VISUALIZATION ===
     if getattr(args, 'create_comprehensive_viz', False):
         logging.info("=== CREATING COMPREHENSIVE VISUALIZATION ===")
         try:
-            from visualization import create_all_visualizations
-            
-            # Determine primary results directory
-            primary_dir = standard_res_dir if run_standard else cv_res_dir
-            
-            # Create comprehensive visualization
-            viz_args = {
-                'results_dir': primary_dir,
-                'data': data,
-                'run_name': f"comprehensive_{args.dataset}_{args.model}"
-            }
-            
-            if cv_results:
-                viz_args['cv_results'] = cv_results
-            
-            create_all_visualizations(**viz_args)
-            logging.info("Comprehensive visualization created")
-            
+            with memory_monitoring_context("Comprehensive visualization"):
+                from visualization import create_all_visualizations
+                
+                # Determine primary results directory
+                primary_dir = standard_res_dir if run_standard else cv_res_dir
+                
+                # Create comprehensive visualization
+                viz_args = {
+                    'results_dir': str(primary_dir),
+                    'data': data,
+                    'run_name': f"comprehensive_{args.dataset}_{args.model}"
+                }
+                
+                if cv_results:
+                    viz_args['cv_results'] = cv_results
+                
+                create_all_visualizations(**viz_args)
+                logging.info("Comprehensive visualization created")
+                
         except Exception as e:
             logging.warning(f"Could not create comprehensive visualization: {e}")
             
-    # == FACTOR-TO-MRI MAPPING ==
+    # === FACTOR-TO-MRI MAPPING ===
     if run_standard and getattr(args, 'create_factor_maps', False) and FACTOR_MAPPING_AVAILABLE:
         logging.info("=== CREATING FACTOR-TO-MRI MAPPINGS ===")
         try:
-            # Load best run results
-            with open(f'{standard_res_dir}/results.txt', 'r') as f:
-                lines = f.readlines()
-                for line in lines:
-                    if line.startswith('Best run:'):
-                        brun = int(line.split(':')[1].strip())
-                        break
-                else:
-                    brun = 1
-            
-            # Load factor loadings
-            rob_path = f'{standard_res_dir}/[{brun}]Robust_params.dictionary'
-            if os.path.exists(rob_path) and os.path.getsize(rob_path) > 5:
-                with open(rob_path, 'rb') as f:
-                    rob_params = pickle.load(f)
-                W = rob_params.get('W')
+            with memory_monitoring_context("Factor-to-MRI mapping"):
+                # Load best run results
+                results_file = standard_res_dir / 'results.txt'
+                brun = 1  # default
                 
-                if W is not None:
+                if results_file.exists():
+                    try:
+                        with open(results_file, 'r') as f:
+                            for line in f:
+                                if line.startswith('Best run:'):
+                                    brun = int(line.split(':')[1].strip())
+                                    break
+                    except:
+                        pass
+                
+                # Load factor loadings
+                files = get_model_files(standard_res_dir, brun)
+                rob_params = safe_pickle_load(files['robust_params'], "Robust parameters")
+                
+                if rob_params and 'W' in rob_params:
+                    W = rob_params['W']
+                    
                     # Create factor maps
-                    reference_mri = getattr(args, 'reference_mri', None)
                     factor_maps = integrate_with_visualization(
-                        standard_res_dir, data, W, args.data_dir,
+                        str(standard_res_dir), data, W, args.data_dir,
                         factor_indices=list(range(min(10, W.shape[1])))  # Map first 10 factors
                     )
                     
@@ -680,13 +747,15 @@ def main(args):
                     logging.info(f"Generated {sum(len(maps) for maps in factor_maps.values())} NIfTI files")
                 else:
                     logging.warning("No factor loadings found for mapping")
-            else:
-                logging.warning("No robust parameters found for factor mapping")
-                
+                    
         except Exception as e:
             logging.error(f"Factor-to-MRI mapping failed: {e}")
 
-    # == LOG FINAL SUMMARY ==
+    # === FINAL CLEANUP AND SUMMARY ===
+    from utils import cleanup_memory
+    cleanup_memory()
+
+    # === LOG FINAL SUMMARY ===
     logging.info("=" * 60)
     logging.info("ANALYSIS COMPLETE")
     logging.info("=" * 60)
@@ -818,4 +887,14 @@ if __name__ == "__main__":
     
     numpyro.set_platform(args.device)
     numpyro.set_host_device_count(args.num_chains)
-    main(args)
+    
+    # Error and stoppage handling
+    try:
+        main(args)
+    except KeyboardInterrupt:
+        logging.info("Analysis interrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        logging.error(f"Analysis failed with error: {e}")
+        logging.exception("Full traceback:")
+        sys.exit(1)
