@@ -23,6 +23,8 @@ import visualization
 #logging
 import logging
 from loader_qmap_pd import load_qmap_pd as qmap_pd
+from preprocessing import AdvancedPreprocessor, cross_validate_source_combinations
+
 
 
 from utils import get_infparams, get_robustK
@@ -137,7 +139,7 @@ def models(X_list, hypers, args):
             numpyro.sample(f'X{m+1}', dist.Normal(jnp.dot(Z, W_chunk.T), 
                 1/jnp.sqrt(sigma[0,m])), obs=X_m)
             d += width
-
+    
 def run_inference(model, args, rng_key, X_list, hypers):
     
     # Run inference using Hamiltonian Monte Carlo
@@ -206,21 +208,51 @@ def main(args):
             
         elif 'qmap' in args.dataset:
             data = get_data.get_data(
-                dataset=args.dataset,
-                data_dir=args.data_dir,
-                clinical_rel=args.clinical_rel,
-                volumes_rel=args.volumes_rel,
-                imaging_as_single_view=not args.roi_views,  # <-- convert here
-                id_col=args.id_col,
-            ) 
-            X_list = data['X_list']
-            view_names = data['view_names']
-            args.num_sources = len(X_list)
-            
-            logging.info(f"qMAP-PD views: {view_names} | Dm = {[x.shape[1] for x in X_list]}")
-            
-            # Update hypers with Dm
-            hypers.update({'Dm': [x.shape[1] for x in X_list]})
+            dataset=args.dataset,
+            data_dir=args.data_dir,
+            clinical_rel=args.clinical_rel,
+            volumes_rel=args.volumes_rel,
+            imaging_as_single_view=not args.roi_views,
+            id_col=args.id_col,
+            # New preprocessing parameters
+            enable_advanced_preprocessing=getattr(args, 'enable_preprocessing', False),
+            imputation_strategy=getattr(args, 'imputation_strategy', 'median'),
+            feature_selection_method=getattr(args, 'feature_selection', 'variance'),
+            n_top_features=getattr(args, 'n_top_features', None),
+            missing_threshold=getattr(args, 'missing_threshold', 0.1),
+            variance_threshold=getattr(args, 'variance_threshold', 0.0),
+            target_variable=getattr(args, 'target_variable', None),
+            cross_validate_sources=getattr(args, 'cross_validate_sources', False),
+            optimize_preprocessing=getattr(args, 'optimize_preprocessing', False),
+        ) 
+        X_list = data['X_list']
+        view_names = data['view_names']
+        args.num_sources = len(X_list)
+    
+        logging.info(f"qMAP-PD views: {view_names} | Dm = {[x.shape[1] for x in X_list]}")
+    
+        # Log preprocessing results if available
+        if 'preprocessing' in data:
+            prep_results = data['preprocessing']
+            logging.info("=== Preprocessing Results ===")
+            for view, stats in prep_results['feature_reduction'].items():
+                logging.info(f"{view}: {stats['original']} → {stats['processed']} features "
+                       f"({stats['reduction_ratio']:.2%} retained)")
+        
+            if 'source_validation' in prep_results:
+                logging.info("Best source combinations by RMSE:")
+                sorted_combos = sorted(prep_results['source_validation'].items(), 
+                                 key=lambda x: x[1]['rmse_mean'])
+                for combo, results in sorted_combos[:3]:  # Top 3
+                    logging.info(f"  {combo}: {results['rmse_mean']:.4f} ± {results['rmse_std']:.4f}")
+    
+        # Update hypers with processed Dm
+        hypers.update({'Dm': [x.shape[1] for x in X_list]})
+
+        if 'qmap' in args.dataset and 'preprocessing' in data:
+            prep_path = f'{res_dir}/[{i+1}]Preprocessing.dictionary'
+            with open(prep_path, 'wb') as f:
+                pickle.dump(data['preprocessing'], f)
                                                       
         # RUN MODEL
         res_path = f'{res_dir}/[{i+1}]Model_params.dictionary'
@@ -339,6 +371,29 @@ if __name__ == "__main__":
     parser.add_argument("--roi_views",action="store_true", 
                         help="If set, keep separate ROI views (SN/Putamen/Lentiform). If not set, concatenates imaging."
     )
+    # Advanced preprocessing arguments
+    parser.add_argument("--enable_preprocessing", action="store_true",
+                       help="Enable advanced preprocessing following Ferreira et al. and Bunte et al. methodologies")
+    parser.add_argument("--imputation_strategy", type=str, 
+                       choices=['median', 'mean', 'knn', 'iterative'], default='median',
+                       help="Missing data imputation strategy")
+    parser.add_argument("--feature_selection", type=str, 
+                       choices=['variance', 'statistical', 'mutual_info', 'combined', 'none'], 
+                       default='variance',
+                       help="Feature selection method")
+    parser.add_argument("--n_top_features", type=int, default=None,
+                       help="Number of top features to select (None for threshold-based)")
+    parser.add_argument("--missing_threshold", type=float, default=0.1,
+                       help="Drop features with more than this fraction of missing values")
+    parser.add_argument("--variance_threshold", type=float, default=0.0,
+                       help="Drop features with variance below this threshold")
+    parser.add_argument("--target_variable", type=str, default=None,
+                       help="Clinical variable to use as target for supervised feature selection")
+    parser.add_argument("--cross_validate_sources", action="store_true",
+                       help="Cross-validate different source combinations")
+    parser.add_argument("--optimize_preprocessing", action="store_true",
+                       help="Optimize preprocessing parameters via cross-validation")
+
     args = parser.parse_args()
     
     # Set the seed for reproducibility
