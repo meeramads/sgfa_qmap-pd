@@ -16,6 +16,12 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import logging
 
+try:
+    from qmap_gfa_weight2mri_python import add_to_qmap_visualization
+    FACTOR_MAPPING_AVAILABLE = True
+except ImportError:
+    FACTOR_MAPPING_AVAILABLE = False
+
 logging.captureWarnings(True)
 
 plt.rcParams.update({
@@ -753,7 +759,37 @@ def qmap_pd(data, res_dir, args, hypers, topk=20):
         plot_preprocessing_summary(data['preprocessing'], plot_path, view_names)
         logging.info("Added preprocessing visualization plots")
 
-# == LEGACY FUNCTIONS ==
+    # Add factor-to-MRI mapping visualization if available
+    if FACTOR_MAPPING_AVAILABLE:
+        
+        try:
+            factor_maps = add_to_qmap_visualization(
+                data, res_dir, args, hypers, 
+                base_dir=getattr(args, 'data_dir', None), 
+                brun=brun
+            )
+            
+            if factor_maps:
+                logging.info("Factor-to-MRI mapping added to visualization")
+                
+                # Create overlay images for better visualization
+                from qmap_gfa_weight2mri_python import create_factor_overlay_images
+                
+                # Find reference MRI
+                base_dir = getattr(args, 'data_dir', 'qMAP-PD_data')
+                ref_mri = os.path.join(base_dir, 'mri_reference', 'average_space-qmap-shoot-384_pdw-brain.nii')
+                
+                if os.path.exists(ref_mri):
+                    create_factor_overlay_images(
+                        factor_maps, ref_mri, 
+                        output_dir=f"{plot_path}/factor_overlays"
+                    )
+                    logging.info("Factor overlay images created")
+                
+        except Exception as e:
+            logging.warning(f"Could not add factor-to-MRI mapping: {e}")
+
+# == LEGACY FUNCTIONS (BACKWARDS COMPATIBILITY) ==
 
 def find_bestrun(res_dir, args, ofile):
     """Find the best run based on log density."""
