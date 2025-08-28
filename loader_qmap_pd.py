@@ -1,4 +1,3 @@
-# sgfa/data/loader_qmap_pd.py
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional

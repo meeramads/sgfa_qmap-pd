@@ -18,9 +18,8 @@ import logging
 
 logging.captureWarnings(True)
 
-# Publication-ready matplotlib settings with improved spacing
 plt.rcParams.update({
-    "font.family": "DejaVu Sans",  # Available in Colab
+    "font.family": "DejaVu Sans",
     "font.size": 10,
     "axes.titlesize": 12,
     "axes.labelsize": 11,
@@ -36,8 +35,8 @@ plt.rcParams.update({
     "axes.grid": True,
     "grid.linewidth": 0.5,
     "grid.alpha": 0.3,
-    "figure.subplot.hspace": 0.8,  # Increased vertical spacing between subplots
-    "figure.subplot.wspace": 0.5,  # Increased horizontal spacing between subplots
+    "figure.subplot.hspace": 0.8,  
+    "figure.subplot.wspace": 0.5, 
 })
 
 # Professional color schemes
@@ -51,7 +50,7 @@ COLORS = {
     'groups': ['#3498DB', '#E74C3C', '#28B463', '#F39C12', '#9B59B6', '#E67E22']
 }
 
-# == Preprocessing Visualization ==
+# == PREPROCESSING VISUALIZATION ==
 
 def plot_preprocessing_summary(preprocessing_results, plot_path, view_names):
     """
@@ -461,7 +460,7 @@ def _plot_factor_stability_heatmap(fold_results, plot_path):
     plt.savefig(f"{plot_path}/cross_validation/factor_stability_heatmap.pdf")
     plt.close()
 
-# ==================== CONSENSUS SUBTYPE VISUALIZATION ====================
+# == CONSENSUS SUBTYPE VISUALIZATION ==
 
 def plot_consensus_subtypes(centroids_data, probabilities_data, plot_path):
     """
@@ -686,11 +685,11 @@ def _plot_subtype_assignments(prob_df, plot_path):
     plt.savefig(f"{plot_path}/consensus/subtype_assignments.pdf")
     plt.close()
 
-# ==================== ENHANCED MAIN FUNCTIONS ====================
+# == MAIN FUNCTIONS ==
 
 def synthetic_data(res_dir, true_params, args, hypers):
     """Generate publication-ready plots for synthetic data analysis."""
-    logging.info(f"Starting enhanced visualization for {res_dir}")
+    logging.info(f"Starting visualization for {res_dir}")
     
     with open(f'{res_dir}/results.txt','w') as ofile:
         # Find best initialisation
@@ -754,7 +753,7 @@ def qmap_pd(data, res_dir, args, hypers, topk=20):
         plot_preprocessing_summary(data['preprocessing'], plot_path, view_names)
         logging.info("Added preprocessing visualization plots")
 
-# ==================== EXISTING LEGACY FUNCTIONS (UNCHANGED) ====================
+# == LEGACY FUNCTIONS ==
 
 def find_bestrun(res_dir, args, ofile):
     """Find the best run based on log density."""
@@ -929,8 +928,6 @@ def define_box_properties(plot_name, color_code, label):
         plt.setp(plot_name.get(k), color=color_code)
     plt.plot([], c=color_code, label=label)
     plt.legend()
-
-# [Additional helper functions from original file...]
 
 def _plot_ground_truth_components(true_params, plot_path, args, hypers):
     """Plot ground truth components with professional styling."""
@@ -1188,7 +1185,7 @@ def _shorten_imaging_labels(feature_names):
     shortened = []
     for name in feature_names:
         if "::" in name:
-            # Extract region and voxel number: "volume_putamen_voxels::v1234" -> "putamen::v1234"
+            # Extract region and voxel number: "volume_putamen_voxels::v1234" -> "putamen::v1234" (improves readability)
             parts = name.split("::")
             if len(parts) == 2:
                 region_part = parts[0]
@@ -1212,7 +1209,7 @@ def _shorten_imaging_labels(feature_names):
     return shortened
 
 def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
-    """Create professional loading plots for each view."""
+    """Create loading plots for each view."""
     d = 0
     
     for m, (vname, dim) in enumerate(zip(view_names, Dm)):
@@ -1244,7 +1241,7 @@ def _plot_multiview_loadings(W, Dm, view_names, feat_names, plot_path, topk):
             bars = axes[j].barh(range(len(top_weights)), top_weights, color=colors, alpha=0.8)
             
             axes[j].set_yticks(range(len(top_weights)))
-            # Smaller font for clinical and imaging features due to long names
+            # Smaller font for clinical and imaging features
             label_fontsize = 7 if ('clinical' in vname or 'imaging' in vname) else 8
             axes[j].set_yticklabels(top_features, fontsize=label_fontsize)
             axes[j].set_xlabel('Loading Weight')
@@ -1344,7 +1341,7 @@ def _plot_latent_factor_summary(W, Z, Dm, view_names, plot_path):
     plt.savefig(f"{plot_path}/publication/latent_factor_summary.pdf")
     plt.close()
 
-# ==================== COMPREHENSIVE VISUALIZATION WRAPPER ====================
+# == COMPREHENSIVE VISUALIZATION WRAPPER ==
 
 def create_all_visualizations(
     results_dir: str,
@@ -1505,7 +1502,7 @@ def _create_analysis_summary_report(results_dir, plots_dir, data, cv_results, ru
     with open(f"{plots_dir}/analysis_summary.html", 'w') as f:
         f.write(html_content)
 
-# ==================== ADDITIONAL UTILITY FUNCTIONS ====================
+# == ADDITIONAL UTILITY FUNCTIONS ==
 
 def plot_model_comparison(results_dict, output_path):
     """

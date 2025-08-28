@@ -39,7 +39,7 @@ def synthetic_data(hypers, args):
     sigma = np.array([3, 6, 4])
     logging.debug(f"Z shape: {Z.shape}, sigma: {sigma}")
     
-    # Implement regularized horsesho prior over W
+    # Implement regularized horseshoe prior over W
     #lambda W
     percW = 33 * np.ones((1,K_true))
     pW = np.round((percW/100) * Dm)
