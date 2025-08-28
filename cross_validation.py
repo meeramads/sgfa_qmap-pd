@@ -1,4 +1,16 @@
-import argparse
+"""
+Cross-validation module for Sparse Bayesian Group Factor Analysis.
+
+This module can be used in two ways:
+
+1. As a Python module (imported by other scripts):
+   from crossvalidation import SparseBayesianGFACrossValidator, CVConfig
+
+2. As a standalone CLI tool (run directly):
+   python crossvalidation.py --dataset qmap_pd --quick_test
+   python crossvalidation.py --dataset qmap_pd --cv_folds 5
+"""
+
 import json
 import os
 import csv
@@ -36,14 +48,6 @@ import jax.random as jrandom
 import numpyro
 import numpyro.distributions as dist
 
-# Project imports
-import sys
-sys.path.append("/mnt/data")
-from loader_qmap_pd import load_qmap_pd
-import run_analysis as RA
-from utils import get_infparams, get_robustK
-from visualization import create_all_visualizations, visualize_consensus
-
 # Set up logging
 logging.basicConfig(
     level=logging.INFO, 
@@ -53,6 +57,8 @@ logger = logging.getLogger(__name__)
 
 # Suppress specific warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="numpyro")
+
+# == CORE CV CLASSES (for import) ==
 
 class CVConfig:
     """Configuration class for cross-validation parameters."""
@@ -415,6 +421,12 @@ class HyperparameterOptimizer:
                 if key in params:
                     hypers_eval[key] = params[key]
             
+            # Import here to avoid dependency issues when used as module
+            try:
+                import run_analysis as RA
+            except ImportError:
+                raise ImportError("run_analysis module not available for parameter evaluation")
+            
             # Run inference
             rng = jrandom.PRNGKey(self.config.random_state)
             mcmc = RA.run_inference(RA.models, args_eval, rng, X_train_list, hypers_eval)
@@ -447,7 +459,7 @@ class HyperparameterOptimizer:
 
 
 class SparseBayesianGFACrossValidator:
-    """Main cross-validation class for Sparse Bayesian Group Factor Analysis."""
+    """Main cross-validation class for Sparse Group Factor Analysis."""
     
     def __init__(self, config: CVConfig = None):
         self.config = config or CVConfig()
@@ -498,6 +510,12 @@ class SparseBayesianGFACrossValidator:
             # Update hyperparameters
             hypers_fold = deepcopy(hypers)
             hypers_fold['Dm'] = [X.shape[1] for X in X_train_list]
+            
+            # Import here to avoid dependency issues
+            try:
+                import run_analysis as RA
+            except ImportError:
+                raise ImportError("run_analysis module not available for CV")
             
             # Run inference
             rng = jrandom.PRNGKey(self.config.random_state + fold_id)
@@ -801,163 +819,566 @@ class SparseBayesianGFACrossValidator:
         
         logger.info(f"Summary saved to {summary_path}")
 
+# == STANDALONE CLI FUNCTIONALITY ==
+
+class CVInspector:
+    """Class for inspecting cross-validation behavior."""
+    
+    def __init__(self, dataset: str, **load_kwargs):
+        self.dataset = dataset
+        self.load_kwargs = load_kwargs
+        self.data = None
+        self.X_list = None
+        self.clinical_df = None
+        
+    def load_data(self):
+        """Load data for CV inspection."""
+        logger.info(f"Loading {self.dataset} data for CV inspection...")
+        
+        if self.dataset == 'synthetic':
+            logger.error("Synthetic data inspection not implemented in standalone version")
+            return False
+            
+        try:
+            # Import here to avoid dependency issues when used as module
+            from get_data import get_data
+            
+            self.data = get_data(
+                dataset=self.dataset,
+                **self.load_kwargs
+            )
+            
+            self.X_list = [np.array(X, dtype=float) for X in self.data["X_list"]]
+            self.clinical_df = self.data.get('clinical')
+            
+            logger.info(f"Loaded data: N={self.X_list[0].shape[0]}, M={len(self.X_list)} views")
+            logger.info(f"View shapes: {[X.shape for X in self.X_list]}")
+            
+            if self.clinical_df is not None:
+                logger.info(f"Clinical variables: {list(self.clinical_df.columns)}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to load data: {e}")
+            return False
+    
+    def inspect_cv_strategies(self, cv_types: List[str] = None):
+        """Inspect different CV strategies and their behavior."""
+        if not self.load_data():
+            return
+            
+        if cv_types is None:
+            cv_types = ['standard', 'stratified', 'grouped', 'repeated']
+        
+        logger.info("=== CROSS-VALIDATION STRATEGY INSPECTION ===")
+        
+        X_ref = self.X_list[0]  # Reference matrix for CV splitting
+        n_samples = X_ref.shape[0]
+        
+        config = CVConfig()
+        config.outer_cv_folds = 5
+        
+        splitter = AdvancedCVSplitter(config)
+        
+        for cv_type in cv_types:
+            logger.info(f"\n--- {cv_type.upper()} CV ---")
+            
+            try:
+                # Prepare variables for CV type
+                y = None
+                groups = None
+                
+                if cv_type == 'stratified':
+                    # Create dummy stratification variable
+                    y = np.random.choice([0, 1], size=n_samples)
+                    logger.info("Using dummy binary stratification variable")
+                    
+                elif cv_type == 'grouped':
+                    # Create dummy groups
+                    n_groups = max(5, n_samples // 10)
+                    groups = np.random.choice(n_groups, size=n_samples)
+                    logger.info(f"Using dummy groups (n_groups={n_groups})")
+                
+                # Create CV splitter
+                cv = splitter.create_cv_splitter(X_ref, y, groups, cv_type)
+                
+                # Analyze splits
+                fold_sizes = []
+                fold_info = []
+                
+                splits = list(cv.split(X_ref, y, groups))
+                
+                for fold_id, (train_idx, test_idx) in enumerate(splits):
+                    train_size = len(train_idx)
+                    test_size = len(test_idx)
+                    test_pct = test_size / n_samples * 100
+                    
+                    fold_sizes.append(test_size)
+                    fold_info.append({
+                        'fold': fold_id + 1,
+                        'train_size': train_size,
+                        'test_size': test_size,
+                        'test_pct': test_pct
+                    })
+                
+                # Summary statistics
+                logger.info(f"Number of folds: {len(splits)}")
+                logger.info(f"Test set sizes: {fold_sizes}")
+                logger.info(f"Test set %: {[f'{info['test_pct']:.1f}%' for info in fold_info]}")
+                logger.info(f"Average test size: {np.mean(fold_sizes):.1f} ± {np.std(fold_sizes):.1f}")
+                
+                # Check for overlap (should be zero)
+                all_test_indices = set()
+                overlaps = 0
+                for _, test_idx in splits:
+                    test_set = set(test_idx)
+                    overlap_size = len(all_test_indices.intersection(test_set))
+                    overlaps += overlap_size
+                    all_test_indices.update(test_set)
+                
+                logger.info(f"Index overlaps between folds: {overlaps} (should be 0)")
+                logger.info(f"Total unique test indices: {len(all_test_indices)}/{n_samples}")
+                
+            except Exception as e:
+                logger.error(f"Failed to create {cv_type} CV: {e}")
+    
+    def debug_single_fold(self, fold_id: int = 0, quick_test: bool = True):
+        """Debug a single CV fold with detailed logging."""
+        if not self.load_data():
+            return
+            
+        logger.info(f"=== DEBUGGING SINGLE FOLD (fold {fold_id + 1}) ===")
+        
+        # Setup minimal args for testing
+        import argparse
+        args = argparse.Namespace()
+        args.K = 5
+        args.num_samples = 200 if quick_test else 1000
+        args.num_warmup = 100 if quick_test else 500
+        args.num_chains = 1
+        args.model = 'sparseGFA'
+        args.percW = 33
+        args.reghsZ = True
+        args.device = 'cpu'
+        args.num_sources = len(self.X_list)
+        args.seed = 42
+        
+        # Setup hyperparameters
+        hypers = {
+            'a_sigma': 1, 'b_sigma': 1,
+            'nu_local': 1, 'nu_global': 1,
+            'slab_scale': 2, 'slab_df': 4,
+            'percW': args.percW,
+            'Dm': [X.shape[1] for X in self.X_list]
+        }
+        
+        logger.info(f"Test configuration: K={args.K}, samples={args.num_samples}, chains={args.num_chains}")
+        
+        # Create CV split
+        config = CVConfig()
+        config.outer_cv_folds = 5
+        splitter = AdvancedCVSplitter(config)
+        
+        cv = splitter.create_cv_splitter(self.X_list[0])
+        splits = list(cv.split(self.X_list[0]))
+        
+        if fold_id >= len(splits):
+            logger.error(f"Fold {fold_id} not available (only {len(splits)} folds)")
+            return
+        
+        train_idx, test_idx = splits[fold_id]
+        logger.info(f"Fold {fold_id + 1}: train={len(train_idx)}, test={len(test_idx)}")
+        
+        # Prepare fold data
+        X_train_list = [X[train_idx] for X in self.X_list]
+        X_test_list = [X[test_idx] for X in self.X_list]
+        
+        logger.info("Training data shapes:")
+        for i, X_train in enumerate(X_train_list):
+            logger.info(f"  View {i+1}: {X_train.shape}")
+        
+        # Simple scaling
+        scalers = []
+        for m, X_train in enumerate(X_train_list):
+            mu = np.mean(X_train, axis=0, keepdims=True)
+            sigma = np.std(X_train, axis=0, keepdims=True)
+            sigma = np.where(sigma < 1e-8, 1.0, sigma)
+            
+            X_train_list[m] = (X_train - mu) / sigma
+            X_test_list[m] = (X_test_list[m] - mu) / sigma
+            scalers.append((mu, sigma))
+        
+        logger.info("Data scaled successfully")
+        
+        try:
+            # Import run_analysis here for single fold test
+            import run_analysis as RA
+            
+            # Run inference
+            logger.info("Starting MCMC inference...")
+            start_time = time.time()
+            
+            rng = jrandom.PRNGKey(args.seed)
+            mcmc = RA.run_inference(RA.models, args, rng, X_train_list, hypers)
+            samples = mcmc.get_samples()
+            
+            inference_time = time.time() - start_time
+            logger.info(f"MCMC completed in {inference_time:.1f}s")
+            
+            # Basic diagnostics
+            logger.info("=== MCMC DIAGNOSTICS ===")
+            
+            for param_name in ['W', 'Z', 'sigma']:
+                if param_name in samples:
+                    param_samples = samples[param_name]
+                    logger.info(f"{param_name}: shape={param_samples.shape}")
+                    
+                    # Check for NaNs/Infs
+                    n_nans = np.sum(np.isnan(param_samples))
+                    n_infs = np.sum(np.isinf(param_samples))
+                    if n_nans > 0 or n_infs > 0:
+                        logger.warning(f"  {param_name} has {n_nans} NaNs, {n_infs} Infs")
+                    
+                    # Basic statistics
+                    mean_val = np.mean(param_samples)
+                    std_val = np.std(param_samples)
+                    logger.info(f"  Mean: {mean_val:.4f}, Std: {std_val:.4f}")
+            
+            # Extract point estimates
+            W_mean = np.array(samples['W']).mean(axis=0)
+            Z_mean = np.array(samples['Z']).mean(axis=0)
+            
+            # Evaluate reconstruction on test set
+            logger.info("=== EVALUATING RECONSTRUCTION ===")
+            
+            X_test_concat = np.concatenate(X_test_list, axis=1)
+            X_test_recon = Z_mean @ W_mean.T
+            
+            # Basic metrics
+            mse = mean_squared_error(X_test_concat, X_test_recon)
+            r2 = r2_score(X_test_concat, X_test_recon)
+            
+            logger.info(f"Test MSE: {mse:.4f}")
+            logger.info(f"Test R²: {r2:.4f}")
+            
+            # Per-view metrics
+            d = 0
+            for m, dim in enumerate(hypers['Dm']):
+                X_test_view = X_test_list[m]
+                X_recon_view = X_test_recon[:, d:d+dim]
+                
+                view_r2 = r2_score(X_test_view, X_recon_view)
+                logger.info(f"  View {m+1} R²: {view_r2:.4f}")
+                d += dim
+            
+            logger.info("Single fold debugging completed successfully!")
+            
+            return {
+                'inference_time': inference_time,
+                'test_mse': mse,
+                'test_r2': r2,
+                'samples': samples
+            }
+            
+        except Exception as e:
+            logger.error(f"Single fold debugging failed: {e}")
+            logger.exception("Full traceback:")
+            return None
+    
+    def quick_test(self, n_folds: int = 3):
+        """Run a quick CV test with minimal parameters."""
+        if not self.load_data():
+            return
+            
+        logger.info("=== QUICK CROSS-VALIDATION TEST ===")
+        logger.info("Using minimal parameters for speed")
+        
+        # Setup minimal configuration
+        config = CVConfig()
+        config.outer_cv_folds = n_folds
+        config.n_jobs = 1  # Sequential for debugging
+        config.timeout_seconds = 300  # 5 minute timeout
+        
+        # Setup minimal args
+        import argparse
+        args = argparse.Namespace()
+        args.K = 3
+        args.num_samples = 100
+        args.num_warmup = 50
+        args.num_chains = 1
+        args.model = 'sparseGFA'
+        args.percW = 33
+        args.reghsZ = True
+        args.device = 'cpu'
+        args.num_sources = len(self.X_list)
+        args.seed = 42
+        
+        # Setup hyperparameters
+        hypers = {
+            'a_sigma': 1, 'b_sigma': 1,
+            'nu_local': 1, 'nu_global': 1,
+            'slab_scale': 2, 'slab_df': 4,
+            'percW': args.percW,
+            'Dm': [X.shape[1] for X in self.X_list]
+        }
+        
+        logger.info(f"Quick test: {n_folds} folds, K={args.K}, {args.num_samples} samples")
+        
+        try:
+            # Initialize CV
+            cv = SparseBayesianGFACrossValidator(config)
+            
+            # Run standard CV
+            start_time = time.time()
+            results = cv.standard_cross_validate(
+                self.X_list, args, hypers, cv_type='standard'
+            )
+            total_time = time.time() - start_time
+            
+            logger.info(f"Quick CV completed in {total_time:.1f}s")
+            logger.info(f"Mean CV score: {results.get('mean_cv_score', 'N/A'):.4f}")
+            logger.info(f"Converged folds: {results.get('n_converged_folds', 'N/A')}/{n_folds}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Quick test failed: {e}")
+            logger.exception("Full traceback:")
+            return None
+    
+    def compare_cv_strategies(self):
+        """Compare different CV strategies on the same data."""
+        if not self.load_data():
+            return
+        
+        logger.info("=== COMPARING CV STRATEGIES ===")
+        
+        strategies = ['standard', 'stratified', 'grouped']
+        
+        # Create dummy variables for testing
+        n_samples = self.X_list[0].shape[0]
+        y_dummy = np.random.choice([0, 1], size=n_samples)  # Binary for stratification
+        groups_dummy = np.random.choice(5, size=n_samples)   # 5 groups
+        
+        results = {}
+        
+        for strategy in strategies:
+            logger.info(f"\nTesting {strategy} CV strategy...")
+            
+            try:
+                # Prepare variables
+                y = y_dummy if strategy == 'stratified' else None
+                groups = groups_dummy if strategy == 'grouped' else None
+                
+                # Create splitter
+                config = CVConfig()
+                config.outer_cv_folds = 3  # Small for testing
+                splitter = AdvancedCVSplitter(config)
+                
+                cv = splitter.create_cv_splitter(self.X_list[0], y, groups, strategy)
+                splits = list(cv.split(self.X_list[0], y, groups))
+                
+                # Analyze splits
+                fold_sizes = [len(test_idx) for _, test_idx in splits]
+                fold_balance = np.std(fold_sizes) / np.mean(fold_sizes)  # CV of fold sizes
+                
+                results[strategy] = {
+                    'n_folds': len(splits),
+                    'fold_sizes': fold_sizes,
+                    'balance_metric': fold_balance,
+                    'success': True
+                }
+                
+                logger.info(f"  ✓ {strategy}: {len(splits)} folds, balance metric: {fold_balance:.4f}")
+                
+            except Exception as e:
+                logger.error(f"  ✗ {strategy}: failed - {e}")
+                results[strategy] = {'success': False, 'error': str(e)}
+        
+        # Summary comparison
+        logger.info("\n=== STRATEGY COMPARISON SUMMARY ===")
+        logger.info("Strategy\t\tFolds\tBalance\tStatus")
+        logger.info("-" * 50)
+        
+        for strategy, result in results.items():
+            if result['success']:
+                balance = result['balance_metric']
+                status = "✓ Success"
+                logger.info(f"{strategy:15s}\t{result['n_folds']}\t{balance:.4f}\t{status}")
+            else:
+                logger.info(f"{strategy:15s}\t-\t-\t✗ Failed")
+        
+        return results
+
+# == CLI MAIN FUNCTION ==
 
 def main():
-    """Main function for running cross-validation."""
-    parser = argparse.ArgumentParser(description="Enhanced Cross-Validation for Sparse GFA")
+    """Main function for standalone CLI usage."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Cross-Validation Module - Standalone Mode")
     
     # Data arguments
-    parser.add_argument("--data_dir", type=str, default="qMAP-PD_data", 
-                       help="Data directory")
-    parser.add_argument("--clinical_rel", type=str, default="data_clinical/pd_motor_gfa_data.tsv",
-                       help="Clinical data path")
-    parser.add_argument("--volumes_rel", type=str, default="volume_matrices",
-                       help="Volumes data path")
-    parser.add_argument("--id_col", type=str, default="sid", 
-                       help="Subject ID column")
-    parser.add_argument("--roi_views", action="store_true",
-                       help="Keep separate ROI views")
+    parser.add_argument("--dataset", type=str, default="qmap_pd", choices=["qmap_pd"])
+    parser.add_argument("--data_dir", type=str, default="qMAP-PD_data")
+    parser.add_argument("--clinical_rel", type=str, default="data_clinical/pd_motor_gfa_data.tsv")
+    parser.add_argument("--volumes_rel", type=str, default="volume_matrices")
+    parser.add_argument("--id_col", type=str, default="sid")
+    parser.add_argument("--roi_views", action="store_true")
     
-    # Model arguments
+    # Model arguments (for testing)
     parser.add_argument("--K", type=int, default=15, help="Number of factors")
     parser.add_argument("--num_samples", type=int, default=1000, help="MCMC samples")
     parser.add_argument("--num_warmup", type=int, default=500, help="MCMC warmup")
     parser.add_argument("--num_chains", type=int, default=1, help="MCMC chains")
     parser.add_argument("--percW", type=int, default=33, help="Sparsity percentage")
-    parser.add_argument("--model", type=str, default="sparseGFA", 
-                       choices=["sparseGFA", "GFA"])
-    parser.add_argument("--reghsZ", type=bool, default=True, 
-                       help="Regularized horseshoe on Z")
+    parser.add_argument("--model", type=str, default="sparseGFA", choices=["sparseGFA", "GFA"])
+    parser.add_argument("--reghsZ", type=bool, default=True)
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "gpu"])
-    parser.add_argument("--n_subtypes", type=int, default=3, help="Number of subtypes")
-    
-    # CV arguments
-    parser.add_argument("--cv_type", type=str, default="standard",
-                       choices=["standard", "stratified", "grouped", "repeated", "time_series"],
-                       help="Type of cross-validation")
-    parser.add_argument("--cv_folds", type=int, default=5, help="Number of CV folds")
-    parser.add_argument("--nested_cv", action="store_true", 
-                       help="Use nested cross-validation for hyperparameter optimization")
-    parser.add_argument("--group_col", type=str, default=None,
-                       help="Column for grouped cross-validation")
-    parser.add_argument("--target_col", type=str, default=None,
-                       help="Column for stratified cross-validation")
-    
-    # Optimization arguments
-    parser.add_argument("--param_search", type=str, default="grid",
-                       choices=["grid", "random", "bayesian"],
-                       help="Hyperparameter search method")
-    parser.add_argument("--n_param_samples", type=int, default=20,
-                       help="Number of parameter samples for random/bayesian search")
-    
-    # Computational arguments
-    parser.add_argument("--n_jobs", type=int, default=1, 
-                       help="Number of parallel jobs")
-    parser.add_argument("--timeout", type=int, default=1800,
-                       help="Timeout per fold in seconds")
-    
-    # Output arguments
-    parser.add_argument("--output_dir", type=str, default="results", 
-                       help="Output directory")
-    parser.add_argument("--run_name", type=str, default="enhanced_cv", 
-                       help="Run name for outputs")
-    parser.add_argument("--create_visualizations", action="store_true",
-                       help="Create visualization plots")
-    
-    # Random seed
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    
+    # Inspection modes
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument("--inspect_cv_strategy", action="store_true",
+                           help="Inspect CV strategies without running models")
+    mode_group.add_argument("--debug_single_fold", action="store_true",
+                           help="Debug a single CV fold with detailed logging")
+    mode_group.add_argument("--quick_test", action="store_true",
+                           help="Run quick CV test with minimal parameters")
+    mode_group.add_argument("--compare_cv_strategies", action="store_true",
+                           help="Compare different CV strategies")
+    
+    # CV parameters
+    parser.add_argument("--cv_folds", type=int, default=5)
+    parser.add_argument("--cv_type", type=str, default="standard",
+                       choices=["standard", "stratified", "grouped", "repeated"])
+    parser.add_argument("--nested_cv", action="store_true")
+    parser.add_argument("--fold_id", type=int, default=0, 
+                       help="Fold ID for single fold debugging")
+    parser.add_argument("--n_jobs", type=int, default=1)
+    parser.add_argument("--target_col", type=str, default=None)
+    parser.add_argument("--group_col", type=str, default=None)
+    
+    # Preprocessing (for data loading)
+    parser.add_argument("--enable_preprocessing", action="store_true")
+    parser.add_argument("--feature_selection", type=str, default='variance')
+    parser.add_argument("--n_top_features", type=int, default=None)
+    
+    # Output
+    parser.add_argument("--output_dir", type=str, default="cv_inspection")
+    parser.add_argument("--run_name", type=str, default="cv_analysis")
     
     args = parser.parse_args()
     
-    # Set up environment
-    np.random.seed(args.seed)
+    # Setup
     numpyro.set_platform(args.device)
-    numpyro.set_host_device_count(args.num_chains)
+    np.random.seed(args.seed)
     
-    # Configure CV
-    config = CVConfig()
-    config.outer_cv_folds = args.cv_folds
-    config.param_search_method = args.param_search
-    config.n_param_samples = args.n_param_samples
-    config.n_jobs = args.n_jobs
-    config.timeout_seconds = args.timeout
-    config.random_state = args.seed
-    config.create_visualizations = args.create_visualizations
-    
-    # Load data
-    logger.info("Loading data...")
-    data_bundle = load_qmap_pd(
-        data_dir=args.data_dir,
-        clinical_rel=args.clinical_rel,
-        volumes_rel=args.volumes_rel,
-        imaging_as_single_view=not args.roi_views,
-        id_col=args.id_col
-    )
-    
-    X_list = [np.array(X, dtype=float) for X in data_bundle["X_list"]]
-    args.num_sources = len(X_list)
-    
-    logger.info(f"Loaded data: N={X_list[0].shape[0]}, M={len(X_list)} views")
-    logger.info(f"View shapes: {[X.shape for X in X_list]}")
-    
-    # Prepare grouping/stratification variables
-    y = None
-    groups = None
-    
-    if args.target_col and "clinical" in data_bundle:
-        clinical_df = data_bundle["clinical"]
-        if args.target_col in clinical_df.columns:
-            y = clinical_df[args.target_col].values
-            logger.info(f"Using {args.target_col} for stratification")
-    
-    if args.group_col and "clinical" in data_bundle:
-        clinical_df = data_bundle["clinical"]
-        if args.group_col in clinical_df.columns:
-            groups = clinical_df[args.group_col].values
-            logger.info(f"Using {args.group_col} for grouping")
-    
-    # Set up hyperparameters
-    hypers = {
-        'a_sigma': 1, 'b_sigma': 1,
-        'nu_local': 1, 'nu_global': 1,
-        'slab_scale': 2, 'slab_df': 4,
-        'percW': args.percW,
-        'Dm': [X.shape[1] for X in X_list]
+    # Create inspector
+    load_kwargs = {
+        'data_dir': args.data_dir,
+        'clinical_rel': args.clinical_rel,
+        'volumes_rel': args.volumes_rel,
+        'imaging_as_single_view': not args.roi_views,
+        'id_col': args.id_col,
+        'enable_advanced_preprocessing': args.enable_preprocessing,
+        'feature_selection_method': args.feature_selection,
+        'n_top_features': args.n_top_features,
     }
     
-    # Initialize cross-validator
-    cv = SparseBayesianGFACrossValidator(config)
+    inspector = CVInspector(args.dataset, **load_kwargs)
     
-    # Run cross-validation
-    if args.nested_cv:
-        logger.info("Running nested cross-validation with hyperparameter optimization")
-        search_space = {
-            'K': [10, 15, 20, 25],
-            'percW': [25, 33, 50],
-            'num_samples': [800, 1000, 1500],
-            'slab_scale': [1.5, 2.0, 2.5]
-        }
-        results = cv.nested_cross_validate(
-            X_list, args, hypers, y, groups, args.cv_type, search_space
-        )
+    # Run requested analysis
+    if args.inspect_cv_strategy:
+        inspector.inspect_cv_strategies()
+        
+    elif args.debug_single_fold:
+        inspector.debug_single_fold(args.fold_id, quick_test=True)
+        
+    elif args.quick_test:
+        inspector.quick_test(args.cv_folds)
+        
+    elif args.compare_cv_strategies:
+        inspector.compare_cv_strategies()
+        
     else:
-        logger.info("Running standard cross-validation")
-        results = cv.standard_cross_validate(
-            X_list, args, hypers, y, groups, args.cv_type
-        )
-    
-    # Save results
-    output_dir = Path(args.output_dir)
-    cv.save_results(output_dir, args.run_name)
-    
-    # Create visualizations if requested
-    if args.create_visualizations and results.get('fold_results'):
-        logger.info("Creating cross-validation visualizations...")
-        # This would integrate with visualization module
-        # Implementation depends on visualization requirements
-    
-    logger.info("Cross-validation completed successfully!")
-    logger.info(f"Final CV Score: {results.get('mean_cv_score', 'N/A'):.4f} ± {results.get('std_cv_score', 'N/A'):.4f}")
+        # Full CV analysis
+        logger.info("Running full cross-validation analysis...")
+        logger.info("(This may take a while - consider using --quick_test first)")
+        
+        # Load data
+        if not inspector.load_data():
+            logger.error("Failed to load data")
+            return
+        
+        # Prepare variables
+        y = None
+        groups = None
+        
+        if args.target_col and inspector.clinical_df is not None:
+            if args.target_col in inspector.clinical_df.columns:
+                y = inspector.clinical_df[args.target_col].values
+                logger.info(f"Using {args.target_col} for stratification")
+        
+        if args.group_col and inspector.clinical_df is not None:
+            if args.group_col in inspector.clinical_df.columns:
+                groups = inspector.clinical_df[args.group_col].values
+                logger.info(f"Using {args.group_col} for grouping")
+        
+        # Setup hyperparameters
+        hypers = {
+            'a_sigma': 1, 'b_sigma': 1,
+            'nu_local': 1, 'nu_global': 1,
+            'slab_scale': 2, 'slab_df': 4,
+            'percW': args.percW,
+            'Dm': [X.shape[1] for X in inspector.X_list]
+        }
+        
+        # Configure CV
+        config = CVConfig()
+        config.outer_cv_folds = args.cv_folds
+        config.n_jobs = args.n_jobs
+        config.random_state = args.seed
+        
+        # Initialize CV
+        cv = SparseBayesianGFACrossValidator(config)
+        
+        # Run CV
+        if args.nested_cv:
+            search_space = {
+                'K': [args.K//2, args.K, args.K*2] if args.K > 5 else [5, 10, 15],
+                'percW': [25, 33, 50],
+                'num_samples': [args.num_samples//2, args.num_samples] if args.num_samples > 1000 else [800, 1000]
+            }
+            results = cv.nested_cross_validate(
+                inspector.X_list, args, hypers, y, groups, args.cv_type, search_space
+            )
+        else:
+            results = cv.standard_cross_validate(
+                inspector.X_list, args, hypers, y, groups, args.cv_type
+            )
+        
+        # Save results
+        output_dir = Path(args.output_dir)
+        cv.save_results(output_dir, args.run_name)
+        
+        # Create visualizations if available
+        try:
+            from visualization import plot_cv_results
+            plot_cv_results(results, str(output_dir), args.run_name)
+            logger.info("CV visualizations created")
+        except Exception as e:
+            logger.warning(f"Could not create visualizations: {e}")
+        
+        logger.info("Cross-validation analysis completed!")
+        logger.info(f"Results saved to {output_dir}")
+
+# == SCRIPT ENTRY POINT ==
 
 if __name__ == "__main__":
+    # Runs when the script is executed directly
     main()
+else:
+    # Runs when the module is imported
+    logger.info("Cross-validation module imported successfully")
