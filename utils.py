@@ -1,9 +1,9 @@
+import os
 import numpy as np
 import logging
 import contextlib
 import gc
 from pathlib import Path
-
 
 logging.basicConfig(level=logging.INFO)
 
