@@ -1,7 +1,207 @@
 import numpy as np
 import logging
+import contextlib
+import gc
 
 logging.basicConfig(level=logging.INFO)
+
+def cleanup_memory():
+    """
+    Clean up JAX and matplotlib memory to prevent memory leaks.
+    
+    This function should be called periodically during long-running analyses
+    or after completing major computational tasks.
+    """
+    import gc
+    
+    # Close all matplotlib figures
+    try:
+        import matplotlib.pyplot as plt
+        plt.close('all')
+        logging.debug("Closed all matplotlib figures")
+    except ImportError:
+        pass
+    
+    # Force garbage collection
+    collected = gc.collect()
+    if collected > 0:
+        logging.debug(f"Garbage collected {collected} objects")
+    
+    # Clear JAX compilation cache if available and needed
+    try:
+        import jax
+        # Note: JAX manages its own memory fairly well, but we can clear backends if needed
+        # Only do this if memory issues are detected
+        # jax.clear_backends()  # Uncomment only if memory issues persist
+        logging.debug("JAX memory management completed")
+    except ImportError:
+        pass
+    except Exception as e:
+        logging.debug(f"JAX cleanup warning: {e}")
+
+@contextlib.contextmanager
+def safe_plotting_context():
+    """
+    Context manager for safe plotting that ensures cleanup.
+    
+    Usage:
+        with safe_plotting_context() as plt:
+            plt.figure()
+            plt.plot(data)
+            plt.savefig('output.png')
+            # Automatic cleanup on exit
+    """
+    import matplotlib.pyplot as plt
+    
+    try:
+        yield plt
+    except Exception as e:
+        logging.error(f"Plotting error: {e}")
+        raise
+    finally:
+        plt.close('all')
+        # Force garbage collection for large plots
+        gc.collect()
+
+@contextlib.contextmanager
+def memory_monitoring_context(operation_name="operation"):
+    """
+    Context manager that monitors memory usage during an operation.
+    
+    Parameters
+    ----------
+    operation_name : str
+        Name of the operation for logging
+    
+    Usage:
+        with memory_monitoring_context("MCMC inference"):
+            # memory-intensive operation
+            mcmc.run(...)
+    """
+    import psutil
+    import os
+    
+    # Get initial memory
+    process = psutil.Process(os.getpid())
+    initial_memory = process.memory_info().rss / 1024 / 1024  # MB
+    
+    logging.info(f"Starting {operation_name} - Memory: {initial_memory:.1f} MB")
+    
+    try:
+        yield
+    finally:
+        # Get final memory
+        final_memory = process.memory_info().rss / 1024 / 1024  # MB
+        memory_diff = final_memory - initial_memory
+        
+        if memory_diff > 100:  # Log if significant memory increase
+            logging.info(f"Completed {operation_name} - Memory: {final_memory:.1f} MB (+{memory_diff:.1f} MB)")
+        else:
+            logging.debug(f"Completed {operation_name} - Memory: {final_memory:.1f} MB (+{memory_diff:.1f} MB)")
+        
+        # Cleanup if memory usage is high
+        if final_memory > 4000:  # > 4GB
+            logging.info("High memory usage detected, running cleanup...")
+            cleanup_memory()
+
+def check_available_memory():
+    """
+    Check available system memory and warn if low.
+    
+    Returns
+    -------
+    available_gb : float
+        Available memory in GB
+    """
+    try:
+        import psutil
+        
+        memory = psutil.virtual_memory()
+        available_gb = memory.available / (1024**3)
+        total_gb = memory.total / (1024**3)
+        used_percent = memory.percent
+        
+        logging.info(f"Memory status: {used_percent:.1f}% used, {available_gb:.1f}GB/{total_gb:.1f}GB available")
+        
+        if available_gb < 2:
+            logging.warning(
+                f"Low memory warning: Only {available_gb:.1f}GB available. "
+                "Consider reducing batch sizes or using fewer chains."
+            )
+        elif available_gb < 4:
+            logging.info(f"Memory note: {available_gb:.1f}GB available. Monitor memory usage during analysis.")
+        
+        return available_gb
+        
+    except ImportError:
+        logging.debug("psutil not available for memory monitoring")
+        return float('inf')  # Assume sufficient memory
+    except Exception as e:
+        logging.debug(f"Memory check failed: {e}")
+        return float('inf')
+
+def estimate_memory_requirements(n_subjects, n_features, n_factors, n_chains, n_samples):
+    """
+    Estimate memory requirements for the analysis.
+    
+    Parameters
+    ----------
+    n_subjects : int
+        Number of subjects
+    n_features : int
+        Total number of features across all views
+    n_factors : int
+        Number of latent factors
+    n_chains : int
+        Number of MCMC chains
+    n_samples : int
+        Number of MCMC samples per chain
+    
+    Returns
+    -------
+    estimated_gb : float
+        Estimated memory requirement in GB
+    """
+    
+    # Rough estimates based on typical usage patterns
+    # These are conservative estimates
+    
+    # Data storage: X matrices
+    data_memory = n_subjects * n_features * 8  # float64
+    
+    # MCMC samples: W, Z, and other parameters
+    W_memory = n_features * n_factors * n_chains * n_samples * 8
+    Z_memory = n_subjects * n_factors * n_chains * n_samples * 8
+    other_params_memory = (n_features + n_subjects) * n_factors * n_chains * n_samples * 8 * 0.5  # other parameters
+    
+    # Working memory (JAX compilation, intermediate calculations)
+    working_memory = (data_memory + W_memory + Z_memory) * 2  # Conservative multiplier
+    
+    total_bytes = data_memory + W_memory + Z_memory + other_params_memory + working_memory
+    estimated_gb = total_bytes / (1024**3)
+    
+    logging.info(f"Estimated memory requirements:")
+    logging.info(f"  Data: {data_memory/(1024**3):.2f} GB")
+    logging.info(f"  MCMC samples: {(W_memory + Z_memory + other_params_memory)/(1024**3):.2f} GB")
+    logging.info(f"  Working memory: {working_memory/(1024**3):.2f} GB")
+    logging.info(f"  Total estimated: {estimated_gb:.2f} GB")
+    
+    # Provide recommendations
+    if estimated_gb > 16:
+        logging.warning(
+            f"High memory requirement ({estimated_gb:.1f} GB). Consider:"
+            "\n  - Reducing number of samples (--num-samples)"
+            "\n  - Reducing number of chains (--num-chains)"
+            "\n  - Using feature selection to reduce features"
+            "\n  - Running on a high-memory system"
+        )
+    elif estimated_gb > 8:
+        logging.info(
+            f"Moderate memory requirement ({estimated_gb:.1f} GB). "
+            "Ensure sufficient RAM is available."
+        )
+    
+    return estimated_gb
 
 def get_robustK(thrs, args, params, d_comps):
     logging.info("Running get_robustK")
