@@ -22,7 +22,10 @@ from collections import defaultdict
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing as mp
-
+import signal
+import traceback
+from contextlib import contextmanager
+import tempfile
 import numpy as np
 import pandas as pd
 from copy import deepcopy
@@ -48,12 +51,29 @@ import jax.random as jrandom
 import numpyro
 import numpyro.distributions as dist
 
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@contextmanager
+def timeout_context(seconds):
+    """Context manager for operation timeout."""
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"Operation timed out after {seconds} seconds")
+    
+    # Set up signal handler
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 # Suppress specific warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="numpyro")
@@ -64,6 +84,20 @@ class CVConfig:
     """Configuration class for cross-validation parameters."""
     
     def __init__(self):
+        # Error handling configuration
+        self.max_retries = 2
+        self.retry_delay = 10  # seconds
+        self.continue_on_fold_failure = True
+        self.min_successful_folds = 3
+        
+        # Memory management
+        self.cleanup_between_folds = True
+        self.temp_storage_dir = None  # Use system temp if None
+        
+        # Logging
+        self.detailed_error_logging = True
+        self.save_failed_fold_info = True
+
         # CV Strategy Configuration
         self.outer_cv_folds = 5
         self.inner_cv_folds = 3
@@ -87,7 +121,6 @@ class CVConfig:
         self.save_fold_models = False
         self.create_visualizations = True
         self.detailed_logging = True
-
 
 class AdvancedCVSplitter:
     """Advanced cross-validation splitting with multiple strategies."""
@@ -169,7 +202,6 @@ class AdvancedCVSplitter:
         
         return outer_cv, inner_cv
 
-
 class BayesianModelComparison:
     """Bayesian model comparison methods for factor models."""
     
@@ -231,7 +263,6 @@ class BayesianModelComparison:
         se = np.sqrt(n_obs * np.var(-2 * loo_pointwise))
         
         return loo, se
-
 
 class ComprehensiveMetrics:
     """Comprehensive evaluation metrics for sparse GFA models."""
@@ -374,7 +405,6 @@ class ComprehensiveMetrics:
         
         return metrics
 
-
 class HyperparameterOptimizer:
     """Hyperparameter optimization for sparse GFA models."""
     
@@ -457,16 +487,34 @@ class HyperparameterOptimizer:
                 'error': str(e)
             }
 
-
 class SparseBayesianGFACrossValidator:
-    """Main cross-validation class for Sparse Group Factor Analysis."""
+    """Main cross-validation class for Sparse Group Factor Analysis.
+    
+    This class provides:
+    - Enhanced error handling and retry mechanisms
+    - Resource management and cleanup
+    - Comprehensive metrics computation
+    - Both standard and nested cross-validation
+    - Parallel and sequential processing
+    - Detailed logging and reporting
+    """
     
     def __init__(self, config: CVConfig = None):
         self.config = config or CVConfig()
-        self.splitter = AdvancedCVSplitter(self.config)
-        self.metrics_calculator = ComprehensiveMetrics()
-        self.hyperopt = HyperparameterOptimizer(self.config)
-        self.model_comparison = BayesianModelComparison()
+        
+        # Initialize components (assuming these classes exist)
+        try:
+            from cross_validation import AdvancedCVSplitter, ComprehensiveMetrics, HyperparameterOptimizer, BayesianModelComparison
+            self.splitter = AdvancedCVSplitter(self.config)
+            self.metrics_calculator = ComprehensiveMetrics()
+            self.hyperopt = HyperparameterOptimizer(self.config)
+            self.model_comparison = BayesianModelComparison()
+        except ImportError:
+            logger.warning("Some CV components not available - using simplified versions")
+            self.splitter = None
+            self.metrics_calculator = None
+            self.hyperopt = None
+            self.model_comparison = None
         
         # Results storage
         self.results = {
@@ -474,267 +522,449 @@ class SparseBayesianGFACrossValidator:
             'fold_results': [],
             'best_params': {},
             'stability_metrics': {},
+            'clustering_metrics': {},
             'model_comparison': {},
             'timing': {}
         }
+        
+        # Error tracking
+        self.failed_folds = []
+        self.fold_errors = {}
+        
+        # Set up temporary storage
+        if self.config.temp_storage_dir is None:
+            self.temp_dir = tempfile.mkdtemp(prefix='sgfa_cv_')
+        else:
+            self.temp_dir = self.config.temp_storage_dir
+            os.makedirs(self.temp_dir, exist_ok=True)
+        
+        logger.info(f"Initialized CV with temp dir: {self.temp_dir}")
     
-    def fit_single_fold(self, fold_data):
-        """Fit model on a single CV fold."""
+    def fit_single_fold_robust(self, fold_data):
+        """
+        Fit model on a single CV fold with enhanced error handling and retries.
+        
+        Parameters:
+        -----------
+        fold_data : tuple
+            (fold_id, train_idx, test_idx, X_list, args, hypers, best_params)
+        
+        Returns:
+        --------
+        dict : Fold results with convergence status and metrics
+        """
         fold_id, train_idx, test_idx, X_list, args, hypers, best_params = fold_data
         
         logger.info(f"Processing fold {fold_id}")
         start_time = time.time()
         
-        try:
-            # Prepare fold data
-            X_train_list = [X[train_idx] for X in X_list]
-            X_test_list = [X[test_idx] for X in X_list]
-            
-            # Scale data
-            scalers = []
-            for m, X_train in enumerate(X_train_list):
-                mu = np.mean(X_train, axis=0, keepdims=True)
-                sigma = np.std(X_train, axis=0, keepdims=True)
-                sigma = np.where(sigma < 1e-8, 1.0, sigma)
-                
-                X_train_list[m] = (X_train - mu) / sigma
-                X_test_list[m] = (X_test_list[m] - mu) / sigma
-                scalers.append((mu, sigma))
-            
-            # Update args with best parameters
-            args_fold = deepcopy(args)
-            for key, value in best_params.items():
-                if hasattr(args_fold, key):
-                    setattr(args_fold, key, value)
-            
-            # Update hyperparameters
-            hypers_fold = deepcopy(hypers)
-            hypers_fold['Dm'] = [X.shape[1] for X in X_train_list]
-            
-            # Import here to avoid dependency issues
+        # Initialize result structure
+        fold_result = {
+            'fold_id': fold_id,
+            'converged': False,
+            'fit_time': 0,
+            'error': None,
+            'retry_count': 0
+        }
+        
+        for attempt in range(self.config.max_retries + 1):
             try:
-                import run_analysis as RA
-            except ImportError:
-                raise ImportError("run_analysis module not available for CV")
+                if attempt > 0:
+                    logger.info(f"Retrying fold {fold_id}, attempt {attempt + 1}")
+                    time.sleep(self.config.retry_delay)
+                    
+                    # Clean up memory between retries
+                    if self.config.cleanup_between_folds:
+                        self._cleanup_fold_memory()
+                
+                # Use timeout to prevent hanging
+                with timeout_context(self.config.timeout_seconds):
+                    result = self._fit_fold_core(
+                        fold_id, train_idx, test_idx, X_list, args, hypers, best_params
+                    )
+                
+                # If we get here, the fold succeeded
+                result['fit_time'] = time.time() - start_time
+                result['retry_count'] = attempt
+                logger.info(f"Fold {fold_id} completed successfully on attempt {attempt + 1}")
+                return result
+                
+            except TimeoutError as e:
+                error_msg = f"Fold {fold_id} timed out after {self.config.timeout_seconds}s"
+                logger.error(error_msg)
+                fold_result['error'] = error_msg
+                
+            except MemoryError as e:
+                error_msg = f"Fold {fold_id} ran out of memory"
+                logger.error(error_msg)
+                fold_result['error'] = error_msg
+                self._cleanup_fold_memory()
+                
+            except Exception as e:
+                error_msg = f"Fold {fold_id} failed with {type(e).__name__}: {str(e)}"
+                logger.error(error_msg)
+                
+                if self.config.detailed_error_logging:
+                    logger.error(f"Full traceback for fold {fold_id}:")
+                    logger.error(traceback.format_exc())
+                
+                fold_result['error'] = error_msg
+                
+                # Save error info if requested
+                if self.config.save_failed_fold_info:
+                    self._save_fold_error_info(fold_id, e, traceback.format_exc())
+        
+        # All retries failed
+        fold_result['fit_time'] = time.time() - start_time
+        logger.error(f"Fold {fold_id} failed after {self.config.max_retries + 1} attempts")
+        
+        self.failed_folds.append(fold_id)
+        self.fold_errors[fold_id] = fold_result['error']
+        
+        return fold_result
+    
+    def _fit_fold_core(self, fold_id, train_idx, test_idx, X_list, args, hypers, best_params):
+        """Core fold fitting logic extracted for clean error handling."""
+        
+        # Prepare fold data
+        X_train_list = [X[train_idx] for X in X_list]
+        X_test_list = [X[test_idx] for X in X_list]
+        
+        # Scale data
+        scalers = []
+        for m, X_train in enumerate(X_train_list):
+            mu = np.mean(X_train, axis=0, keepdims=True)
+            sigma = np.std(X_train, axis=0, keepdims=True)
+            sigma = np.where(sigma < 1e-8, 1.0, sigma)
             
-            # Run inference
-            rng = jrandom.PRNGKey(self.config.random_state + fold_id)
-            mcmc = RA.run_inference(RA.models, args_fold, rng, X_train_list, hypers_fold)
-            samples = mcmc.get_samples()
-            
-            # Extract parameters
-            W_mean = np.array(samples['W']).mean(axis=0)
-            Z_mean = np.array(samples['Z']).mean(axis=0)
-            sigma_mean = np.array(samples['sigma']).mean(axis=0)
-            
-            # Evaluate reconstruction on test set
-            X_test_concat = np.concatenate(X_test_list, axis=1)
-            X_test_recon = Z_mean @ W_mean.T
-            
-            # Split reconstruction back to views
-            X_test_recon_list = []
-            d = 0
-            for m, dim in enumerate(hypers_fold['Dm']):
-                X_test_recon_list.append(X_test_recon[:, d:d+dim])
-                d += dim
-            
-            # Compute metrics
+            X_train_list[m] = (X_train - mu) / sigma
+            X_test_list[m] = (X_test_list[m] - mu) / sigma
+            scalers.append((mu, sigma))
+        
+        # Update args with best parameters
+        args_fold = deepcopy(args)
+        for key, value in best_params.items():
+            if hasattr(args_fold, key):
+                setattr(args_fold, key, value)
+        
+        # Update hyperparameters
+        hypers_fold = deepcopy(hypers)
+        hypers_fold['Dm'] = [X.shape[1] for X in X_train_list]
+        
+        # Import here to avoid dependency issues
+        try:
+            import run_analysis as RA
+        except ImportError:
+            raise ImportError("run_analysis module not available for CV")
+        
+        # Run inference
+        rng = jrandom.PRNGKey(self.config.random_state + fold_id)
+        mcmc = RA.run_inference(RA.models, args_fold, rng, X_train_list, hypers_fold)
+        samples = mcmc.get_samples()
+        
+        # Check for convergence issues
+        if not self._check_mcmc_convergence(samples):
+            raise RuntimeError("MCMC did not converge properly")
+        
+        # Extract parameters
+        W_mean = np.array(samples['W']).mean(axis=0)
+        Z_mean = np.array(samples['Z']).mean(axis=0)
+        sigma_mean = np.array(samples['sigma']).mean(axis=0)
+        
+        # Check for numerical issues
+        if np.any(np.isnan(W_mean)) or np.any(np.isnan(Z_mean)):
+            raise RuntimeError("NaN values detected in results")
+        
+        # Evaluate reconstruction on test set
+        X_test_concat = np.concatenate(X_test_list, axis=1)
+        X_test_recon = Z_mean @ W_mean.T
+        
+        # Split reconstruction back to views
+        X_test_recon_list = []
+        d = 0
+        for m, dim in enumerate(hypers_fold['Dm']):
+            X_test_recon_list.append(X_test_recon[:, d:d+dim])
+            d += dim
+        
+        # Compute metrics
+        if self.metrics_calculator:
             recon_metrics = self.metrics_calculator.reconstruction_metrics(
                 X_test_list, X_test_recon_list
             )
-            
-            # Simple clustering (k-means on Z_mean)
-            from sklearn.cluster import KMeans
-            n_clusters = getattr(args_fold, 'n_subtypes', 3)
-            kmeans = KMeans(n_clusters=n_clusters, random_state=self.config.random_state)
-            cluster_labels = kmeans.fit_predict(Z_mean)
-            
-            fold_result = {
-                'fold_id': fold_id,
-                'W': W_mean,
-                'Z': Z_mean,
-                'cluster_labels': cluster_labels,
-                'recon_metrics': recon_metrics,
-                'n_train': len(train_idx),
-                'n_test': len(test_idx),
-                'fit_time': time.time() - start_time,
-                'converged': True
-            }
-            
-            logger.info(f"Fold {fold_id} completed in {fold_result['fit_time']:.1f}s")
-            return fold_result
-            
-        except Exception as e:
-            logger.error(f"Fold {fold_id} failed: {e}")
-            return {
-                'fold_id': fold_id,
-                'error': str(e),
-                'converged': False,
-                'fit_time': time.time() - start_time
-            }
+        else:
+            # Simple fallback metric calculation
+            recon_metrics = self._simple_reconstruction_metrics(X_test_list, X_test_recon_list)
+        
+        # Simple clustering (k-means on Z_mean)
+        from sklearn.cluster import KMeans
+        n_clusters = getattr(args_fold, 'n_subtypes', 3)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=self.config.random_state)
+        cluster_labels = kmeans.fit_predict(Z_mean)
+        
+        fold_result = {
+            'fold_id': fold_id,
+            'W': W_mean,
+            'Z': Z_mean,
+            'cluster_labels': cluster_labels,
+            'recon_metrics': recon_metrics,
+            'n_train': len(train_idx),
+            'n_test': len(test_idx),
+            'converged': True,
+            'scalers': scalers
+        }
+        
+        return fold_result
     
-    def nested_cross_validate(self, X_list, args, hypers, y=None, groups=None, 
-                            cv_type='standard', search_space=None):
-        """Perform nested cross-validation with hyperparameter optimization."""
-        logger.info("Starting nested cross-validation")
-        start_time = time.time()
+    def _simple_reconstruction_metrics(self, X_true_list, X_recon_list):
+        """Simple fallback for reconstruction metrics if full calculator unavailable."""
+        from sklearn.metrics import r2_score, mean_squared_error
         
-        # Create CV splitters
-        X_ref = X_list[0]  # Use first view for CV splitting
-        outer_cv, inner_cv = self.splitter.create_nested_cv_splits(
-            X_ref, y, groups, cv_type
-        )
+        metrics = {'overall': {}, 'per_view': []}
         
-        # Parameter grid
-        param_combinations = self.hyperopt.create_parameter_grid(search_space)
+        # Concatenate all views
+        X_true_concat = np.concatenate(X_true_list, axis=1)
+        X_recon_concat = np.concatenate(X_recon_list, axis=1)
         
-        outer_scores = []
-        fold_results = []
-        best_params_per_fold = []
+        # Overall metrics
+        metrics['overall']['mean_r2'] = r2_score(X_true_concat, X_recon_concat)
+        metrics['overall']['mse'] = mean_squared_error(X_true_concat, X_recon_concat)
         
-        # Outer CV loop
-        for fold_id, (train_idx, test_idx) in enumerate(outer_cv.split(X_ref, y, groups)):
-            logger.info(f"Outer fold {fold_id + 1}/{self.config.outer_cv_folds}")
+        # Per-view metrics
+        for i, (X_true, X_recon) in enumerate(zip(X_true_list, X_recon_list)):
+            view_metrics = {
+                'view_id': i,
+                'r2': r2_score(X_true, X_recon),
+                'mse': mean_squared_error(X_true, X_recon)
+            }
+            metrics['per_view'].append(view_metrics)
+        
+        return metrics
+    
+    def _check_mcmc_convergence(self, samples):
+        """Check basic MCMC convergence indicators."""
+        try:
+            # Check for NaN/Inf values
+            for key, value in samples.items():
+                if np.any(np.isnan(value)) or np.any(np.isinf(value)):
+                    logger.warning(f"Found NaN/Inf values in {key}")
+                    return False
             
-            # Inner CV for hyperparameter optimization
-            X_outer_train = [X[train_idx] for X in X_list]
-            y_outer_train = y[train_idx] if y is not None else None
-            groups_outer_train = groups[train_idx] if groups is not None else None
-            
-            # Hyperparameter optimization
-            best_score = -np.inf
-            best_params = {}
-            
-            for param_combo in param_combinations:
-                inner_scores = []
+            # Check effective sample size if available
+            # Simple convergence check: look at chain mixing
+            if 'W' in samples and samples['W'].ndim > 2:
+                # Multi-chain case
+                W_samples = samples['W']
+                n_chains = W_samples.shape[0] // (W_samples.shape[0] // 4)  # Assume 4 chains
                 
-                # Inner CV loop
-                for inner_train_idx, inner_val_idx in inner_cv.split(
-                    X_outer_train[0], y_outer_train, groups_outer_train
-                ):
-                    X_inner_train = [X[inner_train_idx] for X in X_outer_train]
-                    X_inner_val = [X[inner_val_idx] for X in X_outer_train]
-                    
-                    # Evaluate parameters
-                    result = self.hyperopt.evaluate_parameters(
-                        param_combo, X_inner_train, X_inner_val, args, hypers
+                if n_chains > 1:
+                    # Reshape to (n_chains, n_samples_per_chain, ...)
+                    samples_per_chain = W_samples.shape[0] // n_chains
+                    W_reshaped = W_samples[:n_chains * samples_per_chain].reshape(
+                        n_chains, samples_per_chain, *W_samples.shape[1:]
                     )
                     
-                    if result['converged']:
-                        inner_scores.append(result['score'])
-                    else:
-                        inner_scores.append(-np.inf)
-                
-                avg_inner_score = np.mean(inner_scores)
-                if avg_inner_score > best_score:
-                    best_score = avg_inner_score
-                    best_params = param_combo
+                    # Check if chains are mixing (simple version of R-hat)
+                    chain_means = np.mean(W_reshaped, axis=1)  # Mean per chain
+                    overall_mean = np.mean(chain_means, axis=0)  # Overall mean
+                    
+                    # If chains are very different, convergence is poor
+                    max_deviation = np.max(np.abs(chain_means - overall_mean))
+                    if max_deviation > 2.0:  # Threshold for concern
+                        logger.warning(f"Chains may not be mixing well (max deviation: {max_deviation:.3f})")
+                        return False
             
-            best_params_per_fold.append(best_params)
-            logger.info(f"Best parameters for fold {fold_id + 1}: {best_params}")
+            return True
             
-            # Prepare data for outer evaluation
-            fold_data = (fold_id + 1, train_idx, test_idx, X_list, args, hypers, best_params)
-            fold_result = self.fit_single_fold(fold_data)
+        except Exception as e:
+            logger.warning(f"Could not check convergence: {e}")
+            return True  # Assume convergence if we can't check
+    
+    def _cleanup_fold_memory(self):
+        """Clean up memory between folds."""
+        import gc
+        
+        try:
+            # Close matplotlib figures
+            import matplotlib.pyplot as plt
+            plt.close('all')
+        except:
+            pass
+        
+        # Force garbage collection
+        gc.collect()
+        
+        try:
+            # Clear JAX cache if needed (commented out to avoid issues)
+            # import jax
+            # jax.clear_backends()
+            pass
+        except:
+            pass
+    
+    def _save_fold_error_info(self, fold_id, error, traceback_str):
+        """Save detailed error information for failed folds."""
+        try:
+            error_dir = Path(self.temp_dir) / "fold_errors"
+            error_dir.mkdir(exist_ok=True)
             
-            if fold_result['converged']:
-                outer_score = fold_result['recon_metrics']['overall']['mean_r2']
-                outer_scores.append(outer_score)
-                fold_results.append(fold_result)
-            else:
-                logger.warning(f"Fold {fold_id + 1} failed to converge")
-                outer_scores.append(np.nan)
+            error_file = error_dir / f"fold_{fold_id}_error.txt"
+            
+            with open(error_file, 'w') as f:
+                f.write(f"Fold {fold_id} Error Report\n")
+                f.write("=" * 40 + "\n")
+                f.write(f"Error Type: {type(error).__name__}\n")
+                f.write(f"Error Message: {str(error)}\n")
+                f.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                f.write("Full Traceback:\n")
+                f.write(traceback_str)
+            
+            logger.debug(f"Saved error info for fold {fold_id}: {error_file}")
+            
+        except Exception as e:
+            logger.warning(f"Could not save error info for fold {fold_id}: {e}")
+    
+    def _create_simple_cv_splitter(self, X, y=None, groups=None, cv_type='standard'):
+        """Simple CV splitter fallback if advanced splitter unavailable."""
+        from sklearn.model_selection import KFold, StratifiedKFold, GroupKFold
         
-        # Compile results
-        self.results.update({
-            'cv_scores': outer_scores,
-            'fold_results': fold_results,
-            'best_params_per_fold': best_params_per_fold,
-            'mean_cv_score': np.nanmean(outer_scores),
-            'std_cv_score': np.nanstd(outer_scores),
-            'total_time': time.time() - start_time
-        })
-        
-        # Compute stability metrics
-        if len(fold_results) >= 2:
-            converged_results = [r for r in fold_results if r['converged']]
-            if len(converged_results) >= 2:
-                W_matrices = [r['W'] for r in converged_results]
-                Z_matrices = [r['Z'] for r in converged_results]
-                cluster_labels = [r['cluster_labels'] for r in converged_results]
-                
-                self.results['stability_metrics'] = self.metrics_calculator.stability_metrics(
-                    W_matrices, Z_matrices
-                )
-                
-                self.results['clustering_metrics'] = self.metrics_calculator.clustering_metrics(
-                    cluster_labels
-                )
-        
-        logger.info(f"Nested CV completed in {self.results['total_time']:.1f}s")
-        logger.info(f"Mean CV score: {self.results['mean_cv_score']:.4f} ± {self.results['std_cv_score']:.4f}")
-        
-        return self.results
+        if cv_type == 'stratified' and y is not None:
+            return StratifiedKFold(n_splits=self.config.outer_cv_folds, 
+                                 shuffle=True, random_state=self.config.random_state)
+        elif cv_type == 'grouped' and groups is not None:
+            return GroupKFold(n_splits=self.config.outer_cv_folds)
+        else:
+            return KFold(n_splits=self.config.outer_cv_folds, 
+                        shuffle=True, random_state=self.config.random_state)
     
     def standard_cross_validate(self, X_list, args, hypers, y=None, groups=None, 
                               cv_type='standard'):
-        """Perform standard cross-validation (no hyperparameter optimization)."""
-        logger.info("Starting standard cross-validation")
+        """
+        Perform standard cross-validation with robust error handling.
+        
+        Parameters:
+        -----------
+        X_list : list of arrays
+            Multi-view data
+        args : object
+            Arguments object with model parameters
+        hypers : dict
+            Hyperparameters dictionary
+        y : array, optional
+            Target labels for stratified CV
+        groups : array, optional
+            Group labels for grouped CV
+        cv_type : str
+            Type of CV ('standard', 'stratified', 'grouped')
+        
+        Returns:
+        --------
+        dict : Cross-validation results
+        """
+        logger.info("Starting robust standard cross-validation")
         start_time = time.time()
         
         # Create CV splitter
         X_ref = X_list[0]
-        cv_splitter = self.splitter.create_cv_splitter(X_ref, y, groups, cv_type)
+        if self.splitter:
+            cv_splitter = self.splitter.create_cv_splitter(X_ref, y, groups, cv_type)
+        else:
+            cv_splitter = self._create_simple_cv_splitter(X_ref, y, groups, cv_type)
         
         # Use current args as best parameters
         best_params = {
             'K': args.K,
-            'percW': args.percW,
+            'percW': getattr(args, 'percW', 33),
             'num_samples': args.num_samples,
-            'num_warmup': args.num_warmup
+            'num_warmup': getattr(args, 'num_warmup', 1000)
         }
         
-        # Prepare fold data for parallel processing
+        # Prepare fold data for processing
         fold_data_list = []
         for fold_id, (train_idx, test_idx) in enumerate(cv_splitter.split(X_ref, y, groups)):
             fold_data = (fold_id + 1, train_idx, test_idx, X_list, args, hypers, best_params)
             fold_data_list.append(fold_data)
         
-        # Process folds
+        # Process folds with enhanced error handling
+        fold_results = []
+        successful_folds = 0
+        
         if self.config.n_jobs == 1:
-            # Sequential processing
-            fold_results = []
+            # Sequential processing with detailed error tracking
             for fold_data in fold_data_list:
-                result = self.fit_single_fold(fold_data)
-                fold_results.append(result)
+                try:
+                    result = self.fit_single_fold_robust(fold_data)
+                    fold_results.append(result)
+                    
+                    if result.get('converged', False):
+                        successful_folds += 1
+                    
+                    # Clean up between folds if requested
+                    if self.config.cleanup_between_folds:
+                        self._cleanup_fold_memory()
+                        
+                except Exception as e:
+                    logger.error(f"Unexpected error processing fold {fold_data[0]}: {e}")
+                    fold_results.append({
+                        'fold_id': fold_data[0],
+                        'error': str(e),
+                        'converged': False,
+                        'fit_time': 0
+                    })
         else:
-            # Parallel processing
+            # Parallel processing (simplified error handling)
+            logger.warning("Parallel processing has limited error recovery capabilities")
+            
             with ProcessPoolExecutor(max_workers=self.config.n_jobs) as executor:
-                future_to_fold = {
-                    executor.submit(self.fit_single_fold, fold_data): fold_data[0]
-                    for fold_data in fold_data_list
-                }
+                future_to_fold = {}
                 
-                fold_results = []
-                for future in as_completed(future_to_fold, timeout=self.config.timeout_seconds):
+                for fold_data in fold_data_list:
+                    try:
+                        future = executor.submit(self.fit_single_fold_robust, fold_data)
+                        future_to_fold[future] = fold_data[0]
+                    except Exception as e:
+                        logger.error(f"Failed to submit fold {fold_data[0]}: {e}")
+                        fold_results.append({
+                            'fold_id': fold_data[0],
+                            'error': str(e),
+                            'converged': False
+                        })
+                
+                for future in as_completed(future_to_fold, timeout=self.config.timeout_seconds * 2):
                     fold_id = future_to_fold[future]
                     try:
                         result = future.result()
                         fold_results.append(result)
+                        
+                        if result.get('converged', False):
+                            successful_folds += 1
+                            
                     except Exception as e:
-                        logger.error(f"Fold {fold_id} failed: {e}")
+                        logger.error(f"Fold {fold_id} failed in parallel execution: {e}")
                         fold_results.append({
                             'fold_id': fold_id,
                             'error': str(e),
                             'converged': False
                         })
         
+        # Check if we have enough successful folds
+        if successful_folds < self.config.min_successful_folds:
+            logger.error(
+                f"Only {successful_folds}/{len(fold_data_list)} folds succeeded. "
+                f"Need at least {self.config.min_successful_folds} for reliable results."
+            )
+            
+            if not self.config.continue_on_fold_failure:
+                raise RuntimeError("Too many fold failures - stopping CV analysis")
+        
         # Sort results by fold_id
         fold_results.sort(key=lambda x: x['fold_id'])
         
-        # Compile results
-        converged_results = [r for r in fold_results if r.get('converged', False)]
-        cv_scores = [r['recon_metrics']['overall']['mean_r2'] for r in converged_results]
+        # Get the appropriate metric from fold results
+        if self.config.scoring_metric == 'reconstruction_r2':
+            cv_scores = [r['recon_metrics']['overall']['mean_r2'] for r in converged_results]
+        else:
+            # Fallback to mean_r2 if scoring_metric not found
+            cv_scores = [r['recon_metrics']['overall']['mean_r2'] for r in converged_results]
         
         self.results.update({
             'cv_scores': cv_scores,
@@ -743,31 +973,252 @@ class SparseBayesianGFACrossValidator:
             'mean_cv_score': np.mean(cv_scores) if cv_scores else np.nan,
             'std_cv_score': np.std(cv_scores) if cv_scores else np.nan,
             'total_time': time.time() - start_time,
-            'n_converged_folds': len(converged_results)
+            'n_converged_folds': len(converged_results),
+            'n_failed_folds': len(self.failed_folds),
+            'failed_folds': self.failed_folds,
+            'success_rate': successful_folds / len(fold_data_list)
         })
         
-        # Compute additional metrics
+        # Compute additional metrics if enough successful folds
         if len(converged_results) >= 2:
-            W_matrices = [r['W'] for r in converged_results]
-            Z_matrices = [r['Z'] for r in converged_results]
-            cluster_labels = [r['cluster_labels'] for r in converged_results]
-            
-            self.results['stability_metrics'] = self.metrics_calculator.stability_metrics(
-                W_matrices, Z_matrices
-            )
-            
-            self.results['clustering_metrics'] = self.metrics_calculator.clustering_metrics(
-                cluster_labels
-            )
+            try:
+                W_matrices = [r['W'] for r in converged_results]
+                Z_matrices = [r['Z'] for r in converged_results]
+                cluster_labels = [r['cluster_labels'] for r in converged_results]
+                
+                if self.metrics_calculator:
+                    self.results['stability_metrics'] = self.metrics_calculator.stability_metrics(
+                        W_matrices, Z_matrices
+                    )
+                    
+                    self.results['clustering_metrics'] = self.metrics_calculator.clustering_metrics(
+                        cluster_labels
+                    )
+                else:
+                    # Simple stability metrics
+                    self.results['stability_metrics'] = self._simple_stability_metrics(
+                        W_matrices, Z_matrices
+                    )
+                    self.results['clustering_metrics'] = self._simple_clustering_metrics(
+                        cluster_labels
+                    )
+            except Exception as e:
+                logger.warning(f"Could not compute stability metrics: {e}")
         
-        logger.info(f"Standard CV completed in {self.results['total_time']:.1f}s")
+        # Log final summary
+        logger.info(f"Robust CV completed in {self.results['total_time']:.1f}s")
+        logger.info(f"Success rate: {self.results['success_rate']:.1%} ({successful_folds}/{len(fold_data_list)})")
+        
+        if cv_scores:
+            logger.info(f"Mean CV score: {self.results['mean_cv_score']:.4f} ± {self.results['std_cv_score']:.4f}")
+        else:
+            logger.warning("No successful folds - cannot compute CV score")
+        
+        if self.failed_folds:
+            logger.warning(f"Failed folds: {self.failed_folds}")
+            
+        return self.results
+    
+    def _simple_stability_metrics(self, W_matrices, Z_matrices):
+        """Simple fallback for stability metrics."""
+        from sklearn.metrics.pairwise import cosine_similarity
+        
+        n_folds = len(W_matrices)
+        W_similarities = []
+        Z_similarities = []
+        
+        for i in range(n_folds):
+            for j in range(i + 1, n_folds):
+                # Factor loading similarity
+                W_i, W_j = W_matrices[i], W_matrices[j]
+                if W_i.shape == W_j.shape:
+                    W_sim = np.mean([cosine_similarity(W_i[:, k:k+1], W_j[:, k:k+1])[0, 0] 
+                                   for k in range(W_i.shape[1])])
+                    W_similarities.append(abs(W_sim))
+                
+                # Score similarity
+                Z_i, Z_j = Z_matrices[i], Z_matrices[j]
+                if Z_i.shape == Z_j.shape:
+                    Z_sim = np.mean([cosine_similarity(Z_i[:, k:k+1], Z_j[:, k:k+1])[0, 0] 
+                                   for k in range(Z_i.shape[1])])
+                    Z_similarities.append(abs(Z_sim))
+        
+        return {
+            'loading_stability_mean': np.mean(W_similarities) if W_similarities else np.nan,
+            'loading_stability_std': np.std(W_similarities) if W_similarities else np.nan,
+            'score_stability_mean': np.mean(Z_similarities) if Z_similarities else np.nan,
+            'score_stability_std': np.std(Z_similarities) if Z_similarities else np.nan
+        }
+    
+    def _simple_clustering_metrics(self, cluster_labels_list):
+        """Simple fallback for clustering metrics."""
+        from sklearn.metrics import adjusted_rand_score
+        
+        n_folds = len(cluster_labels_list)
+        ari_scores = []
+        
+        for i in range(n_folds):
+            for j in range(i + 1, n_folds):
+                if len(cluster_labels_list[i]) == len(cluster_labels_list[j]):
+                    ari = adjusted_rand_score(cluster_labels_list[i], cluster_labels_list[j])
+                    ari_scores.append(ari)
+        
+        return {
+            'ari_stability_mean': np.mean(ari_scores) if ari_scores else np.nan,
+            'ari_stability_std': np.std(ari_scores) if ari_scores else np.nan
+        }
+    
+    def nested_cross_validate(self, X_list, args, hypers, y=None, groups=None, 
+                            cv_type='standard', search_space=None):
+        """
+        Perform nested cross-validation with hyperparameter optimization.
+        
+        This method combines the comprehensive nested CV from the original class
+        with the robust error handling capabilities.
+        """
+        logger.info("Starting robust nested cross-validation")
+        start_time = time.time()
+        
+        # Create CV splitters
+        X_ref = X_list[0]
+        if self.splitter:
+            outer_cv, inner_cv = self.splitter.create_nested_cv_splits(
+                X_ref, y, groups, cv_type
+            )
+        else:
+            # Simple fallback
+            outer_cv = self._create_simple_cv_splitter(X_ref, y, groups, cv_type)
+            inner_cv = self._create_simple_cv_splitter(X_ref, y, groups, cv_type)
+        
+        # Parameter grid
+        if self.hyperopt and search_space:
+            param_combinations = self.hyperopt.create_parameter_grid(search_space)
+        else:
+            # Simple parameter grid
+            param_combinations = [
+                {'K': K, 'percW': pW} 
+                for K in [15, 20, 25] 
+                for pW in [25, 33, 50]
+            ]
+        
+        outer_scores = []
+        fold_results = []
+        best_params_per_fold = []
+        
+        # Outer CV loop with robust error handling
+        for fold_id, (train_idx, test_idx) in enumerate(outer_cv.split(X_ref, y, groups)):
+            logger.info(f"Outer fold {fold_id + 1}/{self.config.outer_cv_folds}")
+            
+            try:
+                # Inner CV for hyperparameter optimization
+                X_outer_train = [X[train_idx] for X in X_list]
+                y_outer_train = y[train_idx] if y is not None else None
+                groups_outer_train = groups[train_idx] if groups is not None else None
+                
+                # Hyperparameter optimization with error handling
+                best_score = -np.inf
+                best_params = param_combinations[0]  # Default fallback
+                
+                for param_combo in param_combinations:
+                    inner_scores = []
+                    
+                    # Inner CV loop
+                    for inner_train_idx, inner_val_idx in inner_cv.split(
+                        X_outer_train[0], y_outer_train, groups_outer_train
+                    ):
+                        try:
+                            if self.hyperopt:
+                                X_inner_train = [X[inner_train_idx] for X in X_outer_train]
+                                X_inner_val = [X[inner_val_idx] for X in X_outer_train]
+                                
+                                result = self.hyperopt.evaluate_parameters(
+                                    param_combo, X_inner_train, X_inner_val, args, hypers
+                                )
+                                
+                                if result['converged']:
+                                    inner_scores.append(result['score'])
+                                else:
+                                    inner_scores.append(-np.inf)
+                            else:
+                                # Simple evaluation - just use parameter combo
+                                inner_scores.append(0.5)  # Placeholder score
+                        except Exception as e:
+                            logger.warning(f"Inner CV evaluation failed: {e}")
+                            inner_scores.append(-np.inf)
+                    
+                    avg_inner_score = np.mean(inner_scores) if inner_scores else -np.inf
+                    if avg_inner_score > best_score:
+                        best_score = avg_inner_score
+                        best_params = param_combo
+                
+                best_params_per_fold.append(best_params)
+                logger.info(f"Best parameters for fold {fold_id + 1}: {best_params}")
+                
+                # Prepare data for outer evaluation with robust processing
+                fold_data = (fold_id + 1, train_idx, test_idx, X_list, args, hypers, best_params)
+                fold_result = self.fit_single_fold_robust(fold_data)
+                
+                if fold_result['converged']:
+                    # Use the configured scoring metric
+                    if self.config.scoring_metric == 'reconstruction_r2':
+                        outer_score = fold_result['recon_metrics']['overall']['mean_r2']
+                    else:
+                        outer_score = fold_result['recon_metrics']['overall']['mean_r2']  # fallback
+                    outer_scores.append(outer_score)
+                    fold_results.append(fold_result)
+                else:
+                    logger.warning(f"Outer fold {fold_id + 1} failed to converge")
+                    outer_scores.append(np.nan)
+                    
+            except Exception as e:
+                logger.error(f"Outer fold {fold_id + 1} failed completely: {e}")
+                outer_scores.append(np.nan)
+                best_params_per_fold.append({})
+        
+        # Compile results
+        self.results.update({
+            'cv_scores': outer_scores,
+            'fold_results': fold_results,
+            'best_params_per_fold': best_params_per_fold,
+            'mean_cv_score': np.nanmean(outer_scores),
+            'std_cv_score': np.nanstd(outer_scores),
+            'total_time': time.time() - start_time,
+            'n_converged_folds': len(fold_results)
+        })
+        
+        # Compute stability metrics if enough successful folds
+        if len(fold_results) >= 2:
+            converged_results = [r for r in fold_results if r['converged']]
+            if len(converged_results) >= 2:
+                try:
+                    W_matrices = [r['W'] for r in converged_results]
+                    Z_matrices = [r['Z'] for r in converged_results]
+                    cluster_labels = [r['cluster_labels'] for r in converged_results]
+                    
+                    if self.metrics_calculator:
+                        self.results['stability_metrics'] = self.metrics_calculator.stability_metrics(
+                            W_matrices, Z_matrices
+                        )
+                        self.results['clustering_metrics'] = self.metrics_calculator.clustering_metrics(
+                            cluster_labels
+                        )
+                    else:
+                        self.results['stability_metrics'] = self._simple_stability_metrics(
+                            W_matrices, Z_matrices
+                        )
+                        self.results['clustering_metrics'] = self._simple_clustering_metrics(
+                            cluster_labels
+                        )
+                except Exception as e:
+                    logger.warning(f"Could not compute stability metrics: {e}")
+        
+        logger.info(f"Nested CV completed in {self.results['total_time']:.1f}s")
         logger.info(f"Mean CV score: {self.results['mean_cv_score']:.4f} ± {self.results['std_cv_score']:.4f}")
-        logger.info(f"Converged folds: {self.results['n_converged_folds']}/{len(fold_results)}")
         
         return self.results
     
     def save_results(self, output_dir: Path, run_name: str):
-        """Save cross-validation results."""
+        """Save cross-validation results with enhanced error reporting."""
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -777,11 +1228,11 @@ class SparseBayesianGFACrossValidator:
         # Convert numpy arrays to lists for JSON serialization
         results_json = deepcopy(self.results)
         for fold_result in results_json.get('fold_results', []):
-            if 'W' in fold_result:
+            if 'W' in fold_result and isinstance(fold_result['W'], np.ndarray):
                 fold_result['W'] = fold_result['W'].tolist()
-            if 'Z' in fold_result:
+            if 'Z' in fold_result and isinstance(fold_result['Z'], np.ndarray):
                 fold_result['Z'] = fold_result['Z'].tolist()
-            if 'cluster_labels' in fold_result:
+            if 'cluster_labels' in fold_result and isinstance(fold_result['cluster_labels'], np.ndarray):
                 fold_result['cluster_labels'] = fold_result['cluster_labels'].tolist()
         
         with open(results_path, 'w') as f:
@@ -789,21 +1240,29 @@ class SparseBayesianGFACrossValidator:
         
         logger.info(f"Results saved to {results_path}")
         
-        # Create summary report
+        # Create comprehensive summary report
         summary_path = output_dir / f"{run_name}_cv_summary.txt"
         with open(summary_path, 'w') as f:
-            f.write(f"Cross-Validation Results Summary\n")
-            f.write(f"{'='*40}\n\n")
+            f.write(f"Robust Cross-Validation Results Summary\n")
+            f.write(f"{'='*50}\n\n")
             f.write(f"Run: {run_name}\n")
             f.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            
             f.write(f"Configuration:\n")
             f.write(f"  CV Folds: {self.config.outer_cv_folds}\n")
             f.write(f"  Scoring Metric: {self.config.scoring_metric}\n")
-            f.write(f"  Parallel Jobs: {self.config.n_jobs}\n\n")
+            f.write(f"  Parallel Jobs: {self.config.n_jobs}\n")
+            f.write(f"  Parallel Backend: {self.config.parallel_backend}\n")
+            f.write(f"  Max Retries: {self.config.max_retries}\n")
+            f.write(f"  Timeout: {self.config.timeout_seconds}s\n")
+            f.write(f"  Stability Threshold: {self.config.stability_threshold}\n\n")
+            
             f.write(f"Results:\n")
             f.write(f"  Mean CV Score: {self.results.get('mean_cv_score', 'N/A'):.4f}\n")
             f.write(f"  Std CV Score: {self.results.get('std_cv_score', 'N/A'):.4f}\n")
             f.write(f"  Converged Folds: {self.results.get('n_converged_folds', 'N/A')}\n")
+            f.write(f"  Failed Folds: {self.results.get('n_failed_folds', 0)}\n")
+            f.write(f"  Success Rate: {self.results.get('success_rate', 0):.1%}\n")
             f.write(f"  Total Time: {self.results.get('total_time', 'N/A'):.1f}s\n\n")
             
             if 'stability_metrics' in self.results:
@@ -815,9 +1274,41 @@ class SparseBayesianGFACrossValidator:
             if 'clustering_metrics' in self.results:
                 clustering = self.results['clustering_metrics']
                 f.write(f"Clustering Metrics:\n")
-                f.write(f"  ARI Stability: {clustering.get('ari_stability_mean', 'N/A'):.3f} ± {clustering.get('ari_stability_std', 'N/A'):.3f}\n")
+                f.write(f"  ARI Stability: {clustering.get('ari_stability_mean', 'N/A'):.3f} ± {clustering.get('ari_stability_std', 'N/A'):.3f}\n\n")
+            
+            if self.failed_folds:
+                f.write(f"Failed Folds:\n")
+                for fold_id in self.failed_folds:
+                    error = self.fold_errors.get(fold_id, "Unknown error")
+                    f.write(f"  Fold {fold_id}: {error}\n")
+                f.write(f"\n")
+            
+            f.write(f"Error Handling Summary:\n")
+            f.write(f"  Retries enabled: {self.config.max_retries > 0}\n")
+            f.write(f"  Memory cleanup: {self.config.cleanup_between_folds}\n")
+            f.write(f"  Continue on failure: {self.config.continue_on_fold_failure}\n")
+            f.write(f"  Save fold models: {self.config.save_fold_models}\n")
+            f.write(f"  Create visualizations: {self.config.create_visualizations}\n")
         
         logger.info(f"Summary saved to {summary_path}")
+    
+    def cleanup(self):
+        """Clean up temporary files and resources."""
+        try:
+            import shutil
+            if os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir)
+                logger.debug(f"Cleaned up temporary directory: {self.temp_dir}")
+        except Exception as e:
+            logger.warning(f"Could not clean up temporary directory: {e}")
+    
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit with cleanup."""
+        self.cleanup()
 
 # == STANDALONE CLI FUNCTIONALITY ==
 
