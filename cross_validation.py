@@ -51,6 +51,12 @@ import jax.random as jrandom
 import numpyro
 import numpyro.distributions as dist
 
+from copy import deepcopy
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import tempfile
+import traceback
+import jax.random as jrandom
+
 
 # Set up logging
 logging.basicConfig(
@@ -504,7 +510,6 @@ class SparseBayesianGFACrossValidator:
         
         # Initialize components (assuming these classes exist)
         try:
-            from cross_validation import AdvancedCVSplitter, ComprehensiveMetrics, HyperparameterOptimizer, BayesianModelComparison
             self.splitter = AdvancedCVSplitter(self.config)
             self.metrics_calculator = ComprehensiveMetrics()
             self.hyperopt = HyperparameterOptimizer(self.config)
@@ -835,7 +840,145 @@ class SparseBayesianGFACrossValidator:
         else:
             return KFold(n_splits=self.config.outer_cv_folds, 
                         shuffle=True, random_state=self.config.random_state)
+    def extract_cv_scores(self, converged_results):
+        """
+        Extract CV scores with robust error handling and fallback metrics.
+        
+        Returns:
+        --------
+        cv_scores : list
+            Successfully extracted CV scores
+        extraction_log : dict
+            Details about extraction success/failures
+        """
+        cv_scores = []
+        extraction_log = {
+            'total_results': len(converged_results),
+            'successful_extractions': 0,
+            'failed_extractions': 0,
+            'fallback_used': 0,
+            'errors': []
+        }
+        
+        for i, r in enumerate(converged_results):
+            try:
+                # Primary metric path
+                score = r.get('recon_metrics', {}).get('overall', {}).get(self.config.scoring_metric)
+                
+                # Fallback to mean_r2 if primary metric not available
+                if score is None or np.isnan(score):
+                    score = r.get('recon_metrics', {}).get('overall', {}).get('mean_r2')
+                    extraction_log['fallback_used'] += 1
+                
+                # Final fallback to simple MSE-based score
+                if score is None or np.isnan(score):
+                    if 'recon_metrics' in r and 'per_view' in r['recon_metrics']:
+                        # Compute average R² across views
+                        view_r2s = [view.get('r2', np.nan) for view in r['recon_metrics']['per_view']]
+                        valid_r2s = [r2 for r2 in view_r2s if not np.isnan(r2)]
+                        if valid_r2s:
+                            score = np.mean(valid_r2s)
+                            extraction_log['fallback_used'] += 1
+                
+                if score is not None and not np.isnan(score):
+                    cv_scores.append(float(score))
+                    extraction_log['successful_extractions'] += 1
+                else:
+                    raise ValueError("No valid score found")
+                    
+            except Exception as e:
+                extraction_log['failed_extractions'] += 1
+                extraction_log['errors'].append(f"Result {i}: {str(e)}")
+                logger.warning(f"Failed to extract score from result {i}: {e}")
+                continue
+        
+        logger.info(f"Score extraction: {extraction_log['successful_extractions']}/{extraction_log['total_results']} successful")
+        
+        if extraction_log['fallback_used'] > 0:
+            logger.info(f"Used fallback metrics for {extraction_log['fallback_used']} results")
+        
+        return cv_scores, extraction_log
     
+    def validate_fold_result(self, fold_result):
+        """
+        Comprehensive validation of fold results before using them.
+        
+        Parameters:
+        -----------
+        fold_result : dict
+            Result from a single CV fold
+            
+        Returns:
+        --------
+        is_valid : bool
+            Whether the result is valid for further analysis
+        validation_issues : list
+            List of validation issues found
+        """
+        issues = []
+        
+        # Check required fields
+        required_fields = ['fold_id', 'converged']
+        for field in required_fields:
+            if field not in fold_result:
+                issues.append(f"Missing required field: {field}")
+        
+        # Check convergence status
+        if not fold_result.get('converged', False):
+            issues.append("Fold marked as not converged")
+            return False, issues
+        
+        # Check for required matrices
+        if 'W' in fold_result:
+            W = fold_result['W']
+            if np.any(np.isnan(W)) or np.any(np.isinf(W)):
+                issues.append("W matrix contains NaN or Inf values")
+            if np.all(W == 0):
+                issues.append("W matrix is all zeros")
+        else:
+            issues.append("Missing W matrix")
+        
+        if 'Z' in fold_result:
+            Z = fold_result['Z']
+            if np.any(np.isnan(Z)) or np.any(np.isinf(Z)):
+                issues.append("Z matrix contains NaN or Inf values")
+            if np.all(Z == 0):
+                issues.append("Z matrix is all zeros")
+        else:
+            issues.append("Missing Z matrix")
+        
+        # Check reconstruction metrics
+        if 'recon_metrics' not in fold_result:
+            issues.append("Missing reconstruction metrics")
+        else:
+            metrics = fold_result['recon_metrics']
+            if 'overall' not in metrics:
+                issues.append("Missing overall reconstruction metrics")
+            else:
+                overall = metrics['overall']
+                for metric_name in ['mean_r2', 'mse']:
+                    if metric_name in overall:
+                        value = overall[metric_name]
+                        if np.isnan(value) or np.isinf(value):
+                            issues.append(f"Invalid {metric_name}: {value}")
+        
+        # Performance sanity checks
+        if 'recon_metrics' in fold_result and 'overall' in fold_result['recon_metrics']:
+            r2 = fold_result['recon_metrics']['overall'].get('mean_r2')
+            if r2 is not None:
+                if r2 < -1.0:
+                    issues.append(f"Suspiciously low R² score: {r2:.4f}")
+                elif r2 > 1.0:
+                    issues.append(f"Invalid R² score > 1.0: {r2:.4f}")
+        
+        is_valid = len(issues) == 0
+        
+        if issues:
+            logger.warning(f"Fold {fold_result.get('fold_id', 'unknown')} validation issues: {issues}")
+        
+        return is_valid, issues
+    
+        
     def standard_cross_validate(self, X_list, args, hypers, y=None, groups=None, 
                               cv_type='standard'):
         """
@@ -887,16 +1030,32 @@ class SparseBayesianGFACrossValidator:
         # Process folds with enhanced error handling
         fold_results = []
         successful_folds = 0
+        validation_summary = {
+            'total_folds': 0,
+            'converged_folds': 0,
+            'valid_folds': 0,
+            'validation_issues': []
+        }
         
         if self.config.n_jobs == 1:
             # Sequential processing with detailed error tracking
             for fold_data in fold_data_list:
+                validation_summary['total_folds'] += 1
                 try:
                     result = self.fit_single_fold_robust(fold_data)
                     fold_results.append(result)
                     
                     if result.get('converged', False):
-                        successful_folds += 1
+                        validation_summary['converged_folds'] += 1
+                    
+                        # Validate the result
+                        is_valid, issues = self.validate_fold_result(result)
+                        if is_valid:
+                            validation_summary['valid_folds'] += 1
+                            successful_folds += 1
+                        else:
+                            validation_summary['validation_issues'].extend(issues)
+                            logger.warning(f"Fold {result['fold_id']} converged but failed validation")
                     
                     # Clean up between folds if requested
                     if self.config.cleanup_between_folds:
@@ -958,25 +1117,35 @@ class SparseBayesianGFACrossValidator:
         
         # Sort results by fold_id
         fold_results.sort(key=lambda x: x['fold_id'])
+        converged_results = [r for r in fold_results if r.get('converged', False)]
+        valid_results = []
+        for r in converged_results:
+            is_valid, issues = self.validate_fold_result(r)
+            if is_valid:
+                valid_results.append(r)
+            else:
+                validation_summary['validation_issues'].extend(issues)
         
+        if len(valid_results) < len(converged_results):
+            logger.warning(f"Only {len(valid_results)}/{len(converged_results)} converged results passed validation")
+
         # Get the appropriate metric from fold results
-        if self.config.scoring_metric == 'reconstruction_r2':
-            cv_scores = [r['recon_metrics']['overall']['mean_r2'] for r in converged_results]
-        else:
-            # Fallback to mean_r2 if scoring_metric not found
-            cv_scores = [r['recon_metrics']['overall']['mean_r2'] for r in converged_results]
+        cv_scores, extraction_log = self.extract_cv_scores(valid_results)
         
         self.results.update({
             'cv_scores': cv_scores,
             'fold_results': fold_results,
+            'validation_summary': validation_summary,
+            'extraction_log': extraction_log,
             'best_params': best_params,
             'mean_cv_score': np.mean(cv_scores) if cv_scores else np.nan,
             'std_cv_score': np.std(cv_scores) if cv_scores else np.nan,
             'total_time': time.time() - start_time,
             'n_converged_folds': len(converged_results),
+            'n_valid_folds': len(valid_results),
             'n_failed_folds': len(self.failed_folds),
             'failed_folds': self.failed_folds,
-            'success_rate': successful_folds / len(fold_data_list)
+            'success_rate': len(valid_results) / len(fold_data_list)
         })
         
         # Compute additional metrics if enough successful folds
@@ -1006,7 +1175,11 @@ class SparseBayesianGFACrossValidator:
                 logger.warning(f"Could not compute stability metrics: {e}")
         
         # Log final summary
-        logger.info(f"Robust CV completed in {self.results['total_time']:.1f}s")
+        logger.info(f"CV completed in {self.results['total_time']:.1f}s")
+        logger.info(f"CV Summary:")
+        logger.info(f"  Total folds: {validation_summary['total_folds']}")
+        logger.info(f"  Converged: {validation_summary['converged_folds']}")
+        logger.info(f"  Validated: {validation_summary['valid_folds']}")
         logger.info(f"Success rate: {self.results['success_rate']:.1%} ({successful_folds}/{len(fold_data_list)})")
         
         if cv_scores:
