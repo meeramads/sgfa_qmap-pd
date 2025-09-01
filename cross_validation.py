@@ -746,7 +746,14 @@ class SparseBayesianGFACrossValidator:
         # Concatenate all views
         X_true_concat = np.concatenate(X_true_list, axis=1)
         X_recon_concat = np.concatenate(X_recon_list, axis=1)
-        
+
+        # Ensure dimensions match
+        if X_true_concat.shape != X_recon_concat.shape:
+            min_rows = min(X_true_concat.shape[0], X_recon_concat.shape[0])
+            min_cols = min(X_true_concat.shape[1], X_recon_concat.shape[1])
+            X_true_concat = X_true_concat[:min_rows, :min_cols]
+            X_recon_concat = X_recon_concat[:min_rows, :min_cols]
+
         # Overall metrics
         metrics['overall']['mean_r2'] = r2_score(X_true_concat, X_recon_concat)
         metrics['overall']['mse'] = mean_squared_error(X_true_concat, X_recon_concat)
