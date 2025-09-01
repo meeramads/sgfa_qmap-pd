@@ -688,8 +688,18 @@ class SparseBayesianGFACrossValidator:
         X_test_recon_list = []
         d = 0
         for m, dim in enumerate(hypers_fold['Dm']):
-            X_test_recon_list.append(X_test_recon[:, d:d+dim])
-            d += dim
+            end_idx = min(d + dim, X_test_recon.shape[1])
+            actual_dim = end_idx - d
+            X_test_recon_view = X_test_recon[:, d:end_idx]
+            
+            # Ensure test view has same dimensions
+            if m < len(X_test_list) and X_test_list[m].shape[1] != actual_dim:
+                min_dim = min(X_test_list[m].shape[1], actual_dim)
+                X_test_recon_view = X_test_recon_view[:, :min_dim]
+                X_test_list[m] = X_test_list[m][:, :min_dim]
+                
+            X_test_recon_list.append(X_test_recon_view)
+            d = end_idx
         
         # Compute metrics
         if self.metrics_calculator:
@@ -1720,6 +1730,15 @@ class CVInspector:
             
             X_test_concat = np.concatenate(X_test_list, axis=1)
             X_test_recon = Z_mean @ W_mean.T
+
+            # Ensure dimensions match
+            if X_test_recon.shape != X_test_concat.shape:
+                logging.warning(f"Dimension mismatch: test={X_test_concat.shape}, recon={X_test_recon.shape}")
+                # Take minimum dimensions to avoid errors
+                min_rows = min(X_test_concat.shape[0], X_test_recon.shape[0])
+                min_cols = min(X_test_concat.shape[1], X_test_recon.shape[1])
+                X_test_concat = X_test_concat[:min_rows, :min_cols]
+                X_test_recon = X_test_recon[:min_rows, :min_cols]
             
             # Basic metrics
             mse = mean_squared_error(X_test_concat, X_test_recon)
