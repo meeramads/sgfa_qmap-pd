@@ -280,7 +280,14 @@ class ComprehensiveMetrics:
         
         for view_idx, (X_true, X_pred) in enumerate(zip(X_true_list, X_pred_list)):
             view_name = f"view_{view_idx + 1}"
-            
+
+            # Ensure dimensions match
+            if X_true.shape != X_pred.shape:
+                min_rows = min(X_true.shape[0], X_pred.shape[0])
+                min_cols = min(X_true.shape[1], X_pred.shape[1])
+                X_true = X_true[:min_rows, :min_cols]
+                X_pred = X_pred[:min_rows, :min_cols]
+
             # Basic metrics
             mse = mean_squared_error(X_true, X_pred)
             mae = mean_absolute_error(X_true, X_pred)
