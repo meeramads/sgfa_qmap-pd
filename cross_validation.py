@@ -1589,7 +1589,9 @@ class CVInspector:
                 # Summary statistics
                 logger.info(f"Number of folds: {len(splits)}")
                 logger.info(f"Test set sizes: {fold_sizes}")
-                logger.info(f"Test set %: {[f'{info['test_pct']:.1f}%' for info in fold_info]}")
+                test_pcts = [f"{info['test_pct']:.1f}%" for info in fold_info]
+                logger.info(f"Test set %: {test_pcts}")
+
                 logger.info(f"Average test size: {np.mean(fold_sizes):.1f} ± {np.std(fold_sizes):.1f}")
                 
                 # Check for overlap (should be zero)
