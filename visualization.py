@@ -780,6 +780,92 @@ def _plot_subtype_assignments(prob_df, plot_path):
     plt.savefig(f"{plot_path}/consensus/subtype_assignments.pdf")
     plt.close()
 
+def create_brain_visualization_summary(results_dir: str, include_reconstructions: bool = True):
+    """
+    Create a summary plot of all brain visualizations.
+    """
+    results_dir = Path(results_dir)
+    
+    # Look for brain visualization outputs
+    brain_viz_dir = results_dir / "comprehensive_brain_visualization"
+    factor_maps_dir = results_dir / "factor_maps"
+    subject_recon_dir = results_dir / "subject_reconstructions"
+    
+    # Create summary figure
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    
+    # Plot 1: Factor maps overview
+    if factor_maps_dir.exists():
+        factor_files = list(factor_maps_dir.glob("*.nii"))
+        axes[0, 0].bar(['Factor Maps'], [len(factor_files)], color=COLORS['primary'])
+        axes[0, 0].set_title('Factor Maps Created', fontweight='bold')
+        axes[0, 0].set_ylabel('Number of Files')
+        
+        # Add text annotation
+        axes[0, 0].text(0, len(factor_files) + 1, f'{len(factor_files)} NIfTI files',
+                       ha='center', fontweight='bold')
+    
+    # Plot 2: Subject reconstructions overview  
+    if subject_recon_dir.exists():
+        recon_files = list(subject_recon_dir.glob("*.nii"))
+        overlay_files = list((subject_recon_dir / "overlays").glob("*.png"))
+        
+        categories = ['Reconstructions', 'Overlays']
+        counts = [len(recon_files), len(overlay_files)]
+        
+        axes[0, 1].bar(categories, counts, color=[COLORS['secondary'], COLORS['tertiary']])
+        axes[0, 1].set_title('Subject Reconstructions', fontweight='bold')
+        axes[0, 1].set_ylabel('Number of Files')
+        
+        for i, count in enumerate(counts):
+            axes[0, 1].text(i, count + 1, str(count), ha='center', fontweight='bold')
+    
+    # Plot 3: File size analysis
+    total_size = 0
+    file_types = {}
+    
+    for viz_dir in [brain_viz_dir, factor_maps_dir, subject_recon_dir]:
+        if viz_dir.exists():
+            for file_path in viz_dir.rglob("*.*"):
+                if file_path.is_file():
+                    size_mb = file_path.stat().st_size / (1024 * 1024)
+                    total_size += size_mb
+                    
+                    ext = file_path.suffix.lower()
+                    file_types[ext] = file_types.get(ext, 0) + size_mb
+    
+    if file_types:
+        axes[1, 0].pie(file_types.values(), labels=file_types.keys(), autopct='%1.1f%%')
+        axes[1, 0].set_title(f'File Types Distribution\n(Total: {total_size:.1f} MB)', fontweight='bold')
+    
+    # Plot 4: Processing summary
+    summary_text = f"""Brain Visualization Summary:
+
+Total Output Size: {total_size:.1f} MB
+
+Directories Created:
+- Factor Maps: {'✓' if factor_maps_dir.exists() else '✗'}
+- Subject Reconstructions: {'✓' if subject_recon_dir.exists() else '✗'}
+- Comprehensive Viz: {'✓' if brain_viz_dir.exists() else '✗'}
+
+Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}
+"""
+    
+    axes[1, 1].text(0.1, 0.9, summary_text, transform=axes[1, 1].transAxes,
+                    fontsize=10, verticalalignment='top', fontfamily='monospace',
+                    bbox=dict(boxstyle="round,pad=0.5", facecolor="lightblue", alpha=0.7))
+    axes[1, 1].axis('off')
+    
+    plt.suptitle('Brain Visualization Summary Report', fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    
+    summary_file = results_dir / "brain_visualization_summary.png"
+    plt.savefig(summary_file, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    logging.info(f"Brain visualization summary saved: {summary_file}")
+    return str(summary_file)
+
 # == MAIN FUNCTIONS ==
 
 def synthetic_data(res_dir, true_params, args, hypers):

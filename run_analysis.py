@@ -20,7 +20,7 @@ import visualization
 import logging
 from loader_qmap_pd import load_qmap_pd as qmap_pd
 
-from utils import get_infparams, get_robustK
+from utils import get_infparams, get_model_files, get_robustK, safe_pickle_load
 
 from pathlib import Path
 
@@ -823,7 +823,97 @@ def main(args):
                 
         except Exception as e:
             logging.warning(f"Could not create comprehensive visualization: {e}")
+
+    # === ENHANCED BRAIN VISUALIZATION ===
+    if run_standard and (getattr(args, 'create_factor_maps', False) or 
+                     getattr(args, 'create_subject_reconstructions', False) or
+                     getattr(args, 'comprehensive_brain_viz', False)):
+    
+        logging.info("=== CREATING ENHANCED BRAIN VISUALIZATIONS ===")
+    
+        try:
+            with memory_monitoring_context("Enhanced brain visualization"):
             
+                # Load best run results
+                results_file = standard_res_dir / 'results.txt'
+                brun = 1  # default
+            if results_file.exists():
+                try:
+                    with open(results_file, 'r') as f:
+                        for line in f:
+                            if line.startswith('Best run:'):
+                                brun = int(line.split(':')[1].strip())
+                                break
+                except:
+                    pass
+            
+            # Load factor loadings
+            files = get_model_files(standard_res_dir, brun)
+            rob_params = safe_pickle_load(files['robust_params'], "Robust parameters")
+            
+            if rob_params and 'W' in rob_params:
+                W = rob_params['W']
+                
+                # Parse subject list
+                subject_ids = None
+                if args.reconstruct_subjects:
+                    if '-' in args.reconstruct_subjects:
+                        # Range format: "1-10"
+                        start, end = map(int, args.reconstruct_subjects.split('-'))
+                        subject_ids = list(range(start, end + 1))
+                    else:
+                        # Comma-separated format: "1,5,10"
+                        subject_ids = [int(x.strip()) for x in args.reconstruct_subjects.split(',')]
+                elif getattr(args, 'create_subject_reconstructions', False):
+                    # Use default number
+                    subject_ids = list(range(1, args.n_reconstruct + 1))
+                
+                if getattr(args, 'comprehensive_brain_viz', False):
+                    # Comprehensive workflow
+                    from qmap_gfa_weight2mri_python import integrate_subject_reconstructions_with_factors
+                    
+                    brain_results = integrate_subject_reconstructions_with_factors(
+                        str(standard_res_dir), data, W, args.data_dir, subject_ids
+                    )
+                    
+                    logging.info("Comprehensive brain visualization completed successfully")
+                    logging.info(f"Generated:")
+                    logging.info(f"  - {len(brain_results.get('factor_maps', {}))} factor maps")
+                    if 'subject_reconstructions' in brain_results:
+                        stats = brain_results['subject_reconstructions'].get('statistics', {})
+                        logging.info(f"  - {stats.get('total_files_created', 0)} subject reconstruction files")
+                
+                else:
+                    # Individual components
+                    if getattr(args, 'create_factor_maps', False):
+                        # Existing factor mapping code...
+                        factor_maps = integrate_with_visualization(
+                            str(standard_res_dir), data, W, args.data_dir,
+                            factor_indices=list(range(min(10, W.shape[1])))
+                        )
+                        logging.info("Factor-to-MRI mapping completed")
+                    
+                    if getattr(args, 'create_subject_reconstructions', False) and subject_ids:
+                        # Subject reconstructions
+                        from qmap_gfa_weight2mri_python import FactorToMRIMapper
+                        
+                        mapper = FactorToMRIMapper(args.data_dir)
+                        recon_results = mapper.batch_reconstruct_subjects(
+                            subject_range=(min(subject_ids), max(subject_ids)),
+                            output_dir=str(standard_res_dir / "subject_reconstructions")
+                        )
+                        
+                        stats = recon_results.get('statistics', {})
+                        logging.info(f"Subject reconstruction completed:")
+                        logging.info(f"  - {stats.get('n_subjects_completed', 0)} subjects")
+                        logging.info(f"  - {stats.get('total_files_created', 0)} files created")
+            else:
+                logging.warning("No factor loadings found for brain visualization")
+                
+        except Exception as e:
+            logging.error(f"Enhanced brain visualization failed: {e}")
+        
+             
     # === FACTOR-TO-MRI MAPPING ===
     if run_standard and getattr(args, 'create_factor_maps', False) and FACTOR_MAPPING_AVAILABLE:
         logging.info("=== CREATING FACTOR-TO-MRI MAPPINGS ===")
@@ -1029,6 +1119,17 @@ if __name__ == "__main__":
                          help="Clinical variable for grouped cross-validation")
     cv_group.add_argument("--quick_cv", action="store_true",
                          help="Use reduced parameters for faster CV (for testing)")
+    
+    # == BRAIN VISUALIZATION ARGUMENTS ==
+    brain_group = parser.add_argument_group('Brain Visualization Options')
+    brain_group.add_argument("--create_subject_reconstructions", action="store_true",
+                       help="Create 3D NIfTI reconstructions of original subject data")
+    brain_group.add_argument("--reconstruct_subjects", type=str, default=None,
+                       help="Comma-separated subject IDs to reconstruct (e.g., '1,5,10') or range '1-10'")
+    brain_group.add_argument("--n_reconstruct", type=int, default=5,
+                       help="Number of subjects to reconstruct (default: 5, used if --reconstruct_subjects not specified)")
+    brain_group.add_argument("--comprehensive_brain_viz", action="store_true",
+                       help="Create comprehensive brain visualization (factor maps + subject reconstructions)")
 
     # == FACTOR-TO-MRI MAPPING ARGUMENTS ==
     mapping_group = parser.add_argument_group('Factor-to-MRI Mapping Options')

@@ -5,7 +5,9 @@ This module provides functionality to map factor loadings back to MRI space
 for visualization and interpretation of neuroimaging results.
 """
 
+import json
 import os
+import time
 import numpy as np
 import pandas as pd
 import nibabel as nib
@@ -53,7 +55,22 @@ class FactorToMRIMapper:
         
         # Load position lookup files
         self._load_position_files()
+
+        # Add volume matrix paths for reconstruction
+        self.volume_files = {}
+        self._load_volume_files()
+        
     
+    def _load_volume_files(self):
+        """Load volume matrix file paths for reconstruction."""
+        volumes_dir = self.base_dir / "volume_matrices"
+        
+        for roi_name in self.roi_names:
+            vol_file = volumes_dir / f"volume_{roi_name}_voxels.tsv"
+            if vol_file.exists():
+                self.volume_files[roi_name] = vol_file
+                logging.info(f"Found volume file for {roi_name}: {vol_file}")
+
     def _load_position_files(self):
         """Load position lookup files for each ROI."""
         self.position_files = {}
@@ -83,6 +100,270 @@ class FactorToMRIMapper:
         
         if not self.position_files:
             logger.error("No position files found!")
+    
+
+    def reconstruct_subject_data(self, subject_ids: List[int], 
+                               output_dir: str = "subject_reconstructions",
+                               fill_value: float = 0.0,
+                               create_overlays: bool = True) -> Dict[int, Dict[str, str]]:
+        """
+        Reconstruct original qMRI data for specific subjects.
+        
+        Parameters:
+        -----------
+        subject_ids : List[int]
+            List of subject IDs to reconstruct (1-based indexing)
+        output_dir : str
+            Directory to save reconstructions
+        fill_value : float
+            Value for voxels outside ROI
+        create_overlays : bool
+            Whether to create overlay visualization images
+        
+        Returns:
+        --------
+        Dict[int, Dict[str, str]]
+            Dictionary mapping subject_id -> roi_name -> nifti_file_path
+        """
+        
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        if create_overlays:
+            overlay_dir = output_dir / "overlays"
+            overlay_dir.mkdir(exist_ok=True)
+        
+        reconstructions = {}
+        
+        for subject_id in subject_ids:
+            logging.info(f"Reconstructing subject {subject_id}")
+            subject_files = {}
+            roi_images = []
+            
+            for roi_name in self.roi_names:
+                if roi_name in self.volume_files and roi_name in self.position_files:
+                    output_file = output_dir / f"subject_{subject_id:02d}_{roi_name}.nii"
+                    
+                    # Reconstruct single ROI
+                    img_data = self._reconstruct_roi_single(
+                        vol_file=self.volume_files[roi_name],
+                        pos_file=self.position_dir / f"position_{roi_name}_voxels.tsv",
+                        output_file=output_file,
+                        subject_id=subject_id,
+                        fill_value=fill_value
+                    )
+                    
+                    if img_data is not None:
+                        subject_files[roi_name] = str(output_file)
+                        roi_images.append((roi_name, img_data))
+                        logging.info(f"Created reconstruction: {output_file}")
+            
+            # Create overlay visualization if requested
+            if create_overlays and roi_images:
+                overlay_file = overlay_dir / f"subject_{subject_id:02d}_overlay.png"
+                self._create_overlay_plot(roi_images, overlay_file)
+            
+            reconstructions[subject_id] = subject_files
+        
+        logging.info(f"Completed reconstructions for {len(subject_ids)} subjects")
+        return reconstructions
+    
+    def _reconstruct_roi_single(self, vol_file: Path, pos_file: Path, 
+                              output_file: Path, subject_id: int, 
+                              fill_value: float = 0.0) -> Optional[np.ndarray]:
+        """
+        Reconstruct a single ROI for one subject.
+        
+        Returns the image data for overlay creation.
+        """
+        try:
+            # Load volume and position data
+            V = pd.read_csv(vol_file, sep='\t', header=None).values
+            pos = pd.read_csv(pos_file, sep='\t', header=None).values.flatten()
+            
+            # Validate inputs
+            if V.shape[1] != len(pos):
+                raise ValueError(f"Volume columns ({V.shape[1]}) != position rows ({len(pos)})")
+            
+            if subject_id < 1 or subject_id > V.shape[0]:
+                raise ValueError(f"Subject ID {subject_id} out of range [1, {V.shape[0]}]")
+            
+            # Load reference image
+            ref_img = nib.load(self.reference_mri)
+            ref_data = ref_img.get_fdata()
+            img_shape = ref_data.shape
+            
+            # Initialize output image
+            if np.isnan(fill_value):
+                img = np.full(img_shape, np.nan, dtype=np.float32)
+            else:
+                img = np.full(img_shape, fill_value, dtype=np.float32)
+            
+            # Convert 1-based MATLAB indices to 0-based Python indices
+            pos_0based = pos.astype(int) - 1
+            
+            # Bounds check
+            flat_n = np.prod(img_shape)
+            if np.any((pos_0based < 0) | (pos_0based >= flat_n)):
+                raise ValueError("Position indices fall outside reference image size")
+            
+            # Insert voxel values (subject_id is 1-based, convert to 0-based)
+            vals = V[subject_id - 1, :].astype(np.float32)
+            
+            # Convert linear indices to subscripts and assign values
+            img_flat = img.flatten()
+            img_flat[pos_0based] = vals
+            img = img_flat.reshape(img_shape)
+            
+            # Create and save NIfTI
+            out_img = nib.Nifti1Image(img, ref_img.affine, ref_img.header.copy())
+            out_img.header.set_data_dtype(np.float32)
+            nib.save(out_img, output_file)
+            
+            return img
+            
+        except Exception as e:
+            logging.error(f"Failed to reconstruct {vol_file.stem} for subject {subject_id}: {e}")
+            return None
+        
+    def _create_overlay_plot(self, roi_images: List[Tuple[str, np.ndarray]], 
+                           output_file: Path):
+        """
+        Create overlay plot showing multiple ROIs for one subject.
+        """
+        try:
+            import matplotlib.pyplot as plt
+            
+            # Load reference image
+            ref_img = nib.load(self.reference_mri)
+            ref_data = ref_img.get_fdata()
+            
+            # Get middle slices for visualization
+            mid_x, mid_y, mid_z = [s // 2 for s in ref_data.shape]
+            
+            fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+            axes = axes.flatten()
+            
+            # Colors for different ROIs
+            roi_colors = ['Reds', 'Blues', 'Greens', 'Purples']
+            
+            for i, view_axis in enumerate(['sagittal', 'coronal', 'axial']):
+                # Reference slice
+                if view_axis == 'sagittal':
+                    ref_slice = ref_data[mid_x, :, :]
+                elif view_axis == 'coronal': 
+                    ref_slice = ref_data[:, mid_y, :]
+                else:  # axial
+                    ref_slice = ref_data[:, :, mid_z]
+                
+                # Show reference
+                axes[i].imshow(ref_slice.T, cmap='gray', alpha=0.7, origin='lower')
+                axes[i].set_title(f'Reference - {view_axis.title()}')
+                axes[i].axis('off')
+                
+                # Show overlay
+                axes[i+3].imshow(ref_slice.T, cmap='gray', alpha=0.5, origin='lower')
+                
+                # Overlay ROIs
+                for j, (roi_name, roi_data) in enumerate(roi_images):
+                    if view_axis == 'sagittal':
+                        roi_slice = roi_data[mid_x, :, :]
+                    elif view_axis == 'coronal':
+                        roi_slice = roi_data[:, mid_y, :]
+                    else:  # axial
+                        roi_slice = roi_data[:, :, mid_z]
+                    
+                    # Mask non-zero voxels
+                    mask = roi_slice != 0
+                    if np.any(mask):
+                        axes[i+3].imshow(roi_slice.T, cmap=roi_colors[j % len(roi_colors)], 
+                                       alpha=0.6, origin='lower')
+                
+                axes[i+3].set_title(f'Overlay - {view_axis.title()}')
+                axes[i+3].axis('off')
+            
+            # Add legend
+            from matplotlib.patches import Patch
+            legend_elements = [Patch(facecolor=plt.cm.get_cmap(roi_colors[i % len(roi_colors)])(0.7), 
+                                   label=roi_name) 
+                             for i, (roi_name, _) in enumerate(roi_images)]
+            fig.legend(handles=legend_elements, loc='upper right')
+            
+            plt.suptitle(f'Subject Reconstruction Overview', fontsize=16, fontweight='bold')
+            plt.tight_layout()
+            plt.savefig(output_file, dpi=150, bbox_inches='tight')
+            plt.close()
+            
+            logging.debug(f"Created overlay plot: {output_file}")
+            
+        except Exception as e:
+            logging.warning(f"Could not create overlay plot: {e}")
+    
+    def batch_reconstruct_subjects(self, n_subjects: int = None, 
+                                 subject_range: Tuple[int, int] = None,
+                                 output_dir: str = "batch_reconstructions") -> Dict:
+        """
+        Batch reconstruct multiple subjects with smart defaults.
+        
+        Parameters:
+        -----------
+        n_subjects : int, optional
+            Number of subjects to reconstruct (from beginning)
+        subject_range : Tuple[int, int], optional
+            Range of subjects to reconstruct (start, end) - inclusive
+        output_dir : str
+            Output directory
+        
+        Returns:
+        --------
+        Dict with reconstruction results and statistics
+        """
+        
+        # Determine subject list
+        if subject_range is not None:
+            start, end = subject_range
+            subject_ids = list(range(start, end + 1))
+        elif n_subjects is not None:
+            subject_ids = list(range(1, n_subjects + 1))
+        else:
+            # Default: reconstruct first 10 subjects or all if fewer
+            max_subjects = 87  # qMAP-PD default, could be made dynamic
+            subject_ids = list(range(1, min(11, max_subjects + 1)))
+        
+        logging.info(f"Batch reconstructing {len(subject_ids)} subjects: {subject_ids}")
+        
+        # Perform reconstructions
+        start_time = time.time()
+        reconstructions = self.reconstruct_subject_data(
+            subject_ids=subject_ids,
+            output_dir=output_dir,
+            create_overlays=True
+        )
+        elapsed_time = time.time() - start_time
+        
+        # Compile statistics
+        stats = {
+            'n_subjects_requested': len(subject_ids),
+            'n_subjects_completed': len(reconstructions),
+            'n_rois_per_subject': len(self.roi_names),
+            'total_files_created': sum(len(files) for files in reconstructions.values()),
+            'processing_time_seconds': elapsed_time,
+            'success_rate': len(reconstructions) / len(subject_ids) if subject_ids else 0,
+            'output_directory': str(Path(output_dir).resolve())
+        }
+        
+        # Log summary
+        logging.info(f"Batch reconstruction completed:")
+        logging.info(f"  Subjects: {stats['n_subjects_completed']}/{stats['n_subjects_requested']}")
+        logging.info(f"  Files created: {stats['total_files_created']}")
+        logging.info(f"  Time: {stats['processing_time_seconds']:.1f}s")
+        logging.info(f"  Success rate: {stats['success_rate']:.1%}")
+        
+        return {
+            'reconstructions': reconstructions,
+            'statistics': stats,
+            'subject_ids': subject_ids
+        }
     
     def map_weights_to_mri(self, W: np.ndarray, view_names: List[str], 
                           Dm: List[int], factor_idx: int = 0,
@@ -297,6 +578,157 @@ class FactorToMRIMapper:
         
         return all_outputs
 
+# Add new integration function
+def integrate_subject_reconstructions_with_factors(results_dir: str, data: Dict, 
+                                                 W: np.ndarray, base_dir: str,
+                                                 subject_ids: List[int] = None) -> Dict:
+    """
+    Create both factor maps and subject reconstructions in one integrated workflow.
+    
+    Parameters:
+    -----------
+    results_dir : str
+        Results directory
+    data : Dict
+        Data dictionary from loader
+    W : np.ndarray
+        Factor loading matrix
+    base_dir : str
+        Base directory containing qMAP-PD data
+    subject_ids : List[int], optional
+        Specific subjects to reconstruct
+    
+    Returns:
+    --------
+    Dict with both factor maps and subject reconstructions
+    """
+    
+    # Initialize mapper
+    mapper = FactorToMRIMapper(base_dir)
+    
+    # Create comprehensive brain visualization directory
+    brain_viz_dir = Path(results_dir) / "comprehensive_brain_visualization"
+    brain_viz_dir.mkdir(exist_ok=True)
+    
+    results = {}
+    
+    # 1. Create factor maps
+    try:
+        view_names = data.get('view_names', [])
+        Dm = [X.shape[1] for X in data.get('X_list', [])]
+        
+        factor_maps = {}
+        for factor_idx in range(min(10, W.shape[1])):  # First 10 factors
+            factor_output = mapper.map_weights_to_mri(
+                W, view_names, Dm, factor_idx,
+                output_dir=str(brain_viz_dir / "factor_maps")
+            )
+            factor_maps[factor_idx] = factor_output
+        
+        results['factor_maps'] = factor_maps
+        logging.info(f"Created factor maps for {len(factor_maps)} factors")
+        
+    except Exception as e:
+        logging.error(f"Factor mapping failed: {e}")
+        results['factor_maps'] = {}
+    
+    # 2. Create subject reconstructions
+    try:
+        if subject_ids is None:
+            # Smart default: reconstruct first 5 subjects
+            n_subjects = len(data.get('subject_ids', []))
+            subject_ids = list(range(1, min(6, n_subjects + 1)))
+        
+        recon_results = mapper.batch_reconstruct_subjects(
+            subject_range=(min(subject_ids), max(subject_ids)),
+            output_dir=str(brain_viz_dir / "subject_reconstructions")
+        )
+        
+        results['subject_reconstructions'] = recon_results
+        logging.info(f"Created reconstructions for {len(subject_ids)} subjects")
+        
+    except Exception as e:
+        logging.error(f"Subject reconstruction failed: {e}")
+        results['subject_reconstructions'] = {}
+    
+    # 3. Create summary visualization
+    try:
+        _create_comprehensive_brain_summary(brain_viz_dir, results)
+        results['summary_created'] = True
+    except Exception as e:
+        logging.warning(f"Could not create brain summary: {e}")
+        results['summary_created'] = False
+    
+    # Save metadata
+    metadata_file = brain_viz_dir / "brain_visualization_metadata.json"
+    with open(metadata_file, 'w') as f:
+        json.dump({
+            'creation_time': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'n_factors_mapped': len(results.get('factor_maps', {})),
+            'n_subjects_reconstructed': len(subject_ids) if subject_ids else 0,
+            'subject_ids': subject_ids,
+            'output_directory': str(brain_viz_dir)
+        }, f, indent=2)
+    
+    logging.info(f"Comprehensive brain visualization completed: {brain_viz_dir}")
+    return results
+
+def _create_comprehensive_brain_summary(brain_viz_dir: Path, results: Dict):
+    """Create an HTML summary of all brain visualizations."""
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Brain Visualization Summary</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; }}
+            h1 {{ color: #2E86C1; }}
+            .section {{ margin: 20px 0; }}
+            .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }}
+            .card {{ border: 1px solid #ddd; padding: 15px; border-radius: 5px; }}
+        </style>
+    </head>
+    <body>
+        <h1>Comprehensive Brain Visualization Summary</h1>
+        
+        <div class="section">
+            <h2>Factor Maps</h2>
+            <p>Number of factors mapped: {len(results.get('factor_maps', {}))}</p>
+            <p>Location: <code>factor_maps/</code></p>
+        </div>
+        
+        <div class="section">
+            <h2>Subject Reconstructions</h2>
+    """
+    
+    if 'subject_reconstructions' in results:
+        stats = results['subject_reconstructions'].get('statistics', {})
+        html_content += f"""
+            <p>Subjects reconstructed: {stats.get('n_subjects_completed', 'N/A')}</p>
+            <p>Total files created: {stats.get('total_files_created', 'N/A')}</p>
+            <p>Processing time: {stats.get('processing_time_seconds', 0):.1f} seconds</p>
+            <p>Location: <code>subject_reconstructions/</code></p>
+        """
+    
+    html_content += """
+        </div>
+        
+        <div class="section">
+            <h2>Files Generated</h2>
+            <ul>
+                <li>Factor NIfTI files: <code>factor_maps/factor_*_*_loadings.nii</code></li>
+                <li>Subject NIfTI files: <code>subject_reconstructions/subject_*_*.nii</code></li>
+                <li>Overlay images: <code>subject_reconstructions/overlays/subject_*_overlay.png</code></li>
+            </ul>
+        </div>
+    </body>
+    </html>
+    """
+    
+    summary_file = brain_viz_dir / "brain_visualization_summary.html"
+    with open(summary_file, 'w') as f:
+        f.write(html_content)
 
 # Integration functions for existing workflow
 
