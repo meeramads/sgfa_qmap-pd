@@ -19,7 +19,6 @@ import visualization
 #logging
 import logging
 from loader_qmap_pd import load_qmap_pd as qmap_pd
-from preprocessing import AdvancedPreprocessor, cross_validate_source_combinations
 
 from utils import get_infparams, get_robustK
 
@@ -126,24 +125,16 @@ def validate_and_setup_args(args):
         )
         args.create_factor_maps = False
     
-    # Validate preprocessing parameters
+    # Validate preprocessing parameters (now handled by preprocessing module)
     if getattr(args, 'enable_preprocessing', False):
-        valid_imputation = ['median', 'mean', 'knn', 'iterative']
-        if getattr(args, 'imputation_strategy', 'median') not in valid_imputation:
-            raise ValueError(f"Invalid imputation_strategy. Must be one of: {valid_imputation}")
-        
-        valid_selection = ['variance', 'statistical', 'mutual_info', 'combined', 'none']
-        if getattr(args, 'feature_selection', 'variance') not in valid_selection:
-            raise ValueError(f"Invalid feature_selection. Must be one of: {valid_selection}")
-        
-        if getattr(args, 'n_top_features', None) is not None and args.n_top_features <= 0:
-            raise ValueError(f"Invalid n_top_features={args.n_top_features}. Must be positive integer or None.")
-        
-        if not (0.0 <= getattr(args, 'missing_threshold', 0.1) <= 1.0):
-            raise ValueError(f"Invalid missing_threshold. Must be between 0.0 and 1.0.")
-        
-        if getattr(args, 'variance_threshold', 0.0) < 0:
-            raise ValueError(f"Invalid variance_threshold. Must be non-negative.")
+        try:
+            from preprocessing import create_preprocessor_from_args
+            # This will validate all preprocessing parameters
+            create_preprocessor_from_args(args, validate=True)
+        except ImportError:
+            logging.warning("Preprocessing module not available for validation")
+        except Exception as e:
+            raise ValueError(f"Invalid preprocessing parameters: {e}")
     
     # Validate cross-validation parameters
     if hasattr(args, 'cv_folds') and getattr(args, 'cv_folds', 5) <= 1:
@@ -199,6 +190,8 @@ def validate_and_setup_args(args):
     
     if getattr(args, 'enable_preprocessing', False):
         logging.info(f"Preprocessing: {args.imputation_strategy} imputation, {args.feature_selection} selection")
+        if getattr(args, 'enable_spatial_processing', False):
+            logging.info("Spatial processing: ENABLED")
     
     if getattr(args, 'run_cv', False) or getattr(args, 'cv_only', False):
         cv_folds = getattr(args, 'cv_folds', 5)
@@ -508,6 +501,7 @@ def main(args):
                 id_col=args.id_col,
                 # Enhanced preprocessing parameters
                 enable_advanced_preprocessing=getattr(args, 'enable_preprocessing', False),
+                enable_spatial_processing=getattr(args, 'enable_spatial_processing', False),
                 imputation_strategy=getattr(args, 'imputation_strategy', 'median'),
                 feature_selection_method=getattr(args, 'feature_selection', 'variance'),
                 n_top_features=getattr(args, 'n_top_features', None),
@@ -516,6 +510,14 @@ def main(args):
                 target_variable=getattr(args, 'target_variable', None),
                 cross_validate_sources=getattr(args, 'cross_validate_sources', False),
                 optimize_preprocessing=getattr(args, 'optimize_preprocessing', False),
+                # Neuroimaging-specific parameters
+                spatial_imputation=getattr(args, 'spatial_imputation', True),
+                roi_based_selection=getattr(args, 'roi_based_selection', True),
+                harmonize_scanners=getattr(args, 'harmonize_scanners', False),
+                scanner_info_col=getattr(args, 'scanner_info_col', None),
+                qc_outlier_threshold=getattr(args, 'qc_outlier_threshold', 3.0),
+                spatial_neighbor_radius=getattr(args, 'spatial_neighbor_radius', 5.0),
+                min_voxel_distance=getattr(args, 'min_voxel_distance', 3.0),
             ) 
             
             X_list = data['X_list']
@@ -528,10 +530,21 @@ def main(args):
             if 'preprocessing' in data:
                 prep_results = data['preprocessing']
                 logging.info("=== Preprocessing Applied ===")
-                for view, stats in prep_results['feature_reduction'].items():
-                    logging.info(f"{view}: {stats['original']} → {stats['processed']} features "
-                           f"({stats['reduction_ratio']:.2%} retained)")
-            
+                
+                if 'metadata' in prep_results:
+                    metadata = prep_results['metadata']
+                    for view, stats in metadata['feature_reduction'].items():
+                        logging.info(f"{view}: {stats['original']} -> {stats['processed']} features "
+                               f"({stats['reduction_ratio']:.2%} retained)")
+                
+                    # Log spatial processing info
+                    if metadata.get('spatial_processing_applied', False):
+                        logging.info("Spatial processing was applied:")
+                        if metadata.get('position_lookups_loaded'):
+                            logging.info(f"  Position data loaded for: {', '.join(metadata['position_lookups_loaded'])}")
+                        if metadata.get('harmonization_applied'):
+                            logging.info("  Scanner harmonization applied")
+                
                 if 'source_validation' in prep_results:
                     logging.info("Best source combinations by RMSE:")
                     sorted_combos = sorted(prep_results['source_validation'].items(), 
@@ -823,9 +836,9 @@ if __name__ == "__main__":
                         help="If set, keep separate ROI views (SN/Putamen/Lentiform). If not set, concatenates imaging."
     )
     
-    # == PREPROCESSING ARGUMENTS ==
+    # == BASIC PREPROCESSING ARGUMENTS ==
     parser.add_argument("--enable_preprocessing", action="store_true",
-                       help="Enable advanced preprocessing following Ferreira et al. and Bunte et al. methodologies")
+                       help="Enable advanced preprocessing pipeline")
     parser.add_argument("--imputation_strategy", type=str, 
                        choices=['median', 'mean', 'knn', 'iterative'], default='median',
                        help="Missing data imputation strategy")
@@ -845,6 +858,25 @@ if __name__ == "__main__":
                        help="Cross-validate different source combinations")
     parser.add_argument("--optimize_preprocessing", action="store_true",
                        help="Optimize preprocessing parameters via cross-validation")
+
+    # == NEUROIMAGING-SPECIFIC ARGUMENTS ==
+    neuro_group = parser.add_argument_group('Neuroimaging-Specific Options')
+    neuro_group.add_argument("--enable_spatial_processing", action="store_true",
+                           help="Enable spatial processing for neuroimaging data")
+    neuro_group.add_argument("--spatial_imputation", action="store_true", default=True,
+                           help="Use spatial neighbors for imputation")
+    neuro_group.add_argument("--roi_based_selection", action="store_true", default=True,
+                           help="Use ROI-based feature selection instead of pure variance")
+    neuro_group.add_argument("--harmonize_scanners", action="store_true",
+                           help="Apply scanner harmonization")
+    neuro_group.add_argument("--scanner_info_col", type=str, default=None,
+                           help="Column name for scanner information in clinical data")
+    neuro_group.add_argument("--qc_outlier_threshold", type=float, default=3.0,
+                           help="Threshold for outlier detection in quality control")
+    neuro_group.add_argument("--spatial_neighbor_radius", type=float, default=5.0,
+                           help="Radius in mm for finding spatial neighbors")
+    neuro_group.add_argument("--min_voxel_distance", type=float, default=3.0,
+                           help="Minimum distance in mm between selected voxels")
 
     # == CROSS-VALIDATION ARGUMENTS ==
     cv_group = parser.add_argument_group('Cross-Validation Options')
@@ -866,13 +898,14 @@ if __name__ == "__main__":
     cv_group.add_argument("--cv_group_col", type=str, default=None,
                          help="Clinical variable for grouped cross-validation")
 
-    # == WEIGHT TO MRI INTEGRATION ARGUMENTS ==
-    parser.add_argument("--create_factor_maps", action="store_true",
-                       help="Create NIfTI files mapping factor loadings back to brain space")
-    parser.add_argument("--factor_maps_dir", type=str, default="factor_maps",
-                       help="Directory name for factor map outputs")
-    parser.add_argument("--reference_mri", type=str, default=None,
-                       help="Path to reference MRI (if different from standard location)")
+    # == FACTOR-TO-MRI MAPPING ARGUMENTS ==
+    mapping_group = parser.add_argument_group('Factor-to-MRI Mapping Options')
+    mapping_group.add_argument("--create_factor_maps", action="store_true",
+                             help="Create NIfTI files mapping factor loadings back to brain space")
+    mapping_group.add_argument("--factor_maps_dir", type=str, default="factor_maps",
+                             help="Directory name for factor map outputs")
+    mapping_group.add_argument("--reference_mri", type=str, default=None,
+                             help="Path to reference MRI (if different from standard location)")
     
     # == OUTPUT CONTROL ==
     parser.add_argument("--create_comprehensive_viz", action="store_true",

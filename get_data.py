@@ -1,3 +1,8 @@
+"""
+High-level data access interface.
+Combines loading and preprocessing based on dataset type.
+"""
+
 from typing import Dict, Any 
 import numpy as np
 import pandas as pd
@@ -7,12 +12,13 @@ import matplotlib.pyplot as plt
 from scipy.stats import invgamma
 import logging
 
+# Import the updated loader
 from loader_qmap_pd import load_qmap_pd as qmap_pd
-
 
 logging.basicConfig(level=logging.INFO)
 
 def synthetic_data(hypers, args):
+    """Generate synthetic data for testing"""
     logging.info("Generating synthetic data")
 
     M = args.num_sources #number of data sources
@@ -78,37 +84,61 @@ def synthetic_data(hypers, args):
 
     return data
 
-def load_dataset_qmap_pd(args) -> Dict[str, Any]:
+def get_data(dataset: str, data_dir: str = None, **kwargs):
     """
-    Load qMAP-PD as either:
-      - separate ROI views (SN, Putamen, Lentiform) + clinical, when args.roi_views is True
-      - a single concatenated imaging view + clinical, when args.roi_views is False
+    High-level interface for getting data with optional preprocessing.
+    
+    Parameters
+    ----------
+    dataset : str
+        Dataset name ('qmap_pd', 'synthetic')
+    data_dir : str  
+        Data directory path
+    **kwargs : dict
+        Additional arguments for data loading and preprocessing
+    
+    Returns
+    -------
+    dict : Data ready for modeling (preprocessed if requested)
     """
-    return qmap_pd(
-        data_dir=args.data_dir,
-        clinical_rel=args.clinical_rel,
-        volumes_rel=args.volumes_rel,
-        imaging_as_single_view=not args.roi_views,
-        drop_constant_clinical=True,
-        id_col=args.id_col,
-    )
-
-
-def get_data(dataset: str, data_dir: str, **kwargs):
+    
     ds = dataset.lower()
+    
     if ds in {"qmap_pd", "qmap-pd", "qmap"}:
+        # Load qMAP-PD data with all preprocessing options
+        if data_dir is None:
+            raise ValueError("data_dir must be provided for qMAP-PD dataset")
+        
         return qmap_pd(data_dir, **kwargs)
+        
     elif ds in {"synthetic", "toy"}:
-        # optional: keep or remove
-        syn = synthetic_data(hypers={"slab_df": 1.0, "slab_scale": 1.0}, args=type("A", (), {"num_sources":3})())
+        # Generate synthetic data
+        syn = synthetic_data(
+            hypers={"slab_df": 1.0, "slab_scale": 1.0}, 
+            args=type("Args", (), {"num_sources": kwargs.get("num_sources", 3)})()
+        )
+        
+        # Convert to format compatible with multiview processing
         return {
             "X_list": [syn["X"]],
             "view_names": ["synthetic"],
             "feature_names": {"synthetic": [f"f{i}" for i in range(syn["X"].shape[1])]},
             "subject_ids": [f"s{i}" for i in range(syn["X"].shape[0])],
             "clinical": pd.DataFrame(index=[f"s{i}" for i in range(syn["X"].shape[0])]),
-            "Dm": syn["Dm"], 
-            "meta": {"Dm": syn["Dm"]},
+            "scalers": {"synthetic": {"mu": np.zeros((1, syn["X"].shape[1])), "sd": np.ones((1, syn["X"].shape[1]))}},
+            "meta": {
+                "dataset": "synthetic",
+                "Dm": syn["Dm"],
+                "N": syn["X"].shape[0],
+                "preprocessing_enabled": False,
+            },
+            # Include ground truth for synthetic data
+            "ground_truth": {
+                "Z": syn["Z"],
+                "W": syn["W"], 
+                "sigma": syn["sigma"],
+                "K_true": syn["K_true"]
+            }
         }
     else:
-        raise ValueError(f"Unknown dataset: {dataset}")
+        raise ValueError(f"Unknown dataset: {dataset}. Supported: 'qmap_pd', 'synthetic'")

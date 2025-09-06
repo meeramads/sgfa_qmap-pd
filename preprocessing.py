@@ -1,10 +1,11 @@
 """
-Preprocessing module for Sparse Bayesian Group Factor Analysis.
+Complete Preprocessing Module for Sparse Bayesian Group Factor Analysis.
+Includes neuroimaging-aware preprocessing for qMRI data.
 
 This module can be used in two ways:
 
 1. As a Python module (imported by other scripts):
-   from preprocessing import AdvancedPreprocessor, cross_validate_source_combinations
+   from preprocessing import NeuroImagingPreprocessor, preprocess_neuroimaging_data
 
 2. As a standalone CLI tool (run directly):
    python preprocessing.py --data_dir qMAP-PD_data --inspect_only
@@ -13,7 +14,7 @@ This module can be used in two ways:
 
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, Union
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_classif, mutual_info_classif
@@ -21,6 +22,7 @@ from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import logging
+import warnings
 
 # For standalone CLI functionality
 import argparse
@@ -32,11 +34,286 @@ import seaborn as sns
 
 logging.basicConfig(level=logging.INFO)
 
-# == CORE PREPROCESSING CLASSES (for import) ==
+# == COMPATIBILITY CHECKS ==
 
-class AdvancedPreprocessor:
+def check_preprocessing_compatibility():
+    """Check if all required dependencies are available"""
+    missing = []
+    
+    try:
+        from sklearn.preprocessing import RobustScaler, StandardScaler
+    except ImportError:
+        missing.append('scikit-learn (preprocessing)')
+    
+    try:
+        from sklearn.impute import KNNImputer
+    except ImportError:
+        missing.append('scikit-learn (KNN imputer)')
+    
+    try:
+        from sklearn.experimental import enable_iterative_imputer
+        from sklearn.impute import IterativeImputer
+    except ImportError:
+        missing.append('scikit-learn (iterative imputer)')
+    
+    # Check for neuroimaging-specific dependencies
+    try:
+        import scipy.spatial
+    except ImportError:
+        missing.append('scipy (spatial functions)')
+    
+    if missing:
+        logging.warning(f"Missing optional dependencies: {missing}")
+        logging.warning("Some preprocessing methods may not be available")
+    
+    return len(missing) == 0
+
+# == CONFIGURATION CLASSES ==
+
+class PreprocessingConfig:
+    """Base preprocessing configuration with validation"""
+    
+    VALID_IMPUTATION = ['median', 'mean', 'knn', 'iterative']
+    VALID_SELECTION = ['variance', 'statistical', 'mutual_info', 'combined', 'none']
+    
+    def __init__(self, **kwargs):
+        # Extract preprocessing params
+        self.enable_preprocessing = kwargs.get('enable_preprocessing', False)
+        self.imputation_strategy = kwargs.get('imputation_strategy', 'median')
+        self.feature_selection_method = kwargs.get('feature_selection_method', 'variance')
+        self.n_top_features = kwargs.get('n_top_features', None)
+        self.missing_threshold = kwargs.get('missing_threshold', 0.1)
+        self.variance_threshold = kwargs.get('variance_threshold', 0.0)
+        self.target_variable = kwargs.get('target_variable', None)
+        self.cross_validate_sources = kwargs.get('cross_validate_sources', False)
+        self.optimize_preprocessing = kwargs.get('optimize_preprocessing', False)
+        
+        if self.enable_preprocessing:
+            self.validate()
+    
+    def validate(self):
+        """Validate preprocessing parameters"""
+        if self.imputation_strategy not in self.VALID_IMPUTATION:
+            raise ValueError(f"Invalid imputation_strategy. Must be one of: {self.VALID_IMPUTATION}")
+        
+        if self.feature_selection_method not in self.VALID_SELECTION:
+            raise ValueError(f"Invalid feature_selection. Must be one of: {self.VALID_SELECTION}")
+        
+        if self.n_top_features is not None and self.n_top_features <= 0:
+            raise ValueError(f"Invalid n_top_features={self.n_top_features}. Must be positive integer or None.")
+        
+        if not (0.0 <= self.missing_threshold <= 1.0):
+            raise ValueError(f"Invalid missing_threshold. Must be between 0.0 and 1.0.")
+        
+        if self.variance_threshold < 0:
+            raise ValueError(f"Invalid variance_threshold. Must be non-negative.")
+    
+    def to_dict(self):
+        """Convert to dict for passing to functions"""
+        return {k: v for k, v in self.__dict__.items() if not k.startswith('VALID_')}
+
+class NeuroImagingConfig(PreprocessingConfig):
+    """Extended config for neuroimaging-specific preprocessing"""
+    
+    def __init__(self, **kwargs):
+        # Neuroimaging-specific parameters
+        self.enable_spatial_processing = kwargs.get('enable_spatial_processing', True)
+        self.spatial_smoothing_fwhm = kwargs.get('spatial_smoothing_fwhm', None)  # in mm
+        self.harmonize_scanners = kwargs.get('harmonize_scanners', False)
+        self.scanner_info_col = kwargs.get('scanner_info_col', None)
+        self.spatial_imputation = kwargs.get('spatial_imputation', True)
+        self.roi_based_selection = kwargs.get('roi_based_selection', True)
+        self.qc_outlier_threshold = kwargs.get('qc_outlier_threshold', 3.0)  # std devs
+        self.enable_combat_harmonization = kwargs.get('enable_combat_harmonization', False)
+        self.spatial_neighbor_radius = kwargs.get('spatial_neighbor_radius', 5.0)  # mm
+        self.min_voxel_distance = kwargs.get('min_voxel_distance', 3.0)  # mm for feature selection
+        
+        # Call parent constructor
+        super().__init__(**kwargs)
+    
+    def validate(self):
+        """Extended validation for neuroimaging parameters"""
+        super().validate()
+        
+        if self.spatial_smoothing_fwhm is not None and self.spatial_smoothing_fwhm <= 0:
+            raise ValueError("spatial_smoothing_fwhm must be positive or None")
+        
+        if self.qc_outlier_threshold <= 0:
+            raise ValueError("qc_outlier_threshold must be positive")
+        
+        if self.spatial_neighbor_radius <= 0:
+            raise ValueError("spatial_neighbor_radius must be positive")
+        
+        if self.min_voxel_distance < 0:
+            raise ValueError("min_voxel_distance must be non-negative")
+
+# == SPATIAL PROCESSING UTILITIES ==
+
+class SpatialProcessingUtils:
+    """Utilities for spatial processing of neuroimaging data"""
+    
+    @staticmethod
+    def load_position_lookup(data_dir: str, roi_name: str) -> Optional[pd.DataFrame]:
+        """Load spatial position information for ROI voxels"""
+        try:
+            position_file = Path(data_dir) / "position_lookup" / f"position_{roi_name}_voxels.tsv"
+            if position_file.exists():
+                positions = pd.read_csv(position_file, sep='\t', header=None, 
+                                      names=['x', 'y', 'z'])
+                logging.info(f"Loaded {len(positions)} voxel positions for {roi_name}")
+                return positions
+            else:
+                logging.warning(f"Position lookup file not found: {position_file}")
+                return None
+        except Exception as e:
+            logging.warning(f"Could not load position lookup for {roi_name}: {e}")
+            return None
+    
+    @staticmethod
+    def find_spatial_neighbors(voxel_idx: int, positions: pd.DataFrame, 
+                             radius_mm: float = 5.0) -> np.ndarray:
+        """Find spatial neighbors of a voxel within given radius"""
+        if positions is None or voxel_idx >= len(positions):
+            return np.array([])
+        
+        target_pos = positions.iloc[voxel_idx][['x', 'y', 'z']].values
+        all_positions = positions[['x', 'y', 'z']].values
+        
+        # Calculate Euclidean distances
+        distances = np.sqrt(np.sum((all_positions - target_pos)**2, axis=1))
+        
+        # Find neighbors within radius (excluding self)
+        neighbors = np.where((distances <= radius_mm) & (distances > 0))[0]
+        
+        return neighbors
+    
+    @staticmethod
+    def detect_outlier_voxels(X: np.ndarray, threshold: float = 3.0) -> np.ndarray:
+        """Detect voxels with outlier intensities that may indicate artifacts"""
+        outlier_mask = np.zeros(X.shape[1], dtype=bool)
+        
+        for i in range(X.shape[1]):
+            voxel_data = X[:, i]
+            if not np.all(np.isnan(voxel_data)):
+                # Remove NaN for statistics
+                clean_data = voxel_data[~np.isnan(voxel_data)]
+                if len(clean_data) > 0:
+                    median = np.median(clean_data)
+                    mad = np.median(np.abs(clean_data - median))
+                    
+                    # Check for extreme outliers using MAD (more robust than std)
+                    if mad > 0:  # Avoid division by zero
+                        mad_scores = np.abs(clean_data - median) / (mad * 1.4826)
+                        if np.any(mad_scores > threshold):
+                            outlier_mask[i] = True
+        
+        return outlier_mask
+    
+    @staticmethod
+    def apply_basic_harmonization(X: np.ndarray, scanner_info: np.ndarray, 
+                                global_mean: Optional[np.ndarray] = None,
+                                global_std: Optional[np.ndarray] = None) -> Tuple[np.ndarray, Dict]:
+        """Apply basic scanner harmonization (simplified ComBat-like approach)"""
+        
+        X_harmonized = X.copy()
+        unique_scanners = np.unique(scanner_info[~pd.isna(scanner_info)])
+        harmonization_stats = {}
+        
+        # Compute global statistics if not provided
+        if global_mean is None:
+            global_mean = np.nanmean(X, axis=0)
+        if global_std is None:
+            global_std = np.nanstd(X, axis=0)
+            global_std = np.where(global_std < 1e-6, 1.0, global_std)
+        
+        for scanner in unique_scanners:
+            scanner_mask = (scanner_info == scanner)
+            n_subjects = np.sum(scanner_mask)
+            
+            if n_subjects > 1:  # Need at least 2 subjects
+                scanner_data = X[scanner_mask, :]
+                
+                # Compute scanner-specific statistics
+                scanner_mean = np.nanmean(scanner_data, axis=0)
+                scanner_std = np.nanstd(scanner_data, axis=0)
+                scanner_std = np.where(scanner_std < 1e-6, 1.0, scanner_std)
+                
+                harmonization_stats[scanner] = {
+                    'mean': scanner_mean,
+                    'std': scanner_std,
+                    'n_subjects': n_subjects
+                }
+                
+                # Apply harmonization: (x - scanner_mean) / scanner_std * global_std + global_mean
+                X_harmonized[scanner_mask, :] = (
+                    (scanner_data - scanner_mean) / scanner_std
+                ) * global_std + global_mean
+                
+                logging.info(f"Harmonized {n_subjects} subjects from scanner {scanner}")
+        
+        return X_harmonized, harmonization_stats
+
+# == BASE PREPROCESSOR CLASSES ==
+
+class BasePreprocessor:
+    """Base preprocessing utilities - consolidates scattered functions"""
+    
+    @staticmethod
+    def fit_basic_scaler(X: np.ndarray, eps: float = 1e-8) -> Dict[str, np.ndarray]:
+        """
+        Basic scaling (moved from loader_qmap_pd.py).
+        Returns dict with mu, sd for compatibility.
+        """
+        mu = np.nanmean(X, axis=0, keepdims=True)
+        sd = np.nanstd(X, axis=0, keepdims=True)
+        sd = np.where(sd < eps, 1.0, sd)
+        return {"mu": mu, "sd": sd}
+    
+    @staticmethod
+    def apply_basic_scaler(X: np.ndarray, scaler_dict: Dict[str, np.ndarray]) -> np.ndarray:
+        """Apply basic scaling (moved from loader_qmap_pd.py)"""
+        Xz = (X - scaler_dict["mu"]) / scaler_dict["sd"]
+        return np.where(np.isnan(Xz), 0.0, Xz)
+
+class BasicPreprocessor(BasePreprocessor):
+    """Minimal preprocessor for basic scaling only"""
+    
+    def __init__(self):
+        self.scalers_ = {}
+        self.is_basic = True
+    
+    def fit_transform(self, X_list: List[np.ndarray], view_names: List[str],
+                     y: Optional[np.ndarray] = None) -> List[np.ndarray]:
+        """Basic preprocessing - just scaling"""
+        processed_X = []
+        
+        for X, view_name in zip(X_list, view_names):
+            if X.shape[1] > 0:
+                scaler_dict = self.fit_basic_scaler(X)
+                X_scaled = self.apply_basic_scaler(X, scaler_dict)
+                self.scalers_[view_name] = scaler_dict
+            else:
+                X_scaled = X
+                self.scalers_[view_name] = {"mu": np.zeros((1, 0)), "sd": np.ones((1, 0))}
+            
+            processed_X.append(X_scaled)
+        
+        return processed_X
+    
+    def transform(self, X_list: List[np.ndarray], view_names: List[str]) -> List[np.ndarray]:
+        """Transform using basic scaling"""
+        processed_X = []
+        for X, view_name in zip(X_list, view_names):
+            if view_name in self.scalers_:
+                X_scaled = self.apply_basic_scaler(X, self.scalers_[view_name])
+            else:
+                X_scaled = X
+            processed_X.append(X_scaled)
+        return processed_X
+
+class AdvancedPreprocessor(BasePreprocessor):
     """
-    Preprocessing steps.
+    Advanced preprocessing following research methodologies.
     
     Key features:
     - Multiple imputation strategies
@@ -51,7 +328,8 @@ class AdvancedPreprocessor:
                  n_top_features: Optional[int] = None,
                  imputation_strategy: str = 'median',
                  feature_selection_method: str = 'variance',
-                 random_state: int = 42):
+                 random_state: int = 42,
+                 **kwargs):
         """
         Parameters
         ----------
@@ -78,6 +356,7 @@ class AdvancedPreprocessor:
         self.scalers_ = {}
         self.feature_selectors_ = {}
         self.selected_features_ = {}
+        self.is_basic = False
         
     def fit_transform_imputation(self, X: np.ndarray, view_name: str) -> np.ndarray:
         """
@@ -101,9 +380,13 @@ class AdvancedPreprocessor:
             # KNN imputation - more sophisticated than simple median
             imputer = KNNImputer(n_neighbors=5)
         elif self.imputation_strategy == 'iterative':
-            from sklearn.experimental import enable_iterative_imputer
-            from sklearn.impute import IterativeImputer
-            imputer = IterativeImputer(random_state=self.random_state)
+            try:
+                from sklearn.experimental import enable_iterative_imputer
+                from sklearn.impute import IterativeImputer
+                imputer = IterativeImputer(random_state=self.random_state)
+            except ImportError:
+                logging.warning("IterativeImputer not available, falling back to median")
+                imputer = SimpleImputer(strategy='median')
         else:
             raise ValueError(f"Unknown imputation strategy: {self.imputation_strategy}")
             
@@ -127,7 +410,9 @@ class AdvancedPreprocessor:
         """
         logging.info(f"Applying {self.feature_selection_method} feature selection to {view_name}")
         
-        if self.feature_selection_method == 'variance':
+        if self.feature_selection_method == 'none':
+            return X
+        elif self.feature_selection_method == 'variance':
             return self._variance_based_selection(X, view_name)
         elif self.feature_selection_method == 'statistical' and y is not None:
             return self._statistical_selection(X, view_name, y)
@@ -207,8 +492,12 @@ class AdvancedPreprocessor:
         logging.info(f"Applying {'robust' if robust else 'standard'} scaling to {view_name}")
         
         if robust:
-            from sklearn.preprocessing import RobustScaler
-            scaler = RobustScaler()
+            try:
+                from sklearn.preprocessing import RobustScaler
+                scaler = RobustScaler()
+            except ImportError:
+                logging.warning("RobustScaler not available, using StandardScaler")
+                scaler = StandardScaler()
         else:
             scaler = StandardScaler()
         
@@ -266,7 +555,10 @@ class AdvancedPreprocessor:
                 mask = self.selected_features_[f"{view_name}_missing_mask"]
                 X = X[:, mask]
                 
-            X_imputed = self.imputers_[view_name].transform(X)
+            if view_name in self.imputers_:
+                X_imputed = self.imputers_[view_name].transform(X)
+            else:
+                X_imputed = X
             
             # 2. Feature selection
             if f"{view_name}_variance_indices" in self.selected_features_:
@@ -278,11 +570,487 @@ class AdvancedPreprocessor:
                 X_selected = X_imputed
                 
             # 3. Scaling
-            X_scaled = self.scalers_[view_name].transform(X_selected)
+            if view_name in self.scalers_:
+                X_scaled = self.scalers_[view_name].transform(X_selected)
+            else:
+                X_scaled = X_selected
             
             X_processed.append(X_scaled)
             
         return X_processed
+
+# == NEUROIMAGING-AWARE PREPROCESSOR ==
+
+class NeuroImagingPreprocessor(AdvancedPreprocessor):
+    """qMRI and neuroimaging-aware preprocessor with spatial processing"""
+    
+    def __init__(self, data_dir: str = None, **kwargs):
+        # Extract neuroimaging-specific parameters
+        self.data_dir = data_dir
+        self.enable_spatial_processing = kwargs.pop('enable_spatial_processing', True)
+        self.spatial_smoothing_fwhm = kwargs.pop('spatial_smoothing_fwhm', None)
+        self.harmonize_scanners = kwargs.pop('harmonize_scanners', False)
+        self.scanner_info_col = kwargs.pop('scanner_info_col', None)
+        self.spatial_imputation = kwargs.pop('spatial_imputation', True)
+        self.roi_based_selection = kwargs.pop('roi_based_selection', True)
+        self.qc_outlier_threshold = kwargs.pop('qc_outlier_threshold', 3.0)
+        self.enable_combat_harmonization = kwargs.pop('enable_combat_harmonization', False)
+        self.spatial_neighbor_radius = kwargs.pop('spatial_neighbor_radius', 5.0)
+        self.min_voxel_distance = kwargs.pop('min_voxel_distance', 3.0)
+        
+        # Initialize parent
+        super().__init__(**kwargs)
+        
+        # Storage for spatial information
+        self.position_lookups_ = {}
+        self.outlier_masks_ = {}
+        self.harmonization_params_ = {}
+    
+    def _is_imaging_view(self, view_name: str) -> bool:
+        """Check if view contains imaging data"""
+        imaging_keywords = ['imaging', 'volume_', 'sn', 'putamen', 'lentiform', 'bg-all']
+        return any(keyword in view_name.lower() for keyword in imaging_keywords)
+    
+    def _extract_roi_name(self, view_name: str) -> str:
+        """Extract ROI name from view name"""
+        view_lower = view_name.lower()
+        if 'sn' in view_lower:
+            return 'sn'
+        elif 'putamen' in view_lower:
+            return 'putamen'
+        elif 'lentiform' in view_lower:
+            return 'lentiform'
+        elif 'bg-all' in view_lower:
+            return 'bg-all'
+        else:
+            return view_lower.replace('volume_', '').replace('_voxels', '')
+    
+    def _apply_quality_control(self, X: np.ndarray, view_name: str) -> np.ndarray:
+        """Apply quality control checks for imaging data"""
+        if not self._is_imaging_view(view_name):
+            return X
+        
+        logging.info(f"Applying quality control to {view_name}")
+        
+        # Detect outlier voxels
+        outlier_mask = SpatialProcessingUtils.detect_outlier_voxels(
+            X, self.qc_outlier_threshold
+        )
+        
+        if np.any(outlier_mask):
+            logging.warning(f"Removing {np.sum(outlier_mask)} outlier voxels from {view_name}")
+            X_clean = X[:, ~outlier_mask]
+            self.outlier_masks_[view_name] = ~outlier_mask  # Store kept voxels
+        else:
+            X_clean = X
+            self.outlier_masks_[view_name] = np.ones(X.shape[1], dtype=bool)
+        
+        return X_clean
+    
+    def _apply_spatial_imputation(self, X: np.ndarray, view_name: str) -> np.ndarray:
+        """Apply spatially-aware imputation for imaging data"""
+        if not self._is_imaging_view(view_name) or not self.spatial_imputation:
+            return X
+        
+        logging.info(f"Applying spatial imputation to {view_name}")
+        
+        # Load position information
+        if self.data_dir:
+            roi_name = self._extract_roi_name(view_name)
+            positions = SpatialProcessingUtils.load_position_lookup(self.data_dir, roi_name)
+            self.position_lookups_[view_name] = positions
+        else:
+            positions = None
+        
+        if positions is None:
+            logging.warning(f"No spatial information available for {view_name}, using standard imputation")
+            return X
+        
+        X_imputed = X.copy()
+        n_spatial_imputations = 0
+        
+        # For each subject, impute missing voxels using spatial neighbors
+        for subject_idx in range(X.shape[0]):
+            missing_voxels = np.where(np.isnan(X[subject_idx, :]))[0]
+            
+            for voxel_idx in missing_voxels:
+                if voxel_idx < len(positions):
+                    # Find spatial neighbors
+                    neighbors = SpatialProcessingUtils.find_spatial_neighbors(
+                        voxel_idx, positions, radius_mm=self.spatial_neighbor_radius
+                    )
+                    
+                    if len(neighbors) > 0:
+                        # Use median of non-missing neighbors
+                        neighbor_values = X[subject_idx, neighbors]
+                        valid_neighbors = neighbor_values[~np.isnan(neighbor_values)]
+                        
+                        if len(valid_neighbors) > 0:
+                            X_imputed[subject_idx, voxel_idx] = np.median(valid_neighbors)
+                            n_spatial_imputations += 1
+        
+        if n_spatial_imputations > 0:
+            logging.info(f"Performed {n_spatial_imputations} spatial imputations for {view_name}")
+        
+        return X_imputed
+    
+    def _apply_scanner_harmonization(self, X: np.ndarray, view_name: str, 
+                                   scanner_info: Optional[np.ndarray] = None) -> np.ndarray:
+        """Apply scanner harmonization using ComBat-like approach"""
+        if not self._is_imaging_view(view_name) or not self.harmonize_scanners:
+            return X
+        
+        if scanner_info is None:
+            logging.warning(f"No scanner info provided for harmonization of {view_name}")
+            return X
+        
+        logging.info(f"Applying scanner harmonization to {view_name}")
+        
+        X_harmonized, harmonization_stats = SpatialProcessingUtils.apply_basic_harmonization(
+            X, scanner_info
+        )
+        
+        self.harmonization_params_[view_name] = harmonization_stats
+        return X_harmonized
+    
+    def _apply_roi_based_feature_selection(self, X: np.ndarray, view_name: str) -> np.ndarray:
+        """Apply ROI-based feature selection instead of pure variance"""
+        if not self._is_imaging_view(view_name) or not self.roi_based_selection:
+            return self._variance_based_selection(X, view_name)
+        
+        logging.info(f"Applying ROI-based feature selection to {view_name}")
+        
+        # Load position information to understand ROI structure
+        positions = self.position_lookups_.get(view_name)
+        if positions is None and self.data_dir:
+            roi_name = self._extract_roi_name(view_name)
+            positions = SpatialProcessingUtils.load_position_lookup(self.data_dir, roi_name)
+            self.position_lookups_[view_name] = positions
+        
+        if positions is None:
+            logging.warning(f"No spatial information for ROI-based selection, using variance")
+            return self._variance_based_selection(X, view_name)
+        
+        # Calculate variance for each voxel
+        variances = np.var(X, axis=0)
+        
+        if self.n_top_features is not None:
+            # Select top features by variance, but ensure spatial distribution
+            n_select = min(self.n_top_features, X.shape[1])
+            
+            selected_indices = []
+            variance_order = np.argsort(variances)[::-1]
+            selected_positions = []
+            
+            for idx in variance_order:
+                if len(selected_indices) >= n_select:
+                    break
+                
+                if idx < len(positions):
+                    pos = positions.iloc[idx][['x', 'y', 'z']].values
+                    
+                    # Check if too close to already selected voxels
+                    too_close = False
+                    for sel_pos in selected_positions:
+                        if np.sqrt(np.sum((pos - sel_pos)**2)) < self.min_voxel_distance:
+                            too_close = True
+                            break
+                    
+                    if not too_close:
+                        selected_indices.append(idx)
+                        selected_positions.append(pos)
+                else:
+                    # No position info for this voxel, include it
+                    selected_indices.append(idx)
+            
+            # Fill remaining slots with highest variance if needed
+            remaining_slots = n_select - len(selected_indices)
+            if remaining_slots > 0:
+                for idx in variance_order:
+                    if idx not in selected_indices:
+                        selected_indices.append(idx)
+                        remaining_slots -= 1
+                        if remaining_slots == 0:
+                            break
+            
+            X_selected = X[:, selected_indices]
+            self.selected_features_[f"{view_name}_roi_indices"] = np.array(selected_indices)
+            
+        else:
+            # Use variance threshold
+            threshold = self.variance_threshold
+            selected_mask = variances > threshold
+            X_selected = X[:, selected_mask]
+            self.selected_features_[f"{view_name}_roi_mask"] = selected_mask
+        
+        logging.info(f"ROI-based selection: {X_selected.shape[1]} features from {X.shape[1]} for {view_name}")
+        return X_selected
+    
+    def fit_transform_imputation(self, X: np.ndarray, view_name: str, 
+                               scanner_info: Optional[np.ndarray] = None) -> np.ndarray:
+        """Enhanced imputation with neuroimaging-specific processing"""
+        
+        # Step 1: Quality control for imaging data
+        X_qc = self._apply_quality_control(X, view_name)
+        
+        # Step 2: Spatial imputation for imaging data
+        if self._is_imaging_view(view_name):
+            X_spatial = self._apply_spatial_imputation(X_qc, view_name)
+        else:
+            X_spatial = X_qc
+        
+        # Step 3: Scanner harmonization
+        X_harmonized = self._apply_scanner_harmonization(X_spatial, view_name, scanner_info)
+        
+        # Step 4: Standard imputation for remaining missing values
+        X_imputed = super().fit_transform_imputation(X_harmonized, view_name)
+        
+        return X_imputed
+    
+    def fit_transform_feature_selection(self, X: np.ndarray, view_name: str, 
+                                      y: Optional[np.ndarray] = None) -> np.ndarray:
+        """Enhanced feature selection with spatial awareness"""
+        
+        if self._is_imaging_view(view_name) and self.roi_based_selection:
+            return self._apply_roi_based_feature_selection(X, view_name)
+        else:
+            return super().fit_transform_feature_selection(X, view_name, y)
+    
+    def fit_transform(self, X_list: List[np.ndarray], view_names: List[str],
+                     y: Optional[np.ndarray] = None, 
+                     scanner_info: Optional[np.ndarray] = None) -> List[np.ndarray]:
+        """
+        Enhanced preprocessing pipeline for neuroimaging data.
+        
+        Parameters
+        ----------
+        X_list : List of data matrices
+        view_names : List of view names
+        y : Target variable (optional)
+        scanner_info : Scanner/site information for harmonization (optional)
+        
+        Returns
+        -------
+        List of preprocessed data matrices
+        """
+        logging.info("Starting neuroimaging-aware preprocessing pipeline")
+        
+        X_processed = []
+        
+        for X, view_name in zip(X_list, view_names):
+            logging.info(f"Processing view: {view_name} (shape: {X.shape})")
+            
+            # Step 1: Enhanced imputation with spatial processing
+            X_imputed = self.fit_transform_imputation(X, view_name, scanner_info)
+            
+            # Step 2: Enhanced feature selection with spatial awareness
+            X_selected = self.fit_transform_feature_selection(X_imputed, view_name, y)
+            
+            # Step 3: Scaling
+            X_scaled = self.fit_transform_scaling(X_selected, view_name)
+            
+            X_processed.append(X_scaled)
+            
+            logging.info(f"Final shape for {view_name}: {X_scaled.shape}")
+        
+        return X_processed
+
+# == VALIDATION UTILITIES ==
+
+def validate_preprocessing_inputs(X_list: List[np.ndarray], view_names: List[str], 
+                                config: Union[PreprocessingConfig, NeuroImagingConfig]) -> None:
+    """Validate inputs before preprocessing"""
+    
+    if len(X_list) != len(view_names):
+        raise ValueError(f"Mismatch: {len(X_list)} data arrays but {len(view_names)} view names")
+    
+    for i, (X, view_name) in enumerate(zip(X_list, view_names)):
+        if not isinstance(X, np.ndarray):
+            raise TypeError(f"X_list[{i}] ({view_name}) must be numpy array, got {type(X)}")
+        
+        if X.ndim != 2:
+            raise ValueError(f"X_list[{i}] ({view_name}) must be 2D, got shape {X.shape}")
+        
+        if X.shape[0] == 0:
+            raise ValueError(f"X_list[{i}] ({view_name}) has no samples")
+    
+    # Check all arrays have same number of samples
+    n_samples = [X.shape[0] for X in X_list]
+    if len(set(n_samples)) > 1:
+        raise ValueError(f"Inconsistent sample counts across views: {dict(zip(view_names, n_samples))}")
+
+# == HIGH-LEVEL PREPROCESSING INTERFACES ==
+
+def create_preprocessor_from_config(config: Union[PreprocessingConfig, NeuroImagingConfig], 
+                                  data_dir: str = None) -> Union[BasicPreprocessor, AdvancedPreprocessor, NeuroImagingPreprocessor]:
+    """Create appropriate preprocessor based on configuration"""
+    
+    if not config.enable_preprocessing:
+        return BasicPreprocessor()
+    elif isinstance(config, NeuroImagingConfig) and config.enable_spatial_processing:
+        return NeuroImagingPreprocessor(data_dir=data_dir, **config.to_dict())
+    else:
+        return AdvancedPreprocessor(**config.to_dict())
+
+def preprocess_data_from_config(X_list: List[np.ndarray], 
+                               view_names: List[str],
+                               config: Union[PreprocessingConfig, NeuroImagingConfig],
+                               data_dir: str = None,
+                               scanner_info: Optional[np.ndarray] = None,
+                               y: Optional[np.ndarray] = None) -> Tuple[List[np.ndarray], Union[BasicPreprocessor, AdvancedPreprocessor, NeuroImagingPreprocessor]]:
+    """
+    Main preprocessing interface using configuration object.
+    """
+    # Create preprocessor
+    preprocessor = create_preprocessor_from_config(config, data_dir)
+    
+    # Apply preprocessing
+    if isinstance(preprocessor, NeuroImagingPreprocessor):
+        X_processed = preprocessor.fit_transform(X_list, view_names, y, scanner_info)
+    else:
+        X_processed = preprocessor.fit_transform(X_list, view_names, y)
+    
+    return X_processed, preprocessor
+
+def preprocess_neuroimaging_data(X_list: List[np.ndarray], 
+                                view_names: List[str],
+                                config: Union[PreprocessingConfig, NeuroImagingConfig],
+                                data_dir: str = None,
+                                scanner_info: Optional[np.ndarray] = None,
+                                y: Optional[np.ndarray] = None,
+                                validate_inputs: bool = True) -> Tuple[List[np.ndarray], Any, Dict[str, Any]]:
+    """
+    Complete neuroimaging preprocessing pipeline with metadata.
+    
+    Returns
+    -------
+    X_processed : List of preprocessed arrays
+    preprocessor : Fitted preprocessor object  
+    metadata : Dictionary with preprocessing information including spatial processing
+    """
+    
+    if validate_inputs:
+        validate_preprocessing_inputs(X_list, view_names, config)
+    
+    # Store original shapes for metadata
+    original_shapes = [X.shape for X in X_list]
+    
+    # Apply preprocessing
+    X_processed, preprocessor = preprocess_data_from_config(
+        X_list, view_names, config, data_dir, scanner_info, y
+    )
+    
+    # Create metadata
+    metadata = {
+        'config': config.to_dict(),
+        'original_shapes': original_shapes,
+        'processed_shapes': [X.shape for X in X_processed],
+        'feature_reduction': {},
+        'preprocessing_type': type(preprocessor).__name__,
+        'spatial_processing_applied': isinstance(preprocessor, NeuroImagingPreprocessor),
+    }
+    
+    # Add spatial processing metadata
+    if isinstance(preprocessor, NeuroImagingPreprocessor):
+        metadata.update({
+            'position_lookups_loaded': list(preprocessor.position_lookups_.keys()),
+            'outlier_masks': {k: v.sum() for k, v in preprocessor.outlier_masks_.items()},
+            'harmonization_applied': bool(preprocessor.harmonization_params_),
+        })
+    
+    # Calculate feature reduction stats
+    for i, view_name in enumerate(view_names):
+        orig_features = original_shapes[i][1]
+        proc_features = X_processed[i].shape[1]
+        metadata['feature_reduction'][view_name] = {
+            'original': orig_features,
+            'processed': proc_features,
+            'reduction_ratio': proc_features / max(1, orig_features),
+            'reduction_count': orig_features - proc_features
+        }
+    
+    return X_processed, preprocessor, metadata
+
+def summarize_preprocessing_results(metadata: Dict[str, Any]) -> str:
+    """Create human-readable summary of preprocessing results"""
+    
+    summary = ["=== PREPROCESSING SUMMARY ==="]
+    summary.append(f"Type: {metadata['preprocessing_type']}")
+    
+    if metadata['config']['enable_preprocessing']:
+        summary.append(f"Imputation: {metadata['config']['imputation_strategy']}")
+        summary.append(f"Feature selection: {metadata['config']['feature_selection_method']}")
+    
+    if metadata.get('spatial_processing_applied', False):
+        summary.append("Spatial processing: ENABLED")
+        if metadata.get('position_lookups_loaded'):
+            summary.append(f"Position data loaded for: {', '.join(metadata['position_lookups_loaded'])}")
+        if metadata.get('harmonization_applied'):
+            summary.append("Scanner harmonization: APPLIED")
+    
+    summary.append("\nFeature reduction by view:")
+    for view_name, stats in metadata['feature_reduction'].items():
+        reduction_pct = (1 - stats['reduction_ratio']) * 100
+        summary.append(f"  {view_name}: {stats['original']} -> {stats['processed']} "
+                      f"({reduction_pct:.1f}% reduction)")
+    
+    return "\n".join(summary)
+
+# == PARAMETER EXTRACTION FROM ARGS ==
+
+def extract_preprocessing_config_from_args(args) -> Union[PreprocessingConfig, NeuroImagingConfig]:
+    """
+    Extract preprocessing config from command line args.
+    Returns NeuroImagingConfig if spatial processing is enabled.
+    """
+    
+    # Check if neuroimaging features are requested
+    enable_spatial = getattr(args, 'enable_spatial_processing', False)
+    
+    config_dict = {
+        'enable_preprocessing': getattr(args, 'enable_preprocessing', False),
+        'imputation_strategy': getattr(args, 'imputation_strategy', 'median'),
+        'feature_selection_method': getattr(args, 'feature_selection', 'variance'),
+        'n_top_features': getattr(args, 'n_top_features', None),
+        'missing_threshold': getattr(args, 'missing_threshold', 0.1),
+        'variance_threshold': getattr(args, 'variance_threshold', 0.0),
+        'target_variable': getattr(args, 'target_variable', None),
+        'cross_validate_sources': getattr(args, 'cross_validate_sources', False),
+        'optimize_preprocessing': getattr(args, 'optimize_preprocessing', False),
+    }
+    
+    if enable_spatial:
+        # Add neuroimaging-specific parameters
+        config_dict.update({
+            'enable_spatial_processing': True,
+            'spatial_imputation': getattr(args, 'spatial_imputation', True),
+            'roi_based_selection': getattr(args, 'roi_based_selection', True),
+            'harmonize_scanners': getattr(args, 'harmonize_scanners', False),
+            'scanner_info_col': getattr(args, 'scanner_info_col', None),
+            'qc_outlier_threshold': getattr(args, 'qc_outlier_threshold', 3.0),
+            'spatial_neighbor_radius': getattr(args, 'spatial_neighbor_radius', 5.0),
+            'min_voxel_distance': getattr(args, 'min_voxel_distance', 3.0),
+        })
+        return NeuroImagingConfig(**config_dict)
+    else:
+        return PreprocessingConfig(**config_dict)
+
+def create_preprocessor_from_args(args, validate: bool = True) -> Union[PreprocessingConfig, NeuroImagingConfig]:
+    """
+    Factory function to create preprocessing config from command line args.
+    Includes validation and helpful error messages.
+    """
+    try:
+        config = extract_preprocessing_config_from_args(args)
+        if validate:
+            config.validate()  # This will raise helpful error messages
+        return config
+    except Exception as e:
+        logging.error(f"Failed to create preprocessing config: {e}")
+        logging.error("Please check your preprocessing parameters")
+        raise
+
+# == CROSS-VALIDATION AND OPTIMIZATION ==
 
 def cross_validate_source_combinations(X_list: List[np.ndarray], 
                                      view_names: List[str],
@@ -294,7 +1062,6 @@ def cross_validate_source_combinations(X_list: List[np.ndarray],
     from itertools import combinations
     from sklearn.linear_model import Ridge
     from sklearn.metrics import mean_squared_error
-    from scipy.stats import pearsonr, spearmanr
     
     results = {}
     
@@ -423,14 +1190,23 @@ class PreprocessingInspector:
         """Load raw data for inspection."""
         logging.info("Loading raw data...")
         
-        # Import here to avoid dependency issues when used as module
-        from loader_qmap_pd import load_qmap_pd
-        
-        self.raw_data = load_qmap_pd(
-            data_dir=str(self.data_dir),
-            enable_advanced_preprocessing=False,  # No advanced preprocessing
-            **self.load_kwargs
-        )
+        # Use dynamic import to avoid circular dependency
+        try:
+            from loader_qmap_pd import load_qmap_pd
+            
+            self.raw_data = load_qmap_pd(
+                data_dir=str(self.data_dir),
+                enable_advanced_preprocessing=False,
+                **self.load_kwargs
+            )
+            
+        except ImportError as e:
+            logging.error(f"Could not import data loader: {e}")
+            logging.error("Make sure loader_qmap_pd.py is available in the Python path.")
+            raise ImportError(
+                "Data loader not available. The preprocessing inspector requires "
+                "loader_qmap_pd.py to be available for loading raw data."
+            )
         
         logging.info(f"Loaded data: {len(self.raw_data['X_list'])} views")
         for i, (view_name, X) in enumerate(zip(self.raw_data['view_names'], self.raw_data['X_list'])):
@@ -588,10 +1364,10 @@ class PreprocessingInspector:
                     }
                 
                 results[method] = method_results
-                logging.info(f"  ✓ {method} succeeded")
+                logging.info(f"  SUCCESS: {method} completed")
                 
             except Exception as e:
-                logging.error(f"  ✗ {method} failed: {e}")
+                logging.error(f"  FAILED: {method} failed: {e}")
                 results[method] = {'error': str(e)}
         
         # Print comparison
@@ -687,10 +1463,23 @@ def main():
     parser.add_argument("--n_top_features", type=int, default=None)
     parser.add_argument("--target_variable", type=str, default=None)
     
+    # Neuroimaging-specific parameters
+    parser.add_argument("--enable_spatial_processing", action="store_true",
+                       help="Enable spatial processing for neuroimaging data")
+    parser.add_argument("--spatial_imputation", action="store_true",
+                       help="Use spatial neighbors for imputation")
+    parser.add_argument("--roi_based_selection", action="store_true", 
+                       help="Use ROI-based feature selection")
+    parser.add_argument("--harmonize_scanners", action="store_true",
+                       help="Apply scanner harmonization")
+    
     # Output
     parser.add_argument("--output_dir", type=str, default="preprocessing_inspection")
     
     args = parser.parse_args()
+    
+    # Check dependencies
+    check_preprocessing_compatibility()
     
     # Create inspector
     inspector = PreprocessingInspector(
@@ -724,11 +1513,16 @@ def main():
         logging.info("=== TESTING SPECIFIC PREPROCESSING CONFIGURATION ===")
         inspector.inspect_raw_data()
         
-        # Apply preprocessing with specified parameters
-        preprocessor = AdvancedPreprocessor(
+        # Create config
+        config = NeuroImagingConfig(
+            enable_preprocessing=True,
+            enable_spatial_processing=args.enable_spatial_processing,
             imputation_strategy=args.imputation_strategy,
             feature_selection_method=args.feature_selection,
             n_top_features=args.n_top_features,
+            spatial_imputation=args.spatial_imputation,
+            roi_based_selection=args.roi_based_selection,
+            harmonize_scanners=args.harmonize_scanners,
         )
         
         # Extract target if specified
@@ -740,20 +1534,16 @@ def main():
                 logging.info(f"Using {args.target_variable} as target")
         
         # Process data
-        X_processed = preprocessor.fit_transform(
+        X_processed, preprocessor, metadata = preprocess_neuroimaging_data(
             inspector.raw_data['X_list'],
             inspector.raw_data['view_names'],
-            y
+            config,
+            data_dir=args.data_dir,
+            y=y
         )
         
         # Show results
-        logging.info("\n=== PREPROCESSING RESULTS ===")
-        for i, view_name in enumerate(inspector.raw_data['view_names']):
-            orig_shape = inspector.raw_data['X_list'][i].shape
-            proc_shape = X_processed[i].shape
-            reduction = proc_shape[1] / orig_shape[1]
-            
-            logging.info(f"{view_name}: {orig_shape} → {proc_shape} ({reduction:.1%} features retained)")
+        logging.info("\n" + summarize_preprocessing_results(metadata))
         
         if args.create_plots:
             inspector.create_inspection_plots(args.output_dir)
@@ -766,3 +1556,4 @@ if __name__ == "__main__":
 else:
     # Runs when the module is imported
     logging.info("Preprocessing module imported successfully")
+    check_preprocessing_compatibility()
