@@ -7,12 +7,14 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 
-def cleanup_memory():
+def cleanup_memory(aggressive=False):
     """
-    Clean up JAX and matplotlib memory to prevent memory leaks.
+    Enhanced memory cleanup for long-running analyses.
     
-    This function should be called periodically during long-running analyses
-    or after completing major computational tasks.
+    Parameters
+    ----------
+    aggressive : bool
+        If True, perform more aggressive cleanup (slower but more thorough)
     """
     import gc
     
@@ -24,22 +26,55 @@ def cleanup_memory():
     except ImportError:
         pass
     
-    # Force garbage collection
-    collected = gc.collect()
-    if collected > 0:
-        logging.debug(f"Garbage collected {collected} objects")
-    
-    # Clear JAX compilation cache if available and needed
+    # Clear JAX compilation cache if needed
     try:
         import jax
-        # Note: JAX manages its own memory fairly well, but we can clear backends if needed
-        # Only do this if memory issues are detected
-        # jax.clear_backends()  # Uncomment only if memory issues persist
-        logging.debug("JAX memory management completed")
+        if aggressive:
+            # Clear compiled functions (expensive but frees more memory)
+            jax.clear_backends()
+            logging.debug("Cleared JAX backends")
     except ImportError:
         pass
-    except Exception as e:
-        logging.debug(f"JAX cleanup warning: {e}")
+    
+    # Force garbage collection multiple times for better cleanup
+    collected_total = 0
+    for _ in range(3 if aggressive else 1):
+        collected = gc.collect()
+        collected_total += collected
+    
+    if collected_total > 0:
+        logging.debug(f"Garbage collected {collected_total} objects")
+    
+    # Log current memory usage if possible
+    try:
+        import psutil
+        import os
+        process = psutil.Process(os.getpid())
+        memory_mb = process.memory_info().rss / 1024 / 1024
+        logging.debug(f"Current memory usage: {memory_mb:.1f} MB")
+    except ImportError:
+        pass
+
+def cleanup_mcmc_samples(samples, keep_keys=None):
+    """
+    Clean up MCMC samples to keep only essential results.
+    Use this after saving full samples to disk.
+    """
+    if keep_keys is None:
+        keep_keys = ['W', 'Z', 'exp_logdensity', 'time_elapsed']
+    
+    cleaned = {}
+    for key in keep_keys:
+        if key in samples:
+            cleaned[key] = samples[key]
+    
+    # Clear original samples dict
+    samples.clear()
+    
+    # Force cleanup
+    cleanup_memory(aggressive=True)
+    
+    return cleaned
 
 @contextlib.contextmanager
 def safe_plotting_context():
@@ -142,68 +177,87 @@ def check_available_memory():
         logging.debug(f"Memory check failed: {e}")
         return float('inf')
 
-def estimate_memory_requirements(n_subjects, n_features, n_factors, n_chains, n_samples):
+def estimate_memory_requirements(n_subjects, n_features, n_factors, n_chains, n_samples, 
+                               safety_factor=2.0, max_memory_gb=32):
     """
-    Estimate memory requirements for the analysis.
+    Enhanced memory estimation with safety checks and limits.
     
     Parameters
     ----------
-    n_subjects : int
-        Number of subjects
-    n_features : int
-        Total number of features across all views
-    n_factors : int
-        Number of latent factors
-    n_chains : int
-        Number of MCMC chains
-    n_samples : int
-        Number of MCMC samples per chain
-    
-    Returns
-    -------
-    estimated_gb : float
-        Estimated memory requirement in GB
+    safety_factor : float
+        Multiply estimate by this factor for safety margin
+    max_memory_gb : float
+        Maximum allowed memory usage in GB
     """
-    
-    # Rough estimates based on typical usage patterns
-    # These are conservative estimates
     
     # Data storage: X matrices
     data_memory = n_subjects * n_features * 8  # float64
     
-    # MCMC samples: W, Z, and other parameters
+    # MCMC samples: W, Z, and other parameters  
     W_memory = n_features * n_factors * n_chains * n_samples * 8
     Z_memory = n_subjects * n_factors * n_chains * n_samples * 8
-    other_params_memory = (n_features + n_subjects) * n_factors * n_chains * n_samples * 8 * 0.5  # other parameters
+    other_params_memory = (n_features + n_subjects) * n_factors * n_chains * n_samples * 8 * 0.5
     
     # Working memory (JAX compilation, intermediate calculations)
-    working_memory = (data_memory + W_memory + Z_memory) * 2  # Conservative multiplier
+    working_memory = (data_memory + W_memory + Z_memory) * 1.5
     
-    total_bytes = data_memory + W_memory + Z_memory + other_params_memory + working_memory
+    total_bytes = (data_memory + W_memory + Z_memory + other_params_memory + working_memory) * safety_factor
     estimated_gb = total_bytes / (1024**3)
     
-    logging.info(f"Estimated memory requirements:")
+    logging.info(f"Enhanced memory estimation:")
     logging.info(f"  Data: {data_memory/(1024**3):.2f} GB")
     logging.info(f"  MCMC samples: {(W_memory + Z_memory + other_params_memory)/(1024**3):.2f} GB")
     logging.info(f"  Working memory: {working_memory/(1024**3):.2f} GB")
-    logging.info(f"  Total estimated: {estimated_gb:.2f} GB")
+    logging.info(f"  Total (with {safety_factor}x safety): {estimated_gb:.2f} GB")
     
-    # Provide recommendations
+    # CRITICAL CHECK - Raise error if too much memory
+    if estimated_gb > max_memory_gb:
+        raise MemoryError(
+            f"Estimated memory requirement ({estimated_gb:.1f} GB) exceeds limit ({max_memory_gb} GB).\n"
+            f"Suggestions:\n"
+            f"  - Reduce --num-samples (current: {n_samples})\n"
+            f"  - Reduce --num-chains (current: {n_chains})\n"
+            f"  - Reduce --K factors (current: {n_factors})\n"
+            f"  - Use feature selection to reduce features (current: {n_features})\n"
+            f"  - Run on a high-memory system or use --quick_cv mode"
+        )
+    
+    # Warnings for high memory usage
     if estimated_gb > 16:
         logging.warning(
-            f"High memory requirement ({estimated_gb:.1f} GB). Consider:"
-            "\n  - Reducing number of samples (--num-samples)"
-            "\n  - Reducing number of chains (--num-chains)"
-            "\n  - Using feature selection to reduce features"
-            "\n  - Running on a high-memory system"
-        )
-    elif estimated_gb > 8:
-        logging.info(
-            f"Moderate memory requirement ({estimated_gb:.1f} GB). "
-            "Ensure sufficient RAM is available."
+            f"High memory requirement ({estimated_gb:.1f} GB). Monitor system resources closely."
         )
     
     return estimated_gb
+
+def check_memory_before_analysis(args, X_list):
+    """
+    Check memory requirements before starting analysis.
+    Call this early in main() function.
+    """
+    if not X_list:
+        return
+        
+    n_subjects = X_list[0].shape[0]
+    n_features = sum(X.shape[1] for X in X_list)
+    
+    # Check different scenarios
+    scenarios = [
+        ("Standard Analysis", args.num_samples, args.num_chains),
+        ("CV Analysis", 1000, 2),  # Reduced for CV
+    ]
+    
+    for scenario_name, samples, chains in scenarios:
+        try:
+            estimated = estimate_memory_requirements(
+                n_subjects, n_features, args.K, chains, samples,
+                max_memory_gb=64  # Higher limit for check, will warn
+            )
+            logging.info(f"{scenario_name} memory estimate: {estimated:.1f} GB")
+        except MemoryError as e:
+            logging.error(f"{scenario_name} will likely fail: {e}")
+            if not getattr(args, 'force_run', False):
+                raise
 
 def ensure_directory(path):
     """
@@ -322,14 +376,16 @@ def get_model_files(results_dir, run_id):
     
     return files
 
-def safe_pickle_load(filepath, description="File"):
+def safe_pickle_load(filepath, max_retries=3, description="File"):
     """
-    Safely load pickle file with error handling.
+    Safely load pickle file with error handling and backup support.
     
     Parameters
     ----------
     filepath : str or Path
         Path to pickle file
+    max_retries : int
+        Maximum number of retry attempts
     description : str
         Description for error messages
         
@@ -341,6 +397,7 @@ def safe_pickle_load(filepath, description="File"):
     import pickle
     
     filepath = Path(filepath)
+    backup_suffix = ".backup"  # Define backup suffix
     
     if not filepath.exists():
         logging.error(f"{description} not found: {filepath}")
@@ -350,14 +407,97 @@ def safe_pickle_load(filepath, description="File"):
         logging.error(f"{description} is empty or corrupted: {filepath}")
         return None
     
+    # Try loading main file
+    for attempt in range(max_retries):
+        try:
+            with open(filepath, 'rb') as f:
+                data = pickle.load(f)
+            
+            # Validate the loaded data
+            if data is None:
+                raise ValueError("Loaded data is None")
+                
+            logging.debug(f"Successfully loaded {description}: {filepath}")
+            return data
+            
+        except (pickle.PickleError, EOFError, ValueError) as e:
+            logging.warning(f"Attempt {attempt + 1} failed to load {description}: {e}")
+            
+            if attempt < max_retries - 1:
+                # Try backup file if it exists
+                backup_path = filepath.with_suffix(filepath.suffix + backup_suffix)
+                if backup_path.exists():
+                    logging.info(f"Trying backup file: {backup_path}")
+                    filepath = backup_path
+                    continue
+            else:
+                logging.error(f"All {max_retries} attempts failed to load {description}")
+                
+        except Exception as e:
+            logging.error(f"Unexpected error loading {description}: {e}")
+            break
+    
+    return None
+
+def safe_pickle_save_with_backup(data, filepath, description="File"):
+    """
+    Save pickle with atomic write and backup creation.
+    
+    Parameters
+    ----------
+    data : object
+        Data to save
+    filepath : str or Path
+        Path to save file
+    description : str
+        Description for logging
+        
+    Returns
+    -------
+    success : bool
+        True if saved successfully
+    """
+    import pickle
+    import shutil
+
+    filepath = Path(filepath)
+    temp_path = filepath.with_suffix(filepath.suffix + ".tmp")
+    backup_path = filepath.with_suffix(filepath.suffix + ".backup")
+    
+    # Ensure directory exists
+    ensure_directory(filepath.parent)
+    
     try:
-        with open(filepath, 'rb') as f:
-            data = pickle.load(f)
-        logging.debug(f"Successfully loaded {description}: {filepath}")
-        return data
+        # Create backup if original exists
+        if filepath.exists() and filepath.stat().st_size > 5:
+            shutil.copy2(filepath, backup_path)
+            logging.debug(f"Created backup: {backup_path}")
+        
+        # Write to temporary file first (atomic write)
+        with open(temp_path, 'wb') as f:
+            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        
+        # Verify the written file
+        with open(temp_path, 'rb') as f:
+            test_load = pickle.load(f)
+        
+        # If verification passed, move temp to final location
+        temp_path.rename(filepath)
+        
+        logging.debug(f"Successfully saved {description}: {filepath}")
+        return True
+        
     except Exception as e:
-        logging.error(f"Failed to load {description} from {filepath}: {e}")
-        return None
+        logging.error(f"Failed to save {description} to {filepath}: {e}")
+        
+        # Cleanup failed temp file
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except:
+                pass
+        
+        return False
 
 def safe_pickle_save(data, filepath, description="File"):
     """
@@ -489,6 +629,29 @@ def get_relative_path(filepath, base_path):
         return str(Path(filepath).resolve())
 
 def get_robustK(thrs, args, params, d_comps):
+    """
+    Identify robust components across multiple MCMC chains.
+    
+    Parameters
+    ----------
+    thrs : dict
+        Thresholds for component matching
+    args : object
+        Arguments containing model parameters
+    params : dict
+        MCMC parameter samples
+    d_comps : list
+        Components in data space
+        
+    Returns
+    -------
+    rob_params : dict
+        Robust parameters
+    X_rob : list
+        Robust components
+    success : bool
+        Whether robust components were found
+    """
     logging.info("Running get_robustK")
     #Initialize parameters
     ncomps = args.K
@@ -632,7 +795,25 @@ def get_robustK(thrs, args, params, d_comps):
     return rob_params, X_rob, success
 
 def get_infparams(samples, hypers, args):
-
+    """
+    Extract inferred parameters from MCMC samples.
+    
+    Parameters
+    ----------
+    samples : dict
+        MCMC samples
+    hypers : dict
+        Hyperparameters
+    args : object
+        Arguments containing model parameters
+        
+    Returns
+    -------
+    params : dict
+        Inferred parameters
+    d_comps : list
+        Components in data space
+    """
     #Get inferred parameters
     nchs, nsamples= args.num_chains, args.num_samples
     N = samples['Z'].shape[1]
