@@ -31,16 +31,31 @@ logging.basicConfig(
 )
 logging.info('Starting run_analysis.py')
 
-# == CONDITIONAL IMPORTS ==
-# Import CV module only when needed to avoid dependency issues
+# == ENHANCED CONDITIONAL IMPORTS ==
+# Import CV module with better error handling and feature detection
 CV_AVAILABLE = False
+NEUROIMAGING_CV_AVAILABLE = False
+
 try:
     from cross_validation import (
         SparseBayesianGFACrossValidator, 
         CVConfig
     )
     CV_AVAILABLE = True
-    logging.info("Cross-validation module available")
+    logging.info("Basic cross-validation module available")
+    
+    # Check for neuroimaging-specific features
+    try:
+        from cross_validation import (
+            NeuroImagingCrossValidator,
+            NeuroImagingCVConfig,
+            ParkinsonsConfig
+        )
+        NEUROIMAGING_CV_AVAILABLE = True
+        logging.info("Neuroimaging-aware cross-validation available")
+    except ImportError:
+        logging.info("Basic CV available, but neuroimaging features not found")
+        
 except ImportError:
     logging.info("Cross-validation module not available - will run standard analysis only")
 
@@ -53,28 +68,13 @@ except ImportError:
     FACTOR_MAPPING_AVAILABLE = False
     logging.info("Factor-to-MRI mapping module not available")
 
-# == UTILITY FUNCTIONS ==
+# == ENHANCED VALIDATION FUNCTION ==
 def validate_and_setup_args(args):
     """
-    Validate arguments and setup derived parameters with helpful error messages.
-    
-    Parameters
-    ----------
-    args : argparse.Namespace
-        Command line arguments
-        
-    Returns
-    -------
-    args : argparse.Namespace
-        Validated and potentially modified arguments
-        
-    Raises
-    ------
-    ValueError : For invalid parameter values
-    RuntimeError : For incompatible parameter combinations
+    Enhanced validation with cross-validation specific checks.
     """
     
-    # Validate core model parameters
+    # Validate core model parameters (existing code...)
     if args.K <= 0:
         raise ValueError(f"Invalid number of factors K={args.K}. Must be positive integer (e.g., K=10).")
     
@@ -107,6 +107,7 @@ def validate_and_setup_args(args):
     if args.dataset not in ['qmap_pd', 'synthetic']:
         raise ValueError(f"Invalid dataset='{args.dataset}'. Must be 'qmap_pd' or 'synthetic'.")
     
+    # == ENHANCED CV VALIDATION ==
     # Check for conflicting parameter combinations
     if getattr(args, 'cv_only', False) and not CV_AVAILABLE:
         raise RuntimeError(
@@ -114,9 +115,47 @@ def validate_and_setup_args(args):
             "Please install cross-validation dependencies or run without --cv_only."
         )
     
+    if getattr(args, 'neuroimaging_cv', False) and not NEUROIMAGING_CV_AVAILABLE:
+        logging.warning(
+            "Neuroimaging CV requested but not available. Falling back to basic CV if available."
+        )
+        args.neuroimaging_cv = False
+        if CV_AVAILABLE:
+            args.run_cv = True
+    
     if getattr(args, 'nested_cv', False) and not getattr(args, 'run_cv', False) and not getattr(args, 'cv_only', False):
         logging.warning("--nested_cv specified but neither --run_cv nor --cv_only set. Enabling --run_cv.")
         args.run_cv = True
+    
+    # Validate neuroimaging CV parameters
+    if getattr(args, 'neuroimaging_cv', False):
+        valid_neuro_cv_types = ['clinical_stratified', 'site_aware', 'standard']
+        if getattr(args, 'neuro_cv_type', 'clinical_stratified') not in valid_neuro_cv_types:
+            raise ValueError(f"Invalid neuro_cv_type. Must be one of: {valid_neuro_cv_types}")
+    
+    # Check CV type compatibility with data
+    if getattr(args, 'cv_type', None) and args.dataset == 'synthetic':
+        if args.cv_type in ['clinical_stratified', 'site_aware']:
+            logging.warning(f"CV type {args.cv_type} not suitable for synthetic data. Using 'standard'.")
+            args.cv_type = 'standard'
+    
+    # Memory and computational warnings for CV
+    if getattr(args, 'run_cv', False) or getattr(args, 'cv_only', False):
+        cv_memory_factor = getattr(args, 'cv_folds', 5)
+        if args.num_chains > 1 and cv_memory_factor > 3:
+            logging.warning(
+                f"CV with {cv_memory_factor} folds and {args.num_chains} chains may require significant memory. "
+                f"Consider reducing --cv_folds or --num_chains."
+            )
+    
+    # Cross-validation specific memory estimation
+    if getattr(args, 'run_cv', False) and args.dataset == 'qmap_pd':
+        expected_cv_time = (args.num_samples + args.num_warmup) * args.num_chains * getattr(args, 'cv_folds', 5)
+        if expected_cv_time > 50000:  # Rough threshold
+            logging.warning(
+                f"Cross-validation may take very long ({expected_cv_time/1000:.1f}K total MCMC iterations). "
+                f"Consider using --quick_cv or reducing parameters."
+            )
     
     if getattr(args, 'create_factor_maps', False) and not FACTOR_MAPPING_AVAILABLE:
         logging.warning(
@@ -197,6 +236,9 @@ def validate_and_setup_args(args):
         cv_folds = getattr(args, 'cv_folds', 5)
         cv_type = getattr(args, 'cv_type', 'standard')
         logging.info(f"Cross-validation: {cv_folds} folds, {cv_type} type")
+        if getattr(args, 'neuroimaging_cv', False):
+            neuro_cv_type = getattr(args, 'neuro_cv_type', 'clinical_stratified')
+            logging.info(f"Neuroimaging CV: {neuro_cv_type}")
         if getattr(args, 'nested_cv', False):
             logging.info("Nested CV enabled for hyperparameter optimization")
     
@@ -204,7 +246,7 @@ def validate_and_setup_args(args):
     
     return args
 
-# == MODEL CODE ==
+# == MODEL CODE (UNCHANGED) ==
 def models(X_list, hypers, args):
     """Sparse GFA model with optional regularized horseshoe priors."""
     logging.debug(f"Running models with M={args.num_sources}, N={X_list[0].shape[0]}, Dm={list(hypers['Dm'])}")
@@ -317,16 +359,51 @@ def run_inference(model, args, rng_key, X_list, hypers):
     #mcmc.print_summary() 
     return mcmc
 
-# == ORCHESTRATION FUNCTIONS ==
+# == ENHANCED CROSS-VALIDATION ORCHESTRATION ==
 
 def run_cross_validation_analysis(args, X_list, hypers, data):
-    """Orchestrate cross-validation analysis using cross_validation.py module."""
-    if not CV_AVAILABLE:
-        logging.error("Cross-validation requested but module not available!")
-        logging.error("Make sure crossvalidation.py and its dependencies are installed")
-        return None
+    """Enhanced orchestration with neuroimaging-aware CV support."""
     
-    logging.info("=== ORCHESTRATING CROSS-VALIDATION ANALYSIS ===")
+    # Determine which CV approach to use
+    if NEUROIMAGING_CV_AVAILABLE and getattr(args, 'neuroimaging_cv', False):
+        return run_neuroimaging_cv_analysis(args, X_list, hypers, data)
+    elif CV_AVAILABLE:
+        return run_basic_cv_analysis(args, X_list, hypers, data)
+    else:
+        logging.error("Cross-validation requested but no CV module available!")
+        return None
+
+def run_neuroimaging_cv_analysis(args, X_list, hypers, data):
+    """Run neuroimaging-aware cross-validation."""
+    logging.info("=== ORCHESTRATING NEUROIMAGING CROSS-VALIDATION ===")
+    
+    # Setup neuroimaging CV configuration
+    config = NeuroImagingCVConfig()
+    config.outer_cv_folds = getattr(args, 'cv_folds', 5)
+    config.random_state = args.seed if args.seed else 42
+    
+    # Setup Parkinson's specific configuration
+    pd_config = ParkinsonsConfig()
+    
+    # Initialize neuroimaging cross-validator
+    cv = NeuroImagingCrossValidator(config, pd_config)
+    
+    # Determine CV type
+    neuro_cv_type = getattr(args, 'neuro_cv_type', 'clinical_stratified')
+    
+    # Run appropriate CV analysis
+    if getattr(args, 'nested_cv', False):
+        logging.info("Running nested neuroimaging cross-validation with hyperparameter optimization")
+        results = cv.nested_neuroimaging_cv(X_list, args, hypers, data, neuro_cv_type)
+    else:
+        logging.info("Running standard neuroimaging cross-validation")
+        results = cv.neuroimaging_cross_validate(X_list, args, hypers, data, neuro_cv_type)
+    
+    return results, cv
+
+def run_basic_cv_analysis(args, X_list, hypers, data):
+    """Run basic cross-validation analysis (fallback)."""
+    logging.info("=== ORCHESTRATING BASIC CROSS-VALIDATION ===")
     
     # Setup CV configuration
     config = CVConfig()
@@ -381,9 +458,11 @@ def should_run_standard_analysis(args):
 
 def should_run_cv_analysis(args):
     """Determine if we should run cross-validation analysis."""
-    return getattr(args, 'run_cv', False) or getattr(args, 'cv_only', False)
+    return (getattr(args, 'run_cv', False) or 
+            getattr(args, 'cv_only', False) or 
+            getattr(args, 'neuroimaging_cv', False))
 
-# == MAIN FUNCTION ==
+# == ENHANCED MAIN FUNCTION ==
 
 def main(args):                           
     
@@ -440,8 +519,15 @@ def main(args):
         logging.info(f"Standard results directory: {standard_res_dir}")
     
     if run_cv:
+        # Enhanced CV directory naming
+        cv_suffix = "_cv"
+        if getattr(args, 'neuroimaging_cv', False):
+            cv_suffix = "_neuroimaging_cv"
+        if getattr(args, 'nested_cv', False):
+            cv_suffix += "_nested"
+            
         cv_res_dir = create_results_structure(
-            results_base, f"{args.dataset}_cv", args.model, flag, f"{flag_regZ}_cv"
+            results_base, f"{args.dataset}_cv", args.model, flag, f"{flag_regZ}{cv_suffix}"
         )
         logging.info(f"CV results directory: {cv_res_dir}")
 
@@ -586,8 +672,12 @@ def main(args):
                 if cv_result is not None:
                     cv_results, cv_object = cv_result
                     
-                    # Save CV results
-                    cv_object.save_results(cv_res_dir, "cv_analysis")
+                    # Enhanced CV results saving
+                    if NEUROIMAGING_CV_AVAILABLE and hasattr(cv_object, 'save_neuroimaging_results'):
+                        cv_object.save_neuroimaging_results(cv_res_dir, "neuroimaging_cv_analysis")
+                    else:
+                        cv_object.save_results(cv_res_dir, "cv_analysis")
+                    
                     logging.info(f"CV results saved to {cv_res_dir}")
                     
                     # Create CV visualizations
@@ -700,7 +790,7 @@ def main(args):
             else:
                 visualization.qmap_pd(data, str(standard_res_dir), args, hypers)
 
-    # === COMPREHENSIVE VISUALIZATION ===
+    # === COMPREHENSIVE VISUALIZATION (ENHANCED) ===
     if getattr(args, 'create_comprehensive_viz', False):
         logging.info("=== CREATING COMPREHENSIVE VISUALIZATION ===")
         try:
@@ -719,6 +809,14 @@ def main(args):
                 
                 if cv_results:
                     viz_args['cv_results'] = cv_results
+                    
+                    # Add neuroimaging-specific visualization data
+                    if NEUROIMAGING_CV_AVAILABLE and 'spatial_coherence_scores' in cv_results:
+                        viz_args['neuroimaging_metrics'] = {
+                            'spatial_coherence': cv_results['spatial_coherence_scores'],
+                            'clinical_associations': cv_results.get('clinical_associations', {}),
+                            'subtype_validation': cv_results.get('subtype_validation', {})
+                        }
                 
                 create_all_visualizations(**viz_args)
                 logging.info("Comprehensive visualization created")
@@ -770,7 +868,7 @@ def main(args):
     from utils import cleanup_memory
     cleanup_memory()
 
-    # === LOG FINAL SUMMARY ===
+    # === ENHANCED FINAL SUMMARY ===
     logging.info("=" * 60)
     logging.info("ANALYSIS COMPLETE")
     logging.info("=" * 60)
@@ -780,10 +878,37 @@ def main(args):
     
     if run_cv and cv_results:
         logging.info(f"CV results: {cv_res_dir}")
-        logging.info(f"CV Score: {cv_results.get('mean_cv_score', 'N/A'):.4f} ± {cv_results.get('std_cv_score', 'N/A'):.4f}")
+        
+        # Enhanced CV summary
+        if 'mean_cv_score' in cv_results:
+            cv_score = cv_results['mean_cv_score']
+            cv_std = cv_results.get('std_cv_score', 0)
+            
+            if NEUROIMAGING_CV_AVAILABLE and 'interpretability_scores' in cv_results:
+                logging.info(f"CV Interpretability Score: {cv_score:.4f} ± {cv_std:.4f}")
+                
+                # Log neuroimaging-specific metrics
+                if 'spatial_coherence_scores' in cv_results:
+                    spatial_mean = cv_results['spatial_coherence_scores'].get('mean', 0)
+                    logging.info(f"Spatial Coherence: {spatial_mean:.4f}")
+                
+                if 'subtype_validation' in cv_results:
+                    subtypes = cv_results['subtype_validation']
+                    if 'silhouette_scores' in subtypes:
+                        sil_mean = subtypes['silhouette_scores'].get('mean', 0)
+                        logging.info(f"Subtype Quality (Silhouette): {sil_mean:.4f}")
+            else:
+                logging.info(f"CV Score: {cv_score:.4f} ± {cv_std:.4f}")
     
     if run_standard and run_cv:
         logging.info("Both standard and CV analyses completed - compare results!")
+        
+        # Suggest next steps
+        if NEUROIMAGING_CV_AVAILABLE and cv_results:
+            logging.info("\nSuggested next steps:")
+            logging.info("1. Examine neuroimaging CV report for factor interpretability")
+            logging.info("2. Validate identified subtypes against clinical outcomes")
+            logging.info("3. Consider factor-to-MRI mapping for spatial visualization")
 
 if __name__ == "__main__":
 
@@ -878,17 +1003,22 @@ if __name__ == "__main__":
     neuro_group.add_argument("--min_voxel_distance", type=float, default=3.0,
                            help="Minimum distance in mm between selected voxels")
 
-    # == CROSS-VALIDATION ARGUMENTS ==
+    # == ENHANCED CROSS-VALIDATION ARGUMENTS ==
     cv_group = parser.add_argument_group('Cross-Validation Options')
     cv_group.add_argument("--run_cv", action="store_true",
                          help="Run cross-validation analysis in addition to standard analysis")
     cv_group.add_argument("--cv_only", action="store_true",
                          help="Run ONLY cross-validation analysis (skip standard MCMC)")
+    cv_group.add_argument("--neuroimaging_cv", action="store_true",
+                         help="Use neuroimaging-aware cross-validation (recommended for qMRI data)")
     cv_group.add_argument("--cv_folds", type=int, default=5,
                          help="Number of cross-validation folds")
     cv_group.add_argument("--cv_type", type=str, default="standard",
                          choices=["standard", "stratified", "grouped", "repeated"],
-                         help="Type of cross-validation")
+                         help="Type of cross-validation (basic CV)")
+    cv_group.add_argument("--neuro_cv_type", type=str, default="clinical_stratified",
+                         choices=["clinical_stratified", "site_aware", "standard"],
+                         help="Type of neuroimaging cross-validation")
     cv_group.add_argument("--nested_cv", action="store_true",
                          help="Use nested cross-validation for hyperparameter optimization")
     cv_group.add_argument("--cv_n_jobs", type=int, default=1,
@@ -897,6 +1027,8 @@ if __name__ == "__main__":
                          help="Clinical variable for stratified cross-validation")
     cv_group.add_argument("--cv_group_col", type=str, default=None,
                          help="Clinical variable for grouped cross-validation")
+    cv_group.add_argument("--quick_cv", action="store_true",
+                         help="Use reduced parameters for faster CV (for testing)")
 
     # == FACTOR-TO-MRI MAPPING ARGUMENTS ==
     mapping_group = parser.add_argument_group('Factor-to-MRI Mapping Options')
@@ -912,6 +1044,14 @@ if __name__ == "__main__":
                        help="Create comprehensive visualization combining all analyses")
 
     args = parser.parse_args()
+    
+    # Handle quick_cv option
+    if getattr(args, 'quick_cv', False):
+        args.num_samples = min(1000, args.num_samples)
+        args.num_warmup = min(500, args.num_warmup)
+        args.num_chains = 1
+        args.cv_folds = 3
+        logging.info("Quick CV mode: reduced parameters for faster execution")
     
     # Set the seed for reproducibility
     if args.seed is not None:
