@@ -1,0 +1,152 @@
+# Remote Workstation Configuration
+# Optimized for GPU computing with larger datasets
+
+# System Configuration
+system:
+  device: "gpu"  # University has GPU resources
+  batch_size: 64  # Larger batches with more GPU memory
+  num_workers: 8  # More CPU cores available
+  memory_limit_gb: 32  # Assume decent GPU memory
+  use_mixed_precision: true
+  checkpoint_every_n_epochs: 10
+
+# Data Configuration  
+data:
+  data_dir: "/data/qMAP-PD_data"  # Update this path for UCL
+  cache_preprocessed: true
+  use_memmap: true  # For large datasets
+  validation_split: 0.2
+  test_split: 0.1
+  random_seed: 42
+
+# Experimental Framework Configuration
+experiments:
+  base_output_dir: "./remote_workstation_experiment_results"
+  save_intermediate: true
+  generate_plots: true
+  save_models: true
+  
+  # Comprehensive experiment suite
+  run_experiments:
+    - "data_validation"
+    - "method_comparison"  
+    - "sensitivity_analysis"
+    - "performance_benchmarks"
+    - "reproducibility_tests"
+    - "clinical_validation"
+
+# Data Validation Experiments
+data_validation:
+  preprocessing_strategies:
+    minimal:
+      enable_advanced_preprocessing: false
+      imputation_strategy: "mean"
+    
+    standard:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "variance"
+      variance_threshold: 0.01
+    
+    aggressive:
+      enable_advanced_preprocessing: true
+      enable_spatial_processing: true
+      imputation_strategy: "knn"
+      feature_selection_method: "mutual_info"
+      n_top_features: 1000
+      spatial_imputation: true
+      roi_based_selection: true
+    
+    clinical_focused:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "variance"
+      variance_threshold: 0.1  # More aggressive for clinical
+      harmonize_scanners: true
+
+# Method Comparison Configuration
+method_comparison:
+  models:
+    - name: "sparseGFA"
+      n_factors: [5, 10, 15, 20]
+      sparsity_lambda: [0.1, 0.5, 1.0]
+      group_lambda: [0.1, 0.5, 1.0]
+    
+    - name: "standardGFA" 
+      n_factors: [5, 10, 15, 20]
+      
+    - name: "neuroGFA"
+      n_factors: [10, 15, 20]
+      spatial_regularization: [0.1, 0.5]
+      
+  cross_validation:
+    n_folds: 5
+    n_repeats: 3
+    stratify: true
+    
+  evaluation_metrics:
+    - "reconstruction_error"
+    - "factor_interpretability"  
+    - "clinical_correlation"
+    - "spatial_consistency"
+
+# Performance Benchmarks
+performance_benchmarks:
+  benchmark_configs:
+    small_scale:
+      n_subjects: 50
+      n_features_per_view: [500, 1000, 200, 17]
+      
+    medium_scale:
+      n_subjects: 100
+      n_features_per_view: [1000, 2000, 500, 17]
+      
+    full_scale:
+      n_subjects: 200
+      n_features_per_view: [2000, 5000, 1000, 17]
+      
+  metrics_to_track:
+    - "training_time"
+    - "memory_usage"
+    - "gpu_utilization"
+    - "convergence_rate"
+
+# Sensitivity Analysis
+sensitivity_analysis:
+  parameter_ranges:
+    n_factors: [5, 10, 15, 20, 25]
+    sparsity_lambda: [0.01, 0.1, 0.5, 1.0, 2.0]
+    learning_rate: [0.001, 0.005, 0.01, 0.05]
+    batch_size: [16, 32, 64, 128]
+    
+  stability_tests:
+    n_random_inits: 10
+    convergence_threshold: 1e-6
+
+# Model Training Configuration
+training:
+  max_epochs: 1000
+  early_stopping_patience: 50
+  learning_rate: 0.01
+  optimizer: "adam"
+  gradient_clip_norm: 1.0
+  
+  mcmc_config:
+    num_warmup: 1000
+    num_samples: 2000
+    num_chains: 4
+    target_accept_prob: 0.8
+    
+# Logging and Monitoring
+logging:
+  level: "INFO"
+  log_to_file: true
+  log_file: "ucl_experiments.log"
+  track_metrics: true
+  tensorboard: true
+  
+monitoring:
+  check_gpu_usage: true
+  profile_memory: true
+  save_checkpoints: true
+  checkpoint_dir: "./checkpoints"
