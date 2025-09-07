@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"""Debug clinical feature variances."""
+"""
+Clinical Feature Analysis Tool
+Analyzes variance and selection behavior of clinical features in qMAP-PD dataset.
+"""
 
 import sys
 import numpy as np
