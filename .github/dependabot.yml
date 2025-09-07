@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    assignees:
+      - "meeramads"  # Replace with your GitHub username
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+    labels:
+      - "dependencies"
+      - "automated"
+    
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    assignees:
+      - "meeramads"  # Replace with your GitHub username
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "github-actions"
+      - "automated"

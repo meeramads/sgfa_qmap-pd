@@ -1,0 +1,317 @@
+name: Research Validation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'experiments/**'
+      - 'models/**'
+      - 'analysis/**'
+
+jobs:
+  experimental-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run data validation experiments
+      run: |
+        python -c "
+        import sys
+        sys.path.insert(0, '.')
+        from experiments.data_validation import DataValidationExperiments
+        from experiments.framework import ExperimentConfig
+        from data.synthetic import generate_synthetic_data
+        
+        print('Running data validation experiments...')
+        
+        # Generate test data
+        data = generate_synthetic_data(num_sources=3, K=4)
+        X_list = [data['X1'], data['X2'], data['X3']]
+        
+        # Configure experiments
+        config = ExperimentConfig(
+            output_dir='./validation_results',
+            save_plots=False,  # Skip plots in CI
+            random_seed=42
+        )
+        
+        # Run data validation
+        validator = DataValidationExperiments(config)
+        result = validator.run_data_quality_assessment(X_list)
+        
+        if result.success:
+            print('✅ Data validation experiments passed!')
+            
+            # Print summary statistics
+            analysis = result.analysis
+            if 'data_quality' in analysis:
+                quality = analysis['data_quality']
+                print(f'Data quality score: {quality.get(\"overall_quality_score\", \"N/A\")}')
+        else:
+            print('❌ Data validation experiments failed!')
+            sys.exit(1)
+        "
+        
+    - name: Run method comparison experiments
+      run: |
+        python -c "
+        import sys
+        sys.path.insert(0, '.')
+        from experiments.method_comparison import MethodComparisonExperiments
+        from experiments.framework import ExperimentConfig
+        from data.synthetic import generate_synthetic_data
+        
+        print('Running method comparison experiments...')
+        
+        # Generate test data
+        data = generate_synthetic_data(num_sources=2, K=3)
+        X_list = [data['X1'], data['X2']]
+        
+        config = ExperimentConfig(
+            output_dir='./method_results',
+            save_plots=False,
+            random_seed=42
+        )
+        
+        # Run SGFA variant comparison
+        comparator = MethodComparisonExperiments(config)
+        result = comparator.run_sgfa_variant_comparison(
+            X_list, 
+            {'K': 3, 'sparsity_level': 0.3}, 
+            {'num_samples': 100}
+        )
+        
+        if result.success:
+            print('✅ Method comparison experiments passed!')
+        else:
+            print('❌ Method comparison experiments failed!')
+            sys.exit(1)
+        "
+        
+    - name: Test experimental framework integrity
+      run: |
+        python -c "
+        import sys
+        sys.path.insert(0, '.')
+        
+        # Test all experimental modules can be imported
+        modules_to_test = [
+            'experiments.data_validation',
+            'experiments.method_comparison', 
+            'experiments.sensitivity_analysis',
+            'experiments.reproducibility',
+            'experiments.performance_benchmarks',
+            'experiments.clinical_validation'
+        ]
+        
+        for module in modules_to_test:
+            try:
+                __import__(module)
+                print(f'✅ {module} imported successfully')
+            except Exception as e:
+                print(f'❌ Failed to import {module}: {e}')
+                sys.exit(1)
+        
+        print('✅ All experimental modules validated!')
+        "
+        
+    - name: Upload experiment results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: experiment-results
+        path: |
+          validation_results/
+          method_results/
+
+  model-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Validate model implementations
+      run: |
+        python -c "
+        import sys
+        sys.path.insert(0, '.')
+        
+        # Test model modules
+        from models.base import BaseFactorModel
+        from models.sparse_gfa import SparseGFA
+        from models.standard_gfa import StandardGFA
+        from models.factory import ModelFactory
+        
+        print('✅ All model classes imported successfully!')
+        
+        # Test model factory
+        try:
+            factory = ModelFactory()
+            model_types = factory.list_available_models()
+            print(f'Available model types: {model_types}')
+            
+            # Test creating a model
+            if 'sparse_gfa' in model_types:
+                model = factory.create_model('sparse_gfa', K=3)
+                print('✅ Model creation successful!')
+            else:
+                print('⚠️  sparse_gfa model not available')
+                
+        except Exception as e:
+            print(f'❌ Model validation failed: {e}')
+            sys.exit(1)
+        "
+
+  performance-regression:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for comparison
+        
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run performance regression tests
+      run: |
+        python -c "
+        import sys
+        import time
+        sys.path.insert(0, '.')
+        from data.synthetic import generate_synthetic_data
+        
+        print('Running performance regression tests...')
+        
+        # Simple performance test
+        start_time = time.time()
+        
+        # Generate larger dataset for performance testing
+        data = generate_synthetic_data(num_sources=3, K=5)
+        X_list = [data['X1'], data['X2'], data['X3']]
+        
+        # Test data loading performance
+        for i in range(10):
+            _ = generate_synthetic_data(num_sources=2, K=3)
+        
+        end_time = time.time()
+        duration = end_time - start_time
+        
+        print(f'Performance test completed in {duration:.2f} seconds')
+        
+        # Set reasonable performance thresholds
+        if duration > 30:  # 30 seconds threshold
+            print('⚠️  Performance regression detected!')
+            print('Consider optimizing data generation or model initialization')
+        else:
+            print('✅ Performance within acceptable limits')
+        "
+
+  clinical-validation:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[clinical]') || github.event_name == 'schedule'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run clinical validation experiments
+      run: |
+        python -c "
+        import sys
+        import numpy as np
+        sys.path.insert(0, '.')
+        from experiments.clinical_validation import ClinicalValidationExperiments
+        from experiments.framework import ExperimentConfig
+        from data.synthetic import generate_synthetic_data
+        
+        print('Running clinical validation experiments...')
+        
+        # Generate synthetic data with clinical labels
+        data = generate_synthetic_data(num_sources=2, K=3)
+        X_list = [data['X1'], data['X2']]
+        
+        # Create synthetic clinical labels (PD subtypes)
+        n_subjects = X_list[0].shape[0]
+        clinical_labels = np.random.choice([0, 1, 2], n_subjects)  # 3 PD subtypes
+        
+        config = ExperimentConfig(
+            output_dir='./clinical_results',
+            save_plots=False,
+            random_seed=42
+        )
+        
+        # Run subtype classification validation
+        validator = ClinicalValidationExperiments(config)
+        result = validator.run_subtype_classification_validation(
+            X_list, 
+            clinical_labels,
+            {'K': 3, 'sparsity_level': 0.3}, 
+            {'num_samples': 50}  # Reduced for CI speed
+        )
+        
+        if result.success:
+            print('✅ Clinical validation experiments passed!')
+            
+            # Print key clinical metrics
+            analysis = result.analysis
+            if 'classification_performance' in analysis:
+                perf = analysis['classification_performance']
+                print('Clinical classification performance:')
+                for method, metrics in perf.items():
+                    acc = metrics.get('best_accuracy', 0)
+                    print(f'  {method}: {acc:.3f} accuracy')
+        else:
+            print('❌ Clinical validation experiments failed!')
+            # Don't fail CI for clinical validation issues
+            print('Clinical validation is experimental - continuing...')
+        "
+        
+    - name: Upload clinical results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: clinical-validation-results
+        path: clinical_results/

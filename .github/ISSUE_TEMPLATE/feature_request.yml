@@ -1,0 +1,89 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEATURE] "
+labels: ["enhancement", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please provide details about your idea.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What type of feature is this?
+      options:
+        - New Analysis Method
+        - Data Processing Enhancement
+        - Visualization Improvement
+        - Performance Optimization
+        - Clinical Validation Tool
+        - Experimental Framework
+        - Documentation
+        - Developer Experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve?
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution
+      placeholder: I would like to see...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Any alternative solutions or features you've considered
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Low - Nice to have
+        - Medium - Would improve workflow
+        - High - Critical for my research
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: research_impact
+    attributes:
+      label: Research Impact
+      description: How would this feature impact research?
+      options:
+        - label: Improves analysis accuracy
+        - label: Increases computational efficiency  
+        - label: Enables new research questions
+        - label: Improves reproducibility
+        - label: Enhances clinical applicability
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Describe a specific use case for this feature
+      placeholder: In my research on Parkinson's disease subtypes, I need to...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or examples

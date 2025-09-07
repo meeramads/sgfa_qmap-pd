@@ -57,6 +57,11 @@ build/
 dist/
 *.egg-info/
 
+# Documentation build
+docs/_build/
+docs/_static/
+docs/_templates/
+
 # --- allow tracked data for this project ---
 !qMAP-PD_data/
 !qMAP-PD_data/**/*.tsv

@@ -1,0 +1,84 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[BUG] "
+labels: ["bug", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please provide as much detail as possible.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      options:
+        - Data Loading (data/)
+        - Analysis Pipeline (analysis/)  
+        - Models (models/)
+        - Cross-validation
+        - Preprocessing
+        - Visualization
+        - Performance Optimization
+        - Experiments Framework
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear description of what the bug is
+      placeholder: Describe the bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Load data with...
+        2. Run analysis with...
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please complete the following information
+      value: |
+        - OS: [e.g. Ubuntu 20.04, macOS 12.0]
+        - Python Version: [e.g. 3.10.2]
+        - JAX Version: [e.g. 0.4.20]
+        - NumPyro Version: [e.g. 0.13.2]
+        - Installation Method: [pip, conda, from source]
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_logs
+    attributes:
+      label: Error Logs
+      description: Any relevant error messages or logs
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem
