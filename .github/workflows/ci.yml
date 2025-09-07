@@ -168,9 +168,9 @@ jobs:
         )
         
         if result.success:
-            print('✅ Reproducibility tests passed!')
+            print('PASSED Reproducibility tests passed!')
         else:
-            print('❌ Reproducibility tests failed!')
+            print('FAILED Reproducibility tests failed!')
             sys.exit(1)
         "
 
@@ -226,10 +226,10 @@ jobs:
         
         for section in required_sections:
             if section not in readme:
-                print(f'❌ Missing section: {section}')
+                print(f'FAILED Missing section: {section}')
                 exit(1)
         
-        print('✅ Documentation validation passed!')
+        print('PASSED Documentation validation passed!')
         "
 
   security:

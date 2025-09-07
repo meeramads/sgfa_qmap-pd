@@ -2,7 +2,7 @@
 
 Python implementation of Sparse Group Factor Analysis (SGFA) designed to identify latent disease factors that capture associations between various neuroimaging data modalities within Parkinson's disease population subgroups. This project applies and adapts this model to the qMAP-PD (https://qmaplab.com/qmap-pd) study dataset.
 
-## 🚀 Features
+## Features
 
 - **Multi-view Factor Analysis**: Handles multiple neuroimaging modalities simultaneously
 - **Sparsity & Grouping**: Implements both sparse and group penalties for interpretable results
@@ -10,7 +10,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 - **Comprehensive Testing**: Extensive experimental validation framework
 - **Clinical Validation**: Built-in tools for clinical subtype analysis and biomarker discovery
 
-## 📁 Project Structure
+## Project Structure
 
 ### Core Modules
 - **[get_data.py](get_data.py)**: High-level interface to load datasets or generate synthetic data
@@ -51,12 +51,12 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 - **[models/](models/)**: Model definitions and variants
 - **[tests/](tests/)**: Comprehensive test suite
 
-## 🛠️ Installation
+## Installation
 
 ### Basic Installation
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/meeramads/sgfa_qmap-pd
 cd sgfa_qmap-pd
 
 # Create and activate virtual environment
@@ -79,7 +79,7 @@ pytest
 pytest --cov=. --cov-report=html
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Basic Analysis
 ```python
@@ -118,7 +118,7 @@ validator = DataValidationExperiments(config)
 results = validator.run_comprehensive_data_validation(X_list)
 ```
 
-## 📊 Performance Optimization
+## Performance Optimization
 
 The project includes a comprehensive performance optimization framework:
 
@@ -150,7 +150,7 @@ config = PerformanceConfig().create_preset('fast')              # For speed
 config = PerformanceConfig().create_preset('balanced')          # Balanced approach
 ```
 
-## 🧪 Experimental Validation
+## Experimental Validation
 
 The framework includes comprehensive validation experiments:
 
@@ -179,7 +179,7 @@ python -m experiments.run_all_experiments
 python -c "from experiments import DataValidationExperiments; ..."
 ```
 
-## 🖥️ Running on Colab (GPU)
+## Running on Colab (GPU)
 
 For GPU-accelerated training:
 
@@ -191,7 +191,7 @@ For GPU-accelerated training:
 !py310cuda run_analysis.py --device gpu --K 5 --sparsity_level 0.3
 ```
 
-## 🧪 Testing
+## Testing
 
 Run the comprehensive test suite:
 ```bash
@@ -207,7 +207,7 @@ pytest tests/test_analysis/
 pytest tests/test_performance/
 ```
 
-## 📈 Configuration
+## Configuration
 
 ### Basic Configuration
 ```python
@@ -236,7 +236,7 @@ mcmc:
   enable_checkpointing: true
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -247,11 +247,11 @@ mcmc:
 7. Push to the branch (`git push origin feature/amazing-feature`)
 8. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 References
+## References
 
 - qMAP-PD Study: https://qmaplab.com/qmap-pd
 - JAX Documentation: https://jax.readthedocs.io/

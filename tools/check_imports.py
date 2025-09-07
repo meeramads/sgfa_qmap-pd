@@ -209,12 +209,12 @@ def main():
     project_root = Path(__file__).parent.parent
     checker = ImportChecker(project_root)
     
-    print("🔍 Comprehensive Import Check")
+    print("Check: Comprehensive Import Check")
     print("=" * 50)
     
     results = checker.check_all_imports()
     
-    print(f"📊 Summary:")
+    print(f"Stats: Summary:")
     print(f"   Files checked: {results['total_files']}")
     print(f"   Total imports: {results['total_imports']}")
     print(f"   Project imports: {results['project_imports']}")
@@ -223,7 +223,7 @@ def main():
     print(f"   Broken imports: {len(results['broken_imports'])}")
     
     if results['broken_imports']:
-        print(f"\n❌ Broken Imports Found:")
+        print(f"\nFAILED: Broken Imports Found:")
         print("-" * 50)
         
         for i, broken in enumerate(results['broken_imports'], 1):
@@ -238,12 +238,12 @@ def main():
                     print(f"     • {suggestion}")
             print()
     else:
-        print(f"\n✅ No broken imports found!")
+        print(f"\nPASSED: No broken imports found!")
         print("   All project imports are working correctly.")
 
     # Summary
     success_rate = (results['successful_imports'] / results['total_imports'] * 100) if results['total_imports'] > 0 else 100
-    print(f"\n📈 Import Success Rate: {success_rate:.1f}%")
+    print(f"\nResults: Import Success Rate: {success_rate:.1f}%")
 
 if __name__ == "__main__":
     main()

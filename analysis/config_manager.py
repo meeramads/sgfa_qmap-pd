@@ -30,10 +30,10 @@ class DependencyStatus:
     def log_status(self):
         """Log the status of dependencies"""
         logging.info("=== DEPENDENCY STATUS ===")
-        logging.info(f"Basic CV: {'✓' if self.cv_available else '✗'}")
-        logging.info(f"Neuroimaging CV: {'✓' if self.neuroimaging_cv_available else '✗'}")
-        logging.info(f"Factor Mapping: {'✓' if self.factor_mapping_available else '✗'}")
-        logging.info(f"Preprocessing: {'✓' if self.preprocessing_available else '✗'}")
+        logging.info(f"Basic CV: {'OK' if self.cv_available else 'MISSING'}")
+        logging.info(f"Neuroimaging CV: {'OK' if self.neuroimaging_cv_available else 'MISSING'}")
+        logging.info(f"Factor Mapping: {'OK' if self.factor_mapping_available else 'MISSING'}")
+        logging.info(f"Preprocessing: {'OK' if self.preprocessing_available else 'MISSING'}")
         logging.info("========================")
 
 

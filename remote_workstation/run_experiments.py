@@ -103,7 +103,7 @@ def run_data_validation(config):
 
 def run_method_comparison(config):
     """Run method comparison experiments."""
-    logger.info("🏁 Starting Method Comparison Experiments")
+    logger.info("Starting Method Comparison Experiments")
     
     try:
         from experiments.framework import ExperimentFramework, ExperimentConfig
@@ -133,7 +133,7 @@ def run_method_comparison(config):
 
 def run_performance_benchmarks(config):
     """Run performance benchmark experiments."""
-    logger.info("⚡ Starting Performance Benchmark Experiments")
+    logger.info("Starting Performance Benchmark Experiments")
     
     try:
         from experiments.framework import ExperimentFramework, ExperimentConfig  
@@ -210,7 +210,7 @@ def main():
     # Override data directory if provided
     if args.data_dir:
         config['data']['data_dir'] = args.data_dir
-        logger.info(f"📁 Using data directory: {args.data_dir}")
+        logger.info(f"Using data directory: {args.data_dir}")
     
     # Setup environment
     setup_environment(config)

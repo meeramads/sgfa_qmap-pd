@@ -10,7 +10,7 @@ This directory contains setups for running the SGFA framework on remote computin
 
 1. **Connect to remote  workstation** and clone the repository:
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/meeramads/sgfa_qmap-pd
    cd sgfa_qmap-pd
    ```
 

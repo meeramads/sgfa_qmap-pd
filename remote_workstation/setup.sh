@@ -4,7 +4,7 @@
 
 set -e  # Exit on any error
 
-echo "🚀 Setting up SGFA qMAP-PD Framework on Remote Workstation"
+echo "Setting up SGFA qMAP-PD Framework on Remote Workstation"
 echo "=================================================="
 
 # Check if we're in the right directory

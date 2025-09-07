@@ -111,10 +111,10 @@ if __name__ == "__main__":
         strategy_results = test_advanced_preprocessing_strategies()
         
         if strategy_results:
-            logger.info(f"\n🎉 Successfully tested {len(strategy_results)} strategies!")
+            logger.info(f"\nSuccess: Successfully tested {len(strategy_results)} strategies!")
             for name in strategy_results.keys():
-                logger.info(f"  ✅ {name}")
+                logger.info(f"  PASSED: {name}")
         else:
-            logger.error("❌ No strategies worked")
+            logger.error("FAILED: No strategies worked")
     else:
-        logger.error("❌ Basic loading failed")
+        logger.error("FAILED: Basic loading failed")

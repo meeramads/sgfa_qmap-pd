@@ -61,9 +61,9 @@ jobs:
         )
         
         if result.success:
-            print('✅ Release benchmarks completed successfully!')
+            print('PASSED Release benchmarks completed successfully!')
         else:
-            print('⚠️  Some benchmarks failed, but continuing with release...')
+            print('WARNING  Some benchmarks failed, but continuing with release...')
         "
         
     - name: Generate comprehensive experimental validation
@@ -122,7 +122,7 @@ jobs:
         
         print('\\n=== RELEASE EXPERIMENTAL VALIDATION SUMMARY ===')
         for exp_name, success in experiments_run:
-            status = '✅ PASSED' if success else '❌ FAILED'
+            status = 'PASSED PASSED' if success else 'FAILED FAILED'
             print(f'{exp_name}: {status}')
         
         # Write summary to file

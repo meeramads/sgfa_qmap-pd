@@ -75,4 +75,4 @@ test-utils:  ## Test utility functions
 
 # Quick smoke test
 smoke-test:  ## Run a quick smoke test to verify basic functionality
-	python -c "from data.synthetic import generate_synthetic_data; print('✓ Synthetic data generation works'); data = generate_synthetic_data(); print(f'✓ Generated data with {len(data[\"X_list\"])} views, {data[\"X_list\"][0].shape[0]} subjects')"
+	python -c "from data.synthetic import generate_synthetic_data; print('Synthetic data generation works'); data = generate_synthetic_data(); print(f'Generated data with {len(data[\"X_list\"])} views, {data[\"X_list\"][0].shape[0]} subjects')"

@@ -2,7 +2,7 @@
 
 This directory contains GitHub Actions workflows for automated testing, validation, and deployment of the SGFA qMAP-PD research project.
 
-## 🚀 Workflows Overview
+## Workflows Overview
 
 ### 1. **CI/CD Pipeline** (`ci.yml`)
 **Triggers:** Push to main/master/develop, Pull requests, Weekly schedule
@@ -40,7 +40,7 @@ This directory contains GitHub Actions workflows for automated testing, validati
 - **Automated dependency updates**
 - **Dependency audit reports**
 
-## 📋 Workflow Details
+## Workflow Details
 
 ### CI/CD Pipeline Jobs
 
@@ -134,7 +134,7 @@ This directory contains GitHub Actions workflows for automated testing, validati
 - **Smoke testing** of updated dependencies
 - **Automated PR creation** with detailed change summaries
 
-## 🔧 Configuration Requirements
+## Configuration Requirements
 
 ### Repository Secrets
 ```
@@ -144,9 +144,9 @@ CODECOV_TOKEN           # For coverage reporting (optional)
 
 ### Branch Protection Rules
 Recommended settings for `main`/`master`:
-- ✅ Require status checks to pass before merging
-- ✅ Require branches to be up to date before merging
-- ✅ Required status checks:
+- Require status checks to pass before merging
+- Require branches to be up to date before merging
+- Required status checks:
   - `test (ubuntu-latest, 3.10)`
   - `test (ubuntu-latest, 3.11)` 
   - `experimental-validation`
@@ -159,7 +159,7 @@ The workflows assume:
 - **JAX/NumPyro** for probabilistic modeling
 - **HDF5 support** for large data handling
 
-## 📊 Monitoring and Reporting
+## Monitoring and Reporting
 
 ### Test Results
 - **Status badges** available for README
@@ -176,7 +176,7 @@ The workflows assume:
 - **License compliance reports**
 - **Dependency audit trails**
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -200,7 +200,7 @@ The workflows assume:
 - **Artifact preservation** for failed runs
 - **Detailed logging** in all steps
 
-## 🔄 Maintenance
+## Maintenance
 
 ### Regular Tasks
 - **Weekly:** Review dependency update PRs
@@ -214,7 +214,7 @@ The workflows assume:
 - **Expand test coverage** as project grows
 - **Optimize CI/CD performance** regularly
 
-## 📚 References
+## References
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [pytest Documentation](https://docs.pytest.org/)

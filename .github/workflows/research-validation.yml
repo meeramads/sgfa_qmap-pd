@@ -55,7 +55,7 @@ jobs:
         result = validator.run_data_quality_assessment(X_list)
         
         if result.success:
-            print('✅ Data validation experiments passed!')
+            print('PASSED Data validation experiments passed!')
             
             # Print summary statistics
             analysis = result.analysis
@@ -63,7 +63,7 @@ jobs:
                 quality = analysis['data_quality']
                 print(f'Data quality score: {quality.get(\"overall_quality_score\", \"N/A\")}')
         else:
-            print('❌ Data validation experiments failed!')
+            print('FAILED Data validation experiments failed!')
             sys.exit(1)
         "
         
@@ -97,9 +97,9 @@ jobs:
         )
         
         if result.success:
-            print('✅ Method comparison experiments passed!')
+            print('PASSED Method comparison experiments passed!')
         else:
-            print('❌ Method comparison experiments failed!')
+            print('FAILED Method comparison experiments failed!')
             sys.exit(1)
         "
         
@@ -122,12 +122,12 @@ jobs:
         for module in modules_to_test:
             try:
                 __import__(module)
-                print(f'✅ {module} imported successfully')
+                print(f'PASSED {module} imported successfully')
             except Exception as e:
-                print(f'❌ Failed to import {module}: {e}')
+                print(f'FAILED Failed to import {module}: {e}')
                 sys.exit(1)
         
-        print('✅ All experimental modules validated!')
+        print('PASSED All experimental modules validated!')
         "
         
     - name: Upload experiment results
@@ -167,7 +167,7 @@ jobs:
         from models.standard_gfa import StandardGFA
         from models.factory import ModelFactory
         
-        print('✅ All model classes imported successfully!')
+        print('PASSED All model classes imported successfully!')
         
         # Test model factory
         try:
@@ -178,12 +178,12 @@ jobs:
             # Test creating a model
             if 'sparse_gfa' in model_types:
                 model = factory.create_model('sparse_gfa', K=3)
-                print('✅ Model creation successful!')
+                print('PASSED Model creation successful!')
             else:
-                print('⚠️  sparse_gfa model not available')
+                print('WARNING  sparse_gfa model not available')
                 
         except Exception as e:
-            print(f'❌ Model validation failed: {e}')
+            print(f'FAILED Model validation failed: {e}')
             sys.exit(1)
         "
 
@@ -234,10 +234,10 @@ jobs:
         
         # Set reasonable performance thresholds
         if duration > 30:  # 30 seconds threshold
-            print('⚠️  Performance regression detected!')
+            print('WARNING  Performance regression detected!')
             print('Consider optimizing data generation or model initialization')
         else:
-            print('✅ Performance within acceptable limits')
+            print('PASSED Performance within acceptable limits')
         "
 
   clinical-validation:
@@ -293,7 +293,7 @@ jobs:
         )
         
         if result.success:
-            print('✅ Clinical validation experiments passed!')
+            print('PASSED Clinical validation experiments passed!')
             
             # Print key clinical metrics
             analysis = result.analysis
@@ -304,7 +304,7 @@ jobs:
                     acc = metrics.get('best_accuracy', 0)
                     print(f'  {method}: {acc:.3f} accuracy')
         else:
-            print('❌ Clinical validation experiments failed!')
+            print('FAILED Clinical validation experiments failed!')
             # Don't fail CI for clinical validation issues
             print('Clinical validation is experimental - continuing...')
         "
