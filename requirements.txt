@@ -35,3 +35,17 @@ threadpoolctl==3.2.0
 tqdm==4.66.1
 tzdata==2023.3
 urllib3==2.1.0
+
+# Performance optimization dependencies
+psutil>=5.8.0          # System monitoring and memory management
+PyYAML>=6.0            # Configuration file support
+
+# Optional dependencies for enhanced features  
+py-cpuinfo>=9.0.0      # CPU information detection (optional)
+pympler>=0.9           # Advanced memory profiling (optional)  
+memory-profiler>=0.60.0 # Line-by-line memory profiling (optional)
+
+# Documentation
+sphinx>=4.0.0
+sphinx-rtd-theme
+sphinx-autodoc-typehints
