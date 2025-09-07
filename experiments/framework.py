@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from performance import PerformanceManager, PerformanceConfig
+from performance import PerformanceProfiler, MemoryOptimizer
 from utils import safe_pickle_save, safe_pickle_load
 
 logger = logging.getLogger(__name__)
