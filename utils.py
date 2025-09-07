@@ -898,3 +898,192 @@ def get_infparams(samples, hypers, args):
             params.update({'lmbZ': lmbZ_inf, 'tauZ': tauZ_inf})                        
 
     return params, d_comps
+
+
+# === PARAMETER VALIDATION FUNCTIONS ===
+
+def validate_core_parameters(args):
+    """Validate core model parameters"""
+    if args.K <= 0:
+        raise ValueError(f"Invalid number of factors K={args.K}. Must be positive integer (e.g., K=10).")
+    
+    if args.K > 100:
+        logging.warning(f"Large number of factors K={args.K} may lead to computational issues.")
+    
+    if not (1 <= args.percW <= 100):
+        raise ValueError(f"Invalid sparsity percentage percW={args.percW}. Must be between 1-100.")
+    
+    if args.num_samples <= 0:
+        raise ValueError(f"Invalid num_samples={args.num_samples}. Must be positive integer.")
+    
+    if args.num_samples < 500:
+        logging.warning(f"Small num_samples={args.num_samples} may lead to poor convergence. Consider ≥1000.")
+    
+    if args.num_warmup <= 0:
+        raise ValueError(f"Invalid num_warmup={args.num_warmup}. Must be positive integer.")
+    
+    if args.num_chains <= 0:
+        raise ValueError(f"Invalid num_chains={args.num_chains}. Must be positive integer.")
+    
+    if args.num_runs <= 0:
+        raise ValueError(f"Invalid num_runs={args.num_runs}. Must be positive integer.")
+
+
+def validate_model_parameters(args):
+    """Validate model type and dataset"""
+    if args.model not in ['sparseGFA', 'GFA']:
+        raise ValueError(f"Invalid model='{args.model}'. Must be 'sparseGFA' or 'GFA'.")
+    
+    if args.dataset not in ['qmap_pd', 'synthetic']:
+        raise ValueError(f"Invalid dataset='{args.dataset}'. Must be 'qmap_pd' or 'synthetic'.")
+
+
+def validate_cv_parameters(args, cv_available=False, neuroimaging_cv_available=False):
+    """Validate cross-validation parameters"""
+    # Check for conflicting parameter combinations
+    if getattr(args, 'cv_only', False) and not cv_available:
+        raise RuntimeError(
+            "CV-only mode requested (--cv_only) but cross-validation module is not available. "
+            "Please install cross-validation dependencies or run without --cv_only."
+        )
+    
+    # Handle neuroimaging CV fallback
+    if getattr(args, 'neuroimaging_cv', False) and not neuroimaging_cv_available:
+        logging.warning(
+            "Neuroimaging CV requested but not available. Falling back to basic CV if available."
+        )
+        args.neuroimaging_cv = False
+        if cv_available:
+            args.run_cv = True
+    
+    # Auto-enable CV for nested CV
+    if getattr(args, 'nested_cv', False) and not getattr(args, 'run_cv', False) and not getattr(args, 'cv_only', False):
+        logging.warning("--nested_cv specified but neither --run_cv nor --cv_only set. Enabling --run_cv.")
+        args.run_cv = True
+    
+    # Validate CV fold count
+    if hasattr(args, 'cv_folds') and getattr(args, 'cv_folds', 5) <= 1:
+        raise ValueError(f"Invalid cv_folds={args.cv_folds}. Must be > 1.")
+    
+    # Validate CV type
+    if hasattr(args, 'cv_type'):
+        valid_cv_types = ['standard', 'stratified', 'grouped', 'repeated']
+        if getattr(args, 'cv_type', 'standard') not in valid_cv_types:
+            raise ValueError(f"Invalid cv_type. Must be one of: {valid_cv_types}")
+    
+    # Check CV type compatibility with data
+    if getattr(args, 'cv_type', None) and args.dataset == 'synthetic':
+        if args.cv_type in ['clinical_stratified', 'site_aware']:
+            logging.warning(f"CV type {args.cv_type} not suitable for synthetic data. Using 'standard'.")
+            args.cv_type = 'standard'
+
+
+def validate_gpu_availability(args):
+    """Validate GPU availability"""
+    if args.device == 'gpu':
+        try:
+            import jax
+            if not jax.devices('gpu'):
+                logging.warning("GPU requested but not available. Falling back to CPU.")
+                args.device = 'cpu'
+        except Exception as e:
+            logging.warning(f"JAX GPU support not available ({e}). Using CPU.")
+            args.device = 'cpu'
+    elif args.device not in ['cpu', 'gpu']:
+        raise ValueError(f"Invalid device='{args.device}'. Must be 'cpu' or 'gpu'.")
+
+
+def validate_file_paths(args):
+    """Validate file paths for qMAP-PD dataset"""
+    if args.dataset == 'qmap_pd':
+        from pathlib import Path
+        data_path = Path(args.data_dir)
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"Data directory not found: {args.data_dir}. "
+                f"Please ensure qMAP-PD data is available or use --dataset synthetic."
+            )
+        
+        clinical_path = data_path / args.clinical_rel
+        if not clinical_path.exists():
+            raise FileNotFoundError(
+                f"Clinical data file not found: {clinical_path}. "
+                f"Please check the --clinical_rel parameter."
+            )
+        
+        volumes_path = data_path / args.volumes_rel
+        if not volumes_path.exists():
+            raise FileNotFoundError(
+                f"Volume matrices directory not found: {volumes_path}. "
+                f"Please check the --volumes_rel parameter."
+            )
+
+
+def log_parameter_summary(args):
+    """Log important parameter combinations"""
+    logging.info("=== VALIDATED PARAMETERS ===")
+    logging.info(f"Model: {args.model}, Dataset: {args.dataset}")
+    logging.info(f"Factors K={args.K}, Sparsity={args.percW}%, Samples={args.num_samples}")
+    logging.info(f"Chains={args.num_chains}, Runs={args.num_runs}, Device={args.device}")
+    
+    if getattr(args, 'enable_preprocessing', False):
+        logging.info(f"Preprocessing: {args.imputation_strategy} imputation, {args.feature_selection} selection")
+        if getattr(args, 'enable_spatial_processing', False):
+            logging.info("Spatial processing: ENABLED")
+    
+    if getattr(args, 'run_cv', False) or getattr(args, 'cv_only', False):
+        cv_folds = getattr(args, 'cv_folds', 5)
+        cv_type = getattr(args, 'cv_type', 'standard')
+        logging.info(f"Cross-validation: {cv_folds} folds, {cv_type} type")
+        if getattr(args, 'neuroimaging_cv', False):
+            neuro_cv_type = getattr(args, 'neuro_cv_type', 'clinical_stratified')
+            logging.info(f"Neuroimaging CV: {neuro_cv_type}")
+        if getattr(args, 'nested_cv', False):
+            logging.info("Nested CV enabled for hyperparameter optimization")
+    
+    logging.info("=" * 30)
+
+
+def validate_and_setup_args(args, cv_available=False, neuroimaging_cv_available=False, 
+                          factor_mapping_available=False, preprocessing_available=False):
+    """
+    Main validation function with enhanced checks.
+    Returns validated args or raises appropriate exceptions.
+    """
+    try:
+        validate_core_parameters(args)
+        validate_model_parameters(args)
+        validate_cv_parameters(args, cv_available, neuroimaging_cv_available)
+        validate_gpu_availability(args)
+        validate_file_paths(args)
+        
+        # Validate neuroimaging parameters
+        if getattr(args, 'neuroimaging_cv', False):
+            valid_neuro_cv_types = ['clinical_stratified', 'site_aware', 'standard']
+            if getattr(args, 'neuro_cv_type', 'clinical_stratified') not in valid_neuro_cv_types:
+                raise ValueError(f"Invalid neuro_cv_type. Must be one of: {valid_neuro_cv_types}")
+        
+        # Validate factor mapping
+        if getattr(args, 'create_factor_maps', False) and not factor_mapping_available:
+            logging.warning(
+                "Factor mapping requested but neuroimaging_utils module not available. "
+                "Factor maps will be skipped."
+            )
+            args.create_factor_maps = False
+        
+        # Validate preprocessing parameters
+        if getattr(args, 'enable_preprocessing', False) and preprocessing_available:
+            try:
+                from data.preprocessing import create_preprocessor_from_args
+                create_preprocessor_from_args(args, validate=True)
+            except Exception as e:
+                raise ValueError(f"Invalid preprocessing parameters: {e}")
+        elif getattr(args, 'enable_preprocessing', False):
+            logging.warning("Preprocessing module not available for validation")
+        
+        log_parameter_summary(args)
+        
+        return args
+        
+    except (ValueError, RuntimeError, FileNotFoundError) as e:
+        raise e
