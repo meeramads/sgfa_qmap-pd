@@ -109,7 +109,7 @@ class BrainVisualizer:
         
         # Load robust parameters
         try:
-            from utils import safe_pickle_load, get_model_files
+            from core.utils import safe_pickle_load, get_model_files
             
             # Find best run
             best_run = self._find_best_run(results_dir)
@@ -210,7 +210,7 @@ class BrainVisualizer:
         
         try:
             # Load data and results
-            from utils import safe_pickle_load
+            from core.utils import safe_pickle_load
             
             # Check if preprocessing results contain spatial information
             prep_path = results_dir / 'preprocessing_results.dictionary'

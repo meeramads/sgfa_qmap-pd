@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 import os
 
-from utils import (
+from core.utils import (
     safe_pickle_load, safe_pickle_save, memory_monitoring_context,
     validate_and_setup_args, estimate_memory_requirements,
     cleanup_memory, check_available_memory

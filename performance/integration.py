@@ -118,7 +118,7 @@ class PerformanceManager:
                 )
         else:
             # Fallback to standard MCMC
-            from run_analysis import run_inference
+            from core.run_analysis import run_inference
             return run_inference(model_fn, args, rng_key, X_list, hypers)
     
     def profile_function(self, func: Callable, name: str = None, **kwargs):

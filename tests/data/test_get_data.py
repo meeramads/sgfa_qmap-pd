@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch, Mock
 
-from get_data import get_data
+from core.get_data import get_data
 
 
 @pytest.mark.unit

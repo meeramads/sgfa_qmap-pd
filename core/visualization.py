@@ -322,7 +322,7 @@ def create_all_visualizations(results_dir: str, data: Dict, run_name: str,
 
 def find_bestrun(res_dir: str, args: Any, ofile: str = None) -> int:
     """Find the best run based on log density."""
-    from utils import get_model_files, safe_pickle_load
+    from core.utils import get_model_files, safe_pickle_load
     
     best_run = 1
     best_logdens = -np.inf
@@ -347,7 +347,7 @@ def find_bestrun(res_dir: str, args: Any, ofile: str = None) -> int:
 
 def _load_results(res_dir: str, args: Any):
     """Load analysis results for visualization."""
-    from utils import get_model_files, safe_pickle_load
+    from core.utils import get_model_files, safe_pickle_load
     
     # Find best run
     brun = find_bestrun(res_dir, args, 'results.txt')

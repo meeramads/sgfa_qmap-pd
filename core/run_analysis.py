@@ -18,11 +18,11 @@ from analysis.model_runner import ModelRunner
 from analysis.cross_validation import CVRunner, should_run_standard_analysis, should_run_cv_analysis
 
 # Utilities
-from utils import (
+from core.utils import (
     validate_and_setup_args, check_available_memory, memory_monitoring_context, 
     cleanup_memory, get_model_files, safe_pickle_load
 )
-import visualization
+import core.visualization as visualization
 
 # Set up logging
 logging.basicConfig(
@@ -221,7 +221,7 @@ def _save_cv_results(cv_results, cv_object, cv_res_dir, dependencies):
         
         # Create CV visualizations
         try:
-            from visualization import plot_cv_results
+            from core.visualization import plot_cv_results
             plot_cv_results(cv_results, cv_res_dir, "cv_analysis")
             logging.info("CV visualizations created")
         except Exception as e:

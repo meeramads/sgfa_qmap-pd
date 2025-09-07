@@ -78,7 +78,7 @@ class ModelRunner:
     def _extract_robust_parameters(self, run_results: Dict) -> Dict:
         """Extract robust parameters from multi-chain results."""
         # Use existing utilities instead of non-existent analysis.robust_extraction
-        from utils import get_infparams, get_robustK
+        from core.utils import get_infparams, get_robustK
         
         try:
             # Get hyperparameters from config

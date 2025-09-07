@@ -10,10 +10,18 @@ import os
 import time
 import numpy as np
 import pandas as pd
-import nibabel as nib
 from pathlib import Path
 from typing import List, Dict, Union, Optional, Tuple
 import logging
+
+# Optional neuroimaging dependency
+try:
+    import nibabel as nib
+    NEUROIMAGING_AVAILABLE = True
+except ImportError:
+    nib = None
+    NEUROIMAGING_AVAILABLE = False
+    logging.warning("nibabel not available - install with 'pip install nibabel' for full neuroimaging reconstruction features")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +47,10 @@ class FactorToMRIMapper:
         reference_mri : str, optional
             Path to reference MRI file. If None, will look in standard location.
         """
+        if not NEUROIMAGING_AVAILABLE:
+            logger.error("nibabel is required for FactorToMRIMapper. Install with: pip install nibabel")
+            raise ImportError("nibabel is required for neuroimaging reconstruction features")
+            
         self.base_dir = Path(base_dir)
         self.reference_mri = reference_mri
         
@@ -750,6 +762,11 @@ def integrate_with_visualization(results_dir: str, data: Dict, W: np.ndarray,
     factor_indices : List[int], optional
         Specific factors to map (if None, maps all)
     """
+    
+    # Check if neuroimaging dependencies are available
+    if not NEUROIMAGING_AVAILABLE:
+        logger.error("nibabel is required for neuroimaging reconstruction. Install with: pip install nibabel")
+        raise ImportError("nibabel is required for integrate_with_visualization function")
     
     # Create output directory for factor maps
     factor_maps_dir = Path(results_dir) / "factor_maps"

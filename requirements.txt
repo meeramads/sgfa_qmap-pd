@@ -13,7 +13,7 @@ lxml==4.9.3
 matplotlib==3.8.1
 ml-dtypes==0.3.1
 multipledispatch==1.0.0
-nibabel==5.1.0
+nibabel>=4.0.0,<6.0.0  # For neuroimaging reconstruction (Python 3.10-3.11 compatible)
 nilearn==0.10.2
 nltools==0.5.0
 numpy==1.23.5

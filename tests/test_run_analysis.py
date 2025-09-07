@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 import jax.numpy as jnp
 
-from run_analysis import models, run_inference
+from core.run_analysis import models, run_inference
 
 
 @pytest.mark.unit
@@ -216,7 +216,7 @@ class TestMainFunction:
              patch('run_analysis._create_visualizations'), \
              patch('run_analysis._log_final_summary'):
             
-            from run_analysis import main
+            from core.run_analysis import main
             
             # This should complete without errors
             main(args)
@@ -241,7 +241,7 @@ class TestMainFunction:
             mock_cv_instance.run_cv_analysis.return_value = mock_cv_results
             mock_cv_runner.return_value = mock_cv_instance
             
-            from run_analysis import main
+            from core.run_analysis import main
             
             # Should complete CV-only analysis
             main(args)

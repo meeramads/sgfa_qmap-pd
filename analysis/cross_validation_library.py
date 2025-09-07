@@ -1234,7 +1234,7 @@ def main():
     numpyro.set_platform(args.device)
     
     # Load data
-    from get_data import get_data
+    from core.get_data import get_data
     
     data = get_data(
         dataset=args.dataset,

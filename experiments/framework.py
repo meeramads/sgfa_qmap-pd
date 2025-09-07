@@ -12,7 +12,7 @@ import pandas as pd
 import yaml
 
 from performance import PerformanceProfiler, MemoryOptimizer, PerformanceManager, PerformanceConfig
-from utils import safe_pickle_save, safe_pickle_load
+from core.utils import safe_pickle_save, safe_pickle_load
 
 logger = logging.getLogger(__name__)
 

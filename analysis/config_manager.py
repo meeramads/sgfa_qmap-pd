@@ -130,7 +130,7 @@ class ConfigManager:
     
     def _create_result_directories(self):
         """Create result directories using Path"""
-        from utils import create_results_structure
+        from core.utils import create_results_structure
         
         if self.config.run_standard:
             self.config.standard_res_dir = create_results_structure(
@@ -159,7 +159,7 @@ class ConfigManager:
     
     def setup_hyperparameters(self) -> dict:
         """Setup and load/create hyperparameters"""
-        from utils import safe_pickle_load, safe_pickle_save
+        from core.utils import safe_pickle_load, safe_pickle_save
         
         hp_dir = self.get_hyperparameters_dir()
         hp_path = hp_dir / 'hyperparameters.dictionary'
