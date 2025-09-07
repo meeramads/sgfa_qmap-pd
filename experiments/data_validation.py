@@ -91,6 +91,19 @@ class DataValidationExperiments:
         }
         
         for label, data in [('raw_data', raw_data), ('preprocessed_data', preprocessed_data)]:
+            if not data or 'X_list' not in data:
+                analysis[label] = {
+                    'n_subjects': 0,
+                    'n_views': 0,
+                    'features_per_view': [],
+                    'total_features': 0,
+                    'clinical_variables': [],
+                    'n_clinical_variables': 0,
+                    'data_types': [],
+                    'view_names': []
+                }
+                continue
+                
             X_list = data['X_list']
             clinical = data.get('clinical', pd.DataFrame())
             
@@ -129,6 +142,10 @@ class DataValidationExperiments:
         }
         
         for label, data in [('raw_data', raw_data), ('preprocessed_data', preprocessed_data)]:
+            if not data or 'X_list' not in data:
+                quality_metrics[label] = {}
+                continue
+                
             X_list = data['X_list']
             metrics = {}
             
@@ -198,6 +215,9 @@ class DataValidationExperiments:
             'normalization_effects': {}
         }
         
+        if not raw_data or 'X_list' not in raw_data or not preprocessed_data or 'X_list' not in preprocessed_data:
+            return effects
+            
         raw_X_list = raw_data['X_list']
         proc_X_list = preprocessed_data['X_list']
         
@@ -284,6 +304,10 @@ class DataValidationExperiments:
     
     def _plot_feature_distributions(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Plot feature distribution comparisons."""
+        if 'X_list' not in raw_data or 'X_list' not in preprocessed_data:
+            logger.warning("Cannot plot feature distributions - missing X_list data")
+            return
+            
         fig, axes = plt.subplots(2, len(raw_data['X_list']), figsize=(15, 10))
         if len(raw_data['X_list']) == 1:
             axes = axes.reshape(-1, 1)
@@ -311,6 +335,10 @@ class DataValidationExperiments:
     
     def _plot_missing_data_patterns(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Plot missing data patterns."""
+        if 'X_list' not in raw_data or 'X_list' not in preprocessed_data:
+            logger.warning("Cannot plot missing data patterns - missing X_list data")
+            return
+            
         fig, axes = plt.subplots(2, len(raw_data['X_list']), figsize=(15, 8))
         if len(raw_data['X_list']) == 1:
             axes = axes.reshape(-1, 1)
@@ -345,6 +373,10 @@ class DataValidationExperiments:
     
     def _plot_correlation_matrices(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Plot correlation matrices for each view."""
+        if 'X_list' not in raw_data or 'X_list' not in preprocessed_data:
+            logger.warning("Cannot plot correlation matrices - missing X_list data")
+            return
+            
         n_views = len(raw_data['X_list'])
         fig, axes = plt.subplots(2, n_views, figsize=(5*n_views, 10))
         if n_views == 1:
@@ -385,6 +417,10 @@ class DataValidationExperiments:
             'preprocessed_data': {},
             'comparison': {}
         }
+        
+        if 'X_list' not in raw_data or 'X_list' not in preprocessed_data:
+            logger.warning("Cannot perform PCA analysis - missing X_list data")
+            return pca_results
         
         fig, axes = plt.subplots(2, len(raw_data['X_list']), figsize=(15, 10))
         if len(raw_data['X_list']) == 1:
@@ -441,6 +477,10 @@ class DataValidationExperiments:
     
     def _plot_quality_metrics(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Plot data quality metrics comparison."""
+        if 'X_list' not in raw_data or 'X_list' not in preprocessed_data:
+            logger.warning("Cannot plot quality metrics - missing X_list data")
+            return
+            
         quality_raw = self._assess_data_quality(raw_data, {})['raw_data']
         quality_proc = self._assess_data_quality({}, preprocessed_data)['preprocessed_data']
         
@@ -479,6 +519,10 @@ class DataValidationExperiments:
     
     def _save_data_summaries(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Save detailed data summaries to files."""
+        if 'X_list' not in raw_data or 'X_list' not in preprocessed_data:
+            logger.warning("Cannot save data summaries - missing X_list data")
+            return
+            
         # Raw data summary
         raw_summary = self._create_detailed_summary(raw_data, "raw")
         raw_summary.to_csv(output_dir / 'raw_data_summary.csv', index=False)
@@ -493,6 +537,9 @@ class DataValidationExperiments:
     
     def _create_detailed_summary(self, data: Dict, data_type: str) -> pd.DataFrame:
         """Create detailed summary DataFrame for data."""
+        if 'X_list' not in data:
+            return pd.DataFrame()
+            
         summaries = []
         
         for view_idx, X in enumerate(data['X_list']):
@@ -517,6 +564,9 @@ class DataValidationExperiments:
     
     def _create_comparison_summary(self, raw_data: Dict, preprocessed_data: Dict) -> pd.DataFrame:
         """Create comparison summary between raw and preprocessed data."""
+        if 'X_list' not in raw_data or 'X_list' not in preprocessed_data:
+            return pd.DataFrame()
+            
         comparisons = []
         
         for view_idx, (raw_X, proc_X) in enumerate(zip(raw_data['X_list'], preprocessed_data['X_list'])):
@@ -593,6 +643,15 @@ class DataValidationExperiments:
                         **strategy_config
                     )
                     
+                    # Verify data structure
+                    if not isinstance(data, dict):
+                        raise ValueError(f"Expected dict from load_qmap_pd, got {type(data)}")
+                    
+                    if 'X_list' not in data:
+                        logger.error(f"Missing 'X_list' key in data for {strategy_name}. Available keys: {list(data.keys())}")
+                        raise KeyError(f"Missing 'X_list' key in data structure")
+                    
+                    logger.info(f"Successfully loaded data for {strategy_name}: X_list has {len(data['X_list'])} views")
                     strategy_data[strategy_name] = data
                     
                     # Analyze results of this strategy
@@ -634,33 +693,59 @@ class DataValidationExperiments:
         comparison = {}
         
         if not strategy_data:
+            logger.warning("No strategy data available for comparison")
             return comparison
         
         # Get strategy names
         strategy_names = list(strategy_data.keys())
+        logger.info(f"Comparing {len(strategy_names)} preprocessing strategies: {strategy_names}")
         
         # Compare data dimensions
         comparison['data_dimensions'] = {}
         for strategy_name, data in strategy_data.items():
-            X_list = data['X_list']
-            comparison['data_dimensions'][strategy_name] = {
-                'total_features': sum(X.shape[1] for X in X_list),
-                'features_per_view': [X.shape[1] for X in X_list]
-            }
+            try:
+                if 'X_list' not in data:
+                    logger.error(f"Strategy {strategy_name} missing X_list. Keys: {list(data.keys())}")
+                    continue
+                    
+                X_list = data['X_list']
+                comparison['data_dimensions'][strategy_name] = {
+                    'total_features': sum(X.shape[1] for X in X_list),
+                    'features_per_view': [X.shape[1] for X in X_list]
+                }
+            except Exception as e:
+                logger.error(f"Error processing dimensions for {strategy_name}: {e}")
+                continue
         
         # Compare data quality metrics
         comparison['quality_comparison'] = {}
-        for view_idx in range(len(list(strategy_data.values())[0]['X_list'])):
-            view_name = f'view_{view_idx}'
-            comparison['quality_comparison'][view_name] = {}
+        if strategy_data:
+            # Find a strategy that has X_list to determine number of views
+            valid_strategy_data = [(name, data) for name, data in strategy_data.items() if 'X_list' in data]
             
-            for strategy_name, data in strategy_data.items():
-                X = data['X_list'][view_idx]
-                comparison['quality_comparison'][view_name][strategy_name] = {
-                    'missing_ratio': float(np.isnan(X).mean()),
-                    'feature_variance_mean': float(np.nanvar(X, axis=0).mean()),
-                    'condition_number': float(np.linalg.cond(X.T @ X))
-                }
+            if valid_strategy_data:
+                num_views = len(valid_strategy_data[0][1]['X_list'])
+                
+                for view_idx in range(num_views):
+                    view_name = f'view_{view_idx}'
+                    comparison['quality_comparison'][view_name] = {}
+                    
+                    for strategy_name, data in strategy_data.items():
+                        try:
+                            if 'X_list' not in data:
+                                continue
+                                
+                            X = data['X_list'][view_idx]
+                            comparison['quality_comparison'][view_name][strategy_name] = {
+                                'missing_ratio': float(np.isnan(X).mean()),
+                                'feature_variance_mean': float(np.nanvar(X, axis=0).mean()),
+                                'condition_number': float(np.linalg.cond(X.T @ X))
+                            }
+                        except Exception as e:
+                            logger.error(f"Error computing quality metrics for {strategy_name}, view {view_idx}: {e}")
+                            continue
+            else:
+                logger.warning("No valid strategy data found for quality comparison")
         
         return comparison
     
@@ -711,10 +796,17 @@ class DataValidationExperiments:
     def _plot_strategy_comparison(self, strategy_data: Dict, output_dir: Path):
         """Create comparison plots for different preprocessing strategies."""
         if not strategy_data:
+            logger.warning("No strategy data available for plotting")
             return
         
-        n_strategies = len(strategy_data)
-        strategy_names = list(strategy_data.keys())
+        # Filter to valid strategies only
+        valid_strategies = {name: data for name, data in strategy_data.items() if 'X_list' in data}
+        if not valid_strategies:
+            logger.warning("No valid strategy data with X_list for plotting")
+            return
+            
+        n_strategies = len(valid_strategies)
+        strategy_names = list(valid_strategies.keys())
         
         # Feature count comparison
         fig, axes = plt.subplots(2, 2, figsize=(15, 12))
@@ -722,7 +814,7 @@ class DataValidationExperiments:
         # 1. Total features per strategy
         total_features = []
         for strategy_name in strategy_names:
-            data = strategy_data[strategy_name]
+            data = valid_strategies[strategy_name]
             total_features.append(sum(X.shape[1] for X in data['X_list']))
         
         axes[0, 0].bar(strategy_names, total_features)
@@ -731,15 +823,15 @@ class DataValidationExperiments:
         axes[0, 0].tick_params(axis='x', rotation=45)
         
         # 2. Missing data comparison
-        if len(strategy_data) > 0:
-            first_data = list(strategy_data.values())[0]
+        if len(valid_strategies) > 0:
+            first_data = list(valid_strategies.values())[0]
             n_views = len(first_data['X_list'])
             
             missing_ratios = {strategy: [] for strategy in strategy_names}
             
             for view_idx in range(n_views):
                 for strategy_name in strategy_names:
-                    X = strategy_data[strategy_name]['X_list'][view_idx]
+                    X = valid_strategies[strategy_name]['X_list'][view_idx]
                     missing_ratios[strategy_name].append(np.isnan(X).mean())
             
             x = np.arange(n_views)
