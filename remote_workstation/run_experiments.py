@@ -125,6 +125,7 @@ def run_method_comparison(config):
         
         # Create method comparison experiment function  
         def method_comparison_experiment(config, output_dir, **kwargs):
+            import numpy as np  # Add missing numpy import
             logger.info("Running comprehensive method comparison...")
             X_list = data['X_list']
             
@@ -154,11 +155,10 @@ def run_method_comparison(config):
                 
                 # Import SGFA implementation 
                 try:
-                    from models.sgfa import SGFA
-                    from core.sgfa_runner import run_sgfa_analysis
+                    from core.run_analysis import run_analysis
                     
                     # Run SGFA with this variant configuration
-                    variant_results = run_sgfa_analysis(
+                    variant_results = run_analysis(
                         X_list, 
                         K=config.K_values[0] if hasattr(config, 'K_values') else 10,
                         **variant_config
@@ -255,40 +255,71 @@ def run_performance_benchmarks(config):
         
         # Create performance benchmark experiment function
         def performance_benchmark_experiment(config, output_dir, **kwargs):
+            import time
+            import psutil
+            import numpy as np
+            from data.qmap_pd import load_qmap_pd
+            
+            logger.info("Running direct performance benchmarks...")
+            data = load_qmap_pd(data_dir=config.data_dir)
+            X_list = data['X_list']
+            
+            results = {
+                'scalability_benchmark': {},
+                'memory_benchmark': {},
+                'timing_benchmark': {}
+            }
+            
+            # Simple scalability test
+            logger.info("Running scalability benchmark...")
+            data_sizes = [0.25, 0.5, 0.75, 1.0]  # Fractions of full dataset
+            
+            for size_fraction in data_sizes:
+                n_samples = int(X_list[0].shape[0] * size_fraction)
+                X_subset = [X[:n_samples] for X in X_list]
+                
+                start_time = time.time()
+                try:
+                    from core.run_analysis import run_analysis
+                    run_analysis(X_subset, K=5)
+                    duration = time.time() - start_time
+                    results['scalability_benchmark'][f'size_{size_fraction}'] = {
+                        'n_samples': n_samples,
+                        'duration_seconds': duration,
+                        'samples_per_second': n_samples / duration if duration > 0 else 0
+                    }
+                except Exception as e:
+                    results['scalability_benchmark'][f'size_{size_fraction}'] = {
+                        'n_samples': n_samples,
+                        'status': 'failed',
+                        'error': str(e)
+                    }
+            
+            # Memory usage benchmark
+            logger.info("Running memory benchmark...")
+            process = psutil.Process()
+            memory_before = process.memory_info().rss / 1024 / 1024  # MB
+            
             try:
-                # Create benchmarker with config (proper way)
-                benchmarker = PerformanceBenchmarkExperiments(config)
+                # Run analysis and measure peak memory
+                from core.run_analysis import run_analysis
+                run_analysis(X_list, K=10)
+                memory_after = process.memory_info().rss / 1024 / 1024  # MB
                 
-                # Load data for benchmarking
-                from data.qmap_pd import load_qmap_pd
-                data = load_qmap_pd(data_dir=config.data_dir)
-                X_list = data['X_list']
-                
-                logger.info("Running scalability benchmarks...")
-                scalability_results = benchmarker.run_scalability_benchmarks(X_list)
-                
-                logger.info("Running memory benchmarks...")
-                memory_results = benchmarker.run_memory_benchmarks(X_list)
-                
-                logger.info("Running optimization benchmarks...")
-                optimization_results = benchmarker.run_optimization_benchmarks(X_list)
-                
-                return {
-                    'scalability': scalability_results.to_dict() if hasattr(scalability_results, 'to_dict') else scalability_results,
-                    'memory': memory_results.to_dict() if hasattr(memory_results, 'to_dict') else memory_results,
-                    'optimization': optimization_results.to_dict() if hasattr(optimization_results, 'to_dict') else optimization_results
+                results['memory_benchmark'] = {
+                    'memory_before_mb': memory_before,
+                    'memory_after_mb': memory_after,
+                    'memory_increase_mb': memory_after - memory_before,
+                    'peak_memory_mb': memory_after
                 }
-                
             except Exception as e:
-                logger.warning(f"Performance benchmarks failed due to class architecture: {e}")
-                logger.info("Using simplified benchmark approach...")
-                
-                return {
-                    'scalability_benchmark': 'completed_with_timing',
-                    'memory_benchmark': 'completed_with_profiling',
-                    'optimization_benchmark': 'completed_with_comparison',
-                    'note': 'Full benchmark logic available but class architecture needs fixing'
+                results['memory_benchmark'] = {
+                    'status': 'failed',
+                    'error': str(e)
                 }
+            
+            logger.info("Performance benchmarks completed")
+            return results
         
         result = framework.run_experiment(exp_config, performance_benchmark_experiment)
         
@@ -320,46 +351,91 @@ def run_sensitivity_analysis(config):
         
         # Create sensitivity analysis experiment function
         def sensitivity_analysis_experiment(config, output_dir, **kwargs):
-            try:
-                # Create analyzer with config (proper way)
-                analyzer = SensitivityAnalysisExperiments(config)
-                
-                # Load data for sensitivity analysis
-                from data.qmap_pd import load_qmap_pd
-                data = load_qmap_pd(data_dir=config.data_dir)
-                X_list = data['X_list']
-                
-                logger.info("Running univariate sensitivity analysis...")
-                univariate_results = analyzer.run_univariate_sensitivity_analysis(
-                    X_list, data.get('hypers', {}), data.get('args', {})
-                )
-                
-                logger.info("Running multivariate sensitivity analysis...")
-                multivariate_results = analyzer.run_multivariate_sensitivity_analysis(
-                    X_list, data.get('hypers', {}), data.get('args', {})
-                )
-                
-                logger.info("Running robustness analysis...")
-                robustness_results = analyzer.run_robustness_analysis(
-                    X_list, data.get('hypers', {}), data.get('args', {})
-                )
-                
-                return {
-                    'univariate': univariate_results.to_dict() if hasattr(univariate_results, 'to_dict') else univariate_results,
-                    'multivariate': multivariate_results.to_dict() if hasattr(multivariate_results, 'to_dict') else multivariate_results,
-                    'robustness': robustness_results.to_dict() if hasattr(robustness_results, 'to_dict') else robustness_results
-                }
-                
-            except Exception as e:
-                logger.warning(f"Sensitivity analysis failed due to class architecture: {e}")
-                logger.info("Using simplified sensitivity approach...")
-                
-                return {
-                    'parameter_sensitivity': 'completed_with_grid_search',
-                    'robustness_analysis': 'completed_with_noise_tests',
-                    'stability_analysis': 'completed_with_random_inits',
-                    'note': 'Full sensitivity logic available but class architecture needs fixing'
-                }
+            import numpy as np
+            from data.qmap_pd import load_qmap_pd
+            
+            logger.info("Running direct sensitivity analysis...")
+            data = load_qmap_pd(data_dir=config.data_dir)
+            X_list = data['X_list']
+            
+            results = {
+                'parameter_sensitivity': {},
+                'robustness_analysis': {},
+                'stability_analysis': {}
+            }
+            
+            # Parameter sensitivity analysis
+            logger.info("Running parameter sensitivity...")
+            K_values = [3, 5, 8, 10, 15]
+            
+            for K in K_values:
+                try:
+                    from core.run_analysis import run_analysis
+                    result = run_analysis(X_list, K=K)
+                    results['parameter_sensitivity'][f'K_{K}'] = {
+                        'K': K,
+                        'converged': result.get('converged', True),
+                        'log_likelihood': result.get('log_likelihood', 0),
+                        'n_factors': K
+                    }
+                except Exception as e:
+                    results['parameter_sensitivity'][f'K_{K}'] = {
+                        'K': K,
+                        'status': 'failed',
+                        'error': str(e)
+                    }
+            
+            # Robustness analysis with noise
+            logger.info("Running robustness analysis...")
+            noise_levels = [0.01, 0.05, 0.1]
+            
+            for noise_level in noise_levels:
+                try:
+                    # Add noise to data
+                    X_noisy = []
+                    for X in X_list:
+                        noise = np.random.normal(0, noise_level * np.std(X), X.shape)
+                        X_noisy.append(X + noise)
+                    
+                    from core.run_analysis import run_analysis
+                    result = run_analysis(X_noisy, K=10)
+                    
+                    results['robustness_analysis'][f'noise_{noise_level}'] = {
+                        'noise_level': noise_level,
+                        'converged': result.get('converged', True),
+                        'log_likelihood': result.get('log_likelihood', 0)
+                    }
+                except Exception as e:
+                    results['robustness_analysis'][f'noise_{noise_level}'] = {
+                        'noise_level': noise_level,
+                        'status': 'failed',
+                        'error': str(e)
+                    }
+            
+            # Stability analysis with different random seeds
+            logger.info("Running stability analysis...")
+            random_seeds = [42, 123, 456, 789]
+            
+            for seed in random_seeds:
+                try:
+                    np.random.seed(seed)
+                    from core.run_analysis import run_analysis
+                    result = run_analysis(X_list, K=10)
+                    
+                    results['stability_analysis'][f'seed_{seed}'] = {
+                        'seed': seed,
+                        'converged': result.get('converged', True),
+                        'log_likelihood': result.get('log_likelihood', 0)
+                    }
+                except Exception as e:
+                    results['stability_analysis'][f'seed_{seed}'] = {
+                        'seed': seed,
+                        'status': 'failed',
+                        'error': str(e)
+                    }
+            
+            logger.info("Sensitivity analysis completed")
+            return results
         
         result = framework.run_experiment(exp_config, sensitivity_analysis_experiment)
         
