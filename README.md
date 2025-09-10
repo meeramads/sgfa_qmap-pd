@@ -1,6 +1,6 @@
 # Sparse Group Factor Analysis (SGFA) for qMAP-PD
 
-Python implementation of Sparse Group Factor Analysis (SGFA) designed to identify latent disease factors that capture associations between various neuroimaging data modalities within Parkinson's disease population subgroups. This project applies and adapts this model to the qMAP-PD (https://qmaplab.com/qmap-pd) study dataset.
+Python implementation of Sparse Group Factor Analysis (SGFA) designed to identify latent disease factors that capture associations between various neuroimaging data modalities within Parkinson's disease population subgroups. This project applies and adapts this model to the qMAP-PD (<https://qmaplab.com/qmap-pd>) study dataset.
 
 ## Features
 
@@ -13,16 +13,19 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 ## Project Structure
 
 ### Core Modules
+
 - **[get_data.py](get_data.py)**: High-level interface to load datasets or generate synthetic data
 - **[run_analysis.py](run_analysis.py)**: Main script containing the SGFA model and experiment runner
 - **[utils.py](utils.py)**: Utility functions supporting the analysis pipeline
 
 ### Data Management
+
 - **[data/](data/)**: Data loading and generation modules
   - `qmap_pd.py`: qMAP-PD dataset loader with preprocessing
   - `synthetic.py`: Synthetic multi-view data generator for testing
 
 ### Analysis Pipeline  
+
 - **[analysis/](analysis/)**: Core analysis components
   - `data_manager.py`: Data loading and preprocessing management
   - `config_manager.py`: Configuration and hyperparameter management
@@ -30,6 +33,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `cross_validation.py`: Cross-validation framework
 
 ### Optimization & Performance
+
 - **[performance/](performance/)**: Performance optimization framework
   - `memory_optimizer.py`: Memory management and monitoring
   - `data_streaming.py`: Efficient data loading for large datasets
@@ -38,6 +42,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `config.py`: Performance configuration management
 
 ### Experimental Validation
+
 - **[experiments/](experiments/)**: Comprehensive experimental framework
   - `data_validation.py`: Data quality and preprocessing validation
   - `method_comparison.py`: SGFA vs traditional method comparison
@@ -47,6 +52,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `clinical_validation.py`: Clinical subtype and biomarker validation
 
 ### Visualization & Models
+
 - **[visualization/](visualization/)**: Result visualization and diagnostic plots
 - **[models/](models/)**: Model definitions and variants
 - **[tests/](tests/)**: Comprehensive test suite
@@ -54,6 +60,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 ## Installation
 
 ### Basic Installation
+
 ```bash
 # Clone the repository
 git clone https://github.com/meeramads/sgfa_qmap-pd
@@ -68,6 +75,7 @@ pip install -r requirements.txt
 ```
 
 ### Development Installation
+
 ```bash
 # Install with development tools
 pip install -r requirements-dev.txt
@@ -82,6 +90,7 @@ pytest --cov=. --cov-report=html
 ## Quick Start
 
 ### Basic Analysis
+
 ```python
 from get_data import qmap_pd, generate_synthetic_data
 from run_analysis import run_sgfa_analysis
@@ -94,6 +103,7 @@ results = run_sgfa_analysis(X_list, K=5, sparsity_level=0.3)
 ```
 
 ### With Performance Optimization
+
 ```python
 from performance import auto_configure_for_system, PerformanceManager
 
@@ -107,6 +117,7 @@ with PerformanceManager(config) as manager:
 ```
 
 ### Comprehensive Experiments
+
 ```python
 from experiments import ExperimentConfig, DataValidationExperiments
 
@@ -123,21 +134,25 @@ results = validator.run_comprehensive_data_validation(X_list)
 The project includes a comprehensive performance optimization framework:
 
 ### Memory Management
+
 - **Adaptive memory limits** based on available system resources
 - **Real-time monitoring** with automatic cleanup
 - **Memory-efficient data structures** and array optimization
 
 ### Data Processing
+
 - **Chunked processing** for large datasets (>1GB)
 - **HDF5 support** with compression
 - **Streaming data loaders** to minimize memory footprint
 
 ### MCMC Optimization
+
 - **Memory-efficient sampling** strategies
 - **Adaptive batching** for large datasets
 - **Gradient checkpointing** to reduce memory usage
 
 ### Quick Performance Setup
+
 ```python
 from performance.config import auto_configure_for_system
 
@@ -150,27 +165,31 @@ config = PerformanceConfig().create_preset('fast')              # For speed
 config = PerformanceConfig().create_preset('balanced')          # Balanced approach
 ```
 
-## Experimental Validation
+## Validation Experiments
 
 The framework includes comprehensive validation experiments:
 
 ### Data Validation
+
 - Quality assessment and outlier detection
 - Preprocessing strategy comparison
 - Multi-view data alignment validation
 
 ### Method Comparison  
+
 - SGFA variants (sparse vs group vs standard)
 - Traditional methods (PCA, ICA, Factor Analysis)
 - Scalability and performance benchmarking
 
 ### Clinical Validation
+
 - PD subtype classification validation
 - Disease progression prediction
 - Biomarker discovery and validation
 - External cohort generalization testing
 
 ### Run Experiments
+
 ```bash
 # Run comprehensive validation
 python -m experiments.run_all_experiments
@@ -187,6 +206,7 @@ For GPU-accelerated training:
 2. Go to Runtime → Change runtime type → Select GPU hardware accelerator
 3. Run the setup cells to configure the environment
 4. Train the model:
+
 ```bash
 !py310cuda run_analysis.py --device gpu --K 5 --sparsity_level 0.3
 ```
@@ -194,6 +214,7 @@ For GPU-accelerated training:
 ## Testing
 
 Run the comprehensive test suite:
+
 ```bash
 # Run all tests
 pytest
@@ -210,6 +231,7 @@ pytest tests/test_performance/
 ## Configuration
 
 ### Basic Configuration
+
 ```python
 from analysis.config_manager import ConfigManager
 
@@ -219,6 +241,7 @@ config.set_mcmc_params(num_samples=1000, num_chains=4)
 ```
 
 ### Performance Configuration
+
 ```yaml
 # config.yaml
 memory:
@@ -253,6 +276,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## References
 
-- qMAP-PD Study: https://qmaplab.com/qmap-pd
-- JAX Documentation: https://jax.readthedocs.io/
-- NumPyro Documentation: https://num.pyro.ai/
+- qMAP-PD Study: <https://qmaplab.com/qmap-pd>
+- JAX Documentation: <https://jax.readthedocs.io/>
+- NumPyro Documentation: <https://num.pyro.ai/>
