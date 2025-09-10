@@ -53,10 +53,12 @@ def setup_environment(config):
         devices = jax.devices()
         logger.info(f" Available devices: {devices}")
         
-        if len([d for d in devices if d.device_kind == 'gpu']) == 0:
+        # Check for both 'gpu' and 'cuda' device types
+        gpu_devices = [d for d in devices if d.device_kind in ['gpu', 'cuda']]
+        if len(gpu_devices) == 0:
             logger.warning("  No GPU devices found - will use CPU (slower)")
         else:
-            logger.info(" GPU devices available for acceleration")
+            logger.info(f" GPU devices available for acceleration: {gpu_devices}")
             
     except Exception as e:
         logger.error(f" JAX setup issue: {e}")
