@@ -79,8 +79,7 @@ def run_data_validation(config):
             experiment_name="remote_workstation_data_validation",
             description="Comprehensive data validation on remote workstation",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir'],
-            output_format="comprehensive"
+            data_dir=config['data']['data_dir']
         )
         
         # Run experiments
@@ -117,8 +116,7 @@ def run_method_comparison(config):
             experiment_name="remote_workstation_method_comparison",
             description="Compare SGFA model variants on remote workstation",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir'],
-            model_configs=config['method_comparison']['models']
+            data_dir=config['data']['data_dir']
         )
         
         comparator = MethodComparisonExperiments(framework)
@@ -147,8 +145,7 @@ def run_performance_benchmarks(config):
             experiment_name="remote_workstation_performance_benchmarks",
             description="Performance benchmarks on remote workstation",
             dataset="qmap_pd", 
-            data_dir=config['data']['data_dir'],
-            benchmark_configs=config['performance_benchmarks']['benchmark_configs']
+            data_dir=config['data']['data_dir']
         )
         
         benchmarker = PerformanceBenchmarkExperiments(framework)
@@ -177,8 +174,7 @@ def run_sensitivity_analysis(config):
             experiment_name="remote_workstation_sensitivity_analysis",
             description="Parameter sensitivity analysis on remote workstation",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir'],
-            parameter_ranges=config['sensitivity_analysis']['parameter_ranges']
+            data_dir=config['data']['data_dir']
         )
         
         analyzer = SensitivityAnalysisExperiments(framework)
