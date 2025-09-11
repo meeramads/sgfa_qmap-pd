@@ -160,7 +160,7 @@ def run_method_comparison(config):
                     from core.run_analysis import main
                     import argparse
                     
-                    # Create minimal args for SGFA analysis
+                    # Create complete args for SGFA analysis
                     args = argparse.Namespace(
                         model='sparseGFA',
                         K=config.K_values[0] if hasattr(config, 'K_values') else 10,
@@ -173,6 +173,20 @@ def run_method_comparison(config):
                         device='gpu',
                         reghsZ=True,
                         percW=33,
+                        # Required parameters that were missing
+                        clinical_rel="data_clinical/pd_motor_gfa_data.tsv",
+                        volumes_rel="volume_matrices",
+                        id_col="sid",
+                        roi_views=True,
+                        noise=0,
+                        seed=42,
+                        num_sources=4,  # qMAP-PD has 4 views
+                        # Optional parameters
+                        enable_preprocessing=False,
+                        imputation_strategy='median',
+                        feature_selection='variance',
+                        run_cv=False,
+                        cv_only=False,
                         **variant_config
                     )
                     
@@ -299,7 +313,7 @@ def run_performance_benchmarks(config):
                     from core.run_analysis import main
                     import argparse
                     
-                    # Create minimal args for SGFA analysis
+                    # Create complete args for SGFA analysis
                     args = argparse.Namespace(
                         model='sparseGFA',
                         K=5,
@@ -309,7 +323,16 @@ def run_performance_benchmarks(config):
                         num_runs=1,
                         dataset='qmap_pd',
                         data_dir=config.data_dir,
-                        device='gpu'
+                        device='gpu',
+                        clinical_rel="data_clinical/pd_motor_gfa_data.tsv",
+                        volumes_rel="volume_matrices",
+                        id_col="sid",
+                        roi_views=True,
+                        noise=0,
+                        seed=42,
+                        num_sources=4,
+                        reghsZ=True,
+                        percW=33
                     )
                     
                     # TODO: Pass X_subset to main - need to modify approach
@@ -337,7 +360,7 @@ def run_performance_benchmarks(config):
                 from core.run_analysis import main
                 import argparse
                 
-                # Create minimal args for SGFA analysis
+                # Create complete args for SGFA analysis
                 args = argparse.Namespace(
                     model='sparseGFA',
                     K=10,
@@ -347,7 +370,16 @@ def run_performance_benchmarks(config):
                     num_runs=1,
                     dataset='qmap_pd',
                     data_dir=config.data_dir,
-                    device='gpu'
+                    device='gpu',
+                    clinical_rel="data_clinical/pd_motor_gfa_data.tsv",
+                    volumes_rel="volume_matrices",
+                    id_col="sid",
+                    roi_views=True,
+                    noise=0,
+                    seed=42,
+                    num_sources=4,
+                    reghsZ=True,
+                    percW=33
                 )
                 
                 main(args)
@@ -420,7 +452,7 @@ def run_sensitivity_analysis(config):
                     from core.run_analysis import main
                     import argparse
                     
-                    # Create minimal args for SGFA analysis
+                    # Create complete args for SGFA analysis
                     args = argparse.Namespace(
                         model='sparseGFA',
                         K=K,
@@ -430,7 +462,16 @@ def run_sensitivity_analysis(config):
                         num_runs=1,
                         dataset='qmap_pd',
                         data_dir=config.data_dir,
-                        device='gpu'
+                        device='gpu',
+                        clinical_rel="data_clinical/pd_motor_gfa_data.tsv",
+                        volumes_rel="volume_matrices",
+                        id_col="sid",
+                        roi_views=True,
+                        noise=0,
+                        seed=42,
+                        num_sources=4,
+                        reghsZ=True,
+                        percW=33
                     )
                     
                     main(args)
@@ -463,7 +504,7 @@ def run_sensitivity_analysis(config):
                     from core.run_analysis import main
                     import argparse
                     
-                    # Create minimal args for SGFA analysis
+                    # Create complete args for SGFA analysis
                     args = argparse.Namespace(
                         model='sparseGFA',
                         K=10,
@@ -473,7 +514,16 @@ def run_sensitivity_analysis(config):
                         num_runs=1,
                         dataset='qmap_pd',
                         data_dir=config.data_dir,
-                        device='gpu'
+                        device='gpu',
+                        clinical_rel="data_clinical/pd_motor_gfa_data.tsv",
+                        volumes_rel="volume_matrices",
+                        id_col="sid",
+                        roi_views=True,
+                        noise=0,
+                        seed=42,
+                        num_sources=4,
+                        reghsZ=True,
+                        percW=33
                     )
                     
                     # TODO: Pass X_noisy to main - need to modify approach
@@ -502,7 +552,7 @@ def run_sensitivity_analysis(config):
                     from core.run_analysis import main
                     import argparse
                     
-                    # Create minimal args for SGFA analysis
+                    # Create complete args for SGFA analysis
                     args = argparse.Namespace(
                         model='sparseGFA',
                         K=10,
@@ -513,7 +563,15 @@ def run_sensitivity_analysis(config):
                         dataset='qmap_pd',
                         data_dir=config.data_dir,
                         device='gpu',
-                        seed=seed
+                        clinical_rel="data_clinical/pd_motor_gfa_data.tsv",
+                        volumes_rel="volume_matrices",
+                        id_col="sid",
+                        roi_views=True,
+                        noise=0,
+                        seed=seed,
+                        num_sources=4,
+                        reghsZ=True,
+                        percW=33
                     )
                     
                     main(args)
