@@ -54,7 +54,7 @@ def setup_environment(config):
         logger.info(f" Available devices: {devices}")
         
         # Check for both 'gpu' and 'cuda' device types
-        gpu_devices = [d for d in devices if d.device_kind in ['gpu', 'cuda']]
+        gpu_devices = [d for d in devices if d.platform == 'gpu']
         if len(gpu_devices) == 0:
             logger.warning("  No GPU devices found - will use CPU (slower)")
         else:
