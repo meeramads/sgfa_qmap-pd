@@ -177,6 +177,7 @@ def run_method_comparison(config):
                         num_chains=1,
                         num_runs=1,
                         num_sources=len(X_list),
+                        reghsZ=True,  # Add missing parameter
                         **variant_config
                     )
                     
