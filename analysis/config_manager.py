@@ -57,24 +57,19 @@ class ConfigManager:
     def _check_cv_dependencies(self):
         """Check cross-validation module availability"""
         try:
-            from .cross_validation_library import SparseBayesianGFACrossValidator, CVConfig
+            # Check for neuroimaging-specific features (these actually exist)
+            from .cross_validation_library import (
+                NeuroImagingCrossValidator,
+                NeuroImagingCVConfig,
+                ParkinsonsConfig
+            )
             self.dependencies.cv_available = True
-            logging.info("Basic cross-validation module available")
-            
-            # Check for neuroimaging-specific features
-            try:
-                from .cross_validation_library import (
-                    NeuroImagingCrossValidator,
-                    NeuroImagingCVConfig,
-                    ParkinsonsConfig
-                )
-                self.dependencies.neuroimaging_cv_available = True
-                logging.info("Neuroimaging-aware cross-validation available")
-            except ImportError:
-                logging.info("Basic CV available, but neuroimaging features not found")
+            self.dependencies.neuroimaging_cv_available = True
+            logging.info("Cross-validation module available")
+            logging.info("Neuroimaging-aware cross-validation available")
                 
-        except ImportError:
-            logging.info("Cross-validation module not available - will run standard analysis only")
+        except ImportError as e:
+            logging.info(f"Cross-validation module not available - will run standard analysis only. Error: {e}")
     
     def _check_factor_mapping(self):
         """Check factor-to-MRI mapping module"""
@@ -164,8 +159,14 @@ class ConfigManager:
         hp_dir = self.get_hyperparameters_dir()
         hp_path = hp_dir / 'hyperparameters.dictionary'
         
-        hypers = safe_pickle_load(hp_path, "Hyperparameters")
+        # Check if file exists before trying to load (reduces error messages)
+        if hp_path.exists():
+            hypers = safe_pickle_load(hp_path, "Hyperparameters")
+        else:
+            hypers = None
+        
         if hypers is None:
+            logging.info(f"Creating new hyperparameters file: {hp_path}")
             hypers = {
                 'a_sigma': 1, 'b_sigma': 1,
                 'nu_local': 1, 'nu_global': 1,
@@ -173,7 +174,10 @@ class ConfigManager:
                 'percW': self.args.percW
             }
             
+            # Create directory if it doesn't exist
+            hp_dir.mkdir(parents=True, exist_ok=True)
+            
             if not safe_pickle_save(hypers, hp_path, "Hyperparameters"):
-                raise RuntimeError("Failed to save hyperparameters")
+                logging.warning("Failed to save hyperparameters, using in-memory defaults")
         
         return hypers
