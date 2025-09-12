@@ -106,7 +106,7 @@ jobs:
         "
         
     - name: Upload audit results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: dependency-audit
@@ -300,7 +300,7 @@ jobs:
         "
         
     - name: Upload license report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: license-compliance
         path: licenses.json
