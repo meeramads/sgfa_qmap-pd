@@ -53,12 +53,8 @@ def setup_environment(config):
         devices = jax.devices()
         logger.info(f" Available devices: {devices}")
         
-<<<<<<< HEAD
         # Check for both 'gpu' and 'cuda' device types
-=======
-        # Check GPU platform (device_kind contains GPU model name)
->>>>>>> 86a4ff602f1575a1a07414153afb5131c5615930
-        gpu_devices = [d for d in devices if d.platform == 'gpu']
+        gpu_devices = [d for d in devices if d.platform in ['gpu', 'cuda']]
         if len(gpu_devices) == 0:
             logger.warning("  No GPU devices found - will use CPU (slower)")
         else:
