@@ -1,7 +1,0 @@
-config_used: remote_workstation/config.yaml
-duration_seconds: 10.213988
-end_time: '2025-09-12T01:32:52.514663'
-experiments_run:
-- method_comparison
-start_time: '2025-09-12T01:32:42.300675'
-success_count: 1
