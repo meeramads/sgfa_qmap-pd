@@ -257,7 +257,17 @@ def run_method_comparison(config):
                     }
             
             logger.info("Method comparison completed successfully")
-            return results
+            
+            # Format results for framework compatibility
+            return {
+                'model_results': results,
+                'experiment_metadata': results.get('experiment_metadata', {}),
+                'diagnostics': {
+                    'sgfa_variants_tested': len(results.get('sgfa_variants', {})),
+                    'traditional_methods_tested': len(results.get('traditional_methods', {})),
+                    'total_experiments': len(results.get('sgfa_variants', {})) + len(results.get('traditional_methods', {}))
+                }
+            }
         
         result = framework.run_experiment(exp_config, method_comparison_experiment)
         
