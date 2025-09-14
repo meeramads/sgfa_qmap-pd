@@ -412,7 +412,21 @@ def run_performance_benchmarks(config):
                 }
             
             logger.info("Performance benchmarks completed")
-            return results
+            
+            # Format results for framework compatibility
+            return {
+                'model_results': results,
+                'performance_metrics': {
+                    'benchmark_types': list(results.keys()),
+                    'scalability_tests': len(results.get('scalability_benchmark', {})),
+                    'memory_tests': len(results.get('memory_benchmark', {})),
+                    'timing_tests': len(results.get('timing_benchmark', {}))
+                },
+                'diagnostics': {
+                    'total_benchmarks': sum(len(v) if isinstance(v, dict) else 1 for v in results.values()),
+                    'benchmark_status': 'completed'
+                }
+            }
         
         result = framework.run_experiment(exp_config, performance_benchmark_experiment)
         
@@ -604,7 +618,21 @@ def run_sensitivity_analysis(config):
                     }
             
             logger.info("Sensitivity analysis completed")
-            return results
+            
+            # Format results for framework compatibility
+            return {
+                'model_results': results,
+                'experiment_metadata': {
+                    'analysis_types': list(results.keys()),
+                    'parameter_tests': len(results.get('parameter_sensitivity', {})),
+                    'robustness_tests': len(results.get('robustness_analysis', {})),
+                    'stability_tests': len(results.get('stability_analysis', {}))
+                },
+                'diagnostics': {
+                    'total_sensitivity_tests': sum(len(v) if isinstance(v, dict) else 1 for v in results.values()),
+                    'analysis_status': 'completed'
+                }
+            }
         
         result = framework.run_experiment(exp_config, sensitivity_analysis_experiment)
         
