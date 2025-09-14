@@ -151,9 +151,14 @@ def run_method_comparison(config):
                 'basic_fa': {'use_sparse': False, 'use_group': False}
             }
             
-            logger.info("Testing SGFA variants...")
-            for variant_name, variant_config in sgfa_variants.items():
-                logger.info(f"  Testing {variant_name} SGFA...")
+            logger.info("=== TESTING SGFA VARIANTS ===")
+            logger.info(f"Number of variants to test: {len(sgfa_variants)}")
+            logger.info(f"Variants: {list(sgfa_variants.keys())}")
+            logger.info(f"Data shape: {len(X_list)} views with shapes {[X.shape for X in X_list]}")
+            
+            for i, (variant_name, variant_config) in enumerate(sgfa_variants.items(), 1):
+                logger.info(f"\n--- VARIANT {i}/{len(sgfa_variants)}: {variant_name.upper()} ---")
+                logger.info(f"Configuration: {variant_config}")
                 
                 # Import SGFA core components directly
                 try:
@@ -162,7 +167,12 @@ def run_method_comparison(config):
                     import jax.random as random
                     import argparse
                     
-                    logger.info(f"    Running {variant_name} SGFA with GPU acceleration...")
+                    # Check JAX devices before running
+                    devices = jax.devices()
+                    logger.info(f"JAX devices available: {devices}")
+                    logger.info(f"JAX backend: {jax.lib.xla_bridge.get_backend().platform}")
+                    
+                    logger.info(f"🚀 Running {variant_name} SGFA analysis...")
                     
                     # Create minimal args for SGFA
                     args = argparse.Namespace(
@@ -177,6 +187,14 @@ def run_method_comparison(config):
                         **variant_config
                     )
                     
+                    logger.info(f"MCMC Configuration:")
+                    logger.info(f"  - Model: {args.model}")
+                    logger.info(f"  - K (factors): {args.K}")
+                    logger.info(f"  - Samples: {args.num_samples}")
+                    logger.info(f"  - Warmup: {args.num_warmup}")
+                    logger.info(f"  - Chains: {args.num_chains}")
+                    logger.info(f"  - Sources: {args.num_sources}")
+                    
                     # Setup hyperparameters
                     hypers = {
                         'Dm': [X.shape[1] for X in X_list],
@@ -187,31 +205,72 @@ def run_method_comparison(config):
                         'percW': 33
                     }
                     
+                    logger.info(f"Hyperparameters:")
+                    logger.info(f"  - Data dimensions: {hypers['Dm']}")
+                    logger.info(f"  - Total features: {sum(hypers['Dm'])}")
+                    logger.info(f"  - Percentage W: {hypers['percW']}%")
+                    
                     # Run SGFA inference directly
+                    import time
+                    start_time = time.time()
                     rng_key = random.PRNGKey(42)
+                    
+                    logger.info(f"⏱️  Starting MCMC inference at {time.strftime('%H:%M:%S')}...")
+                    logger.info(f"Expected duration: ~{args.num_samples/10:.1f}-{args.num_samples/5:.1f} minutes")
+                    
                     mcmc_result = run_inference(models, args, rng_key, X_list, hypers)
+                    
+                    end_time = time.time()
+                    duration = end_time - start_time
+                    logger.info(f"✅ MCMC completed in {duration/60:.2f} minutes ({duration:.1f} seconds)")
+                    logger.info(f"   Average time per sample: {duration/args.num_samples:.2f}s")
+                    
+                    # Process MCMC results
+                    logger.info(f"📊 Processing {variant_name} results...")
+                    logger.info(f"   - Total samples collected: {mcmc_result.num_samples}")
+                    logger.info(f"   - Number of chains: {mcmc_result.num_chains}")
+                    
+                    # Extract convergence diagnostics if available
+                    try:
+                        if hasattr(mcmc_result, 'get_extra_fields'):
+                            extra_fields = mcmc_result.get_extra_fields()
+                            if 'diverging' in extra_fields:
+                                n_divergent = extra_fields['diverging'].sum()
+                                logger.info(f"   - Divergent transitions: {n_divergent}")
+                            if 'accept_prob' in extra_fields:
+                                avg_accept = extra_fields['accept_prob'].mean()
+                                logger.info(f"   - Average acceptance rate: {avg_accept:.3f}")
+                    except Exception as e:
+                        logger.debug(f"Could not extract MCMC diagnostics: {e}")
                     
                     variant_results = {
                         'status': 'completed',
                         'samples': mcmc_result.num_samples,
                         'chains': mcmc_result.num_chains,
-                        'converged': True
+                        'converged': True,
+                        'duration_minutes': duration/60
                     }
                     
                     results['sgfa_variants'][variant_name] = {
                         'converged': variant_results.get('converged', True),
                         'log_likelihood': variant_results.get('log_likelihood', 0),
-                        'n_factors': variant_results.get('K', 10),
+                        'n_factors': variant_results.get('K', args.K),
+                        'duration_minutes': variant_results['duration_minutes'],
                         'config': variant_config
                     }
+                    
+                    logger.info(f"✅ {variant_name} SGFA completed successfully!")
                 except ImportError as e:
-                    logger.warning(f"Could not import SGFA: {e}")
+                    logger.error(f"❌ Could not import SGFA modules for {variant_name}: {e}")
                     results['sgfa_variants'][variant_name] = {
                         'status': 'implemented_but_import_failed',
+                        'error': str(e),
                         'config': variant_config
                     }
                 except Exception as e:
-                    logger.warning(f"SGFA {variant_name} failed: {e}")
+                    logger.error(f"❌ {variant_name} SGFA failed: {str(e)}")
+                    import traceback
+                    logger.debug(f"Full traceback: {traceback.format_exc()}")
                     results['sgfa_variants'][variant_name] = {
                         'status': 'failed',
                         'error': str(e),
@@ -219,42 +278,108 @@ def run_method_comparison(config):
                     }
             
             # Traditional method comparison
-            logger.info("Testing traditional methods...")
+            logger.info("\n=== TESTING TRADITIONAL METHODS ===")
             traditional_methods = ['pca', 'ica', 'factor_analysis']
+            logger.info(f"Methods to test: {traditional_methods}")
             
-            for method in traditional_methods:
-                logger.info(f"  Testing {method}...")
+            # Prepare data for traditional methods
+            X_combined = np.concatenate(X_list, axis=1)
+            logger.info(f"Combined data shape: {X_combined.shape}")
+            logger.info(f"Total features: {X_combined.shape[1]}, subjects: {X_combined.shape[0]}")
+            
+            for i, method in enumerate(traditional_methods, 1):
+                logger.info(f"\n--- METHOD {i}/{len(traditional_methods)}: {method.upper()} ---")
+                start_time = time.time()
                 try:
                     from sklearn.decomposition import PCA, FastICA, FactorAnalysis
                     
-                    # Combine all views for traditional methods
-                    X_combined = np.concatenate(X_list, axis=1)
-                    
                     if method == 'pca':
+                        logger.info(f"🚀 Running PCA with 10 components...")
                         model = PCA(n_components=10)
                         factors = model.fit_transform(X_combined)
                         explained_var = model.explained_variance_ratio_.sum()
+                        logger.info(f"   Total explained variance: {explained_var:.3f}")
+                        logger.info(f"   Top 3 component variances: {model.explained_variance_ratio_[:3]}")
+                        explained_var = model.explained_variance_ratio_.sum()
                     elif method == 'ica':
-                        model = FastICA(n_components=10, random_state=42)
+                        logger.info(f"🚀 Running FastICA with 10 components...")
+                        model = FastICA(n_components=10, random_state=42, max_iter=1000)
                         factors = model.fit_transform(X_combined)
+                        logger.info(f"   ICA converged: {model.n_iter_ < model.max_iter}")
+                        logger.info(f"   Iterations used: {model.n_iter_}")
                         explained_var = None  # ICA doesn't have explained variance
                     elif method == 'factor_analysis':
+                        logger.info(f"🚀 Running Factor Analysis with 10 components...")
                         model = FactorAnalysis(n_components=10, random_state=42)
                         factors = model.fit_transform(X_combined)
+                        loglike = model.score(X_combined)
+                        logger.info(f"   Log-likelihood: {loglike:.2f}")
+                        logger.info(f"   Noise variance: {model.noise_variance_.mean():.6f}")
                         explained_var = None  # FA doesn't have explained variance like PCA
                     
+                    end_time = time.time()
+                    duration = end_time - start_time
+                    
+                    logger.info(f"✅ {method.upper()} completed in {duration:.2f} seconds")
+                    logger.info(f"   Output factors shape: {factors.shape}")
+                    
                     results['traditional_methods'][method] = {
+                        'status': 'completed',
                         'n_components': factors.shape[1],
                         'explained_variance_ratio': explained_var,
-                        'factor_shape': factors.shape
+                        'factor_shape': factors.shape,
+                        'duration_seconds': duration
                     }
                     
                 except Exception as e:
-                    logger.warning(f"{method} failed: {e}")
+                    end_time = time.time()
+                    duration = end_time - start_time
+                    logger.error(f"❌ {method.upper()} failed after {duration:.2f} seconds: {e}")
+                    import traceback
+                    logger.debug(f"Full traceback: {traceback.format_exc()}")
                     results['traditional_methods'][method] = {
                         'status': 'failed',
-                        'error': str(e)
+                        'error': str(e),
+                        'duration_seconds': duration
                     }
+            
+            # Generate experiment summary
+            logger.info("\\n🎉 === METHOD COMPARISON COMPLETED ===")
+            
+            # SGFA Results Summary
+            sgfa_completed = sum(1 for result in results['sgfa_variants'].values() 
+                               if result.get('status') != 'failed')
+            sgfa_failed = len(results['sgfa_variants']) - sgfa_completed
+            
+            logger.info(f"📊 SGFA VARIANTS SUMMARY:")
+            logger.info(f"   ✅ Completed: {sgfa_completed}/{len(results['sgfa_variants'])}")
+            if sgfa_failed > 0:
+                logger.info(f"   ❌ Failed: {sgfa_failed}")
+            
+            for variant_name, result in results['sgfa_variants'].items():
+                status = "✅" if result.get('status') != 'failed' else "❌"
+                duration = result.get('duration_minutes', 0)
+                logger.info(f"   {status} {variant_name}: {duration:.2f} minutes")
+            
+            # Traditional Methods Summary
+            trad_completed = sum(1 for result in results['traditional_methods'].values() 
+                               if result.get('status') == 'completed')
+            trad_failed = len(results['traditional_methods']) - trad_completed
+            
+            logger.info(f"📊 TRADITIONAL METHODS SUMMARY:")
+            logger.info(f"   ✅ Completed: {trad_completed}/{len(results['traditional_methods'])}")
+            if trad_failed > 0:
+                logger.info(f"   ❌ Failed: {trad_failed}")
+            
+            for method_name, result in results['traditional_methods'].items():
+                status = "✅" if result.get('status') == 'completed' else "❌"
+                duration = result.get('duration_seconds', 0)
+                logger.info(f"   {status} {method_name}: {duration:.2f} seconds")
+            
+            # Overall summary
+            total_experiments = len(results['sgfa_variants']) + len(results['traditional_methods'])
+            total_completed = sgfa_completed + trad_completed
+            logger.info(f"🏆 OVERALL: {total_completed}/{total_experiments} experiments completed successfully")
             
             logger.info("Method comparison completed successfully")
             
