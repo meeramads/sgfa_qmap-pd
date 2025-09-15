@@ -121,6 +121,15 @@ def run_method_comparison(config):
             data_dir=config['data']['data_dir']
         )
         
+        # COMPREHENSIVE ANALYSIS FRAMEWORK INTEGRATION
+        from remote_workstation.analysis_integration import integrate_analysis_with_pipeline
+
+        logger.info("📊 Integrating comprehensive analysis framework...")
+        data_manager, model_runner, analysis_summary = integrate_analysis_with_pipeline(
+            config=config,
+            data_dir=config['data']['data_dir']
+        )
+
         # COMPREHENSIVE PERFORMANCE OPTIMIZATION INTEGRATION
         from remote_workstation.performance_integration import integrate_performance_with_pipeline
 
@@ -130,15 +139,47 @@ def run_method_comparison(config):
             data_dir=config['data']['data_dir']
         )
 
-        # Load data with comprehensive preprocessing integration AND performance optimization
-        from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+        # Load data with structured analysis framework if available
+        if data_manager and analysis_summary.get('integration_summary', {}).get('structured_analysis', False):
+            logger.info("📊 Using structured DataManager for data loading...")
+            from remote_workstation.analysis_integration import _wrap_analysis_framework
 
-        logger.info("🔧 Applying comprehensive preprocessing integration...")
-        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-            config=config,
-            data_dir=config['data']['data_dir'],
-            auto_select_strategy=True  # Automatically select optimal preprocessing strategy
-        )
+            # Use structured data loading
+            analysis_wrapper = _wrap_analysis_framework(data_manager, model_runner, analysis_summary)
+            X_list, structured_data_info = analysis_wrapper.load_and_prepare_data()
+
+            if structured_data_info.get('data_loaded', False):
+                logger.info("✅ Data loaded with structured analysis framework")
+                logger.info(f"   Loader: {structured_data_info.get('loader', 'unknown')}")
+                if structured_data_info.get('preprocessing_applied', False):
+                    logger.info(f"   Preprocessing: Applied via DataManager")
+
+                # Store structured data info as preprocessing_info for compatibility
+                preprocessing_info = {
+                    'preprocessing_integration': True,
+                    'loader_type': 'structured_analysis_framework',
+                    'structured_data_info': structured_data_info,
+                    'data_manager_used': True
+                }
+            else:
+                logger.warning("⚠️ Structured data loading failed - falling back to preprocessing integration")
+                # Fall back to preprocessing integration
+                from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+                X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                    config=config,
+                    data_dir=config['data']['data_dir'],
+                    auto_select_strategy=True
+                )
+        else:
+            # Use preprocessing integration
+            from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+
+            logger.info("🔧 Applying comprehensive preprocessing integration...")
+            X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                config=config,
+                data_dir=config['data']['data_dir'],
+                auto_select_strategy=True  # Automatically select optimal preprocessing strategy
+            )
 
         # Apply performance optimization to loaded data
         if performance_manager:
@@ -159,6 +200,21 @@ def run_method_comparison(config):
             import numpy as np  # Add missing numpy import
             logger.info("Running comprehensive method comparison...")
             X_list = data['X_list']
+
+            # Log analysis framework information
+            if analysis_summary:
+                integration_info = analysis_summary.get('integration_summary', {})
+                logger.info("📊 ANALYSIS FRAMEWORK SUMMARY:")
+                logger.info(f"   Framework: {'Structured analysis' if integration_info.get('structured_analysis', False) else 'Direct core analysis'}")
+                logger.info(f"   DataManager: {'available' if integration_info.get('data_management', False) else 'unavailable'}")
+                logger.info(f"   ModelRunner: {'available' if integration_info.get('model_execution', False) else 'unavailable'}")
+
+                if integration_info.get('components_available'):
+                    logger.info(f"   Components: {', '.join(integration_info.get('components_available', []))}")
+
+                logger.info(f"   Dependencies: CV={integration_info.get('cv_dependencies_available', False)}, "
+                          f"Preprocessing={integration_info.get('preprocessing_dependencies_available', False)}, "
+                          f"FactorMapping={integration_info.get('factor_mapping_available', False)}")
 
             # Log performance optimization information
             if performance_summary:
@@ -342,8 +398,47 @@ def run_method_comparison(config):
                     logger.info(f"⏱️  Starting MCMC inference at {time.strftime('%H:%M:%S')}...")
                     logger.info(f"Expected duration: ~{args.num_samples/10:.1f}-{args.num_samples/5:.1f} minutes")
 
+                    # Apply structured analysis framework if available
+                    if model_runner and analysis_summary.get('integration_summary', {}).get('structured_analysis', False):
+                        logger.info("📊 Using structured analysis framework for MCMC execution...")
+                        from remote_workstation.analysis_integration import run_structured_mcmc_analysis
+
+                        # Use structured MCMC analysis
+                        structured_results = run_structured_mcmc_analysis(
+                            model_runner=model_runner,
+                            data_manager=data_manager,
+                            X_list=X_list,
+                            config=config
+                        )
+
+                        # Convert structured results to compatible format
+                        if structured_results.get('runs') and len(structured_results['runs']) > 0:
+                            # Use first run results (can be enhanced to aggregate multiple runs)
+                            first_run = list(structured_results['runs'].values())[0]
+                            mcmc_result = type('MCMCResult', (), {
+                                'get_samples': lambda: first_run,
+                                'num_samples': args.num_samples,
+                                'num_chains': args.num_chains
+                            })()
+                            logger.info(f"✅ Structured analysis completed with {len(structured_results['runs'])} runs")
+                        else:
+                            logger.warning("⚠️ Structured analysis failed - falling back to standard MCMC")
+                            # Fall back to standard approach
+                            if performance_manager:
+                                from remote_workstation.performance_integration import optimize_mcmc_execution
+                                mcmc_result = optimize_mcmc_execution(
+                                    performance_manager=performance_manager,
+                                    model_fn=models,
+                                    args=args,
+                                    rng_key=rng_key,
+                                    X_list=X_list,
+                                    hypers=hypers
+                                )
+                            else:
+                                mcmc_result = run_inference(models, args, rng_key, X_list, hypers)
+
                     # Apply MCMC-specific performance optimizations
-                    if performance_manager:
+                    elif performance_manager:
                         logger.info("⚡ Applying MCMC performance optimization...")
                         from remote_workstation.performance_integration import optimize_mcmc_execution
                         mcmc_result = optimize_mcmc_execution(
@@ -355,7 +450,7 @@ def run_method_comparison(config):
                             hypers=hypers
                         )
                     else:
-                        logger.info("⚡ Using standard MCMC execution (performance optimization unavailable)")
+                        logger.info("⚡ Using standard MCMC execution (analysis framework and performance optimization unavailable)")
                         mcmc_result = run_inference(models, args, rng_key, X_list, hypers)
                     
                     end_time = time.time()
