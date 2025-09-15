@@ -191,4 +191,4 @@ monitoring:
   check_gpu_usage: true
   profile_memory: true
   save_checkpoints: true
-  checkpoint_dir: "./checkpoints"
+  checkpoint_dir: "./results/checkpoints"
