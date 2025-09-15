@@ -1,0 +1,383 @@
+{
+  "experiment_id": "remote_workstation_data_validation_20250915_141003",
+  "config": {
+    "experiment_name": "remote_workstation_data_validation",
+    "description": "Comprehensive data validation on remote workstation",
+    "version": "1.0",
+    "dataset": "qmap_pd",
+    "data_dir": "./qMAP-PD_data",
+    "preprocessing_config": {},
+    "K_values": [
+      5,
+      10,
+      15
+    ],
+    "num_sources": 3,
+    "percW_values": [
+      25.0,
+      33.0,
+      50.0
+    ],
+    "num_samples": 2000,
+    "num_chains": 4,
+    "num_warmup": 1000,
+    "num_runs_per_config": 3,
+    "cv_folds": 5,
+    "cv_strategy": "stratified",
+    "cv_target_variable": null,
+    "cv_group_variable": null,
+    "performance_config": {},
+    "enable_memory_optimization": true,
+    "enable_profiling": true,
+    "save_intermediate_results": true,
+    "save_samples": false,
+    "save_diagnostics": true,
+    "output_formats": [
+      "json",
+      "csv"
+    ],
+    "random_seeds": [
+      42,
+      123,
+      456
+    ]
+  },
+  "start_time": "2025-09-15T14:10:03.195696",
+  "end_time": "2025-09-15T15:25:11.237732",
+  "status": "completed",
+  "error_message": null,
+  "model_results": {},
+  "cv_results": {},
+  "performance_metrics": {},
+  "diagnostics": {
+    "plots_generated": [
+      "feature_distributions.png",
+      "missing_data_patterns.png",
+      "correlation_matrices.png",
+      "pca_visualization.png",
+      "quality_metrics.png"
+    ],
+    "statistical_tests": {
+      "pca_analysis": {
+        "raw_data": {
+          "volume_sn_voxels": {
+            "explained_variance_ratio": [
+              0.49286385825103096,
+              0.0788202666631317,
+              0.07168407073132775,
+              0.054208888166495384,
+              0.04238076233958567,
+              0.038703352137680044,
+              0.035067852677389114,
+              0.027016225947139212,
+              0.018987733696386032,
+              0.016885727102167875
+            ],
+            "cumulative_variance": [
+              0.49286385825103096,
+              0.5716841249141627,
+              0.6433681956454904,
+              0.6975770838119858,
+              0.7399578461515715,
+              0.7786611982892515,
+              0.8137290509666406,
+              0.8407452769137799,
+              0.8597330106101659,
+              0.8766187377123338
+            ],
+            "n_components_90_var": 1
+          },
+          "volume_putamen_voxels": {
+            "explained_variance_ratio": [
+              0.4073140783853419,
+              0.07713361983871453,
+              0.05722895647954214,
+              0.04319590119281856,
+              0.03753437263689327,
+              0.03421621684417266,
+              0.024295809733865754,
+              0.021522720847202685,
+              0.01947828252023317,
+              0.018360997084198073
+            ],
+            "cumulative_variance": [
+              0.4073140783853419,
+              0.4844476982240564,
+              0.5416766547035986,
+              0.5848725558964172,
+              0.6224069285333105,
+              0.6566231453774831,
+              0.6809189551113489,
+              0.7024416759585516,
+              0.7219199584787848,
+              0.7402809555629828
+            ],
+            "n_components_90_var": 1
+          },
+          "volume_lentiform_voxels": {
+            "explained_variance_ratio": [
+              0.36983984106234746,
+              0.11279022257233845,
+              0.1063292868904644,
+              0.06216125784484669,
+              0.033601134587071924,
+              0.02948486535180973,
+              0.02675220443282467,
+              0.023539088571212837,
+              0.01981502771360457,
+              0.01929386721085652
+            ],
+            "cumulative_variance": [
+              0.36983984106234746,
+              0.4826300636346859,
+              0.5889593505251504,
+              0.6511206083699971,
+              0.684721742957069,
+              0.7142066083088787,
+              0.7409588127417034,
+              0.7644979013129162,
+              0.7843129290265207,
+              0.8036067962373772
+            ],
+            "n_components_90_var": 1
+          },
+          "clinical": {
+            "explained_variance_ratio": [
+              0.2971758229341264,
+              0.1434018453018882,
+              0.12357673728253782,
+              0.09037063532934621,
+              0.06681118033901108,
+              0.04734173685727015,
+              0.04211274056462791,
+              0.032497713951844226,
+              0.03199053118681365,
+              0.02908266104553005
+            ],
+            "cumulative_variance": [
+              0.2971758229341264,
+              0.44057766823601463,
+              0.5641544055185524,
+              0.6545250408478986,
+              0.7213362211869098,
+              0.7686779580441799,
+              0.8107906986088078,
+              0.843288412560652,
+              0.8752789437474656,
+              0.9043616047929957
+            ],
+            "n_components_90_var": 10
+          }
+        },
+        "preprocessed_data": {
+          "volume_sn_voxels": {
+            "explained_variance_ratio": [
+              0.4917415248871683,
+              0.07890251437533298,
+              0.07122957519809023,
+              0.054773378946407186,
+              0.04357323850012022,
+              0.04214941101365928,
+              0.03611004696694142,
+              0.025106567986710647,
+              0.019009709872593407,
+              0.016296571050756034
+            ],
+            "cumulative_variance": [
+              0.4917415248871683,
+              0.5706440392625013,
+              0.6418736144605915,
+              0.6966469934069988,
+              0.7402202319071189,
+              0.7823696429207783,
+              0.8184796898877197,
+              0.8435862578744303,
+              0.8625959677470237,
+              0.8788925387977797
+            ],
+            "n_components_90_var": 1
+          },
+          "volume_putamen_voxels": {
+            "explained_variance_ratio": [
+              0.31869136549356214,
+              0.1937320268883602,
+              0.06656766817085169,
+              0.04090800132710504,
+              0.037793359550154434,
+              0.03432385259907626,
+              0.028017029067232857,
+              0.024392327959822758,
+              0.018911083258698873,
+              0.017258902523342248
+            ],
+            "cumulative_variance": [
+              0.31869136549356214,
+              0.5124233923819224,
+              0.578991060552774,
+              0.6198990618798791,
+              0.6576924214300335,
+              0.6920162740291097,
+              0.7200333030963426,
+              0.7444256310561653,
+              0.7633367143148642,
+              0.7805956168382064
+            ],
+            "n_components_90_var": 1
+          },
+          "volume_lentiform_voxels": {
+            "explained_variance_ratio": [
+              0.5959234692286093,
+              0.11284397117643921,
+              0.07314675952352132,
+              0.03704245307451584,
+              0.023869132176098467,
+              0.01963140286538236,
+              0.016159129638079715,
+              0.01368857199119348,
+              0.012764246736557358,
+              0.008312895092049294
+            ],
+            "cumulative_variance": [
+              0.5959234692286093,
+              0.7087674404050485,
+              0.7819141999285698,
+              0.8189566530030856,
+              0.842825785179184,
+              0.8624571880445664,
+              0.8786163176826461,
+              0.8923048896738396,
+              0.905069136410397,
+              0.9133820315024462
+            ],
+            "n_components_90_var": 9
+          },
+          "clinical": {
+            "explained_variance_ratio": [
+              0.36988556803872963,
+              0.15764937234217383,
+              0.09618007224055831,
+              0.08231111180059401,
+              0.06114853723549768,
+              0.05359669191034794,
+              0.04468516539123408,
+              0.02747625314014628,
+              0.024676252520932807,
+              0.02013791048552373
+            ],
+            "cumulative_variance": [
+              0.36988556803872963,
+              0.5275349403809034,
+              0.6237150126214618,
+              0.7060261244220558,
+              0.7671746616575534,
+              0.8207713535679013,
+              0.8654565189591354,
+              0.8929327720992817,
+              0.9176090246202144,
+              0.9377469351057381
+            ],
+            "n_components_90_var": 9
+          }
+        },
+        "comparison": {}
+      }
+    },
+    "visualizations": {}
+  },
+  "data_summary": {
+    "raw_data": {
+      "n_subjects": 86,
+      "n_views": 4,
+      "features_per_view": [
+        1794,
+        21444,
+        7201,
+        17
+      ],
+      "total_features": 30456,
+      "clinical_variables": [
+        "sid",
+        "age",
+        "sex",
+        "tiv",
+        "rigidity_left",
+        "rigidity_right",
+        "tremor_rest_left",
+        "tremor_rest_right",
+        "tremor_postural_left",
+        "tremor_postural_right",
+        "bradykinesia_speed_left",
+        "bradykinesia_speed_right",
+        "bradykinesia_amplitude_left",
+        "bradykinesia_amplitude_right",
+        "bradykinesia_rhythm_left",
+        "bradykinesia_rhythm_right",
+        "mirrormovement_left",
+        "mirrormovement_right"
+      ],
+      "n_clinical_variables": 18,
+      "data_types": [
+        "float64",
+        "float64",
+        "float64",
+        "float64"
+      ],
+      "view_names": [
+        "volume_sn_voxels",
+        "volume_putamen_voxels",
+        "volume_lentiform_voxels",
+        "clinical"
+      ]
+    },
+    "preprocessed_data": {
+      "n_subjects": 86,
+      "n_views": 4,
+      "features_per_view": [
+        1794,
+        21444,
+        7201,
+        17
+      ],
+      "total_features": 30456,
+      "clinical_variables": [
+        "sid",
+        "age",
+        "sex",
+        "tiv",
+        "rigidity_left",
+        "rigidity_right",
+        "tremor_rest_left",
+        "tremor_rest_right",
+        "tremor_postural_left",
+        "tremor_postural_right",
+        "bradykinesia_speed_left",
+        "bradykinesia_speed_right",
+        "bradykinesia_amplitude_left",
+        "bradykinesia_amplitude_right",
+        "bradykinesia_rhythm_left",
+        "bradykinesia_rhythm_right",
+        "mirrormovement_left",
+        "mirrormovement_right"
+      ],
+      "n_clinical_variables": 18,
+      "data_types": [
+        "float64",
+        "float64",
+        "float64",
+        "float64"
+      ],
+      "view_names": [
+        "volume_sn_voxels",
+        "volume_putamen_voxels",
+        "volume_lentiform_voxels",
+        "clinical"
+      ]
+    },
+    "comparison": {
+      "feature_reduction_ratio": 0.0,
+      "features_removed": 0,
+      "subjects_unchanged": true
+    }
+  },
+  "convergence_diagnostics": {}
+}
