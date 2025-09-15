@@ -26,16 +26,8 @@ def run_performance_benchmarks(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Import framework using direct module loading to avoid relative import issues
-        import importlib.util
-
-        # Import framework directly
-        framework_path = os.path.join(project_root, 'experiments', 'framework.py')
-        spec = importlib.util.spec_from_file_location("framework", framework_path)
-        framework_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(framework_module)
-        ExperimentFramework = framework_module.ExperimentFramework
-        ExperimentConfig = framework_module.ExperimentConfig
+        # Now use normal imports since we fixed the relative import issues
+        from experiments.framework import ExperimentFramework, ExperimentConfig
 
         framework = ExperimentFramework(
             base_output_dir=Path(config['experiments']['base_output_dir'])

@@ -23,23 +23,9 @@ def run_data_validation(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Import framework using direct module loading to avoid relative import issues
-        import importlib.util
-
-        # Import framework directly
-        framework_path = os.path.join(project_root, 'experiments', 'framework.py')
-        spec = importlib.util.spec_from_file_location("framework", framework_path)
-        framework_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(framework_module)
-        ExperimentFramework = framework_module.ExperimentFramework
-        ExperimentConfig = framework_module.ExperimentConfig
-
-        # Import data validation experiments
-        data_val_path = os.path.join(project_root, 'experiments', 'data_validation.py')
-        spec = importlib.util.spec_from_file_location("data_validation", data_val_path)
-        data_val_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(data_val_module)
-        DataValidationExperiments = data_val_module.DataValidationExperiments
+        # Now use normal imports since we fixed the relative import issues
+        from experiments.framework import ExperimentFramework, ExperimentConfig
+        from experiments.data_validation import DataValidationExperiments
 
         # Setup framework
         framework = ExperimentFramework(
