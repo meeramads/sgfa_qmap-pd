@@ -29,6 +29,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Add the current directory to path for local experiments import
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # Import modular experiment functions
 from experiments import (
     run_data_validation,
@@ -104,7 +108,6 @@ def main():
         unified_dir.mkdir(parents=True, exist_ok=True)
 
         # Update config to use unified directory
-        original_base_dir = config['experiments']['base_output_dir']
         config['experiments']['base_output_dir'] = str(unified_dir)
 
         logger.info(f"🗂️  Using unified results directory: {unified_dir}")
