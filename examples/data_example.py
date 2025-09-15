@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -255,7 +256,7 @@ def example_advanced_preprocessing():
             # Apply preprocessing strategy
             X_list, preprocessing_info = apply_preprocessing_to_pipeline(
                 config=config,
-                data_dir=config['data']['data_dir'],
+                data_dir=get_data_dir(config),
                 auto_select_strategy=False,
                 preferred_strategy=strategy,
                 X_list_override=base_data['X_list']  # Use synthetic data

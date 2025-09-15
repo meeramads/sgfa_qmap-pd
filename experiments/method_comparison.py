@@ -8,6 +8,9 @@ import pandas as pd
 from pathlib import Path
 import logging
 from scipy import stats
+
+# Safe configuration access
+from core.config_utils import safe_get, get_output_dir, ConfigAccessor
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA, FactorAnalysis
@@ -828,10 +831,12 @@ def run_method_comparison(config):
 
     try:
         # Check if using shared data mode
-        if '_shared_data' in config:
+        config_accessor = ConfigAccessor(config)
+        if config_accessor.has_shared_data():
             logger.info("🔗 Using shared data from pipeline")
-            X_list = config['_shared_data']['X_list']
-            preprocessing_info = config['_shared_data']['preprocessing_info']
+            shared_data = config_accessor.get_shared_data()
+            X_list = safe_get(shared_data, 'X_list')
+            preprocessing_info = safe_get(shared_data, 'preprocessing_info', default={})
             use_shared_data = True
         else:
             use_shared_data = False
@@ -849,14 +854,14 @@ def run_method_comparison(config):
         from experiments.framework import ExperimentFramework, ExperimentConfig
 
         framework = ExperimentFramework(
-            base_output_dir=Path(config['experiments']['base_output_dir'])
+            base_output_dir=config_accessor.output_dir
         )
 
         exp_config = ExperimentConfig(
             experiment_name="remote_workstation_method_comparison",
             description="Compare SGFA model variants on remote workstation",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir']
+            data_dir=config_accessor.data_dir
         )
 
         # COMPREHENSIVE MODELS FRAMEWORK INTEGRATION
@@ -873,7 +878,7 @@ def run_method_comparison(config):
         logger.info("📊 Integrating comprehensive analysis framework...")
         data_manager, model_runner, analysis_summary = integrate_analysis_with_pipeline(
             config=config,
-            data_dir=config['data']['data_dir']
+            data_dir=config_accessor.data_dir
         )
 
         # COMPREHENSIVE PERFORMANCE OPTIMIZATION INTEGRATION
@@ -882,7 +887,7 @@ def run_method_comparison(config):
         logger.info("⚡ Integrating comprehensive performance optimization framework...")
         performance_manager, performance_summary = integrate_performance_with_pipeline(
             config=config,
-            data_dir=config['data']['data_dir']
+            data_dir=config_accessor.data_dir
         )
 
         # Load data with structured analysis framework if available
@@ -913,7 +918,7 @@ def run_method_comparison(config):
                 from data.preprocessing_integration import apply_preprocessing_to_pipeline
                 X_list, preprocessing_info = apply_preprocessing_to_pipeline(
                     config=config,
-                    data_dir=config['data']['data_dir'],
+                    data_dir=config_accessor.data_dir,
                     auto_select_strategy=True
                 )
         else:
@@ -923,7 +928,7 @@ def run_method_comparison(config):
             logger.info("🔧 Applying advanced neuroimaging preprocessing for method comparison...")
             X_list, preprocessing_info = apply_preprocessing_to_pipeline(
                 config=config,
-                data_dir=config['data']['data_dir'],
+                data_dir=config_accessor.data_dir,
                 auto_select_strategy=False,
                 preferred_strategy="aggressive"  # Use advanced preprocessing for better model comparison
             )

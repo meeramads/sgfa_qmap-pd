@@ -29,11 +29,15 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Import experiment functions
+# Import utilities and experiment functions
+from core.config_utils import (ConfigAccessor, get_output_dir, ensure_directories, safe_get,
+                               validate_configuration, check_configuration_warnings)
 from experiments.data_validation import run_data_validation
 from experiments.method_comparison import run_method_comparison
 from experiments.performance_benchmarks import run_performance_benchmarks
 from experiments.sensitivity_analysis import run_sensitivity_analysis
+from experiments.clinical_validation import run_clinical_validation
+from experiments.reproducibility import run_reproducibility
 
 def load_config(config_path="config.yaml"):
     """Load remote workstation configuration."""
@@ -48,12 +52,8 @@ def load_config(config_path="config.yaml"):
 
 def setup_environment(config):
     """Setup experimental environment."""
-    # Create output directories
-    output_dir = Path(config['experiments']['base_output_dir'])
-    output_dir.mkdir(exist_ok=True)
-
-    checkpoint_dir = Path(config.get('monitoring', {}).get('checkpoint_dir', 'checkpoints'))
-    checkpoint_dir.mkdir(exist_ok=True)
+    # Create output directories using safe access
+    ensure_directories(config)
 
     # Verify GPU availability
     try:
@@ -90,11 +90,27 @@ def main():
 
     args = parser.parse_args()
 
-    # Load configuration
+    # Load and validate configuration
     config = load_config(args.config)
+
+    logger.info("🔍 Validating configuration...")
+    try:
+        config = validate_configuration(config)
+        logger.info("✅ Configuration validation passed")
+
+        # Check for warnings
+        warnings = check_configuration_warnings(config)
+        for warning in warnings:
+            logger.warning(f"⚠️  {warning}")
+
+    except Exception as e:
+        logger.error(f"❌ Configuration validation failed: {e}")
+        sys.exit(1)
 
     # Override data directory if provided
     if args.data_dir:
+        if 'data' not in config:
+            config['data'] = {}
         config['data']['data_dir'] = args.data_dir
         logger.info(f"Using data directory: {args.data_dir}")
 
@@ -102,10 +118,13 @@ def main():
     if args.unified_results:
         # Create single timestamped directory for all experiments
         run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        unified_dir = Path(config['experiments']['base_output_dir']) / f"complete_run_{run_timestamp}"
+        output_dir = get_output_dir(config)
+        unified_dir = output_dir / f"complete_run_{run_timestamp}"
         unified_dir.mkdir(parents=True, exist_ok=True)
 
         # Update config to use unified directory
+        if 'experiments' not in config:
+            config['experiments'] = {}
         config['experiments']['base_output_dir'] = str(unified_dir)
 
         logger.info(f"🗂️  Using unified results directory: {unified_dir}")
@@ -216,7 +235,7 @@ def main():
 
     logger.info(f" All experiments completed!")
     logger.info(f"  Total duration: {duration}")
-    logger.info(f" Results saved to: {config['experiments']['base_output_dir']}")
+    logger.info(f" Results saved to: {get_output_dir(config)}")
 
     # Create comprehensive summary
     if args.unified_results:
@@ -264,12 +283,12 @@ def main():
                 summary['experiments_executed'][exp_name] = {'status': 'failed'}
 
         # Save main summary
-        summary_path = Path(config['experiments']['base_output_dir']) / 'summaries' / 'complete_experiment_summary.yaml'
+        summary_path = get_output_dir(config) / 'summaries' / 'complete_experiment_summary.yaml'
         with open(summary_path, 'w') as f:
             yaml.dump(summary, f, default_flow_style=False)
 
         # Create a simple text summary for quick reading
-        text_summary_path = Path(config['experiments']['base_output_dir']) / 'README.md'
+        text_summary_path = get_output_dir(config) / 'README.md'
         with open(text_summary_path, 'w') as f:
             f.write(f"# SGFA Experiment Run Results\\n\\n")
             f.write(f"**Run Date:** {start_time.strftime('%Y-%m-%d %H:%M:%S')}\\n")
@@ -317,7 +336,7 @@ def main():
             'config_used': args.config
         }
 
-        summary_path = Path(config['experiments']['base_output_dir']) / 'experiment_summary.yaml'
+        summary_path = get_output_dir(config) / 'experiment_summary.yaml'
         with open(summary_path, 'w') as f:
             yaml.dump(summary, f, default_flow_style=False)
 

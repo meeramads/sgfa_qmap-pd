@@ -20,6 +20,7 @@ import warnings
 
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
+from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
 
 class ClinicalValidationExperiments(ExperimentFramework):
     """Comprehensive clinical validation experiments for SGFA qMAP-PD analysis."""
@@ -2001,7 +2002,7 @@ def run_clinical_validation(config):
         logger.info("🔧 Loading data for clinical validation...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
-            data_dir=config['data']['data_dir'],
+            data_dir=get_data_dir(config),
             auto_select_strategy=False,
             preferred_strategy="clinical_focused"  # Use clinical-focused preprocessing
         )
@@ -2013,7 +2014,7 @@ def run_clinical_validation(config):
         # Load clinical data
         try:
             from data.qmap_pd import load_qmap_pd
-            clinical_data = load_qmap_pd(config['data']['data_dir'])
+            clinical_data = load_qmap_pd(get_data_dir(config))
 
             # Extract clinical labels (using mock labels as fallback - real clinical subtype data would be preferred)
             n_subjects = X_list[0].shape[0]
@@ -2029,14 +2030,14 @@ def run_clinical_validation(config):
 
         # Initialize experiment framework
         framework = ExperimentFramework(
-            base_output_dir=Path(config['experiments']['base_output_dir'])
+            base_output_dir=get_output_dir(config)
         )
 
         exp_config = ExperimentConfig(
             experiment_name="clinical_validation",
             description="Clinical validation of SGFA factors for PD subtypes",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir']
+            data_dir=get_data_dir(config)
         )
 
         # Create clinical validation experiment instance

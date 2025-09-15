@@ -13,6 +13,7 @@ import warnings
 
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
+from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
 
 class SensitivityAnalysisExperiments(ExperimentFramework):
     """Comprehensive sensitivity analysis for SGFA hyperparameters."""
@@ -1070,7 +1071,7 @@ def run_sensitivity_analysis(config):
         logger.info("🔧 Loading data for sensitivity analysis...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
-            data_dir=config['data']['data_dir'],
+            data_dir=get_data_dir(config),
             auto_select_strategy=False,
             preferred_strategy="standard"  # Use standard preprocessing for sensitivity analysis
         )
@@ -1081,14 +1082,14 @@ def run_sensitivity_analysis(config):
 
         # Initialize experiment framework
         framework = ExperimentFramework(
-            base_output_dir=Path(config['experiments']['base_output_dir'])
+            base_output_dir=get_output_dir(config)
         )
 
         exp_config = ExperimentConfig(
             experiment_name="sensitivity_analysis",
             description="Hyperparameter sensitivity analysis for SGFA",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir']
+            data_dir=get_data_dir(config)
         )
 
         # Create sensitivity experiment instance

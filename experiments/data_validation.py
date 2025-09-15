@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from data.qmap_pd import load_qmap_pd
 from core.utils import safe_pickle_save, safe_pickle_load
+from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ def run_data_validation(config):
         logger.info("🧠 Using advanced neuroimaging preprocessing strategy...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
-            data_dir=config['data']['data_dir'],
+            data_dir=get_data_dir(config),
             auto_select_strategy=False,  # Don't auto-select, use our preferred strategy
             preferred_strategy="aggressive"  # Use the most advanced preprocessing
         )

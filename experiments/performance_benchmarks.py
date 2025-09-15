@@ -15,6 +15,7 @@ import warnings
 
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler, PerformanceManager
+from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
 
 class PerformanceBenchmarkExperiments(ExperimentFramework):
     """Comprehensive performance benchmarking for SGFA analysis."""
@@ -1530,7 +1531,7 @@ def run_performance_benchmarks(config):
         logger.info("🔧 Loading data for performance benchmarking...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
-            data_dir=config['data']['data_dir'],
+            data_dir=get_data_dir(config),
             auto_select_strategy=False,
             preferred_strategy="standard"  # Use standard preprocessing for benchmarks
         )
@@ -1541,14 +1542,14 @@ def run_performance_benchmarks(config):
 
         # Initialize experiment framework
         framework = ExperimentFramework(
-            base_output_dir=Path(config['experiments']['base_output_dir'])
+            base_output_dir=get_output_dir(config)
         )
 
         exp_config = ExperimentConfig(
             experiment_name="performance_benchmarks",
             description="Performance benchmarking for SGFA on remote workstation",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir']
+            data_dir=get_data_dir(config)
         )
 
         # Create benchmark experiment instance

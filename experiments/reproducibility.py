@@ -14,6 +14,7 @@ import warnings
 
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
+from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
 
 class ReproducibilityExperiments(ExperimentFramework):
     """Comprehensive reproducibility and robustness testing for SGFA analysis."""
@@ -1117,7 +1118,7 @@ def run_reproducibility_tests(config):
         logger.info("🔧 Loading data for reproducibility testing...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
-            data_dir=config['data']['data_dir'],
+            data_dir=get_data_dir(config),
             auto_select_strategy=False,
             preferred_strategy="standard"  # Use standard preprocessing for consistency
         )
@@ -1128,14 +1129,14 @@ def run_reproducibility_tests(config):
 
         # Initialize experiment framework
         framework = ExperimentFramework(
-            base_output_dir=Path(config['experiments']['base_output_dir'])
+            base_output_dir=get_output_dir(config)
         )
 
         exp_config = ExperimentConfig(
             experiment_name="reproducibility_tests",
             description="Reproducibility and robustness testing for SGFA",
             dataset="qmap_pd",
-            data_dir=config['data']['data_dir']
+            data_dir=get_data_dir(config)
         )
 
         # Create reproducibility experiment instance
