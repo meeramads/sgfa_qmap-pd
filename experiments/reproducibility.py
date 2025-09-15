@@ -1094,7 +1094,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         return plots
 
 
-def run_reproducibility_tests(config):
+def run_reproducibility(config):
     """Run reproducibility tests with remote workstation integration."""
     import logging
     import sys
