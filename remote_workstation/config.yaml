@@ -123,14 +123,47 @@ sensitivity_analysis:
     n_random_inits: 10
     convergence_threshold: 1e-6
 
-# Automatic Optimal K Selection Configuration
-optimal_K_selection:
-  enabled: true  # Enable automatic K determination
-  candidate_K_values: [5, 8, 10, 12, 15]  # K values to test
+# Enhanced Hyperparameter Optimization Configuration
+hyperparameter_optimization:
+  enabled: true  # Enable automatic hyperparameter determination
+
+  # Parameters to optimize
+  optimize_K: true  # Optimize number of factors
+  optimize_percW: true  # Optimize sparsity percentage
+  optimize_mcmc: true  # Optimize MCMC efficiency parameters
+  joint_optimization: true  # Perform joint K+percW+MCMC optimization
+
+  # Candidate values for optimization
+  K_candidates: [5, 8, 10, 12, 15]  # K values to test
+  percW_candidates: [20, 25, 33, 40, 50]  # percW values to test
+
+  # MCMC parameter candidates for efficiency optimization
+  num_samples_candidates: [1000, 2000]  # Sample counts to test
+  num_warmup_candidates: [500, 1000]    # Warmup sample counts (auto-determined as 50% of num_samples)
+  num_chains_candidates: [2, 4]         # Chain counts to test
+  target_accept_prob_candidates: [0.8]  # Accept probability values
+
+  # Evaluation settings
   evaluation_method: "quality_scoring"  # Method for evaluation
   use_for_method_comparison: true  # Apply to method comparison experiments
   use_for_sensitivity_analysis: true  # Apply to sensitivity analysis
-  fallback_K: 10  # Default K if automatic selection fails
+
+  # Fallback values if optimization fails
+  fallback_K: 10  # Default K
+  fallback_percW: 33  # Default percW
+  fallback_num_samples: 2000  # Default MCMC samples
+  fallback_num_warmup: 1000   # Default warmup samples
+  fallback_num_chains: 4      # Default chain count
+  fallback_target_accept_prob: 0.8  # Default acceptance probability
+
+# Backward compatibility (deprecated - use hyperparameter_optimization above)
+optimal_K_selection:
+  enabled: false  # Deprecated in favor of hyperparameter_optimization
+  candidate_K_values: [5, 8, 10, 12, 15]
+  evaluation_method: "quality_scoring"
+  use_for_method_comparison: false
+  use_for_sensitivity_analysis: false
+  fallback_K: 10
 
 # Model Training Configuration
 training:
