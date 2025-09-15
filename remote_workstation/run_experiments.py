@@ -1006,6 +1006,8 @@ def main():
                                "performance_benchmarks", "sensitivity_analysis", "all"],
                        default=["all"], help="Experiments to run")
     parser.add_argument("--data-dir", help="Override data directory")
+    parser.add_argument("--unified-results", action="store_true", default=True,
+                       help="Save all results in a single timestamped folder (default: True)")
     
     args = parser.parse_args()
     
@@ -1016,6 +1018,29 @@ def main():
     if args.data_dir:
         config['data']['data_dir'] = args.data_dir
         logger.info(f"Using data directory: {args.data_dir}")
+    
+    # Setup unified results directory if requested
+    if args.unified_results:
+        # Create single timestamped directory for all experiments
+        run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unified_dir = Path(config['experiments']['base_output_dir']) / f"complete_run_{run_timestamp}"
+        unified_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Update config to use unified directory
+        original_base_dir = config['experiments']['base_output_dir']
+        config['experiments']['base_output_dir'] = str(unified_dir)
+        
+        logger.info(f"🗂️  Using unified results directory: {unified_dir}")
+        logger.info(f"   All experiments will save to: {unified_dir.name}")
+        
+        # Create organized subdirectories in unified folder
+        (unified_dir / "01_data_validation").mkdir(exist_ok=True)
+        (unified_dir / "02_method_comparison").mkdir(exist_ok=True)
+        (unified_dir / "03_performance_benchmarks").mkdir(exist_ok=True)
+        (unified_dir / "04_sensitivity_analysis").mkdir(exist_ok=True)
+        (unified_dir / "plots").mkdir(exist_ok=True)
+        (unified_dir / "brain_maps").mkdir(exist_ok=True)
+        (unified_dir / "summaries").mkdir(exist_ok=True)
     
     # Setup environment
     setup_environment(config)
@@ -1054,21 +1079,110 @@ def main():
     logger.info(f"  Total duration: {duration}")
     logger.info(f" Results saved to: {config['experiments']['base_output_dir']}")
     
-    # Save summary
-    summary = {
-        'start_time': start_time.isoformat(),
-        'end_time': end_time.isoformat(), 
-        'duration_seconds': duration.total_seconds(),
-        'experiments_run': experiments_to_run,
-        'success_count': len([r for r in results.values() if r is not None]),
-        'config_used': args.config
-    }
-    
-    summary_path = Path(config['experiments']['base_output_dir']) / 'experiment_summary.yaml'
-    with open(summary_path, 'w') as f:
-        yaml.dump(summary, f, default_flow_style=False)
-    
-    logger.info(f" Experiment summary saved to: {summary_path}")
+    # Create comprehensive summary
+    if args.unified_results:
+        logger.info(f"📋 Creating comprehensive experiment summary...")
+        
+        # Collect detailed results information
+        summary = {
+            'experiment_run_info': {
+                'start_time': start_time.isoformat(),
+                'end_time': end_time.isoformat(), 
+                'duration_seconds': duration.total_seconds(),
+                'duration_formatted': str(duration),
+                'unified_results': True,
+                'config_used': args.config
+            },
+            'experiments_executed': {},
+            'results_summary': {
+                'total_experiments': len(experiments_to_run),
+                'successful_experiments': len([r for r in results.values() if r is not None]),
+                'failed_experiments': len([r for r in results.values() if r is None])
+            }
+        }
+        
+        # Add experiment-specific summaries
+        for exp_name, result in results.items():
+            if result is not None:
+                exp_summary = {
+                    'status': getattr(result, 'status', 'completed'),
+                    'experiment_id': getattr(result, 'experiment_id', 'N/A'),
+                    'duration': getattr(result, 'get_duration', lambda: 0)()
+                }
+                
+                # Add specific details based on experiment type
+                if exp_name == 'method_comparison' and hasattr(result, 'model_results'):
+                    model_results = result.model_results
+                    if 'sgfa_variants' in model_results:
+                        exp_summary['sgfa_variants'] = list(model_results['sgfa_variants'].keys())
+                        exp_summary['successful_variants'] = len([v for v in model_results['sgfa_variants'].values() if v.get('status') == 'completed'])
+                    if 'plots' in model_results:
+                        exp_summary['plots_generated'] = model_results['plots'].get('plot_count', 0)
+                        exp_summary['brain_maps_available'] = 'brain_maps' in str(model_results['plots'].get('generated_plots', []))
+                        
+                summary['experiments_executed'][exp_name] = exp_summary
+            else:
+                summary['experiments_executed'][exp_name] = {'status': 'failed'}
+        
+        # Save main summary
+        summary_path = Path(config['experiments']['base_output_dir']) / 'summaries' / 'complete_experiment_summary.yaml'
+        with open(summary_path, 'w') as f:
+            yaml.dump(summary, f, default_flow_style=False)
+            
+        # Create a simple text summary for quick reading
+        text_summary_path = Path(config['experiments']['base_output_dir']) / 'README.md'
+        with open(text_summary_path, 'w') as f:
+            f.write(f"# SGFA Experiment Run Results\\n\\n")
+            f.write(f"**Run Date:** {start_time.strftime('%Y-%m-%d %H:%M:%S')}\\n")
+            f.write(f"**Duration:** {duration}\\n")
+            f.write(f"**Experiments:** {', '.join(experiments_to_run)}\\n\\n")
+            
+            f.write(f"## Results Structure\\n\\n")
+            f.write(f"```\\n")
+            f.write(f"01_data_validation/     - Data quality and preprocessing analysis\\n")
+            f.write(f"02_method_comparison/   - SGFA variants and traditional methods\\n")
+            f.write(f"03_performance_benchmarks/ - Scalability and performance tests\\n")
+            f.write(f"04_sensitivity_analysis/ - Parameter sensitivity studies\\n")
+            f.write(f"plots/                  - All visualization outputs\\n")
+            f.write(f"brain_maps/            - Factor loadings mapped to brain space\\n")
+            f.write(f"summaries/             - Detailed summaries and reports\\n")
+            f.write(f"```\\n\\n")
+            
+            # Add experiment-specific details
+            for exp_name, result in results.items():
+                if result is not None:
+                    f.write(f"### {exp_name.replace('_', ' ').title()}\\n")
+                    f.write(f"- Status: Completed\\n")
+                    if exp_name == 'method_comparison' and hasattr(result, 'model_results'):
+                        model_results = result.model_results
+                        if 'sgfa_variants' in model_results:
+                            f.write(f"- SGFA Variants: {list(model_results['sgfa_variants'].keys())}\\n")
+                        if 'plots' in model_results:
+                            f.write(f"- Plots Generated: {model_results['plots'].get('plot_count', 0)}\\n")
+                    f.write(f"\\n")
+                else:
+                    f.write(f"### {exp_name.replace('_', ' ').title()}\\n")
+                    f.write(f"- Status: Failed\\n\\n")
+        
+        logger.info(f"📋 Comprehensive summary saved to: {summary_path}")
+        logger.info(f"📖 Quick reference saved to: {text_summary_path}")
+        
+    else:
+        # Simple summary for non-unified results
+        summary = {
+            'start_time': start_time.isoformat(),
+            'end_time': end_time.isoformat(), 
+            'duration_seconds': duration.total_seconds(),
+            'experiments_run': experiments_to_run,
+            'success_count': len([r for r in results.values() if r is not None]),
+            'config_used': args.config
+        }
+        
+        summary_path = Path(config['experiments']['base_output_dir']) / 'experiment_summary.yaml'
+        with open(summary_path, 'w') as f:
+            yaml.dump(summary, f, default_flow_style=False)
+        
+        logger.info(f" Experiment summary saved to: {summary_path}")
 
 if __name__ == "__main__":
     main()
