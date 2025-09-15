@@ -16,6 +16,11 @@ def run_sensitivity_analysis(config):
     logger.info(" Starting Sensitivity Analysis Experiments")
 
     try:
+        # Add parent directory to path for framework imports
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+
         from experiments.framework import ExperimentFramework, ExperimentConfig
         from experiments.sensitivity_analysis import SensitivityAnalysisExperiments
 

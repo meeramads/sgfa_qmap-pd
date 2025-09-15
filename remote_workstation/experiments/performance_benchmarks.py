@@ -17,6 +17,11 @@ def run_performance_benchmarks(config):
     logger.info("Starting Performance Benchmark Experiments")
 
     try:
+        # Add parent directory to path for framework imports
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+
         from experiments.framework import ExperimentFramework, ExperimentConfig
         from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
 

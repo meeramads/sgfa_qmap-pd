@@ -14,6 +14,11 @@ def run_method_comparison(config):
     logger.info("Starting Method Comparison Experiments")
 
     try:
+        # Add parent directory to path for framework imports
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+
         from experiments.framework import ExperimentFramework, ExperimentConfig
         from experiments.method_comparison import MethodComparisonExperiments
 
