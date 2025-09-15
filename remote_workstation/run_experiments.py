@@ -121,6 +121,15 @@ def run_method_comparison(config):
             data_dir=config['data']['data_dir']
         )
         
+        # COMPREHENSIVE MODELS FRAMEWORK INTEGRATION
+        from remote_workstation.models_integration import integrate_models_with_pipeline
+
+        logger.info("🧠 Integrating comprehensive models framework...")
+        # We'll get data characteristics after loading data
+        model_type, model_instance, models_summary = integrate_models_with_pipeline(
+            config=config
+        )
+
         # COMPREHENSIVE ANALYSIS FRAMEWORK INTEGRATION
         from remote_workstation.analysis_integration import integrate_analysis_with_pipeline
 
@@ -188,6 +197,27 @@ def run_method_comparison(config):
         else:
             logger.info("⚡ Performance framework unavailable - using basic data loading")
 
+        # Update models framework with data characteristics
+        if X_list and models_summary:
+            logger.info("🧠 Updating models framework with data characteristics...")
+            data_characteristics = {
+                'n_subjects': len(X_list[0]),
+                'n_views': len(X_list),
+                'total_features': sum(X.shape[1] for X in X_list),
+                'view_dimensions': [X.shape[1] for X in X_list],
+                'has_imaging_data': any(X.shape[1] > 1000 for X in X_list),
+                'imaging_views': [i for i, X in enumerate(X_list) if X.shape[1] > 1000]
+            }
+
+            # Re-run model selection with data characteristics
+            from remote_workstation.models_integration import integrate_models_with_pipeline
+            model_type, model_instance, updated_models_summary = integrate_models_with_pipeline(
+                config=config,
+                X_list=X_list,
+                data_characteristics=data_characteristics
+            )
+            models_summary = updated_models_summary
+
         # Create data structure compatible with existing pipeline
         data = {
             'X_list': X_list,
@@ -200,6 +230,26 @@ def run_method_comparison(config):
             import numpy as np  # Add missing numpy import
             logger.info("Running comprehensive method comparison...")
             X_list = data['X_list']
+
+            # Log models framework information
+            if models_summary:
+                integration_info = models_summary.get('integration_summary', {})
+                logger.info("🧠 MODELS FRAMEWORK SUMMARY:")
+                logger.info(f"   Framework: {'Structured models' if integration_info.get('structured_model_management', False) else 'Direct core models'}")
+                logger.info(f"   Model type: {integration_info.get('model_type_selected', 'unknown')}")
+                logger.info(f"   Model factory: {'used' if integration_info.get('model_factory_used', False) else 'unavailable'}")
+                logger.info(f"   Model instance: {'created' if integration_info.get('model_instance_created', False) else 'failed'}")
+
+                if integration_info.get('available_models'):
+                    logger.info(f"   Available models: {', '.join(integration_info.get('available_models', []))}")
+
+                logger.info(f"   Features: Neuroimaging={integration_info.get('neuroimaging_optimized', False)}, "
+                          f"Sparsity={integration_info.get('sparsity_regularization', False)}")
+
+                if integration_info.get('comparison_completed', False):
+                    comparison = integration_info.get('model_comparison', {})
+                    if comparison.get('best_model'):
+                        logger.info(f"   Best model: {comparison['best_model']} (score: {comparison.get('best_score', 0):.2f})")
 
             # Log analysis framework information
             if analysis_summary:
@@ -398,8 +448,44 @@ def run_method_comparison(config):
                     logger.info(f"⏱️  Starting MCMC inference at {time.strftime('%H:%M:%S')}...")
                     logger.info(f"Expected duration: ~{args.num_samples/10:.1f}-{args.num_samples/5:.1f} minutes")
 
+                    # Apply structured models framework if available
+                    if model_instance and models_summary.get('integration_summary', {}).get('structured_model_management', False):
+                        logger.info("🧠 Using structured models framework for MCMC execution...")
+                        from remote_workstation.models_integration import _wrap_models_framework
+
+                        # Use structured model
+                        models_wrapper = _wrap_models_framework(model_type, model_instance, models_summary)
+                        structured_model = models_wrapper.get_model_for_execution()
+
+                        if structured_model:
+                            logger.info(f"✅ Using model: {structured_model.get_model_name()}")
+                            # Execute MCMC with structured model
+                            mcmc_result = run_inference(structured_model, args, rng_key, X_list, hypers)
+                        else:
+                            logger.warning("⚠️ Structured model unavailable - falling back")
+                            # Fall back to standard approach
+                            if model_runner and analysis_summary.get('integration_summary', {}).get('structured_analysis', False):
+                                from remote_workstation.analysis_integration import run_structured_mcmc_analysis
+                                structured_results = run_structured_mcmc_analysis(
+                                    model_runner=model_runner,
+                                    data_manager=data_manager,
+                                    X_list=X_list,
+                                    config=config
+                                )
+                                if structured_results.get('runs') and len(structured_results['runs']) > 0:
+                                    first_run = list(structured_results['runs'].values())[0]
+                                    mcmc_result = type('MCMCResult', (), {
+                                        'get_samples': lambda: first_run,
+                                        'num_samples': args.num_samples,
+                                        'num_chains': args.num_chains
+                                    })()
+                                else:
+                                    mcmc_result = run_inference(models, args, rng_key, X_list, hypers)
+                            else:
+                                mcmc_result = run_inference(models, args, rng_key, X_list, hypers)
+
                     # Apply structured analysis framework if available
-                    if model_runner and analysis_summary.get('integration_summary', {}).get('structured_analysis', False):
+                    elif model_runner and analysis_summary.get('integration_summary', {}).get('structured_analysis', False):
                         logger.info("📊 Using structured analysis framework for MCMC execution...")
                         from remote_workstation.analysis_integration import run_structured_mcmc_analysis
 
