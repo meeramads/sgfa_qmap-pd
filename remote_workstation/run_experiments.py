@@ -121,7 +121,16 @@ def run_method_comparison(config):
             data_dir=config['data']['data_dir']
         )
         
-        # Load data with comprehensive preprocessing integration
+        # COMPREHENSIVE PERFORMANCE OPTIMIZATION INTEGRATION
+        from remote_workstation.performance_integration import integrate_performance_with_pipeline
+
+        logger.info("⚡ Integrating comprehensive performance optimization framework...")
+        performance_manager, performance_summary = integrate_performance_with_pipeline(
+            config=config,
+            data_dir=config['data']['data_dir']
+        )
+
+        # Load data with comprehensive preprocessing integration AND performance optimization
         from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
 
         logger.info("🔧 Applying comprehensive preprocessing integration...")
@@ -130,6 +139,13 @@ def run_method_comparison(config):
             data_dir=config['data']['data_dir'],
             auto_select_strategy=True  # Automatically select optimal preprocessing strategy
         )
+
+        # Apply performance optimization to loaded data
+        if performance_manager:
+            logger.info("⚡ Applying performance optimization to data loading...")
+            X_list = performance_manager.optimize_data_arrays(X_list)
+        else:
+            logger.info("⚡ Performance framework unavailable - using basic data loading")
 
         # Create data structure compatible with existing pipeline
         data = {
@@ -143,6 +159,18 @@ def run_method_comparison(config):
             import numpy as np  # Add missing numpy import
             logger.info("Running comprehensive method comparison...")
             X_list = data['X_list']
+
+            # Log performance optimization information
+            if performance_summary:
+                logger.info("⚡ PERFORMANCE OPTIMIZATION SUMMARY:")
+                logger.info(f"   Strategy: {performance_summary.get('selected_strategy', 'unknown')}")
+                logger.info(f"   Framework: {'PerformanceManager' if performance_summary.get('performance_framework', False) else 'Basic optimization'}")
+
+                config_info = performance_summary.get('configuration', {})
+                if config_info:
+                    logger.info(f"   Memory limit: {config_info.get('memory_limit_gb', 'unknown')}GB")
+                    logger.info(f"   Data chunking: {'enabled' if config_info.get('enable_chunking', False) else 'disabled'}")
+                    logger.info(f"   MCMC optimization: {'enabled' if config_info.get('mcmc_optimization', False) else 'disabled'}")
 
             # Log preprocessing information
             if 'preprocessing_info' in data:
@@ -306,15 +334,29 @@ def run_method_comparison(config):
                     logger.info(f"  - Total features: {sum(hypers['Dm'])}")
                     logger.info(f"  - Percentage W: {hypers['percW']}%")
                     
-                    # Run SGFA inference directly
+                    # Run SGFA inference with performance optimization
                     import time
                     start_time = time.time()
                     rng_key = random.PRNGKey(42)
-                    
+
                     logger.info(f"⏱️  Starting MCMC inference at {time.strftime('%H:%M:%S')}...")
                     logger.info(f"Expected duration: ~{args.num_samples/10:.1f}-{args.num_samples/5:.1f} minutes")
-                    
-                    mcmc_result = run_inference(models, args, rng_key, X_list, hypers)
+
+                    # Apply MCMC-specific performance optimizations
+                    if performance_manager:
+                        logger.info("⚡ Applying MCMC performance optimization...")
+                        from remote_workstation.performance_integration import optimize_mcmc_execution
+                        mcmc_result = optimize_mcmc_execution(
+                            performance_manager=performance_manager,
+                            model_fn=models,
+                            args=args,
+                            rng_key=rng_key,
+                            X_list=X_list,
+                            hypers=hypers
+                        )
+                    else:
+                        logger.info("⚡ Using standard MCMC execution (performance optimization unavailable)")
+                        mcmc_result = run_inference(models, args, rng_key, X_list, hypers)
                     
                     end_time = time.time()
                     duration = end_time - start_time
