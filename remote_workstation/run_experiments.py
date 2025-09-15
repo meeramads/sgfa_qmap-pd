@@ -428,145 +428,47 @@ def run_method_comparison(config):
             
             # Generate plots if requested
             try:
-                logger.info("\\n🎨 === GENERATING VISUALIZATION PLOTS ===")
-                from visualization.factor_plots import FactorPlotter
+                logger.info("\\n🎨 === GENERATING COMPREHENSIVE VISUALIZATION SUITE ===")
+                from visualization import VisualizationManager
                 from pathlib import Path
                 
-                plot_dir = Path(output_dir) / "plots"
-                plot_dir.mkdir(exist_ok=True)
-                logger.info(f"Plot directory: {plot_dir}")
-                
-                plotter = FactorPlotter()
-                plots_generated = []
-                
-                # Check for brain imaging capabilities
-                brain_imaging_available = False
+                # Setup visualization configuration
+                viz_config = type('VizConfig', (), {
+                    'create_brain_viz': True,
+                    'save_plots': True,
+                    'output_dir': output_dir,
+                    'data_dir': config.get('data', {}).get('data_dir', './qMAP-PD_data')
+                })()
+
+                # Use comprehensive visualization integration
+                from remote_workstation.visualization_integration import create_comprehensive_visualizations, create_fallback_visualizations
+
+                # Try comprehensive visualization first
+                results['plots'] = create_comprehensive_visualizations(
+                    results=results,
+                    X_list=X_list,
+                    optimal_params=optimal_params,
+                    optimal_score=optimal_score,
+                    config=config,
+                    output_dir=output_dir,
+                    all_scores=all_scores if 'all_scores' in locals() else None
+                )
+
+                # Fallback to basic visualization if comprehensive fails
+                if results['plots']['status'] == 'visualization_manager_unavailable':
+                    results['plots'] = create_fallback_visualizations(results, X_list, output_dir)
+
+            except ImportError as e:
+                logger.warning(f"⚠️  VisualizationManager not available: {e}")
+                # Try fallback visualization
                 try:
-                    from visualization.neuroimaging_utils import FactorToMRIMapper, integrate_with_visualization
-                    import nibabel as nib
-                    brain_imaging_available = True
-                    logger.info("🧠 Brain imaging visualization available")
-                except ImportError:
-                    logger.info("⚠️  Brain imaging visualization not available (nibabel required)")
-                
-                # Generate plots for each successful SGFA variant
-                for variant_name, variant_result in results['sgfa_variants'].items():
-                    if variant_result.get('status') == 'completed' and 'factor_loadings' in variant_result:
-                        logger.info(f"🖼️  Generating plots for {variant_name}...")
-                        
-                        try:
-                            # Extract plotting data
-                            factor_loadings = np.array(variant_result['factor_loadings']['mean'])
-                            factor_scores = np.array(variant_result['factor_scores']['mean'])
-                            
-                            # Generate factor loading heatmap
-                            plot_path = plot_dir / f"{variant_name}_loadings_heatmap.png"
-                            plotter.plot_loading_heatmap(
-                                factor_loadings, 
-                                title=f"{variant_name.title()} SGFA - Factor Loadings",
-                                save_path=str(plot_path)
-                            )
-                            plots_generated.append(str(plot_path))
-                            logger.info(f"   ✅ Loading heatmap: {plot_path.name}")
-                            
-                            # Generate factor score distribution plots
-                            plot_path = plot_dir / f"{variant_name}_scores_distribution.png"
-                            plotter.plot_factor_distributions(
-                                factor_scores,
-                                title=f"{variant_name.title()} SGFA - Factor Score Distributions", 
-                                save_path=str(plot_path)
-                            )
-                            plots_generated.append(str(plot_path))
-                            logger.info(f"   ✅ Score distributions: {plot_path.name}")
-                            
-                            # Generate brain imaging plots if available
-                            if brain_imaging_available:
-                                logger.info(f"🧠 Generating brain imaging plots for {variant_name}...")
-                                try:
-                                    # Create brain visualization directory
-                                    brain_dir = plot_dir / f"{variant_name}_brain_maps"
-                                    brain_dir.mkdir(exist_ok=True)
-                                    
-                                    # Set up brain mapping (need data structure info)
-                                    # Get view information from data if available
-                                    if 'X_list' in globals() and len(X_list) > 0:
-                                        Dm = [X.shape[1] for X in X_list]
-                                        view_names = ['structural', 'functional', 'diffusion', 'clinical'][:len(X_list)]
-                                        
-                                        # Initialize mapper - try common qMAP-PD data directory
-                                        try:
-                                            mapper = FactorToMRIMapper(config.data_dir if hasattr(config, 'data_dir') else './qMAP-PD_data')
-                                            
-                                            # Map factor loadings to brain space
-                                            factor_maps = mapper.map_all_factors(
-                                                W=factor_loadings,
-                                                view_names=view_names,
-                                                Dm=Dm,
-                                                output_dir=str(brain_dir)
-                                            )
-                                            
-                                            if factor_maps:
-                                                n_brain_files = sum(len(outputs) for outputs in factor_maps.values())
-                                                logger.info(f"   🧠 Generated {n_brain_files} brain map files")
-                                                plots_generated.extend([str(brain_dir / f"factor_{i}_*.nii.gz") for i in factor_maps.keys()])
-                                                
-                                                # Create summary plots of brain maps
-                                                try:
-                                                    from visualization.brain_plots import BrainVisualizer
-                                                    brain_viz = BrainVisualizer(config={'save_plots': True})
-                                                    
-                                                    summary_plot = brain_dir / f"{variant_name}_brain_summary.png"
-                                                    brain_viz.create_brain_visualization_summary(
-                                                        str(brain_dir),
-                                                        include_reconstructions=True
-                                                    )
-                                                    logger.info(f"   🧠 Brain summary: {summary_plot.name}")
-                                                    
-                                                except Exception as brain_viz_e:
-                                                    logger.debug(f"Brain summary visualization failed: {brain_viz_e}")
-                                            else:
-                                                logger.warning(f"   ⚠️  No brain maps generated for {variant_name}")
-                                                
-                                        except Exception as mapper_e:
-                                            logger.warning(f"   ⚠️  Brain mapper failed for {variant_name}: {mapper_e}")
-                                    else:
-                                        logger.warning(f"   ⚠️  X_list not available for brain mapping")
-                                        
-                                except Exception as brain_e:
-                                    logger.warning(f"   ⚠️  Brain imaging failed for {variant_name}: {brain_e}")
-                            
-                        except Exception as e:
-                            logger.warning(f"   ⚠️  Failed to generate plots for {variant_name}: {e}")
-                
-                # Generate comparison plots
-                if len([r for r in results['sgfa_variants'].values() if r.get('status') == 'completed']) > 1:
-                    logger.info(f"📊 Generating comparison plots...")
-                    try:
-                        plot_path = plot_dir / "sgfa_variants_comparison.png"
-                        plotter.plot_method_comparison(
-                            results['sgfa_variants'],
-                            title="SGFA Variants Comparison",
-                            save_path=str(plot_path)
-                        )
-                        plots_generated.append(str(plot_path))
-                        logger.info(f"   ✅ Variant comparison: {plot_path.name}")
-                    except Exception as e:
-                        logger.warning(f"   ⚠️  Failed to generate comparison plot: {e}")
-                
-                logger.info(f"🎨 Generated {len(plots_generated)} plots in {plot_dir}")
-                
-                # Add plot information to results
-                results['plots'] = {
-                    'plot_directory': str(plot_dir),
-                    'generated_plots': plots_generated,
-                    'plot_count': len(plots_generated)
-                }
-                
-            except ImportError:
-                logger.warning("⚠️  Visualization modules not available - skipping plots")
-                results['plots'] = {'status': 'visualization_unavailable'}
+                    from remote_workstation.visualization_integration import create_fallback_visualizations
+                    results['plots'] = create_fallback_visualizations(results, X_list, output_dir)
+                except Exception as fallback_e:
+                    logger.error(f"❌ Fallback visualization also failed: {fallback_e}")
+                    results['plots'] = {'status': 'visualization_unavailable', 'error': str(e)}
             except Exception as e:
-                logger.error(f"❌ Plot generation failed: {e}")
+                logger.error(f"❌ Visualization failed: {e}")
                 results['plots'] = {'status': 'failed', 'error': str(e)}
             
             # Generate experiment summary
@@ -624,17 +526,27 @@ def run_method_comparison(config):
                     logger.info(f"🎨 VISUALIZATION SUMMARY:")
                     logger.info(f"   ✅ Generated {plot_count} plots")
                     logger.info(f"   📁 Plot directory: {results['plots']['plot_directory']}")
-                    
-                    # Count brain imaging outputs
-                    brain_files = [p for p in results['plots'].get('generated_plots', []) if 'brain_maps' in p or '.nii.gz' in p]
-                    if brain_files:
-                        logger.info(f"   🧠 Brain imaging files: {len(brain_files)}")
-                        logger.info(f"   🧠 Includes: Factor loadings mapped to brain space")
-                        logger.info(f"   🧠 Format: NIfTI files (.nii.gz) for each factor")
-                    elif brain_imaging_available:
-                        logger.info(f"   🧠 Brain imaging: Available but not generated")
+
+                    # Check if comprehensive VisualizationManager was used
+                    if results['plots'].get('visualization_manager', False):
+                        logger.info(f"   🎨 Comprehensive VisualizationManager suite used")
+                        viz_suite = results['plots'].get('visualization_suite', {})
+                        if viz_suite:
+                            logger.info(f"   📊 Factor plots: {viz_suite.get('factor_plots', 0)}")
+                            logger.info(f"   📈 Preprocessing plots: {viz_suite.get('preprocessing_plots', 0)}")
+                            logger.info(f"   📉 CV/optimization plots: {viz_suite.get('cv_plots', 0)}")
+                            logger.info(f"   🧠 Brain maps: {viz_suite.get('brain_maps', 0)}")
+                            logger.info(f"   📄 HTML reports: {viz_suite.get('html_reports', 0)}")
+                        if results['plots'].get('comprehensive_suite', False):
+                            logger.info(f"   ✅ Full visualization capabilities utilized")
                     else:
-                        logger.info(f"   🧠 Brain imaging: Not available (install nibabel)")
+                        logger.info(f"   📊 Basic visualization used (VisualizationManager unavailable)")
+                        # Count brain imaging outputs
+                        brain_files = [p for p in results['plots'].get('generated_plots', []) if 'brain_maps' in p or '.nii.gz' in p]
+                        if brain_files:
+                            logger.info(f"   🧠 Brain imaging files: {len(brain_files)}")
+                            logger.info(f"   🧠 Includes: Factor loadings mapped to brain space")
+                            logger.info(f"   🧠 Format: NIfTI files (.nii.gz) for each factor")
                         
                 elif results['plots'].get('status') == 'visualization_unavailable':
                     logger.info(f"🎨 VISUALIZATION: Modules not available")
