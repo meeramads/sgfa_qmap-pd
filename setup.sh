@@ -191,14 +191,14 @@ cleanup_space() {
             print_status "NVIDIA packages removed"
             ;;
         3)
-            if [ -d "remote_workstation_experiment_results" ]; then
-                OLD_RESULTS=$(find remote_workstation_experiment_results -maxdepth 1 -type d -mtime +7 | wc -l)
+            if [ -d "results" ]; then
+                OLD_RESULTS=$(find results -maxdepth 1 -type d -mtime +7 | wc -l)
                 if [ "$OLD_RESULTS" -gt 0 ]; then
                     print_info "Found $OLD_RESULTS experiment results older than 7 days"
                     read -p "Remove old results? (y/n): " -n 1 -r
                     echo ""
                     if [[ $REPLY =~ ^[Yy]$ ]]; then
-                        find remote_workstation_experiment_results -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \;
+                        find results -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \;
                         print_status "Old results removed"
                     fi
                 else
@@ -347,7 +347,7 @@ except Exception as e:
 # Function to create necessary directories
 create_directories() {
     print_info "Creating project directories..."
-    mkdir -p remote_workstation_experiment_results
+    mkdir -p results
     mkdir -p logs
     print_status "Directories created"
 }
@@ -460,10 +460,10 @@ show_status() {
     fi
 
     # Show recent results
-    if [ -d "remote_workstation_experiment_results" ] && [ "$(ls -A remote_workstation_experiment_results)" ]; then
+    if [ -d "results" ] && [ "$(ls -A results)" ]; then
         echo ""
         print_info "Recent experiment results:"
-        ls -lht remote_workstation_experiment_results/ | head -5
+        ls -lht results/ | head -5
     fi
 
     # Check GPU

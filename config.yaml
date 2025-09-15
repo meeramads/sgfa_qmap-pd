@@ -21,7 +21,7 @@ data:
 
 # Experimental Framework Configuration
 experiments:
-  base_output_dir: "./remote_workstation_experiment_results"
+  base_output_dir: "./results"
   save_intermediate: true
   generate_plots: true
   save_models: true
