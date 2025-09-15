@@ -14,13 +14,32 @@ def run_method_comparison(config):
     logger.info("Starting Method Comparison Experiments")
 
     try:
-        # Add parent directory to path for framework imports
+        # Add project root to path for framework imports
         import sys
         import os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-        from experiments.framework import ExperimentFramework, ExperimentConfig
-        from experiments.method_comparison import MethodComparisonExperiments
+        # Get the project root (parent of remote_workstation)
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+
+        # Import framework using direct module loading to avoid relative import issues
+        import importlib.util
+
+        # Import framework directly
+        framework_path = os.path.join(project_root, 'experiments', 'framework.py')
+        spec = importlib.util.spec_from_file_location("framework", framework_path)
+        framework_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(framework_module)
+        ExperimentFramework = framework_module.ExperimentFramework
+        ExperimentConfig = framework_module.ExperimentConfig
+
+        # Import method comparison experiments
+        method_comp_path = os.path.join(project_root, 'experiments', 'method_comparison.py')
+        spec = importlib.util.spec_from_file_location("method_comparison", method_comp_path)
+        method_comp_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(method_comp_module)
+        MethodComparisonExperiments = method_comp_module.MethodComparisonExperiments
 
         framework = ExperimentFramework(
             base_output_dir=Path(config['experiments']['base_output_dir'])

@@ -1,0 +1,14 @@
+experiment_run_info:
+  config_used: remote_workstation/config.yaml
+  duration_formatted: '0:00:00.000567'
+  duration_seconds: 0.000567
+  end_time: '2025-09-15T20:18:12.578844'
+  start_time: '2025-09-15T20:18:12.578277'
+  unified_results: true
+experiments_executed:
+  data_validation:
+    status: failed
+results_summary:
+  failed_experiments: 1
+  successful_experiments: 0
+  total_experiments: 1
