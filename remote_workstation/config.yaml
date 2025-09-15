@@ -118,10 +118,19 @@ sensitivity_analysis:
     sparsity_lambda: [0.01, 0.1, 0.5, 1.0, 2.0]
     learning_rate: [0.001, 0.005, 0.01, 0.05]
     batch_size: [16, 32, 64, 128]
-    
+
   stability_tests:
     n_random_inits: 10
     convergence_threshold: 1e-6
+
+# Automatic Optimal K Selection Configuration
+optimal_K_selection:
+  enabled: true  # Enable automatic K determination
+  candidate_K_values: [5, 8, 10, 12, 15]  # K values to test
+  evaluation_method: "quality_scoring"  # Method for evaluation
+  use_for_method_comparison: true  # Apply to method comparison experiments
+  use_for_sensitivity_analysis: true  # Apply to sensitivity analysis
+  fallback_K: 10  # Default K if automatic selection fails
 
 # Model Training Configuration
 training:
