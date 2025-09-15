@@ -11,7 +11,7 @@ from sklearn.metrics import silhouette_score
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from .framework import ExperimentFramework, ExperimentConfig, ExperimentResult
+from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from data.qmap_pd import load_qmap_pd
 from core.utils import safe_pickle_save, safe_pickle_load
 

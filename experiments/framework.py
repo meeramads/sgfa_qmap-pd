@@ -527,7 +527,7 @@ class ExperimentRunner:
                                  base_config: ExperimentConfig,
                                  search_space: Dict[str, List[Any]]) -> List[ExperimentResult]:
         """Run hyperparameter search experiment."""
-        from .sensitivity_analysis import SensitivityAnalysisExperiments
+        from experiments.sensitivity_analysis import SensitivityAnalysisExperiments
         
         sensitivity_exp = SensitivityAnalysisExperiments(self.framework)
         return sensitivity_exp.hyperparameter_sensitivity_analysis(base_config, search_space)
@@ -536,7 +536,7 @@ class ExperimentRunner:
                             base_config: ExperimentConfig,
                             methods: List[str]) -> List[ExperimentResult]:
         """Run method comparison experiment."""
-        from .method_comparison import MethodComparisonExperiments
+        from experiments.method_comparison import MethodComparisonExperiments
         
         comparison_exp = MethodComparisonExperiments(self.framework)
         return comparison_exp.compare_methods(base_config, methods)
@@ -545,7 +545,7 @@ class ExperimentRunner:
                                 config: ExperimentConfig,
                                 num_repetitions: int = 10) -> List[ExperimentResult]:
         """Run reproducibility test."""
-        from .reproducibility import ReproducibilityExperiments
+        from experiments.reproducibility import ReproducibilityExperiments
         
         repro_exp = ReproducibilityExperiments(self.framework)
         return repro_exp.test_reproducibility(config, num_repetitions)
@@ -554,7 +554,7 @@ class ExperimentRunner:
                               config: ExperimentConfig,
                               clinical_outcomes: List[str]) -> ExperimentResult:
         """Run clinical validation experiment."""
-        from .clinical_validation import ClinicalValidationExperiments
+        from experiments.clinical_validation import ClinicalValidationExperiments
         
         clinical_exp = ClinicalValidationExperiments(self.framework)
         return clinical_exp.validate_clinical_associations(config, clinical_outcomes)

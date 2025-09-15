@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA, FactorAnalysis
 from sklearn.cross_decomposition import CCA
 import warnings
 
-from .framework import ExperimentFramework, ExperimentConfig, ExperimentResult
+from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 
 class MethodComparisonExperiments(ExperimentFramework):

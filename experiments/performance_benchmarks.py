@@ -13,7 +13,7 @@ import gc
 from contextlib import contextmanager
 import warnings
 
-from .framework import ExperimentFramework, ExperimentConfig, ExperimentResult
+from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler, PerformanceManager
 
 class PerformanceBenchmarkExperiments(ExperimentFramework):

@@ -11,7 +11,7 @@ from scipy import stats
 from itertools import product
 import warnings
 
-from .framework import ExperimentFramework, ExperimentConfig, ExperimentResult
+from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 
 class SensitivityAnalysisExperiments(ExperimentFramework):

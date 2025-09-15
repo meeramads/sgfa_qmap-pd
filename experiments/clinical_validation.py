@@ -18,7 +18,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import warnings
 
-from .framework import ExperimentFramework, ExperimentConfig, ExperimentResult
+from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 
 class ClinicalValidationExperiments(ExperimentFramework):

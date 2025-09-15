@@ -12,7 +12,7 @@ import hashlib
 import pickle
 import warnings
 
-from .framework import ExperimentFramework, ExperimentConfig, ExperimentResult
+from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 
 class ReproducibilityExperiments(ExperimentFramework):
