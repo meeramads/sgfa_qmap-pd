@@ -1,0 +1,16 @@
+experiment_run_info:
+  config_used: remote_workstation/config.yaml
+  duration_formatted: '0:00:05.249728'
+  duration_seconds: 5.249728
+  end_time: '2025-09-15T21:24:01.791387'
+  start_time: '2025-09-15T21:23:56.541659'
+  unified_results: true
+experiments_executed:
+  method_comparison:
+    duration: 0.001948
+    experiment_id: remote_workstation_method_comparison_20250915_212401
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 1
+  total_experiments: 1

@@ -29,17 +29,21 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Add the current directory to path for local experiments import
+# Add project root to path to import from main experiments directory
+import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Import modular experiment functions
-from experiments import (
-    run_data_validation,
-    run_method_comparison,
-    run_performance_benchmarks,
-    run_sensitivity_analysis
-)
+current_file = os.path.abspath(__file__)
+remote_ws_dir = os.path.dirname(current_file)
+project_root = os.path.dirname(remote_ws_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Import from main experiments directory
+from experiments.data_validation import run_data_validation
+from experiments.method_comparison import run_method_comparison
+from experiments.performance_benchmarks import run_performance_benchmarks
+from experiments.sensitivity_analysis import run_sensitivity_analysis
 
 def load_config(config_path="remote_workstation/config.yaml"):
     """Load remote workstation configuration."""

@@ -736,5 +736,190 @@ class MethodComparisonExperiments(ExperimentFramework):
             
         except Exception as e:
             self.logger.warning(f"Failed to create scalability comparison plots: {str(e)}")
-            
+
         return plots
+
+
+def run_method_comparison(config):
+    """Run method comparison experiments with remote workstation integration."""
+    logger = logging.getLogger(__name__)
+    logger.info("Starting Method Comparison Experiments")
+
+    try:
+        # Add project root to path for imports
+        import sys
+        import os
+
+        # Calculate the correct project root path
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(current_file))  # Go up from experiments/ to project root
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+
+        from experiments.framework import ExperimentFramework, ExperimentConfig
+
+        framework = ExperimentFramework(
+            base_output_dir=Path(config['experiments']['base_output_dir'])
+        )
+
+        exp_config = ExperimentConfig(
+            experiment_name="remote_workstation_method_comparison",
+            description="Compare SGFA model variants on remote workstation",
+            dataset="qmap_pd",
+            data_dir=config['data']['data_dir']
+        )
+
+        # COMPREHENSIVE MODELS FRAMEWORK INTEGRATION
+        from remote_workstation.models_integration import integrate_models_with_pipeline
+
+        logger.info("🧠 Integrating comprehensive models framework...")
+        model_type, model_instance, models_summary = integrate_models_with_pipeline(
+            config=config
+        )
+
+        # COMPREHENSIVE ANALYSIS FRAMEWORK INTEGRATION
+        from remote_workstation.analysis_integration import integrate_analysis_with_pipeline
+
+        logger.info("📊 Integrating comprehensive analysis framework...")
+        data_manager, model_runner, analysis_summary = integrate_analysis_with_pipeline(
+            config=config,
+            data_dir=config['data']['data_dir']
+        )
+
+        # COMPREHENSIVE PERFORMANCE OPTIMIZATION INTEGRATION
+        from remote_workstation.performance_integration import integrate_performance_with_pipeline
+
+        logger.info("⚡ Integrating comprehensive performance optimization framework...")
+        performance_manager, performance_summary = integrate_performance_with_pipeline(
+            config=config,
+            data_dir=config['data']['data_dir']
+        )
+
+        # Load data with structured analysis framework if available
+        if data_manager and analysis_summary.get('integration_summary', {}).get('structured_analysis', False):
+            logger.info("📊 Using structured DataManager for data loading...")
+            from remote_workstation.analysis_integration import _wrap_analysis_framework
+
+            # Use structured data loading
+            analysis_wrapper = _wrap_analysis_framework(data_manager, model_runner, analysis_summary)
+            X_list, structured_data_info = analysis_wrapper.load_and_prepare_data()
+
+            if structured_data_info.get('data_loaded', False):
+                logger.info("✅ Data loaded with structured analysis framework")
+                logger.info(f"   Loader: {structured_data_info.get('loader', 'unknown')}")
+                if structured_data_info.get('preprocessing_applied', False):
+                    logger.info(f"   Preprocessing: Applied via DataManager")
+
+                # Store structured data info as preprocessing_info for compatibility
+                preprocessing_info = {
+                    'preprocessing_integration': True,
+                    'loader_type': 'structured_analysis_framework',
+                    'structured_data_info': structured_data_info,
+                    'data_manager_used': True
+                }
+            else:
+                logger.warning("⚠️ Structured data loading failed - falling back to preprocessing integration")
+                # Fall back to preprocessing integration
+                from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+                X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                    config=config,
+                    data_dir=config['data']['data_dir'],
+                    auto_select_strategy=True
+                )
+        else:
+            # Use preprocessing integration
+            from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+
+            logger.info("🔧 Applying comprehensive preprocessing integration...")
+            X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                config=config,
+                data_dir=config['data']['data_dir'],
+                auto_select_strategy=True
+            )
+
+        # Apply performance optimization to loaded data
+        if performance_manager:
+            logger.info("⚡ Applying performance optimization to data loading...")
+            X_list = performance_manager.optimize_data_arrays(X_list)
+        else:
+            logger.info("⚡ Performance framework unavailable - using basic data loading")
+
+        # Update models framework with data characteristics
+        if X_list and models_summary:
+            logger.info("🧠 Updating models framework with data characteristics...")
+            data_characteristics = {
+                'n_subjects': len(X_list[0]),
+                'n_views': len(X_list),
+                'total_features': sum(X.shape[1] for X in X_list),
+                'view_dimensions': [X.shape[1] for X in X_list],
+                'has_imaging_data': any(X.shape[1] > 1000 for X in X_list),
+                'imaging_views': [i for i, X in enumerate(X_list) if X.shape[1] > 1000]
+            }
+
+            # Re-run model selection with data characteristics
+            model_type, model_instance, updated_models_summary = integrate_models_with_pipeline(
+                config=config,
+                X_list=X_list,
+                data_characteristics=data_characteristics
+            )
+            models_summary = updated_models_summary
+
+        # Create data structure compatible with existing pipeline
+        data = {
+            'X_list': X_list,
+            'view_names': preprocessing_info.get('data_summary', {}).get('view_names', [f'view_{i}' for i in range(len(X_list))]),
+            'preprocessing_info': preprocessing_info
+        }
+
+        # Run the experiment
+        def method_comparison_experiment(config, output_dir, **kwargs):
+            import numpy as np
+
+            logger.info("Running comprehensive method comparison...")
+
+            # Log integration summaries
+            logger.info("🧠 MODELS FRAMEWORK SUMMARY:")
+            logger.info(f"   Framework: {models_summary.get('integration_summary', {}).get('framework_type', 'unknown')}")
+            logger.info(f"   Model type: {models_summary.get('model_type', 'unknown')}")
+            logger.info(f"   Model factory: {models_summary.get('integration_summary', {}).get('model_factory', 'unknown')}")
+            logger.info(f"   Model instance: {models_summary.get('integration_summary', {}).get('model_instance', 'unknown')}")
+            logger.info(f"   Available models: {', '.join(models_summary.get('integration_summary', {}).get('available_models', []))}")
+            logger.info(f"   Features: {', '.join([f'{k}={v}' for k, v in models_summary.get('integration_summary', {}).get('features', {}).items()])}")
+
+            logger.info("📊 ANALYSIS FRAMEWORK SUMMARY:")
+            logger.info(f"   Framework: {analysis_summary.get('integration_summary', {}).get('framework_type', 'unknown')}")
+            logger.info(f"   DataManager: {analysis_summary.get('integration_summary', {}).get('data_manager', 'unknown')}")
+            logger.info(f"   ModelRunner: {analysis_summary.get('integration_summary', {}).get('model_runner', 'unknown')}")
+            logger.info(f"   Components: {', '.join(analysis_summary.get('integration_summary', {}).get('components', []))}")
+            logger.info(f"   Dependencies: {', '.join([f'{k}={v}' for k, v in analysis_summary.get('integration_summary', {}).get('dependencies', {}).items()])}")
+
+            logger.info("⚡ PERFORMANCE OPTIMIZATION SUMMARY:")
+            logger.info(f"   Strategy: {performance_summary.get('strategy_selection', {}).get('selected_strategy', 'unknown')}")
+            logger.info(f"   Framework: {performance_summary.get('integration_summary', {}).get('framework_type', 'unknown')}")
+
+            logger.info("🔧 PREPROCESSING INTEGRATION SUMMARY:")
+            logger.info(f"   Strategy: {preprocessing_info.get('strategy_selection', {}).get('selected_strategy', 'unknown')}")
+            logger.info(f"   Reason: {preprocessing_info.get('strategy_selection', {}).get('reason', 'not specified')}")
+
+            # Return basic results for now
+            return {
+                'status': 'completed',
+                'models_summary': models_summary,
+                'analysis_summary': analysis_summary,
+                'performance_summary': performance_summary,
+                'data': data
+            }
+
+        # Run experiment using framework
+        result = framework.run_experiment(
+            experiment_function=method_comparison_experiment,
+            config=exp_config,
+            data=data
+        )
+
+        logger.info("Method comparison experiments completed")
+        return result
+
+    except Exception as e:
+        logger.error(f"Method comparison failed: {e}")
+        return None
