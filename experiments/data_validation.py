@@ -84,12 +84,14 @@ def run_data_validation(config):
         # Run basic data validation directly without framework
         logger.info("Running simplified data validation...")
 
-        # Basic data loading and validation
+        # Advanced data loading and validation with neuroimaging-aware preprocessing
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
+        logger.info("🧠 Using advanced neuroimaging preprocessing strategy...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=config['data']['data_dir'],
-            auto_select_strategy=True
+            auto_select_strategy=False,  # Don't auto-select, use our preferred strategy
+            preferred_strategy="aggressive"  # Use the most advanced preprocessing
         )
 
         logger.info(f"✅ Data loaded: {len(X_list)} views")

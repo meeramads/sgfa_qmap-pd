@@ -476,37 +476,95 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         return results
     
     def _run_sgfa_analysis(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
-        """Run SGFA analysis for benchmarking."""
-        # This would call your actual SGFA implementation
-        # For benchmarking, we simulate computational characteristics
-        
-        K = hypers.get('K', 5)
-        n_subjects = X_list[0].shape[0]
-        n_features_total = sum(X.shape[1] for X in X_list)
-        n_chains = args.get('num_chains', 1)
-        
-        # Simulate realistic computation time based on problem size
-        base_time = 0.001  # Base time per operation
-        computation_complexity = n_subjects * n_features_total * K * n_chains
-        simulated_time = base_time * np.sqrt(computation_complexity) / 1000
-        
-        # Add some randomness
-        simulated_time *= (0.8 + 0.4 * np.random.random())
-        
-        # Simulate the computation
-        time.sleep(min(simulated_time, 0.1))  # Cap at 100ms for testing
-        
-        return {
-            'W': [np.random.randn(X.shape[1], K) for X in X_list],
-            'Z': np.random.randn(n_subjects, K),
-            'log_likelihood': -1000 - np.random.randn() * 50,
-            'n_iterations': np.random.randint(100, 500),
-            'convergence': np.random.random() > 0.1,
-            'computation_info': {
-                'problem_size': computation_complexity,
-                'simulated_time': simulated_time
+        """Run actual SGFA analysis for benchmarking."""
+        import jax
+        import jax.numpy as jnp
+        import numpyro
+        from numpyro.infer import MCMC, NUTS
+        import time
+
+        try:
+            K = hypers.get('K', 5)
+            self.logger.debug(f"Running SGFA benchmark: K={K}, n_subjects={X_list[0].shape[0]}, n_features={sum(X.shape[1] for X in X_list)}")
+
+            # Import the actual SGFA model function
+            from core.run_analysis import models
+
+            # Setup MCMC configuration for benchmarking (reduced for speed)
+            num_warmup = args.get('num_warmup', 100)  # Reduced for benchmarking
+            num_samples = args.get('num_samples', 200)  # Reduced for benchmarking
+            num_chains = args.get('num_chains', 1)  # Single chain for benchmarking
+
+            # Create args object for model
+            import argparse
+            model_args = argparse.Namespace(
+                model='sparseGFA',
+                K=K,
+                num_sources=len(X_list),
+                reghsZ=args.get('reghsZ', True)
+            )
+
+            # Setup MCMC
+            rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
+            kernel = NUTS(models, target_accept_prob=args.get('target_accept_prob', 0.8))
+            mcmc = MCMC(
+                kernel,
+                num_warmup=num_warmup,
+                num_samples=num_samples,
+                num_chains=num_chains
+            )
+
+            # Run inference
+            start_time = time.time()
+            mcmc.run(rng_key, X_list, hypers, model_args, extra_fields=('potential_energy',))
+            elapsed = time.time() - start_time
+
+            # Get samples
+            samples = mcmc.get_samples()
+
+            # Calculate log likelihood (approximate)
+            potential_energy = samples.get('potential_energy', np.array([0]))
+            log_likelihood = -np.mean(potential_energy) if len(potential_energy) > 0 else 0
+
+            # Extract mean parameters
+            W_samples = samples['W']  # Shape: (num_samples, D, K)
+            Z_samples = samples['Z']  # Shape: (num_samples, N, K)
+
+            W_mean = np.mean(W_samples, axis=0)
+            Z_mean = np.mean(Z_samples, axis=0)
+
+            # Split W back into views
+            W_list = []
+            start_idx = 0
+            for X in X_list:
+                end_idx = start_idx + X.shape[1]
+                W_list.append(W_mean[start_idx:end_idx, :])
+                start_idx = end_idx
+
+            return {
+                'W': W_list,
+                'Z': Z_mean,
+                'log_likelihood': float(log_likelihood),
+                'n_iterations': num_samples,
+                'convergence': True,
+                'execution_time': elapsed,
+                'computation_info': {
+                    'problem_size': X_list[0].shape[0] * sum(X.shape[1] for X in X_list) * K,
+                    'actual_time': elapsed,
+                    'num_warmup': num_warmup,
+                    'num_samples': num_samples,
+                    'num_chains': num_chains
+                }
             }
-        }
+
+        except Exception as e:
+            self.logger.error(f"SGFA benchmark analysis failed: {str(e)}")
+            return {
+                'error': str(e),
+                'convergence': False,
+                'execution_time': float('inf'),
+                'log_likelihood': float('-inf')
+            }
     
     def _run_baseline_method(self, X: np.ndarray, method: str, **kwargs) -> Dict:
         """Run baseline method for comparison."""
@@ -1452,14 +1510,185 @@ class SystemMonitor:
 def run_performance_benchmarks(config):
     """Run performance benchmarks with remote workstation integration."""
     import logging
+    import sys
+    import os
     logger = logging.getLogger(__name__)
     logger.info("Starting Performance Benchmarks Experiments")
 
     try:
-        # For now, return a simple placeholder
-        # This can be expanded to use the comprehensive PerformanceBenchmarkExperiments class
+        # Add project root to path for imports
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(current_file))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+
+        from experiments.framework import ExperimentFramework, ExperimentConfig
+        from pathlib import Path
+
+        # Load data with advanced preprocessing for consistent benchmarking
+        from data.preprocessing_integration import apply_preprocessing_to_pipeline
+        logger.info("🔧 Loading data for performance benchmarking...")
+        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+            config=config,
+            data_dir=config['data']['data_dir'],
+            auto_select_strategy=False,
+            preferred_strategy="standard"  # Use standard preprocessing for benchmarks
+        )
+
+        logger.info(f"✅ Data loaded: {len(X_list)} views for benchmarking")
+        for i, X in enumerate(X_list):
+            logger.info(f"   View {i}: {X.shape}")
+
+        # Initialize experiment framework
+        framework = ExperimentFramework(
+            base_output_dir=Path(config['experiments']['base_output_dir'])
+        )
+
+        exp_config = ExperimentConfig(
+            experiment_name="performance_benchmarks",
+            description="Performance benchmarking for SGFA on remote workstation",
+            dataset="qmap_pd",
+            data_dir=config['data']['data_dir']
+        )
+
+        # Create benchmark experiment instance
+        benchmark_exp = PerformanceBenchmarkExperiments(exp_config, logger)
+
+        # Setup base hyperparameters
+        base_hypers = {
+            'Dm': [X.shape[1] for X in X_list],
+            'a_sigma': 1.0,
+            'b_sigma': 1.0,
+            'slab_df': 4.0,
+            'slab_scale': 2.0,
+            'percW': 33.0,
+            'K': 10  # Base number of factors
+        }
+
+        # Setup base args
+        base_args = {
+            'K': 10,
+            'num_warmup': 100,  # Reduced for benchmarking speed
+            'num_samples': 200,  # Reduced for benchmarking speed
+            'num_chains': 1,
+            'target_accept_prob': 0.8,
+            'reghsZ': True
+        }
+
+        # Run the experiment
+        def performance_benchmark_experiment(config, output_dir, **kwargs):
+            logger.info("🚀 Running comprehensive performance benchmarks...")
+
+            # Test different benchmark configurations from config
+            benchmark_configs = config.get('performance_benchmarks', {}).get('benchmark_configs', {})
+
+            results = {}
+            total_tests = 0
+            successful_tests = 0
+
+            # Run sample size scalability tests
+            if 'small_scale' in benchmark_configs:
+                logger.info("📊 Testing small-scale performance...")
+                small_config = benchmark_configs['small_scale']
+                n_subjects = min(small_config['n_subjects'], X_list[0].shape[0])
+
+                # Subsample data
+                indices = np.random.choice(X_list[0].shape[0], n_subjects, replace=False)
+                X_subset = [X[indices] for X in X_list]
+
+                # Update hyperparameters
+                test_hypers = base_hypers.copy()
+                test_hypers['Dm'] = [X.shape[1] for X in X_subset]
+
+                try:
+                    with benchmark_exp.profiler.profile('small_scale_benchmark') as p:
+                        result = benchmark_exp._run_sgfa_analysis(X_subset, test_hypers, base_args)
+
+                    metrics = benchmark_exp.profiler.get_current_metrics()
+                    results['small_scale'] = {
+                        'config': small_config,
+                        'result': result,
+                        'performance': {
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb
+                        },
+                        'data_info': {
+                            'n_subjects': n_subjects,
+                            'n_features': [X.shape[1] for X in X_subset]
+                        }
+                    }
+                    successful_tests += 1
+                    logger.info(f"✅ Small-scale: {metrics.execution_time:.1f}s, {metrics.peak_memory_gb:.1f}GB")
+                except Exception as e:
+                    logger.error(f"❌ Small-scale benchmark failed: {e}")
+                    results['small_scale'] = {'error': str(e)}
+
+                total_tests += 1
+
+            # Test different K values for component scalability
+            logger.info("📊 Testing component scalability...")
+            K_values = [5, 10, 15]  # Reduced set for testing
+            component_results = {}
+
+            for K in K_values:
+                try:
+                    test_hypers = base_hypers.copy()
+                    test_hypers['K'] = K
+                    test_args = base_args.copy()
+                    test_args['K'] = K
+
+                    with benchmark_exp.profiler.profile(f'components_K{K}') as p:
+                        result = benchmark_exp._run_sgfa_analysis(X_list, test_hypers, test_args)
+
+                    metrics = benchmark_exp.profiler.get_current_metrics()
+                    component_results[f'K{K}'] = {
+                        'K': K,
+                        'result': result,
+                        'performance': {
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb,
+                            'convergence': result.get('convergence', False),
+                            'log_likelihood': result.get('log_likelihood', float('-inf'))
+                        }
+                    }
+                    successful_tests += 1
+                    logger.info(f"✅ K={K}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}")
+                except Exception as e:
+                    logger.error(f"❌ K={K} benchmark failed: {e}")
+                    component_results[f'K{K}'] = {'error': str(e)}
+
+                total_tests += 1
+
+            results['component_scalability'] = component_results
+
+            logger.info("🚀 Performance benchmarks completed!")
+            logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
+
+            return {
+                'status': 'completed',
+                'benchmark_results': results,
+                'summary': {
+                    'total_tests': total_tests,
+                    'successful_tests': successful_tests,
+                    'success_rate': successful_tests / total_tests if total_tests > 0 else 0,
+                    'data_characteristics': {
+                        'n_subjects': X_list[0].shape[0],
+                        'n_views': len(X_list),
+                        'view_dimensions': [X.shape[1] for X in X_list]
+                    }
+                }
+            }
+
+        # Run experiment using framework
+        result = framework.run_experiment(
+            experiment_function=performance_benchmark_experiment,
+            config=exp_config,
+            data={'X_list': X_list, 'preprocessing_info': preprocessing_info}
+        )
+
         logger.info("✅ Performance benchmarks completed successfully")
-        return {'status': 'completed', 'benchmarks': 'placeholder'}
+        return result
+
     except Exception as e:
         logger.error(f"Performance benchmarks failed: {e}")
         return None

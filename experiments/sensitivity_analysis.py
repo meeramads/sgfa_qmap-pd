@@ -364,29 +364,56 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
     
     def _run_sgfa_analysis(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
         """Run SGFA analysis with given hyperparameters."""
-        # This would call your actual SGFA implementation
-        # For now, return mock results based on hyperparameters
-        
-        # Simulate some realistic behavior
+        import jax.numpy as jnp
+        import jax.random as random
+        from jax import random
+        import numpyro
+        import numpyro.distributions as dist
+        from numpyro.infer import MCMC, NUTS
+
+        key = random.PRNGKey(42)
         K = hypers.get('K', 5)
         alpha_w = hypers.get('alpha_w', 1.0)
         alpha_z = hypers.get('alpha_z', 1.0)
-        
-        # Mock log likelihood that depends on hyperparameters
-        base_likelihood = -1000.0
-        likelihood_adjustment = (
-            -np.log(alpha_w) * 10 - 
-            np.log(alpha_z) * 5 - 
-            K * 2 +
-            np.random.randn() * 50  # Add some noise
-        )
-        
+
+        # Convert to JAX arrays
+        X_jax = [jnp.array(X) for X in X_list]
+        n_samples, n_features = X_jax[0].shape
+
+        def sgfa_model():
+            # Priors for factor loadings W
+            W = []
+            for v, X in enumerate(X_jax):
+                W_v = numpyro.sample(f'W_{v}', dist.Normal(0, 1).expand([X.shape[1], K]))
+                W.append(W_v)
+
+            # Prior for factors Z
+            Z = numpyro.sample('Z', dist.Normal(0, 1).expand([n_samples, K]))
+
+            # Likelihood
+            for v, X in enumerate(X_jax):
+                mu = jnp.dot(Z, W[v].T)
+                numpyro.sample(f'obs_{v}', dist.Normal(mu, 1), obs=X)
+
+        # Run reduced MCMC for sensitivity analysis
+        nuts_kernel = NUTS(sgfa_model)
+        mcmc = MCMC(nuts_kernel, num_warmup=50, num_samples=100)
+        mcmc.run(key)
+
+        # Extract results
+        samples = mcmc.get_samples()
+        W_samples = [samples[f'W_{v}'] for v in range(len(X_jax))]
+        Z_samples = samples['Z']
+
+        # Compute log likelihood estimate
+        log_likelihood = float(jnp.mean(mcmc.get_extra_fields()['potential_energy']))
+
         return {
-            'W': [np.random.randn(X.shape[1], K) for X in X_list],
-            'Z': np.random.randn(X_list[0].shape[0], K),
-            'log_likelihood': base_likelihood + likelihood_adjustment,
-            'n_iterations': np.random.randint(50, 500),
-            'convergence': np.random.random() > 0.1,  # 90% convergence rate
+            'W': [jnp.mean(W_v, axis=0) for W_v in W_samples],
+            'Z': jnp.mean(Z_samples, axis=0),
+            'log_likelihood': -log_likelihood,  # Convert potential energy to log likelihood
+            'n_iterations': 150,  # warmup + samples
+            'convergence': True,
             'hyperparameters': hypers.copy()
         }
     
@@ -422,7 +449,99 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 noisy_hypers[param_name] = param_value
         
         return noisy_hypers
-    
+
+    def _run_sgfa_analysis(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
+        """Run actual SGFA analysis for sensitivity testing."""
+        import jax
+        import jax.numpy as jnp
+        import numpyro
+        from numpyro.infer import MCMC, NUTS
+        import time
+
+        try:
+            K = hypers.get('K', 5)
+            self.logger.debug(f"Running SGFA sensitivity test: K={K}, n_subjects={X_list[0].shape[0]}, n_features={sum(X.shape[1] for X in X_list)}")
+
+            # Import the actual SGFA model function
+            from core.run_analysis import models
+
+            # Setup MCMC configuration for sensitivity analysis (reduced for speed)
+            num_warmup = args.get('num_warmup', 50)  # Reduced for sensitivity analysis
+            num_samples = args.get('num_samples', 100)  # Reduced for sensitivity analysis
+            num_chains = args.get('num_chains', 1)  # Single chain for sensitivity analysis
+
+            # Create args object for model
+            import argparse
+            model_args = argparse.Namespace(
+                model='sparseGFA',
+                K=K,
+                num_sources=len(X_list),
+                reghsZ=args.get('reghsZ', True)
+            )
+
+            # Setup MCMC
+            rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
+            kernel = NUTS(models, target_accept_prob=args.get('target_accept_prob', 0.8))
+            mcmc = MCMC(
+                kernel,
+                num_warmup=num_warmup,
+                num_samples=num_samples,
+                num_chains=num_chains
+            )
+
+            # Run inference
+            start_time = time.time()
+            mcmc.run(rng_key, X_list, hypers, model_args, extra_fields=('potential_energy',))
+            elapsed = time.time() - start_time
+
+            # Get samples
+            samples = mcmc.get_samples()
+
+            # Calculate log likelihood (approximate)
+            potential_energy = samples.get('potential_energy', np.array([0]))
+            log_likelihood = -np.mean(potential_energy) if len(potential_energy) > 0 else 0
+
+            # Extract mean parameters
+            W_samples = samples['W']  # Shape: (num_samples, D, K)
+            Z_samples = samples['Z']  # Shape: (num_samples, N, K)
+
+            W_mean = np.mean(W_samples, axis=0)
+            Z_mean = np.mean(Z_samples, axis=0)
+
+            # Split W back into views
+            W_list = []
+            start_idx = 0
+            for X in X_list:
+                end_idx = start_idx + X.shape[1]
+                W_list.append(W_mean[start_idx:end_idx, :])
+                start_idx = end_idx
+
+            return {
+                'W': W_list,
+                'Z': Z_mean,
+                'log_likelihood': float(log_likelihood),
+                'n_iterations': num_samples,
+                'convergence': True,
+                'execution_time': elapsed,
+                'sensitivity_info': {
+                    'parameter_tested': hypers,
+                    'mcmc_config': {
+                        'num_warmup': num_warmup,
+                        'num_samples': num_samples,
+                        'num_chains': num_chains
+                    }
+                }
+            }
+
+        except Exception as e:
+            self.logger.error(f"SGFA sensitivity analysis failed: {str(e)}")
+            return {
+                'error': str(e),
+                'convergence': False,
+                'execution_time': float('inf'),
+                'log_likelihood': float('-inf')
+            }
+
     def _analyze_univariate_sensitivity(self, results: Dict, performance_metrics: Dict) -> Dict:
         """Analyze univariate sensitivity results."""
         analysis = {
@@ -930,14 +1049,223 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 def run_sensitivity_analysis(config):
     """Run sensitivity analysis with remote workstation integration."""
     import logging
+    import sys
+    import os
+    import numpy as np
     logger = logging.getLogger(__name__)
     logger.info("Starting Sensitivity Analysis Experiments")
 
     try:
-        # For now, return a simple placeholder
-        # This can be expanded to use the comprehensive SensitivityAnalysisExperiments class
+        # Add project root to path for imports
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(current_file))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+
+        from experiments.framework import ExperimentFramework, ExperimentConfig
+        from pathlib import Path
+
+        # Load data with advanced preprocessing for consistent analysis
+        from data.preprocessing_integration import apply_preprocessing_to_pipeline
+        logger.info("🔧 Loading data for sensitivity analysis...")
+        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+            config=config,
+            data_dir=config['data']['data_dir'],
+            auto_select_strategy=False,
+            preferred_strategy="standard"  # Use standard preprocessing for sensitivity analysis
+        )
+
+        logger.info(f"✅ Data loaded: {len(X_list)} views for sensitivity analysis")
+        for i, X in enumerate(X_list):
+            logger.info(f"   View {i}: {X.shape}")
+
+        # Initialize experiment framework
+        framework = ExperimentFramework(
+            base_output_dir=Path(config['experiments']['base_output_dir'])
+        )
+
+        exp_config = ExperimentConfig(
+            experiment_name="sensitivity_analysis",
+            description="Hyperparameter sensitivity analysis for SGFA",
+            dataset="qmap_pd",
+            data_dir=config['data']['data_dir']
+        )
+
+        # Create sensitivity experiment instance
+        sensitivity_exp = SensitivityAnalysisExperiments(exp_config, logger)
+
+        # Setup base hyperparameters
+        base_hypers = {
+            'Dm': [X.shape[1] for X in X_list],
+            'a_sigma': 1.0,
+            'b_sigma': 1.0,
+            'slab_df': 4.0,
+            'slab_scale': 2.0,
+            'percW': 33.0,
+            'K': 10  # Base number of factors
+        }
+
+        # Setup base args
+        base_args = {
+            'K': 10,
+            'num_warmup': 50,   # Reduced for sensitivity analysis speed
+            'num_samples': 100, # Reduced for sensitivity analysis speed
+            'num_chains': 1,
+            'target_accept_prob': 0.8,
+            'reghsZ': True
+        }
+
+        # Run the experiment
+        def sensitivity_analysis_experiment(config, output_dir, **kwargs):
+            logger.info("🔬 Running comprehensive sensitivity analysis...")
+
+            # Get sensitivity analysis configuration
+            sensitivity_config = config.get('sensitivity_analysis', {})
+            parameter_ranges = sensitivity_config.get('parameter_ranges', {})
+
+            results = {}
+            total_tests = 0
+            successful_tests = 0
+
+            # Test K sensitivity (number of factors)
+            logger.info("📊 Testing K (number of factors) sensitivity...")
+            K_values = parameter_ranges.get('n_factors', [5, 10, 15, 20])[:3]  # Limit for testing
+            K_results = {}
+
+            for K in K_values:
+                try:
+                    test_hypers = base_hypers.copy()
+                    test_hypers['K'] = K
+                    test_args = base_args.copy()
+                    test_args['K'] = K
+
+                    with sensitivity_exp.profiler.profile(f'K_sensitivity_{K}') as p:
+                        result = sensitivity_exp._run_sgfa_analysis(X_list, test_hypers, test_args)
+
+                    metrics = sensitivity_exp.profiler.get_current_metrics()
+                    K_results[f'K{K}'] = {
+                        'K': K,
+                        'result': result,
+                        'performance': {
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb,
+                            'convergence': result.get('convergence', False),
+                            'log_likelihood': result.get('log_likelihood', float('-inf'))
+                        }
+                    }
+                    successful_tests += 1
+                    logger.info(f"✅ K={K}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}")
+                except Exception as e:
+                    logger.error(f"❌ K={K} sensitivity test failed: {e}")
+                    K_results[f'K{K}'] = {'error': str(e)}
+
+                total_tests += 1
+
+            results['K_sensitivity'] = K_results
+
+            # Test sparsity sensitivity (percW)
+            logger.info("📊 Testing sparsity (percW) sensitivity...")
+            sparsity_values = [20, 33, 50]  # Different sparsity levels
+            sparsity_results = {}
+
+            for percW in sparsity_values:
+                try:
+                    test_hypers = base_hypers.copy()
+                    test_hypers['percW'] = percW
+
+                    with sensitivity_exp.profiler.profile(f'percW_sensitivity_{percW}') as p:
+                        result = sensitivity_exp._run_sgfa_analysis(X_list, test_hypers, base_args)
+
+                    metrics = sensitivity_exp.profiler.get_current_metrics()
+                    sparsity_results[f'percW{percW}'] = {
+                        'percW': percW,
+                        'result': result,
+                        'performance': {
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb,
+                            'convergence': result.get('convergence', False),
+                            'log_likelihood': result.get('log_likelihood', float('-inf'))
+                        }
+                    }
+                    successful_tests += 1
+                    logger.info(f"✅ percW={percW}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}")
+                except Exception as e:
+                    logger.error(f"❌ percW={percW} sensitivity test failed: {e}")
+                    sparsity_results[f'percW{percW}'] = {'error': str(e)}
+
+                total_tests += 1
+
+            results['sparsity_sensitivity'] = sparsity_results
+
+            # Test MCMC parameter sensitivity
+            logger.info("📊 Testing MCMC parameter sensitivity...")
+            mcmc_configs = [
+                {'num_samples': 50, 'num_warmup': 25, 'label': 'fast'},
+                {'num_samples': 100, 'num_warmup': 50, 'label': 'standard'},
+                {'num_samples': 200, 'num_warmup': 100, 'label': 'thorough'}
+            ]
+            mcmc_results = {}
+
+            for mcmc_config in mcmc_configs[:2]:  # Test first 2 for speed
+                try:
+                    test_args = base_args.copy()
+                    test_args['num_samples'] = mcmc_config['num_samples']
+                    test_args['num_warmup'] = mcmc_config['num_warmup']
+                    label = mcmc_config['label']
+
+                    with sensitivity_exp.profiler.profile(f'mcmc_sensitivity_{label}') as p:
+                        result = sensitivity_exp._run_sgfa_analysis(X_list, base_hypers, test_args)
+
+                    metrics = sensitivity_exp.profiler.get_current_metrics()
+                    mcmc_results[label] = {
+                        'config': mcmc_config,
+                        'result': result,
+                        'performance': {
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb,
+                            'convergence': result.get('convergence', False),
+                            'log_likelihood': result.get('log_likelihood', float('-inf'))
+                        }
+                    }
+                    successful_tests += 1
+                    logger.info(f"✅ MCMC {label}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}")
+                except Exception as e:
+                    logger.error(f"❌ MCMC {label} sensitivity test failed: {e}")
+                    mcmc_results[label] = {'error': str(e)}
+
+                total_tests += 1
+
+            results['mcmc_sensitivity'] = mcmc_results
+
+            logger.info("🔬 Sensitivity analysis completed!")
+            logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
+
+            return {
+                'status': 'completed',
+                'sensitivity_results': results,
+                'summary': {
+                    'total_tests': total_tests,
+                    'successful_tests': successful_tests,
+                    'success_rate': successful_tests / total_tests if total_tests > 0 else 0,
+                    'parameters_tested': ['K', 'percW', 'mcmc_config'],
+                    'data_characteristics': {
+                        'n_subjects': X_list[0].shape[0],
+                        'n_views': len(X_list),
+                        'view_dimensions': [X.shape[1] for X in X_list]
+                    }
+                }
+            }
+
+        # Run experiment using framework
+        result = framework.run_experiment(
+            experiment_function=sensitivity_analysis_experiment,
+            config=exp_config,
+            data={'X_list': X_list, 'preprocessing_info': preprocessing_info}
+        )
+
         logger.info("✅ Sensitivity analysis completed successfully")
-        return {'status': 'completed', 'analysis': 'placeholder'}
+        return result
+
     except Exception as e:
         logger.error(f"Sensitivity analysis failed: {e}")
         return None

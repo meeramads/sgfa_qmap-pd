@@ -83,6 +83,10 @@ def main():
     parser.add_argument("--data-dir", help="Override data directory")
     parser.add_argument("--unified-results", action="store_true", default=True,
                        help="Save all results in a single timestamped folder (default: True)")
+    parser.add_argument("--shared-data", action="store_true", default=True,
+                       help="Use shared data pipeline for efficiency (default: True)")
+    parser.add_argument("--independent-mode", action="store_true", default=False,
+                       help="Force independent data loading for troubleshooting (overrides --shared-data)")
 
     args = parser.parse_args()
 
@@ -129,25 +133,56 @@ def main():
     # Determine which experiments to run
     experiments_to_run = args.experiments
     if "all" in experiments_to_run:
-        experiments_to_run = ["data_validation", "method_comparison", 
+        experiments_to_run = ["data_validation", "method_comparison",
                              "performance_benchmarks", "sensitivity_analysis"]
 
-    # Run experiments using modular functions
+    # Determine execution mode
+    use_shared_data = args.shared_data and not args.independent_mode
+    if args.independent_mode:
+        logger.info("🔧 Using INDEPENDENT MODE - each experiment loads its own data (for troubleshooting)")
+    elif use_shared_data:
+        logger.info("🔗 Using SHARED DATA MODE - efficient pipeline with data reuse")
+    else:
+        logger.info("🔧 Using INDEPENDENT MODE - shared data disabled")
+
+    # Initialize pipeline context for data sharing
+    pipeline_context = {
+        'X_list': None,
+        'preprocessing_info': None,
+        'data_strategy': None,
+        'shared_mode': use_shared_data,
+        'memory_usage_mb': 0
+    }
+
+    logger.info(f"🔄 Pipeline context initialized (shared_mode: {use_shared_data})")
+
+    # Run experiments sequentially, passing context through
     if "data_validation" in experiments_to_run:
         logger.info("🔍 Starting Data Validation Experiment...")
-        results['data_validation'] = run_data_validation(config)
+        results['data_validation'] = run_data_validation(config, pipeline_context)
+
+        # Log context update
+        if pipeline_context['X_list'] is not None:
+            logger.info(f"📊 Data validation loaded data: {len(pipeline_context['X_list'])} views")
+            logger.info(f"   Strategy: {pipeline_context.get('data_strategy', 'unknown')}")
 
     if "method_comparison" in experiments_to_run:
         logger.info("🧠 Starting Method Comparison Experiment...")
-        results['method_comparison'] = run_method_comparison(config)
+        if pipeline_context['X_list'] is not None and use_shared_data:
+            logger.info("   → Using shared data from data_validation")
+        results['method_comparison'] = run_method_comparison(config, pipeline_context)
 
     if "performance_benchmarks" in experiments_to_run:
         logger.info("⚡ Starting Performance Benchmark Experiment...")
-        results['performance_benchmarks'] = run_performance_benchmarks(config)
+        if pipeline_context['X_list'] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+        results['performance_benchmarks'] = run_performance_benchmarks(config, pipeline_context)
 
     if "sensitivity_analysis" in experiments_to_run:
         logger.info("📊 Starting Sensitivity Analysis Experiment...")
-        results['sensitivity_analysis'] = run_sensitivity_analysis(config)
+        if pipeline_context['X_list'] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+        results['sensitivity_analysis'] = run_sensitivity_analysis(config, pipeline_context)
 
     # Summary
     end_time = datetime.now()

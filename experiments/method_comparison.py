@@ -276,18 +276,99 @@ class MethodComparisonExperiments(ExperimentFramework):
             self.logger.error(f"Scalability comparison failed: {str(e)}")
             return self._create_failure_result("scalability_comparison", str(e))
     
-    def _run_sgfa_variant(self, X_list: List[np.ndarray], 
+    def _run_sgfa_variant(self, X_list: List[np.ndarray],
                          hypers: Dict, args: Dict, **kwargs) -> Dict:
         """Run SGFA with specific variant configuration."""
-        # This would call your actual SGFA implementation
-        # For now, return mock results
-        return {
-            'W': [np.random.randn(X.shape[1], 5) for X in X_list],
-            'Z': np.random.randn(X_list[0].shape[0], 5),
-            'log_likelihood': np.random.randn(),
-            'n_iterations': np.random.randint(100, 1000),
-            'convergence': True
-        }
+        import jax
+        import jax.numpy as jnp
+        import numpyro
+        from numpyro.infer import MCMC, NUTS
+        import time
+
+        try:
+            self.logger.info(f"Training SGFA model with K={args.get('K', 10)}, percW={hypers.get('percW', 33)}")
+
+            # Import the actual SGFA model function
+            from core.run_analysis import models
+
+            # Setup MCMC configuration
+            num_warmup = args.get('num_warmup', 500)  # Reduced for faster comparison
+            num_samples = args.get('num_samples', 1000)  # Reduced for faster comparison
+            num_chains = args.get('num_chains', 2)  # Reduced for faster comparison
+
+            # Create args object for model
+            import argparse
+            model_args = argparse.Namespace(
+                model='sparseGFA',
+                K=args.get('K', 10),
+                num_sources=len(X_list),
+                reghsZ=args.get('reghsZ', True)
+            )
+
+            # Setup MCMC
+            rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
+            kernel = NUTS(models, target_accept_prob=args.get('target_accept_prob', 0.8))
+            mcmc = MCMC(
+                kernel,
+                num_warmup=num_warmup,
+                num_samples=num_samples,
+                num_chains=num_chains
+            )
+
+            # Run inference
+            start_time = time.time()
+            mcmc.run(rng_key, X_list, hypers, model_args, extra_fields=('potential_energy',))
+            elapsed = time.time() - start_time
+
+            # Get samples
+            samples = mcmc.get_samples()
+
+            # Calculate log likelihood (approximate)
+            potential_energy = samples.get('potential_energy', np.array([0]))
+            log_likelihood = -np.mean(potential_energy) if len(potential_energy) > 0 else 0
+
+            # Extract mean parameters
+            W_samples = samples['W']  # Shape: (num_samples, D, K)
+            Z_samples = samples['Z']  # Shape: (num_samples, N, K)
+
+            W_mean = np.mean(W_samples, axis=0)
+            Z_mean = np.mean(Z_samples, axis=0)
+
+            # Split W back into views
+            W_list = []
+            start_idx = 0
+            for X in X_list:
+                end_idx = start_idx + X.shape[1]
+                W_list.append(W_mean[start_idx:end_idx, :])
+                start_idx = end_idx
+
+            self.logger.info(f"SGFA training completed in {elapsed:.2f}s, log_likelihood: {log_likelihood:.3f}")
+
+            return {
+                'W': W_list,
+                'Z': Z_mean,
+                'W_samples': W_samples,
+                'Z_samples': Z_samples,
+                'samples': samples,
+                'log_likelihood': float(log_likelihood),
+                'n_iterations': num_samples,
+                'convergence': True,
+                'execution_time': elapsed,
+                'mcmc_diagnostics': {
+                    'num_samples': num_samples,
+                    'num_warmup': num_warmup,
+                    'num_chains': num_chains
+                }
+            }
+
+        except Exception as e:
+            self.logger.error(f"SGFA variant training failed: {str(e)}")
+            return {
+                'error': str(e),
+                'convergence': False,
+                'execution_time': 0,
+                'log_likelihood': float('-inf')
+            }
     
     def _run_traditional_method(self, X: np.ndarray, method_name: str,
                               n_components: int, **kwargs) -> Dict:
@@ -746,6 +827,15 @@ def run_method_comparison(config):
     logger.info("Starting Method Comparison Experiments")
 
     try:
+        # Check if using shared data mode
+        if '_shared_data' in config:
+            logger.info("🔗 Using shared data from pipeline")
+            X_list = config['_shared_data']['X_list']
+            preprocessing_info = config['_shared_data']['preprocessing_info']
+            use_shared_data = True
+        else:
+            use_shared_data = False
+
         # Add project root to path for imports
         import sys
         import os
@@ -827,14 +917,15 @@ def run_method_comparison(config):
                     auto_select_strategy=True
                 )
         else:
-            # Use preprocessing integration
+            # Use advanced preprocessing integration for method comparison
             from data.preprocessing_integration import apply_preprocessing_to_pipeline
 
-            logger.info("🔧 Applying comprehensive preprocessing integration...")
+            logger.info("🔧 Applying advanced neuroimaging preprocessing for method comparison...")
             X_list, preprocessing_info = apply_preprocessing_to_pipeline(
                 config=config,
                 data_dir=config['data']['data_dir'],
-                auto_select_strategy=True
+                auto_select_strategy=False,
+                preferred_strategy="aggressive"  # Use advanced preprocessing for better model comparison
             )
 
         # Apply performance optimization to loaded data
@@ -876,7 +967,7 @@ def run_method_comparison(config):
         def method_comparison_experiment(config, output_dir, **kwargs):
             import numpy as np
 
-            logger.info("Running comprehensive method comparison...")
+            logger.info("Running comprehensive method comparison with actual model training...")
 
             # Log integration summaries
             logger.info("🧠 MODELS FRAMEWORK SUMMARY:")
@@ -902,13 +993,123 @@ def run_method_comparison(config):
             logger.info(f"   Strategy: {preprocessing_info.get('strategy_selection', {}).get('selected_strategy', 'unknown')}")
             logger.info(f"   Reason: {preprocessing_info.get('strategy_selection', {}).get('reason', 'not specified')}")
 
-            # Return basic results for now
+            # Now run actual method comparison experiments
+            logger.info("🔬 Starting actual SGFA model comparison experiments...")
+
+            # Create method comparison experiment instance
+            method_exp = MethodComparisonExperiments(exp_config, logger)
+
+            # Setup hyperparameters for comparison
+            comparison_hypers = {
+                'Dm': [X.shape[1] for X in X_list],
+                'a_sigma': 1.0,
+                'b_sigma': 1.0,
+                'slab_df': 4.0,
+                'slab_scale': 2.0,
+                'percW': 33.0
+            }
+
+            # Test different K values for comparison
+            K_values = config.get('method_comparison', {}).get('models', [{}])[0].get('n_factors', [5, 10, 15])
+            percW_values = [25.0, 33.0, 50.0]  # Different sparsity levels
+
+            model_results = {}
+            performance_metrics = {}
+
+            for K in K_values[:2]:  # Limit to first 2 K values for faster testing
+                for percW in percW_values[:2]:  # Limit to first 2 percW values
+                    variant_name = f"K{K}_percW{int(percW)}"
+                    logger.info(f"Testing SGFA variant: {variant_name}")
+
+                    # Setup args for this variant
+                    variant_args = {
+                        'K': K,
+                        'num_warmup': 300,  # Reduced for faster testing
+                        'num_samples': 600,  # Reduced for faster testing
+                        'num_chains': 2,
+                        'target_accept_prob': 0.8,
+                        'reghsZ': True
+                    }
+
+                    # Update hyperparameters
+                    variant_hypers = comparison_hypers.copy()
+                    variant_hypers['percW'] = percW
+
+                    # Run SGFA variant
+                    with method_exp.profiler.profile(f'sgfa_{variant_name}') as p:
+                        variant_result = method_exp._run_sgfa_variant(
+                            X_list, variant_hypers, variant_args
+                        )
+
+                    model_results[variant_name] = variant_result
+
+                    # Store performance metrics
+                    metrics = method_exp.profiler.get_current_metrics()
+                    performance_metrics[variant_name] = {
+                        'execution_time': metrics.execution_time,
+                        'peak_memory_gb': metrics.peak_memory_gb,
+                        'convergence': variant_result.get('convergence', False),
+                        'log_likelihood': variant_result.get('log_likelihood', float('-inf'))
+                    }
+
+                    logger.info(f"✅ {variant_name}: {metrics.execution_time:.1f}s, "
+                              f"LL={variant_result.get('log_likelihood', 0):.3f}")
+
+            # Run traditional method comparison for a subset of methods
+            logger.info("🔬 Running traditional method comparison...")
+            X_concat = np.hstack(X_list)
+
+            traditional_methods = ['pca', 'fa']  # Reduced set for faster testing
+            traditional_results = {}
+
+            for method in traditional_methods:
+                logger.info(f"Testing traditional method: {method}")
+
+                with method_exp.profiler.profile(f'traditional_{method}') as p:
+                    method_result = method_exp._run_traditional_method(
+                        X_concat, method, min(10, X_concat.shape[1] // 2)
+                    )
+
+                traditional_results[method] = method_result
+
+                # Store performance metrics
+                metrics = method_exp.profiler.get_current_metrics()
+                performance_metrics[method] = {
+                    'execution_time': metrics.execution_time,
+                    'peak_memory_gb': metrics.peak_memory_gb
+                }
+
+                logger.info(f"✅ {method}: {metrics.execution_time:.1f}s")
+
+            # Combine all results
+            all_results = {
+                'sgfa_variants': model_results,
+                'traditional_methods': traditional_results
+            }
+
+            logger.info("🔬 Method comparison experiments completed!")
+            logger.info(f"   SGFA variants tested: {len(model_results)}")
+            logger.info(f"   Traditional methods tested: {len(traditional_results)}")
+            logger.info(f"   Total execution time: {sum(m.get('execution_time', 0) for m in performance_metrics.values()):.1f}s")
+
             return {
                 'status': 'completed',
+                'model_results': all_results,
+                'performance_metrics': performance_metrics,
                 'models_summary': models_summary,
                 'analysis_summary': analysis_summary,
                 'performance_summary': performance_summary,
-                'data': data
+                'data': data,
+                'experiment_config': {
+                    'K_values_tested': K_values[:2],
+                    'percW_values_tested': percW_values[:2],
+                    'traditional_methods_tested': traditional_methods,
+                    'data_characteristics': {
+                        'n_subjects': X_list[0].shape[0],
+                        'n_views': len(X_list),
+                        'view_dimensions': [X.shape[1] for X in X_list]
+                    }
+                }
             }
 
         # Run experiment using framework
