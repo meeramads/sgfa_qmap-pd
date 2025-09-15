@@ -152,6 +152,10 @@ class NeuroImagingCVConfig:
         # Model selection parameters for GFA
         self.factor_range = [5, 10, 15, 20, 25, 30]
         self.sparsity_range = [25, 33, 50, 67]
+
+        # Subtype optimization parameters
+        self.auto_optimize_subtypes = True  # Enable automatic subtype determination
+        self.subtype_candidate_range = [2, 3, 4]  # Literature-based PD subtypes
         self.mcmc_samples_range = [1000, 2000, 3000]
         
         # Evaluation metrics
@@ -707,17 +711,43 @@ class NeuroImagingCrossValidator:
                 )
         
         # Clustering for subtype analysis
-        n_subtypes = 3  # TD, PIGD, Mixed subtypes in PD
-        kmeans = KMeans(n_clusters=n_subtypes, random_state=self.config.random_state)
-        cluster_labels = kmeans.fit_predict(Z_mean)
-        
-        # Subtype validation metrics
-        if len(np.unique(cluster_labels)) > 1:
-            silhouette = silhouette_score(Z_mean, cluster_labels)
-            calinski_harabasz = calinski_harabasz_score(Z_mean, cluster_labels)
+        if hasattr(self.config, 'auto_optimize_subtypes') and self.config.auto_optimize_subtypes:
+            # Literature-based optimization
+            logger.info("Determining optimal number of PD subtypes...")
+
+            # Use configured candidate clusters or default
+            candidate_clusters = getattr(self.config, 'subtype_candidate_range', [2, 3, 4])
+            optimal_n, cluster_metrics = self._find_optimal_subtypes(Z_mean, candidate_clusters, fold_id)
+
+            logger.info(f"OPTIMAL SUBTYPES FOUND: {optimal_n} clusters for fold {fold_id}")
+            logger.info(f"   Best silhouette score: {cluster_metrics['best_silhouette']:.4f}")
+            logger.info(f"   Best Calinski-Harabasz score: {cluster_metrics['best_calinski']:.4f}")
+            logger.info(f"   Subtype distribution: {cluster_metrics['cluster_sizes']}")
+
+            # Use optimal clustering
+            kmeans = KMeans(n_clusters=optimal_n, random_state=self.config.random_state, n_init=10)
+            cluster_labels = kmeans.fit_predict(Z_mean)
+
+            # Final validation metrics with optimal clusters
+            silhouette = cluster_metrics['best_silhouette']
+            calinski_harabasz = cluster_metrics['best_calinski']
+            n_subtypes = optimal_n
+
         else:
-            silhouette = 0.0
-            calinski_harabasz = 0.0
+            # Traditional fixed clustering (backward compatibility)
+            n_subtypes = 3  # TD, PIGD, Mixed subtypes in PD
+            logger.info(f"Using fixed {n_subtypes} clusters (traditional TD/PIGD/Mixed)")
+
+            kmeans = KMeans(n_clusters=n_subtypes, random_state=self.config.random_state)
+            cluster_labels = kmeans.fit_predict(Z_mean)
+
+            # Subtype validation metrics
+            if len(np.unique(cluster_labels)) > 1:
+                silhouette = silhouette_score(Z_mean, cluster_labels)
+                calinski_harabasz = calinski_harabasz_score(Z_mean, cluster_labels)
+            else:
+                silhouette = 0.0
+                calinski_harabasz = 0.0
         
         fold_result = {
             'fold_id': fold_id,
@@ -977,7 +1007,85 @@ class NeuroImagingCrossValidator:
             'interpretability_stability': np.std(interp_scores),
             'n_comparisons': len(loading_stabilities)
         }
-    
+
+    def _find_optimal_subtypes(self, Z_mean: np.ndarray, candidate_clusters: List[int], fold_id: int) -> Tuple[int, Dict]:
+        """
+        Determine optimal number of subtypes using literature-based validation.
+        Tests 2, 3, 4 clusters as supported by PD literature.
+        """
+        logger.info(f"Testing {candidate_clusters} cluster solutions for optimal subtypes...")
+
+        best_score = -1
+        best_n_clusters = 3  # Default fallback
+        cluster_metrics = {}
+
+        results = []
+
+        for n_clusters in candidate_clusters:
+            if n_clusters >= Z_mean.shape[0]:  # Skip if more clusters than samples
+                logger.warning(f"Skipping {n_clusters} clusters (>= {Z_mean.shape[0]} samples)")
+                continue
+
+            try:
+                # Fit K-means
+                kmeans = KMeans(n_clusters=n_clusters, random_state=self.config.random_state, n_init=10)
+                labels = kmeans.fit_predict(Z_mean)
+
+                # Calculate validation metrics
+                sil_score = silhouette_score(Z_mean, labels)
+                cal_score = calinski_harabasz_score(Z_mean, labels)
+
+                # Composite score (balanced between metrics)
+                composite_score = 0.6 * sil_score + 0.4 * (cal_score / 1000)  # Scale Calinski score
+
+                # Cluster size distribution
+                unique_labels, counts = np.unique(labels, return_counts=True)
+                cluster_sizes = dict(zip(unique_labels, counts))
+
+                results.append({
+                    'n_clusters': n_clusters,
+                    'silhouette': sil_score,
+                    'calinski_harabasz': cal_score,
+                    'composite_score': composite_score,
+                    'cluster_sizes': cluster_sizes,
+                    'min_cluster_size': min(counts),
+                    'balance_score': min(counts) / max(counts)  # Cluster balance
+                })
+
+                logger.info(f"  {n_clusters} clusters: Silhouette={sil_score:.4f}, "
+                           f"Calinski-Harabasz={cal_score:.2f}, Balance={min(counts)/max(counts):.3f}")
+
+                # Update best solution
+                if composite_score > best_score:
+                    best_score = composite_score
+                    best_n_clusters = n_clusters
+
+            except Exception as e:
+                logger.warning(f"Failed to evaluate {n_clusters} clusters: {str(e)}")
+                continue
+
+        if results:
+            best_result = next((r for r in results if r['n_clusters'] == best_n_clusters), results[0])
+            cluster_metrics = {
+                'best_silhouette': best_result['silhouette'],
+                'best_calinski': best_result['calinski_harabasz'],
+                'best_composite_score': best_result['composite_score'],
+                'cluster_sizes': best_result['cluster_sizes'],
+                'all_results': results
+            }
+        else:
+            logger.error("No valid cluster solutions found, using default 3 clusters")
+            best_n_clusters = 3
+            cluster_metrics = {
+                'best_silhouette': 0.0,
+                'best_calinski': 0.0,
+                'best_composite_score': 0.0,
+                'cluster_sizes': {},
+                'all_results': []
+            }
+
+        return best_n_clusters, cluster_metrics
+
     def _analyze_subtype_consistency(self, converged_results: List[Dict],
                                    clinical_data: Optional[pd.DataFrame]) -> Dict:
         """Analyze consistency of identified subtypes across CV folds."""
@@ -986,7 +1094,27 @@ class NeuroImagingCrossValidator:
         
         # Analyze number of subtypes identified
         n_subtypes_found = [r.get('n_subtypes_found', 0) for r in converged_results]
-        
+
+        # Log optimal subtype summary
+        if n_subtypes_found:
+            from collections import Counter
+            subtype_counts = Counter(n_subtypes_found)
+            most_common = subtype_counts.most_common(1)[0]
+
+            logger.info("="*60)
+            logger.info("FINAL SUBTYPE OPTIMIZATION SUMMARY:")
+            logger.info(f"   Most frequent optimal clusters: {most_common[0]} ({most_common[1]}/{len(n_subtypes_found)} folds)")
+            logger.info(f"   Range of optimal clusters: {min(n_subtypes_found)} - {max(n_subtypes_found)}")
+            logger.info(f"   Distribution across folds: {dict(subtype_counts)}")
+
+            if most_common[0] == 2:
+                logger.info("   Interpretation: Two-subtype structure (fast vs. slow progressors)")
+            elif most_common[0] == 3:
+                logger.info("   Interpretation: Classic TD/PIGD/Mixed motor subtypes")
+            elif most_common[0] == 4:
+                logger.info("   Interpretation: Extended subtype structure with additional phenotypes")
+            logger.info("="*60)
+
         # Silhouette scores across folds
         silhouette_scores = [r.get('silhouette_score', 0) for r in converged_results]
         
