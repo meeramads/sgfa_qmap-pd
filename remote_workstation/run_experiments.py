@@ -121,32 +121,91 @@ def run_method_comparison(config):
             data_dir=config['data']['data_dir']
         )
         
-        # Load data first
-        from data.qmap_pd import load_qmap_pd
-        data = load_qmap_pd(data_dir=config['data']['data_dir'])
+        # Load data with comprehensive preprocessing integration
+        from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+
+        logger.info("🔧 Applying comprehensive preprocessing integration...")
+        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+            config=config,
+            data_dir=config['data']['data_dir'],
+            auto_select_strategy=True  # Automatically select optimal preprocessing strategy
+        )
+
+        # Create data structure compatible with existing pipeline
+        data = {
+            'X_list': X_list,
+            'view_names': preprocessing_info.get('data_summary', {}).get('view_names', [f'view_{i}' for i in range(len(X_list))]),
+            'preprocessing_info': preprocessing_info
+        }
         
         # Create method comparison experiment function  
         def method_comparison_experiment(config, output_dir, **kwargs):
             import numpy as np  # Add missing numpy import
             logger.info("Running comprehensive method comparison...")
             X_list = data['X_list']
+
+            # Log preprocessing information
+            if 'preprocessing_info' in data:
+                preprocessing_info = data['preprocessing_info']
+                if preprocessing_info.get('preprocessing_integration', False):
+                    logger.info("🔧 PREPROCESSING INTEGRATION SUMMARY:")
+                    strategy_info = preprocessing_info.get('strategy_selection', {})
+                    logger.info(f"   Strategy: {strategy_info.get('selected_strategy', 'unknown')}")
+                    logger.info(f"   Reason: {strategy_info.get('reason', 'not specified')}")
+
+                    proc_results = preprocessing_info.get('preprocessing_results', {})
+                    if proc_results.get('status') == 'completed':
+                        logger.info(f"   Preprocessor: {proc_results.get('preprocessor_type', 'unknown')}")
+                        logger.info(f"   Steps applied: {proc_results.get('steps_applied', [])}")
+
+                        if 'feature_reduction' in proc_results:
+                            reduction = proc_results['feature_reduction']
+                            logger.info(f"   Feature reduction: {reduction['total_before']} → {reduction['total_after']} "
+                                      f"({reduction['reduction_ratio']:.3f} ratio)")
+                else:
+                    logger.info("🔧 Using basic preprocessing (advanced integration unavailable)")
             
-            # AUTOMATIC HYPERPARAMETER OPTIMIZATION FOR METHOD COMPARISON
+            # COMPREHENSIVE CROSS-VALIDATION FRAMEWORK FOR HYPERPARAMETER OPTIMIZATION
             hyperparam_config = config.get('hyperparameter_optimization', {})
             if hyperparam_config.get('use_for_method_comparison', True):
-                # Determine which parameters to optimize
-                optimize_params = []
-                if hyperparam_config.get('optimize_K', True):
-                    optimize_params.append('K')
-                if hyperparam_config.get('optimize_percW', True):
-                    optimize_params.append('percW')
-                if hyperparam_config.get('optimize_mcmc', True):
-                    optimize_params.append('mcmc')
-                if hyperparam_config.get('joint_optimization', True) and len(optimize_params) > 1:
-                    optimize_params = ['joint']
+                logger.info("🔬 Using comprehensive cross-validation framework for hyperparameter optimization...")
 
-                logger.info("Determining optimal hyperparameters for method comparison...")
-                optimal_params, optimal_score, all_scores = determine_optimal_hyperparameters(X_list, config, optimize_params)
+                # Try comprehensive CV framework first
+                try:
+                    from remote_workstation.cv_integration import integrate_cv_with_pipeline
+
+                    # Get traditional optimal parameters as baseline
+                    traditional_optimal_params, traditional_score, traditional_scores = determine_optimal_hyperparameters(X_list, config, ['joint'])
+
+                    # Apply comprehensive CV framework
+                    cv_results, enhanced_optimal_params, cv_integration_summary = integrate_cv_with_pipeline(
+                        X_list=X_list,
+                        config=config,
+                        current_optimal_params=traditional_optimal_params,
+                        data_dir=config['data']['data_dir']
+                    )
+
+                    # Use CV-enhanced parameters
+                    optimal_params = enhanced_optimal_params
+                    optimal_score = cv_results.get('best_cv_score', traditional_score)
+                    all_scores = {
+                        'cv_framework': cv_results,
+                        'traditional': traditional_scores,
+                        'cv_integration_summary': cv_integration_summary
+                    }
+
+                    logger.info(f"✅ CV framework optimization completed")
+                    logger.info(f"   CV framework used: {cv_results.get('cv_framework_used', False)}")
+                    logger.info(f"   CV type: {cv_results.get('cv_type', 'unknown')}")
+                    if cv_integration_summary.get('parameter_enhancement', False):
+                        logger.info(f"   Parameters enhanced by CV: {cv_integration_summary.get('parameter_changes', [])}")
+                    else:
+                        logger.info(f"   Parameters validated by CV (no changes recommended)")
+
+                except Exception as cv_e:
+                    logger.warning(f"CV framework failed: {cv_e}")
+                    logger.info("Falling back to traditional hyperparameter optimization...")
+                    optimal_params, optimal_score, all_scores = determine_optimal_hyperparameters(X_list, config, ['joint'])
             else:
                 # Use traditional fixed parameters
                 optimal_params = {
@@ -604,11 +663,14 @@ def run_performance_benchmarks(config):
             import time
             import psutil
             import numpy as np
-            from data.qmap_pd import load_qmap_pd
-            
+            from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+
             logger.info("Running direct performance benchmarks...")
-            data = load_qmap_pd(data_dir=config.data_dir)
-            X_list = data['X_list']
+            X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                config=config.__dict__,
+                data_dir=config.data_dir,
+                auto_select_strategy=True
+            )
             
             results = {
                 'scalability_benchmark': {},
@@ -1087,11 +1149,14 @@ def run_sensitivity_analysis(config):
         # Create sensitivity analysis experiment function
         def sensitivity_analysis_experiment(config, output_dir, **kwargs):
             import numpy as np
-            from data.qmap_pd import load_qmap_pd
-            
+            from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+
             logger.info("Running direct sensitivity analysis...")
-            data = load_qmap_pd(data_dir=config.data_dir)
-            X_list = data['X_list']
+            X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                config=config.__dict__,
+                data_dir=config.data_dir,
+                auto_select_strategy=True
+            )
             
             results = {
                 'parameter_sensitivity': {},
