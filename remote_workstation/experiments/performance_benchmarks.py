@@ -21,12 +21,14 @@ def run_performance_benchmarks(config):
         import sys
         import os
 
-        # Get the project root (parent of remote_workstation)
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+        # Calculate the correct project root path
+        current_file = os.path.abspath(__file__)  # /path/to/remote_workstation/experiments/performance_benchmarks.py
+        remote_ws_dir = os.path.dirname(os.path.dirname(current_file))  # /path/to/remote_workstation
+        project_root = os.path.dirname(remote_ws_dir)  # /path/to/project_root
+
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Now use normal imports since we fixed the relative import issues
         from experiments.framework import ExperimentFramework, ExperimentConfig
 
         framework = ExperimentFramework(

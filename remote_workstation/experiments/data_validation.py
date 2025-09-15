@@ -18,12 +18,15 @@ def run_data_validation(config):
         import sys
         import os
 
-        # Get the project root (parent of remote_workstation)
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+        # The main script already adds '.' to path, so experiments should be available
+        # But let's ensure we have the absolute path to the project root
+        current_file = os.path.abspath(__file__)  # /path/to/remote_workstation/experiments/data_validation.py
+        remote_ws_dir = os.path.dirname(os.path.dirname(current_file))  # /path/to/remote_workstation
+        project_root = os.path.dirname(remote_ws_dir)  # /path/to/project_root
+
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Now use normal imports since we fixed the relative import issues
         from experiments.framework import ExperimentFramework, ExperimentConfig
         from experiments.data_validation import DataValidationExperiments
 
