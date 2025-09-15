@@ -225,10 +225,26 @@ def run_method_comparison(config):
                     logger.info(f"✅ MCMC completed in {duration/60:.2f} minutes ({duration:.1f} seconds)")
                     logger.info(f"   Average time per sample: {duration/args.num_samples:.2f}s")
                     
-                    # Process MCMC results
-                    logger.info(f"📊 Processing {variant_name} results...")
+                    # Extract MCMC samples
+                    logger.info(f"📊 Extracting {variant_name} MCMC samples...")
+                    samples = mcmc_result.get_samples()
                     logger.info(f"   - Total samples collected: {mcmc_result.num_samples}")
                     logger.info(f"   - Number of chains: {mcmc_result.num_chains}")
+                    logger.info(f"   - Sample keys: {list(samples.keys())}")
+                    
+                    # Extract key parameters
+                    if 'Z' in samples:
+                        Z_samples = samples['Z']  # Factor scores
+                        logger.info(f"   - Factor scores shape: {Z_samples.shape}")
+                        Z_mean = Z_samples.mean(axis=0)  # Average over MCMC samples
+                    
+                    if 'W' in samples:
+                        W_samples = samples['W']  # Factor loadings/weights
+                        logger.info(f"   - Factor loadings shape: {W_samples.shape}")
+                        W_mean = W_samples.mean(axis=0)  # Average over MCMC samples
+                    
+                    # Process extracted parameters
+                    logger.info(f"📊 Processing {variant_name} results...")
                     
                     # Extract convergence diagnostics if available
                     try:
@@ -251,13 +267,43 @@ def run_method_comparison(config):
                         'duration_minutes': duration/60
                     }
                     
-                    results['sgfa_variants'][variant_name] = {
+                    # Store comprehensive results including weights
+                    variant_result_data = {
+                        'status': 'completed',
                         'converged': variant_results.get('converged', True),
                         'log_likelihood': variant_results.get('log_likelihood', 0),
-                        'n_factors': variant_results.get('K', args.K),
+                        'n_factors': args.K,
                         'duration_minutes': variant_results['duration_minutes'],
-                        'config': variant_config
+                        'config': variant_config,
+                        'mcmc_info': {
+                            'num_samples': mcmc_result.num_samples,
+                            'num_chains': mcmc_result.num_chains,
+                            'sample_keys': list(samples.keys())
+                        }
                     }
+                    
+                    # Add factor scores and loadings if available
+                    if 'Z' in samples:
+                        variant_result_data['factor_scores'] = {
+                            'shape': list(Z_samples.shape),
+                            'mean': Z_mean.tolist(),  # Convert to list for JSON serialization
+                            'std': Z_samples.std(axis=0).tolist()
+                        }
+                        logger.info(f"   🧠 Factor scores: {Z_mean.shape} (subjects x factors)")
+                    
+                    if 'W' in samples:
+                        variant_result_data['factor_loadings'] = {
+                            'shape': list(W_samples.shape),
+                            'mean': W_mean.tolist(),
+                            'std': W_samples.std(axis=0).tolist()
+                        }
+                        logger.info(f"   🎨 Factor loadings: {W_mean.shape} (features x factors)")
+                        
+                        # Calculate sparsity metrics
+                        sparsity = (np.abs(W_mean) < 0.1).mean()
+                        logger.info(f"   🔍 Sparsity (|loading| < 0.1): {sparsity:.3f}")
+                    
+                    results['sgfa_variants'][variant_name] = variant_result_data
                     
                     logger.info(f"✅ {variant_name} SGFA completed successfully!")
                 except ImportError as e:
@@ -343,6 +389,149 @@ def run_method_comparison(config):
                         'duration_seconds': duration
                     }
             
+            # Generate plots if requested
+            try:
+                logger.info("\\n🎨 === GENERATING VISUALIZATION PLOTS ===")
+                from visualization.factor_plots import FactorPlotter
+                from pathlib import Path
+                
+                plot_dir = Path(output_dir) / "plots"
+                plot_dir.mkdir(exist_ok=True)
+                logger.info(f"Plot directory: {plot_dir}")
+                
+                plotter = FactorPlotter()
+                plots_generated = []
+                
+                # Check for brain imaging capabilities
+                brain_imaging_available = False
+                try:
+                    from visualization.neuroimaging_utils import FactorToMRIMapper, integrate_with_visualization
+                    import nibabel as nib
+                    brain_imaging_available = True
+                    logger.info("🧠 Brain imaging visualization available")
+                except ImportError:
+                    logger.info("⚠️  Brain imaging visualization not available (nibabel required)")
+                
+                # Generate plots for each successful SGFA variant
+                for variant_name, variant_result in results['sgfa_variants'].items():
+                    if variant_result.get('status') == 'completed' and 'factor_loadings' in variant_result:
+                        logger.info(f"🖼️  Generating plots for {variant_name}...")
+                        
+                        try:
+                            # Extract plotting data
+                            factor_loadings = np.array(variant_result['factor_loadings']['mean'])
+                            factor_scores = np.array(variant_result['factor_scores']['mean'])
+                            
+                            # Generate factor loading heatmap
+                            plot_path = plot_dir / f"{variant_name}_loadings_heatmap.png"
+                            plotter.plot_loading_heatmap(
+                                factor_loadings, 
+                                title=f"{variant_name.title()} SGFA - Factor Loadings",
+                                save_path=str(plot_path)
+                            )
+                            plots_generated.append(str(plot_path))
+                            logger.info(f"   ✅ Loading heatmap: {plot_path.name}")
+                            
+                            # Generate factor score distribution plots
+                            plot_path = plot_dir / f"{variant_name}_scores_distribution.png"
+                            plotter.plot_factor_distributions(
+                                factor_scores,
+                                title=f"{variant_name.title()} SGFA - Factor Score Distributions", 
+                                save_path=str(plot_path)
+                            )
+                            plots_generated.append(str(plot_path))
+                            logger.info(f"   ✅ Score distributions: {plot_path.name}")
+                            
+                            # Generate brain imaging plots if available
+                            if brain_imaging_available:
+                                logger.info(f"🧠 Generating brain imaging plots for {variant_name}...")
+                                try:
+                                    # Create brain visualization directory
+                                    brain_dir = plot_dir / f"{variant_name}_brain_maps"
+                                    brain_dir.mkdir(exist_ok=True)
+                                    
+                                    # Set up brain mapping (need data structure info)
+                                    # Get view information from data if available
+                                    if 'X_list' in globals() and len(X_list) > 0:
+                                        Dm = [X.shape[1] for X in X_list]
+                                        view_names = ['structural', 'functional', 'diffusion', 'clinical'][:len(X_list)]
+                                        
+                                        # Initialize mapper - try common qMAP-PD data directory
+                                        try:
+                                            mapper = FactorToMRIMapper(config.data_dir if hasattr(config, 'data_dir') else './qMAP-PD_data')
+                                            
+                                            # Map factor loadings to brain space
+                                            factor_maps = mapper.map_all_factors(
+                                                W=factor_loadings,
+                                                view_names=view_names,
+                                                Dm=Dm,
+                                                output_dir=str(brain_dir)
+                                            )
+                                            
+                                            if factor_maps:
+                                                n_brain_files = sum(len(outputs) for outputs in factor_maps.values())
+                                                logger.info(f"   🧠 Generated {n_brain_files} brain map files")
+                                                plots_generated.extend([str(brain_dir / f"factor_{i}_*.nii.gz") for i in factor_maps.keys()])
+                                                
+                                                # Create summary plots of brain maps
+                                                try:
+                                                    from visualization.brain_plots import BrainVisualizer
+                                                    brain_viz = BrainVisualizer(config={'save_plots': True})
+                                                    
+                                                    summary_plot = brain_dir / f"{variant_name}_brain_summary.png"
+                                                    brain_viz.create_brain_visualization_summary(
+                                                        str(brain_dir),
+                                                        include_reconstructions=True
+                                                    )
+                                                    logger.info(f"   🧠 Brain summary: {summary_plot.name}")
+                                                    
+                                                except Exception as brain_viz_e:
+                                                    logger.debug(f"Brain summary visualization failed: {brain_viz_e}")
+                                            else:
+                                                logger.warning(f"   ⚠️  No brain maps generated for {variant_name}")
+                                                
+                                        except Exception as mapper_e:
+                                            logger.warning(f"   ⚠️  Brain mapper failed for {variant_name}: {mapper_e}")
+                                    else:
+                                        logger.warning(f"   ⚠️  X_list not available for brain mapping")
+                                        
+                                except Exception as brain_e:
+                                    logger.warning(f"   ⚠️  Brain imaging failed for {variant_name}: {brain_e}")
+                            
+                        except Exception as e:
+                            logger.warning(f"   ⚠️  Failed to generate plots for {variant_name}: {e}")
+                
+                # Generate comparison plots
+                if len([r for r in results['sgfa_variants'].values() if r.get('status') == 'completed']) > 1:
+                    logger.info(f"📊 Generating comparison plots...")
+                    try:
+                        plot_path = plot_dir / "sgfa_variants_comparison.png"
+                        plotter.plot_method_comparison(
+                            results['sgfa_variants'],
+                            title="SGFA Variants Comparison",
+                            save_path=str(plot_path)
+                        )
+                        plots_generated.append(str(plot_path))
+                        logger.info(f"   ✅ Variant comparison: {plot_path.name}")
+                    except Exception as e:
+                        logger.warning(f"   ⚠️  Failed to generate comparison plot: {e}")
+                
+                logger.info(f"🎨 Generated {len(plots_generated)} plots in {plot_dir}")
+                
+                # Add plot information to results
+                results['plots'] = {
+                    'plot_directory': str(plot_dir),
+                    'generated_plots': plots_generated,
+                    'plot_count': len(plots_generated)
+                }
+                
+            except ImportError:
+                logger.warning("⚠️  Visualization modules not available - skipping plots")
+                results['plots'] = {'status': 'visualization_unavailable'}
+            except Exception as e:
+                logger.error(f"❌ Plot generation failed: {e}")
+                results['plots'] = {'status': 'failed', 'error': str(e)}
+            
             # Generate experiment summary
             logger.info("\\n🎉 === METHOD COMPARISON COMPLETED ===")
             
@@ -375,6 +564,45 @@ def run_method_comparison(config):
                 status = "✅" if result.get('status') == 'completed' else "❌"
                 duration = result.get('duration_seconds', 0)
                 logger.info(f"   {status} {method_name}: {duration:.2f} seconds")
+            
+            # Model Results Summary
+            sgfa_with_weights = sum(1 for result in results['sgfa_variants'].values() 
+                                  if 'factor_loadings' in result and 'factor_scores' in result)
+            if sgfa_with_weights > 0:
+                logger.info(f"🧠 EXTRACTED MODEL COMPONENTS:")
+                logger.info(f"   ✅ SGFA variants with factor loadings: {sgfa_with_weights}")
+                logger.info(f"   ✅ SGFA variants with factor scores: {sgfa_with_weights}")
+                
+                # Log details about extracted weights
+                for variant_name, result in results['sgfa_variants'].items():
+                    if 'factor_loadings' in result:
+                        W_shape = result['factor_loadings']['shape']
+                        Z_shape = result['factor_scores']['shape'] if 'factor_scores' in result else 'N/A'
+                        logger.info(f"   📊 {variant_name}: W{W_shape} (features→factors), Z{Z_shape} (subjects→factors)")
+            
+            # Plot Summary
+            if 'plots' in results:
+                plot_count = results['plots'].get('plot_count', 0)
+                if plot_count > 0:
+                    logger.info(f"🎨 VISUALIZATION SUMMARY:")
+                    logger.info(f"   ✅ Generated {plot_count} plots")
+                    logger.info(f"   📁 Plot directory: {results['plots']['plot_directory']}")
+                    
+                    # Count brain imaging outputs
+                    brain_files = [p for p in results['plots'].get('generated_plots', []) if 'brain_maps' in p or '.nii.gz' in p]
+                    if brain_files:
+                        logger.info(f"   🧠 Brain imaging files: {len(brain_files)}")
+                        logger.info(f"   🧠 Includes: Factor loadings mapped to brain space")
+                        logger.info(f"   🧠 Format: NIfTI files (.nii.gz) for each factor")
+                    elif brain_imaging_available:
+                        logger.info(f"   🧠 Brain imaging: Available but not generated")
+                    else:
+                        logger.info(f"   🧠 Brain imaging: Not available (install nibabel)")
+                        
+                elif results['plots'].get('status') == 'visualization_unavailable':
+                    logger.info(f"🎨 VISUALIZATION: Modules not available")
+                else:
+                    logger.info(f"🎨 VISUALIZATION: Failed to generate plots")
             
             # Overall summary
             total_experiments = len(results['sgfa_variants']) + len(results['traditional_methods'])
