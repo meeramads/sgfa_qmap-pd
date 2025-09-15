@@ -26,8 +26,21 @@ def run_method_comparison(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        from experiments.framework import ExperimentFramework, ExperimentConfig
-        from experiments.method_comparison import MethodComparisonExperiments
+        # Try direct import after adding path
+        try:
+            from experiments.framework import ExperimentFramework, ExperimentConfig
+            logger.info("✅ Successfully imported experiments.framework")
+        except ImportError as e:
+            logger.error(f"❌ Import failed: {e}")
+            # Try alternative import approach
+            import importlib.util
+            framework_path = os.path.join(project_root, 'experiments', 'framework.py')
+            spec = importlib.util.spec_from_file_location("experiments.framework", framework_path)
+            framework_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(framework_module)
+            ExperimentFramework = framework_module.ExperimentFramework
+            ExperimentConfig = framework_module.ExperimentConfig
+            logger.info("✅ Successfully imported via direct file loading")
 
         framework = ExperimentFramework(
             base_output_dir=Path(config['experiments']['base_output_dir'])
