@@ -24,7 +24,13 @@ class MethodComparisonExperiments(ExperimentFramework):
     """Comprehensive method comparison experiments for SGFA analysis."""
     
     def __init__(self, config: ExperimentConfig, logger: Optional[logging.Logger] = None):
-        super().__init__(config, logger)
+        # ExperimentFramework expects base_output_dir, not config
+        # We'll create a dummy output dir for now since this class doesn't really need the framework inheritance
+        import tempfile
+        dummy_output_dir = tempfile.mkdtemp()
+        super().__init__(dummy_output_dir)
+        self.config = config
+        self.logger = logger if logger else logging.getLogger(__name__)
         self.profiler = PerformanceProfiler()
         
         # Method configurations
@@ -1015,8 +1021,15 @@ def run_method_comparison(config):
             }
 
             # Test different K values for comparison
-            K_values = config.get('method_comparison', {}).get('models', [{}])[0].get('n_factors', [5, 10, 15])
-            percW_values = [25.0, 33.0, 50.0]  # Different sparsity levels
+            # Handle both ExperimentConfig object and dict config
+            if hasattr(config, 'K_values'):
+                # ExperimentConfig object
+                K_values = config.K_values
+                percW_values = config.percW_values
+            else:
+                # Dictionary config
+                K_values = config.get('method_comparison', {}).get('models', [{}])[0].get('n_factors', [5, 10, 15])
+                percW_values = [25.0, 33.0, 50.0]  # Different sparsity levels
 
             model_results = {}
             performance_metrics = {}
