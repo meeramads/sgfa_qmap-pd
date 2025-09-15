@@ -85,7 +85,7 @@ def run_data_validation(config):
         logger.info("Running simplified data validation...")
 
         # Basic data loading and validation
-        from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+        from data.preprocessing_integration import apply_preprocessing_to_pipeline
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=config['data']['data_dir'],

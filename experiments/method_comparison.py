@@ -770,7 +770,7 @@ def run_method_comparison(config):
         )
 
         # COMPREHENSIVE MODELS FRAMEWORK INTEGRATION
-        from remote_workstation.models_integration import integrate_models_with_pipeline
+        from models.models_integration import integrate_models_with_pipeline
 
         logger.info("🧠 Integrating comprehensive models framework...")
         model_type, model_instance, models_summary = integrate_models_with_pipeline(
@@ -778,7 +778,7 @@ def run_method_comparison(config):
         )
 
         # COMPREHENSIVE ANALYSIS FRAMEWORK INTEGRATION
-        from remote_workstation.analysis_integration import integrate_analysis_with_pipeline
+        from analysis.analysis_integration import integrate_analysis_with_pipeline
 
         logger.info("📊 Integrating comprehensive analysis framework...")
         data_manager, model_runner, analysis_summary = integrate_analysis_with_pipeline(
@@ -787,7 +787,7 @@ def run_method_comparison(config):
         )
 
         # COMPREHENSIVE PERFORMANCE OPTIMIZATION INTEGRATION
-        from remote_workstation.performance_integration import integrate_performance_with_pipeline
+        from performance.performance_integration import integrate_performance_with_pipeline
 
         logger.info("⚡ Integrating comprehensive performance optimization framework...")
         performance_manager, performance_summary = integrate_performance_with_pipeline(
@@ -798,7 +798,7 @@ def run_method_comparison(config):
         # Load data with structured analysis framework if available
         if data_manager and analysis_summary.get('integration_summary', {}).get('structured_analysis', False):
             logger.info("📊 Using structured DataManager for data loading...")
-            from remote_workstation.analysis_integration import _wrap_analysis_framework
+            from analysis.analysis_integration import _wrap_analysis_framework
 
             # Use structured data loading
             analysis_wrapper = _wrap_analysis_framework(data_manager, model_runner, analysis_summary)
@@ -820,7 +820,7 @@ def run_method_comparison(config):
             else:
                 logger.warning("⚠️ Structured data loading failed - falling back to preprocessing integration")
                 # Fall back to preprocessing integration
-                from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+                from data.preprocessing_integration import apply_preprocessing_to_pipeline
                 X_list, preprocessing_info = apply_preprocessing_to_pipeline(
                     config=config,
                     data_dir=config['data']['data_dir'],
@@ -828,7 +828,7 @@ def run_method_comparison(config):
                 )
         else:
             # Use preprocessing integration
-            from remote_workstation.preprocessing_integration import apply_preprocessing_to_pipeline
+            from data.preprocessing_integration import apply_preprocessing_to_pipeline
 
             logger.info("🔧 Applying comprehensive preprocessing integration...")
             X_list, preprocessing_info = apply_preprocessing_to_pipeline(
@@ -857,6 +857,7 @@ def run_method_comparison(config):
             }
 
             # Re-run model selection with data characteristics
+            from models.models_integration import integrate_models_with_pipeline
             model_type, model_instance, updated_models_summary = integrate_models_with_pipeline(
                 config=config,
                 X_list=X_list,

@@ -29,23 +29,13 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Add project root to path to import from main experiments directory
-import sys
-import os
-
-current_file = os.path.abspath(__file__)
-remote_ws_dir = os.path.dirname(current_file)
-project_root = os.path.dirname(remote_ws_dir)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-# Import from main experiments directory
+# Import experiment functions
 from experiments.data_validation import run_data_validation
 from experiments.method_comparison import run_method_comparison
 from experiments.performance_benchmarks import run_performance_benchmarks
 from experiments.sensitivity_analysis import run_sensitivity_analysis
 
-def load_config(config_path="remote_workstation/config.yaml"):
+def load_config(config_path="config.yaml"):
     """Load remote workstation configuration."""
     try:
         with open(config_path, 'r') as f:
@@ -84,7 +74,7 @@ def setup_environment(config):
 def main():
     """Main experimental pipeline."""
     parser = argparse.ArgumentParser(description="Run Remote Workstation experimental framework")
-    parser.add_argument("--config", default="remote_workstation/config.yaml",
+    parser.add_argument("--config", default="config.yaml",
                        help="Configuration file path")
     parser.add_argument("--experiments", nargs="+",
                        choices=["data_validation", "method_comparison",
@@ -139,7 +129,7 @@ def main():
     # Determine which experiments to run
     experiments_to_run = args.experiments
     if "all" in experiments_to_run:
-        experiments_to_run = ["data_validation", "method_comparison",
+        experiments_to_run = ["data_validation", "method_comparison", 
                              "performance_benchmarks", "sensitivity_analysis"]
 
     # Run experiments using modular functions
