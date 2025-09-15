@@ -8,6 +8,38 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _log_preprocessing_summary(preprocessing_info):
+    """Log a concise preprocessing summary instead of full details."""
+    if not preprocessing_info:
+        logger.info("✅ Preprocessing info: None")
+        return
+
+    # Extract key information
+    status = preprocessing_info.get('status', 'unknown')
+    strategy = preprocessing_info.get('strategy', 'unknown')
+    preprocessor_type = preprocessing_info.get('preprocessor_type', 'unknown')
+
+    logger.info(f"✅ Preprocessing: {status} ({preprocessor_type})")
+    logger.info(f"   Strategy: {strategy}")
+
+    # Log feature reduction if available
+    if 'feature_reduction' in preprocessing_info:
+        fr = preprocessing_info['feature_reduction']
+        logger.info(f"   Features: {fr['total_before']:,} → {fr['total_after']:,} ({fr['reduction_ratio']:.3f} ratio)")
+
+    # Log steps applied
+    steps = preprocessing_info.get('steps_applied', [])
+    if steps:
+        logger.info(f"   Steps: {', '.join(steps)}")
+
+    # Log basic shapes summary
+    original_shapes = preprocessing_info.get('original_shapes', [])
+    processed_shapes = preprocessing_info.get('processed_shapes', [])
+    if original_shapes and processed_shapes:
+        total_orig_features = sum(shape[1] for shape in original_shapes)
+        total_proc_features = sum(shape[1] for shape in processed_shapes)
+        logger.info(f"   Data: {len(original_shapes)} views, {total_orig_features:,} → {total_proc_features:,} features")
+
 def run_data_validation(config):
     """Run data validation experiments."""
     logger.info(" Starting Data Validation Experiments")
@@ -39,7 +71,8 @@ def run_data_validation(config):
         for i, X in enumerate(X_list):
             logger.info(f"   View {i}: {X.shape}")
 
-        logger.info(f"✅ Preprocessing info: {preprocessing_info}")
+        # Log preprocessing summary instead of full details
+        _log_preprocessing_summary(preprocessing_info)
         logger.info("✅ Data validation completed successfully")
         return {'status': 'completed', 'views': len(X_list), 'shapes': [X.shape for X in X_list], 'preprocessing': preprocessing_info}
 
