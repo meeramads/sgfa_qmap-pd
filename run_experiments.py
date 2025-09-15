@@ -156,10 +156,18 @@ def main():
 
     logger.info(f"🔄 Pipeline context initialized (shared_mode: {use_shared_data})")
 
-    # Run experiments sequentially, passing context through
+    # Run experiments sequentially, passing context through config
     if "data_validation" in experiments_to_run:
         logger.info("🔍 Starting Data Validation Experiment...")
-        results['data_validation'] = run_data_validation(config, pipeline_context)
+        results['data_validation'] = run_data_validation(config)
+
+        # Update pipeline context with results from data validation
+        if results['data_validation'] and hasattr(results['data_validation'], 'model_results'):
+            model_results = results['data_validation'].model_results
+            if 'preprocessed_data' in model_results:
+                pipeline_context['X_list'] = model_results['preprocessed_data'].get('X_list')
+                pipeline_context['preprocessing_info'] = model_results['preprocessed_data'].get('preprocessing_info')
+                pipeline_context['data_strategy'] = model_results.get('data_strategy', 'unknown')
 
         # Log context update
         if pipeline_context['X_list'] is not None:
@@ -168,21 +176,39 @@ def main():
 
     if "method_comparison" in experiments_to_run:
         logger.info("🧠 Starting Method Comparison Experiment...")
+        exp_config = config.copy()
         if pipeline_context['X_list'] is not None and use_shared_data:
             logger.info("   → Using shared data from data_validation")
-        results['method_comparison'] = run_method_comparison(config, pipeline_context)
+            exp_config['_shared_data'] = {
+                'X_list': pipeline_context['X_list'],
+                'preprocessing_info': pipeline_context['preprocessing_info'],
+                'mode': 'shared'
+            }
+        results['method_comparison'] = run_method_comparison(exp_config)
 
     if "performance_benchmarks" in experiments_to_run:
         logger.info("⚡ Starting Performance Benchmark Experiment...")
+        exp_config = config.copy()
         if pipeline_context['X_list'] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
-        results['performance_benchmarks'] = run_performance_benchmarks(config, pipeline_context)
+            exp_config['_shared_data'] = {
+                'X_list': pipeline_context['X_list'],
+                'preprocessing_info': pipeline_context['preprocessing_info'],
+                'mode': 'shared'
+            }
+        results['performance_benchmarks'] = run_performance_benchmarks(exp_config)
 
     if "sensitivity_analysis" in experiments_to_run:
         logger.info("📊 Starting Sensitivity Analysis Experiment...")
+        exp_config = config.copy()
         if pipeline_context['X_list'] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
-        results['sensitivity_analysis'] = run_sensitivity_analysis(config, pipeline_context)
+            exp_config['_shared_data'] = {
+                'X_list': pipeline_context['X_list'],
+                'preprocessing_info': pipeline_context['preprocessing_info'],
+                'mode': 'shared'
+            }
+        results['sensitivity_analysis'] = run_sensitivity_analysis(exp_config)
 
     # Summary
     end_time = datetime.now()

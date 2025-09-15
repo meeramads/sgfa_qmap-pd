@@ -276,6 +276,9 @@ class ExperimentFramework:
         
         # Save summary CSV
         self._save_result_summary(result, output_dir / "summary.csv")
+
+        # Save factor matrices if available
+        self._save_factor_matrices(result, output_dir)
     
     def _save_result_summary(self, result: ExperimentResult, filepath: Path):
         """Save a summary of results as CSV."""
@@ -305,6 +308,160 @@ class ExperimentFramework:
         # Save as single-row CSV
         df = pd.DataFrame([summary_data])
         df.to_csv(filepath, index=False)
+
+    def _save_factor_matrices(self, result: ExperimentResult, output_dir: Path):
+        """Save factor matrices (W and Z) as separate files for easy access."""
+        import numpy as np
+
+        # Create matrices subdirectory
+        matrices_dir = output_dir / "matrices"
+        matrices_dir.mkdir(exist_ok=True)
+
+        # Check for matrices in model_results
+        model_results = result.model_results
+
+        # Save SGFA matrices if available
+        if 'sgfa_variants' in model_results:
+            sgfa_results = model_results['sgfa_variants']
+            for variant_name, variant_result in sgfa_results.items():
+                if variant_result and isinstance(variant_result, dict):
+                    self._save_matrices_for_variant(variant_result, matrices_dir, f"sgfa_{variant_name}")
+
+        # Save other method matrices if available
+        if 'traditional_methods' in model_results:
+            trad_results = model_results['traditional_methods']
+            for method_name, method_result in trad_results.items():
+                if method_result and isinstance(method_result, dict):
+                    self._save_matrices_for_variant(method_result, matrices_dir, f"traditional_{method_name}")
+
+        # Save main result matrices if available (for single-method experiments)
+        if hasattr(result, 'W') or 'W' in model_results:
+            W = getattr(result, 'W', model_results.get('W'))
+            Z = getattr(result, 'Z', model_results.get('Z'))
+            if W is not None or Z is not None:
+                self._save_matrices_for_variant({'W': W, 'Z': Z}, matrices_dir, "main")
+
+    def _save_matrices_for_variant(self, result_dict: dict, matrices_dir: Path, variant_name: str):
+        """Save W, Z matrices and all model parameters for a specific variant/method."""
+        import numpy as np
+        import pandas as pd
+
+        # Save primary matrices (W and Z)
+        W = result_dict.get('W')
+        Z = result_dict.get('Z')
+
+        if W is not None:
+            try:
+                if isinstance(W, list):
+                    # Multi-view case: save each view separately
+                    for view_idx, W_view in enumerate(W):
+                        if hasattr(W_view, 'shape'):
+                            # Save as numpy
+                            np.save(matrices_dir / f"{variant_name}_factor_loadings_view{view_idx}.npy", W_view)
+                            # Save as CSV for readability
+                            pd.DataFrame(W_view).to_csv(
+                                matrices_dir / f"{variant_name}_factor_loadings_view{view_idx}.csv",
+                                index=False
+                            )
+                else:
+                    # Single matrix case
+                    if hasattr(W, 'shape'):
+                        np.save(matrices_dir / f"{variant_name}_factor_loadings.npy", W)
+                        pd.DataFrame(W).to_csv(
+                            matrices_dir / f"{variant_name}_factor_loadings.csv",
+                            index=False
+                        )
+            except Exception as e:
+                print(f"Warning: Could not save W matrices for {variant_name}: {e}")
+
+        if Z is not None:
+            try:
+                if hasattr(Z, 'shape'):
+                    # Save factor scores
+                    np.save(matrices_dir / f"{variant_name}_factor_scores.npy", Z)
+                    # Create DataFrame with meaningful column names
+                    factor_cols = [f"Factor_{i+1}" for i in range(Z.shape[1])]
+                    pd.DataFrame(Z, columns=factor_cols).to_csv(
+                        matrices_dir / f"{variant_name}_factor_scores.csv",
+                        index=False
+                    )
+            except Exception as e:
+                print(f"Warning: Could not save Z matrix for {variant_name}: {e}")
+
+        # Save SGFA model parameters/weights if available
+        sgfa_params = ['sigma', 'tauZ', 'lmbZ', 'cZ', 'tauW', 'lmbW', 'cW', 'samples']
+        saved_params = []
+
+        for param_name in sgfa_params:
+            param_value = result_dict.get(param_name)
+            if param_value is not None:
+                try:
+                    if hasattr(param_value, 'shape'):
+                        # Save as numpy array
+                        np.save(matrices_dir / f"{variant_name}_{param_name}.npy", param_value)
+                        saved_params.append(param_name)
+
+                        # Save smaller parameters as CSV for readability
+                        if param_value.size <= 1000:  # Only for reasonably sized parameters
+                            if param_value.ndim <= 2:  # Only for 1D or 2D arrays
+                                pd.DataFrame(param_value).to_csv(
+                                    matrices_dir / f"{variant_name}_{param_name}.csv",
+                                    index=False
+                                )
+                    elif isinstance(param_value, dict):
+                        # Handle dictionary of parameters (e.g., MCMC samples)
+                        self._save_parameter_dict(param_value, matrices_dir, f"{variant_name}_{param_name}")
+                        saved_params.append(f"{param_name} (dict)")
+                except Exception as e:
+                    print(f"Warning: Could not save parameter {param_name} for {variant_name}: {e}")
+
+        # Save hyperparameters if available
+        hyperparams = result_dict.get('hyperparameters')
+        if hyperparams and isinstance(hyperparams, dict):
+            try:
+                # Save as JSON for easy reading
+                import json
+                with open(matrices_dir / f"{variant_name}_hyperparameters.json", 'w') as f:
+                    json.dump(hyperparams, f, indent=2, default=str)
+                saved_params.append('hyperparameters')
+            except Exception as e:
+                print(f"Warning: Could not save hyperparameters for {variant_name}: {e}")
+
+        # Create a summary of saved parameters
+        if saved_params:
+            try:
+                summary = {
+                    'variant_name': variant_name,
+                    'saved_matrices': ['W (factor_loadings)', 'Z (factor_scores)'] if W is not None or Z is not None else [],
+                    'saved_parameters': saved_params,
+                    'timestamp': pd.Timestamp.now().isoformat()
+                }
+                with open(matrices_dir / f"{variant_name}_parameter_summary.json", 'w') as f:
+                    json.dump(summary, f, indent=2)
+            except Exception as e:
+                print(f"Warning: Could not save parameter summary for {variant_name}: {e}")
+
+    def _save_parameter_dict(self, param_dict: dict, matrices_dir: Path, prefix: str):
+        """Save dictionary of parameters (e.g., MCMC samples)."""
+        import numpy as np
+
+        for key, value in param_dict.items():
+            try:
+                if hasattr(value, 'shape'):
+                    np.save(matrices_dir / f"{prefix}_{key}.npy", value)
+                    # Save summary statistics for large sample arrays
+                    if value.ndim > 2:  # Likely MCMC samples
+                        summary_stats = {
+                            'mean': np.mean(value, axis=0),
+                            'std': np.std(value, axis=0),
+                            'median': np.median(value, axis=0),
+                            'q025': np.percentile(value, 2.5, axis=0),
+                            'q975': np.percentile(value, 97.5, axis=0)
+                        }
+                        for stat_name, stat_value in summary_stats.items():
+                            np.save(matrices_dir / f"{prefix}_{key}_{stat_name}.npy", stat_value)
+            except Exception as e:
+                print(f"Warning: Could not save parameter {key} from {prefix}: {e}")
     
     def run_experiment_grid(self,
                            base_config: ExperimentConfig,
