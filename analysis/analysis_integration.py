@@ -3,16 +3,19 @@ Analysis Framework Integration for Remote Workstation Pipeline
 Integrates structured DataManager, ModelRunner, and ConfigManager into the pipeline.
 """
 
-import logging
 import argparse
+import logging
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-def get_optimal_analysis_configuration(config: Dict, data_characteristics: Dict = None) -> Tuple[Any, Dict]:
+def get_optimal_analysis_configuration(
+    config: Dict, data_characteristics: Dict = None
+) -> Tuple[Any, Dict]:
     """
     Determine optimal analysis configuration based on system and data characteristics.
 
@@ -27,13 +30,22 @@ def get_optimal_analysis_configuration(config: Dict, data_characteristics: Dict 
         logger.info("🚀 === OPTIMAL ANALYSIS CONFIGURATION ===")
 
         # Import analysis components
-        from analysis.config_manager import ConfigManager, AnalysisConfig, DependencyStatus
+        from analysis.config_manager import (
+            AnalysisConfig,
+            ConfigManager,
+            DependencyStatus,
+        )
 
         # Create args object from config
         analysis_args = _create_analysis_args_from_config(config)
 
         # Initialize config manager
-        config_manager = ConfigManager(analysis_args, results_base=config.get('experiments', {}).get('base_output_dir', './results'))
+        config_manager = ConfigManager(
+            analysis_args,
+            results_base=config.get("experiments", {}).get(
+                "base_output_dir", "./results"
+            ),
+        )
 
         # Setup analysis configuration
         analysis_config = config_manager.setup_analysis_config()
@@ -42,19 +54,29 @@ def get_optimal_analysis_configuration(config: Dict, data_characteristics: Dict 
         logger.info("Analysis configuration setup completed:")
         logger.info(f"   Standard analysis: {analysis_config.run_standard}")
         logger.info(f"   Cross-validation: {analysis_config.run_cv}")
-        logger.info(f"   Dependencies checked: {config_manager.dependencies.cv_available}")
+        logger.info(
+            f"   Dependencies checked: {config_manager.dependencies.cv_available}"
+        )
 
         config_summary = {
-            'analysis_framework': True,
-            'config_manager': config_manager,
-            'analysis_config': analysis_config,
-            'dependencies': config_manager.dependencies,
-            'run_standard': analysis_config.run_standard,
-            'run_cv': analysis_config.run_cv,
-            'directories': {
-                'standard': str(analysis_config.standard_res_dir) if analysis_config.standard_res_dir else None,
-                'cv': str(analysis_config.cv_res_dir) if analysis_config.cv_res_dir else None
-            }
+            "analysis_framework": True,
+            "config_manager": config_manager,
+            "analysis_config": analysis_config,
+            "dependencies": config_manager.dependencies,
+            "run_standard": analysis_config.run_standard,
+            "run_cv": analysis_config.run_cv,
+            "directories": {
+                "standard": (
+                    str(analysis_config.standard_res_dir)
+                    if analysis_config.standard_res_dir
+                    else None
+                ),
+                "cv": (
+                    str(analysis_config.cv_res_dir)
+                    if analysis_config.cv_res_dir
+                    else None
+                ),
+            },
         }
 
         logger.info("✅ Analysis configuration optimization completed")
@@ -70,26 +92,23 @@ def _create_analysis_args_from_config(config: Dict) -> argparse.Namespace:
     """Create analysis args from configuration dictionary."""
 
     # Extract hyperparameter configuration
-    hyperparam_config = config.get('hyperparameter_optimization', {})
-    training_config = config.get('training', {})
+    hyperparam_config = config.get("hyperparameter_optimization", {})
+    training_config = config.get("training", {})
 
     args = argparse.Namespace(
         # Basic parameters
-        model='sparseGFA',
-        dataset='qmap_pd',
-        data_dir=config.get('data', {}).get('data_dir', './qMAP-PD_data'),
-
+        model="sparseGFA",
+        dataset="qmap_pd",
+        data_dir=config.get("data", {}).get("data_dir", "./qMAP-PD_data"),
         # Model parameters
-        K=hyperparam_config.get('fallback_K', 10),
-        percW=hyperparam_config.get('fallback_percW', 33),
+        K=hyperparam_config.get("fallback_K", 10),
+        percW=hyperparam_config.get("fallback_percW", 33),
         reghsZ=True,
-
         # MCMC parameters
-        num_samples=training_config.get('mcmc_config', {}).get('num_samples', 2000),
-        num_warmup=training_config.get('mcmc_config', {}).get('num_warmup', 1000),
-        num_chains=training_config.get('mcmc_config', {}).get('num_chains', 4),
-        num_runs=training_config.get('mcmc_config', {}).get('num_runs', 1),
-
+        num_samples=training_config.get("mcmc_config", {}).get("num_samples", 2000),
+        num_warmup=training_config.get("mcmc_config", {}).get("num_warmup", 1000),
+        num_chains=training_config.get("mcmc_config", {}).get("num_chains", 4),
+        num_runs=training_config.get("mcmc_config", {}).get("num_runs", 1),
         # Data parameters
         clinical_rel="data_clinical/pd_motor_gfa_data.tsv",
         volumes_rel="volume_matrices",
@@ -98,17 +117,19 @@ def _create_analysis_args_from_config(config: Dict) -> argparse.Namespace:
         noise=0,
         seed=42,
         num_sources=4,
-
         # Analysis control
-        run_cv=config.get('cross_validation', {}).get('enabled', False),
+        run_cv=config.get("cross_validation", {}).get("enabled", False),
         cv_only=False,
-        neuroimaging_cv=config.get('cross_validation', {}).get('neuroimaging_cv', False),
-        nested_cv=config.get('cross_validation', {}).get('nested_cv', False),
-
+        neuroimaging_cv=config.get("cross_validation", {}).get(
+            "neuroimaging_cv", False
+        ),
+        nested_cv=config.get("cross_validation", {}).get("nested_cv", False),
         # Preprocessing
-        enable_preprocessing=config.get('preprocessing', {}).get('enabled', True),
-        enable_spatial_processing=config.get('preprocessing', {}).get('spatial_processing', False),
-        preprocessing_params=config.get('preprocessing', {}).get('params', {})
+        enable_preprocessing=config.get("preprocessing", {}).get("enabled", True),
+        enable_spatial_processing=config.get("preprocessing", {}).get(
+            "spatial_processing", False
+        ),
+        preprocessing_params=config.get("preprocessing", {}).get("params", {}),
     )
 
     return args
@@ -119,18 +140,22 @@ def _fallback_analysis_configuration(config: Dict) -> Dict:
     logger.warning("Using fallback analysis configuration")
 
     return {
-        'analysis_framework': False,
-        'config_manager': None,
-        'analysis_config': None,
-        'error': 'analysis_framework_unavailable',
-        'fallback': True,
-        'run_standard': True,
-        'run_cv': False
+        "analysis_framework": False,
+        "config_manager": None,
+        "analysis_config": None,
+        "error": "analysis_framework_unavailable",
+        "fallback": True,
+        "run_standard": True,
+        "run_cv": False,
     }
 
 
-def apply_analysis_framework_to_pipeline(config: Dict, X_list: List[np.ndarray] = None,
-                                       data_dir: str = None, output_dir: str = None) -> Tuple[Any, Any, Dict]:
+def apply_analysis_framework_to_pipeline(
+    config: Dict,
+    X_list: List[np.ndarray] = None,
+    data_dir: str = None,
+    output_dir: str = None,
+) -> Tuple[Any, Any, Dict]:
     """
     Apply comprehensive analysis framework to the remote workstation pipeline.
 
@@ -171,22 +196,29 @@ def apply_analysis_framework_to_pipeline(config: Dict, X_list: List[np.ndarray] 
         logger.info(f"   ConfigManager: {type(config_manager).__name__}")
 
         framework_info = {
-            'framework_available': True,
-            'data_manager': data_manager,
-            'model_runner': model_runner,
-            'config_manager': config_manager,
-            'config_summary': config_summary,
-            'dependencies': config_summary.get('dependencies'),
-            'result_directories': config_summary.get('directories', {}),
-            'components_initialized': ['DataManager', 'ModelRunner', 'ConfigManager'],
-            'structured_analysis': True
+            "framework_available": True,
+            "data_manager": data_manager,
+            "model_runner": model_runner,
+            "config_manager": config_manager,
+            "config_summary": config_summary,
+            "dependencies": config_summary.get("dependencies"),
+            "result_directories": config_summary.get("directories", {}),
+            "components_initialized": ["DataManager", "ModelRunner", "ConfigManager"],
+            "structured_analysis": True,
         }
 
         logger.info("✅ Analysis framework integration completed")
         logger.info(f"   Framework type: Structured analysis components")
-        logger.info(f"   Standard analysis: {config_summary.get('run_standard', False)}")
+        logger.info(
+            f"   Standard analysis: {config_summary.get('run_standard', False)}"
+        )
         logger.info(f"   Cross-validation: {config_summary.get('run_cv', False)}")
-        logger.info(f"   Dependencies available: {config_summary.get('dependencies', {}).cv_available if config_summary.get('dependencies') else False}")
+        logger.info(
+            f"   Dependencies available: {
+                config_summary.get(
+                    'dependencies',
+                    {}).cv_available if config_summary.get('dependencies') else False}"
+        )
 
         return data_manager, model_runner, framework_info
 
@@ -200,19 +232,20 @@ def _fallback_analysis_framework(config: Dict) -> Dict:
     logger.warning("Using fallback analysis approach (direct core.run_analysis)")
 
     return {
-        'framework_available': False,
-        'data_manager': None,
-        'model_runner': None,
-        'config_manager': None,
-        'error': 'analysis_framework_unavailable',
-        'fallback': True,
-        'structured_analysis': False,
-        'fallback_approach': 'direct_core_analysis'
+        "framework_available": False,
+        "data_manager": None,
+        "model_runner": None,
+        "config_manager": None,
+        "error": "analysis_framework_unavailable",
+        "fallback": True,
+        "structured_analysis": False,
+        "fallback_approach": "direct_core_analysis",
     }
 
 
-def run_structured_mcmc_analysis(model_runner, data_manager, X_list: List[np.ndarray],
-                                config: Dict) -> Dict:
+def run_structured_mcmc_analysis(
+    model_runner, data_manager, X_list: List[np.ndarray], config: Dict
+) -> Dict:
     """
     Run MCMC analysis using structured analysis framework.
 
@@ -229,13 +262,10 @@ def run_structured_mcmc_analysis(model_runner, data_manager, X_list: List[np.nda
         logger.info("🔄 Running structured MCMC analysis...")
 
         # Prepare data for analysis
-        X_prepared, hypers = data_manager.prepare_for_analysis({'X_list': X_list})
+        X_prepared, hypers = data_manager.prepare_for_analysis({"X_list": X_list})
 
         # Create data dictionary for model runner
-        data_dict = {
-            'X_list': X_prepared,
-            'hypers': hypers
-        }
+        data_dict = {"X_list": X_prepared, "hypers": hypers}
 
         logger.info(f"Data prepared for analysis:")
         logger.info(f"   Views: {len(X_prepared)}")
@@ -250,17 +280,17 @@ def run_structured_mcmc_analysis(model_runner, data_manager, X_list: List[np.nda
 
         # Process results
         processed_results = {
-            'analysis_type': 'structured_mcmc',
-            'runs': results,
-            'num_runs': len(results),
-            'hyperparameters': hypers,
-            'data_info': {
-                'num_views': len(X_prepared),
-                'view_shapes': [X.shape for X in X_prepared],
-                'total_features': sum(X.shape[1] for X in X_prepared),
-                'num_subjects': X_prepared[0].shape[0]
+            "analysis_type": "structured_mcmc",
+            "runs": results,
+            "num_runs": len(results),
+            "hyperparameters": hypers,
+            "data_info": {
+                "num_views": len(X_prepared),
+                "view_shapes": [X.shape for X in X_prepared],
+                "total_features": sum(X.shape[1] for X in X_prepared),
+                "num_subjects": X_prepared[0].shape[0],
             },
-            'structured_framework': True
+            "structured_framework": True,
         }
 
         return processed_results
@@ -268,16 +298,19 @@ def run_structured_mcmc_analysis(model_runner, data_manager, X_list: List[np.nda
     except Exception as e:
         logger.error(f"Structured MCMC analysis failed: {e}")
         return {
-            'analysis_type': 'structured_mcmc',
-            'status': 'failed',
-            'error': str(e),
-            'structured_framework': False
+            "analysis_type": "structured_mcmc",
+            "status": "failed",
+            "error": str(e),
+            "structured_framework": False,
         }
 
 
-def integrate_analysis_with_pipeline(config: Dict, data_dir: str,
-                                   X_list: List[np.ndarray] = None,
-                                   output_dir: str = None) -> Tuple[Any, Any, Dict]:
+def integrate_analysis_with_pipeline(
+    config: Dict,
+    data_dir: str,
+    X_list: List[np.ndarray] = None,
+    output_dir: str = None,
+) -> Tuple[Any, Any, Dict]:
     """
     Main integration function for analysis framework in the pipeline.
 
@@ -294,61 +327,94 @@ def integrate_analysis_with_pipeline(config: Dict, data_dir: str,
         logger.info("🚀 === ANALYSIS FRAMEWORK PIPELINE INTEGRATION ===")
 
         # Apply comprehensive analysis framework
-        data_manager, model_runner, framework_info = apply_analysis_framework_to_pipeline(
-            config, X_list, data_dir, output_dir
+        data_manager, model_runner, framework_info = (
+            apply_analysis_framework_to_pipeline(config, X_list, data_dir, output_dir)
         )
 
         # Create integration summary
         integration_summary = {
-            'analysis_integration_enabled': True,
-            'framework_available': framework_info.get('framework_available', False),
-            'structured_analysis': framework_info.get('structured_analysis', False),
-            'components_available': framework_info.get('components_initialized', []),
-            'dependencies_checked': framework_info.get('dependencies') is not None,
-            'result_directories_setup': bool(framework_info.get('result_directories', {})),
-            'data_management': data_manager is not None,
-            'model_execution': model_runner is not None
+            "analysis_integration_enabled": True,
+            "framework_available": framework_info.get("framework_available", False),
+            "structured_analysis": framework_info.get("structured_analysis", False),
+            "components_available": framework_info.get("components_initialized", []),
+            "dependencies_checked": framework_info.get("dependencies") is not None,
+            "result_directories_setup": bool(
+                framework_info.get("result_directories", {})
+            ),
+            "data_management": data_manager is not None,
+            "model_execution": model_runner is not None,
         }
 
         # Add configuration details
-        if framework_info.get('config_summary'):
-            config_summary = framework_info['config_summary']
-            integration_summary.update({
-                'run_standard_analysis': config_summary.get('run_standard', False),
-                'run_cross_validation': config_summary.get('run_cv', False),
-                'cv_dependencies_available': config_summary.get('dependencies', {}).cv_available if config_summary.get('dependencies') else False,
-                'preprocessing_dependencies_available': config_summary.get('dependencies', {}).preprocessing_available if config_summary.get('dependencies') else False,
-                'factor_mapping_available': config_summary.get('dependencies', {}).factor_mapping_available if config_summary.get('dependencies') else False
-            })
+        if framework_info.get("config_summary"):
+            config_summary = framework_info["config_summary"]
+            integration_summary.update(
+                {
+                    "run_standard_analysis": config_summary.get("run_standard", False),
+                    "run_cross_validation": config_summary.get("run_cv", False),
+                    "cv_dependencies_available": (
+                        config_summary.get("dependencies", {}).cv_available
+                        if config_summary.get("dependencies")
+                        else False
+                    ),
+                    "preprocessing_dependencies_available": (
+                        config_summary.get("dependencies", {}).preprocessing_available
+                        if config_summary.get("dependencies")
+                        else False
+                    ),
+                    "factor_mapping_available": (
+                        config_summary.get("dependencies", {}).factor_mapping_available
+                        if config_summary.get("dependencies")
+                        else False
+                    ),
+                }
+            )
 
         if data_manager and model_runner:
             logger.info("✅ Analysis framework pipeline integration completed")
             logger.info(f"   DataManager available: {data_manager is not None}")
             logger.info(f"   ModelRunner available: {model_runner is not None}")
-            logger.info(f"   Structured analysis: {integration_summary.get('structured_analysis', False)}")
-            logger.info(f"   Components: {', '.join(integration_summary.get('components_available', []))}")
+            logger.info(
+                f"   Structured analysis: {
+                    integration_summary.get(
+                        'structured_analysis',
+                        False)}"
+            )
+            logger.info(
+                f"   Components: {
+                    ', '.join(
+                        integration_summary.get(
+                            'components_available',
+                            []))}"
+            )
         else:
             logger.info("⚠️  Analysis framework unavailable - using direct approach")
-            integration_summary.update({
-                'fallback_mode': True,
-                'fallback_reason': framework_info.get('error', 'unknown')
-            })
+            integration_summary.update(
+                {
+                    "fallback_mode": True,
+                    "fallback_reason": framework_info.get("error", "unknown"),
+                }
+            )
 
         comprehensive_analysis_info = {
             **framework_info,
-            'integration_summary': integration_summary
+            "integration_summary": integration_summary,
         }
 
         return data_manager, model_runner, comprehensive_analysis_info
 
     except Exception as e:
         logger.error(f"❌ Analysis framework pipeline integration failed: {e}")
-        return None, None, {
-            'analysis_integration_enabled': False,
-            'framework_available': False,
-            'error': str(e),
-            'fallback_mode': True
-        }
+        return (
+            None,
+            None,
+            {
+                "analysis_integration_enabled": False,
+                "framework_available": False,
+                "error": str(e),
+                "fallback_mode": True,
+            },
+        )
 
 
 class AnalysisFrameworkWrapper:
@@ -379,20 +445,20 @@ class AnalysisFrameworkWrapper:
             X_list, hypers = self.data_manager.prepare_for_analysis(data)
 
             prepared_data_info = {
-                'data_loaded': True,
-                'loader': 'DataManager',
-                'hyperparameters': hypers,
-                'preprocessing_applied': 'preprocessing' in data,
-                'data_characteristics': {
-                    'num_views': len(X_list),
-                    'view_shapes': [X.shape for X in X_list],
-                    'total_features': sum(X.shape[1] for X in X_list),
-                    'num_subjects': X_list[0].shape[0]
-                }
+                "data_loaded": True,
+                "loader": "DataManager",
+                "hyperparameters": hypers,
+                "preprocessing_applied": "preprocessing" in data,
+                "data_characteristics": {
+                    "num_views": len(X_list),
+                    "view_shapes": [X.shape for X in X_list],
+                    "total_features": sum(X.shape[1] for X in X_list),
+                    "num_subjects": X_list[0].shape[0],
+                },
             }
 
-            if 'preprocessing' in data:
-                prepared_data_info['preprocessing_results'] = data['preprocessing']
+            if "preprocessing" in data:
+                prepared_data_info["preprocessing_results"] = data["preprocessing"]
 
             logger.info("✅ Data loaded and prepared with structured framework")
             logger.info(f"   Views: {len(X_list)}")
@@ -403,7 +469,7 @@ class AnalysisFrameworkWrapper:
 
         except Exception as e:
             logger.error(f"Structured data loading failed: {e}")
-            return [], {'data_loaded': False, 'error': str(e)}
+            return [], {"data_loaded": False, "error": str(e)}
 
     def run_analysis(self, X_list: List[np.ndarray]) -> Dict:
         """
@@ -416,26 +482,25 @@ class AnalysisFrameworkWrapper:
             Analysis results
         """
         if not self.model_runner:
-            return {'status': 'failed', 'error': 'ModelRunner not available'}
+            return {"status": "failed", "error": "ModelRunner not available"}
 
         return run_structured_mcmc_analysis(
-            self.model_runner,
-            self.data_manager,
-            X_list,
-            self.framework_info
+            self.model_runner, self.data_manager, X_list, self.framework_info
         )
 
     def get_framework_status(self) -> Dict:
         """Get comprehensive framework status."""
         return {
-            'data_manager_available': self.data_manager is not None,
-            'model_runner_available': self.model_runner is not None,
-            'framework_info': self.framework_info,
-            'structured_analysis_ready': all([
-                self.data_manager is not None,
-                self.model_runner is not None,
-                self.framework_info.get('framework_available', False)
-            ])
+            "data_manager_available": self.data_manager is not None,
+            "model_runner_available": self.model_runner is not None,
+            "framework_info": self.framework_info,
+            "structured_analysis_ready": all(
+                [
+                    self.data_manager is not None,
+                    self.model_runner is not None,
+                    self.framework_info.get("framework_available", False),
+                ]
+            ),
         }
 
 

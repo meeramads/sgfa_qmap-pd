@@ -1,9 +1,9 @@
 """Configuration utilities for safe and consistent config access."""
 
-from pathlib import Path
-from typing import Any, Dict, Optional, Union, List
 import logging
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from .config_schema import ConfigurationValidator, ConfigValidationError
 
@@ -45,7 +45,7 @@ def safe_get(config: Dict[str, Any], *keys: str, default: Any = None) -> Any:
         return default
 
 
-def safe_get_path(config: Dict[str, Any], *keys: str, default: str = '.') -> Path:
+def safe_get_path(config: Dict[str, Any], *keys: str, default: str = ".") -> Path:
     """
     Safely get a path from configuration, returning Path object.
 
@@ -69,20 +69,24 @@ def safe_get_path(config: Dict[str, Any], *keys: str, default: str = '.') -> Pat
 
 def get_data_dir(config: Dict[str, Any]) -> Path:
     """Get data directory from config with safe fallback."""
-    return safe_get_path(config, 'data', 'data_dir', default='./data')
+    return safe_get_path(config, "data", "data_dir", default="./data")
 
 
 def get_output_dir(config: Dict[str, Any]) -> Path:
     """Get output directory from config with safe fallback."""
-    return safe_get_path(config, 'experiments', 'base_output_dir', default='./results')
+    return safe_get_path(config, "experiments", "base_output_dir", default="./results")
 
 
 def get_checkpoint_dir(config: Dict[str, Any]) -> Path:
     """Get checkpoint directory from config with safe fallback."""
-    return safe_get_path(config, 'monitoring', 'checkpoint_dir', default='./results/checkpoints')
+    return safe_get_path(
+        config, "monitoring", "checkpoint_dir", default="./results/checkpoints"
+    )
 
 
-def validate_required_config(config: Dict[str, Any], required_keys: List[List[str]]) -> None:
+def validate_required_config(
+    config: Dict[str, Any], required_keys: List[List[str]]
+) -> None:
     """
     Validate that required configuration keys exist.
 
@@ -102,13 +106,17 @@ def validate_required_config(config: Dict[str, Any], required_keys: List[List[st
 
     for key_path in required_keys:
         if safe_get(config, *key_path) is None:
-            missing_keys.append('.'.join(key_path))
+            missing_keys.append(".".join(key_path))
 
     if missing_keys:
-        raise KeyError(f"Missing required configuration keys: {', '.join(missing_keys)}")
+        raise KeyError(
+            f"Missing required configuration keys: {', '.join(missing_keys)}"
+        )
 
 
-def update_config_safely(config: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+def update_config_safely(
+    config: Dict[str, Any], updates: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Safely update configuration with nested structure.
 
@@ -125,11 +133,16 @@ def update_config_safely(config: Dict[str, Any], updates: Dict[str, Any]) -> Dic
         Updated configuration
     """
     import copy
+
     updated_config = copy.deepcopy(config)
 
     def _deep_update(base_dict: Dict, update_dict: Dict) -> None:
         for key, value in update_dict.items():
-            if key in base_dict and isinstance(base_dict[key], dict) and isinstance(value, dict):
+            if (
+                key in base_dict
+                and isinstance(base_dict[key], dict)
+                and isinstance(value, dict)
+            ):
                 _deep_update(base_dict[key], value)
             else:
                 base_dict[key] = value
@@ -138,7 +151,9 @@ def update_config_safely(config: Dict[str, Any], updates: Dict[str, Any]) -> Dic
     return updated_config
 
 
-def get_experiment_config(config: Dict[str, Any], experiment_name: str) -> Dict[str, Any]:
+def get_experiment_config(
+    config: Dict[str, Any], experiment_name: str
+) -> Dict[str, Any]:
     """
     Get experiment-specific configuration with fallbacks.
 
@@ -158,11 +173,7 @@ def get_experiment_config(config: Dict[str, Any], experiment_name: str) -> Dict[
     exp_config = safe_get(config, experiment_name, default={})
 
     # Apply common defaults
-    defaults = {
-        'n_repetitions': 1,
-        'save_intermediate': True,
-        'generate_plots': True
-    }
+    defaults = {"n_repetitions": 1, "save_intermediate": True, "generate_plots": True}
 
     return {**defaults, **exp_config}
 
@@ -210,17 +221,19 @@ class ConfigAccessor:
         """Get checkpoint directory."""
         return get_checkpoint_dir(self.config)
 
-    def get_experiment_setting(self, experiment: str, setting: str, default: Any = None) -> Any:
+    def get_experiment_setting(
+        self, experiment: str, setting: str, default: Any = None
+    ) -> Any:
         """Get experiment-specific setting."""
         return safe_get(self.config, experiment, setting, default=default)
 
     def has_shared_data(self) -> bool:
         """Check if shared data is available."""
-        return safe_get(self.config, '_shared_data') is not None
+        return safe_get(self.config, "_shared_data") is not None
 
     def get_shared_data(self) -> Dict[str, Any]:
         """Get shared data configuration."""
-        return safe_get(self.config, '_shared_data', default={})
+        return safe_get(self.config, "_shared_data", default={})
 
 
 def validate_configuration(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -246,7 +259,9 @@ def validate_configuration(config: Dict[str, Any]) -> Dict[str, Any]:
         return ConfigurationValidator.validate_and_fix_configuration(config)
     except ConfigValidationError:
         # Try merging with defaults first
-        logger.warning("Configuration validation failed, attempting to merge with defaults")
+        logger.warning(
+            "Configuration validation failed, attempting to merge with defaults"
+        )
         merged_config = ConfigurationValidator.merge_with_defaults(config)
         return ConfigurationValidator.validate_and_fix_configuration(merged_config)
 
@@ -273,27 +288,32 @@ def check_configuration_warnings(config: Dict[str, Any]) -> List[str]:
     warnings = []
 
     # Check for performance warnings
-    model_config = safe_get(config, 'model', default={})
+    model_config = safe_get(config, "model", default={})
 
     # Large number of samples warning
-    num_samples = safe_get(model_config, 'num_samples', default=1000)
+    num_samples = safe_get(model_config, "num_samples", default=1000)
     if num_samples > 10000:
-        warnings.append(f"Large num_samples ({num_samples}) may take a long time to complete")
+        warnings.append(
+            f"Large num_samples ({num_samples}) may take a long time to complete"
+        )
 
     # Many factors warning
-    K = safe_get(model_config, 'K', default=5)
+    K = safe_get(model_config, "K", default=5)
     if K > 20:
         warnings.append(f"Large number of factors (K={K}) may lead to overfitting")
 
     # GPU availability warning
-    system_config = safe_get(config, 'system', default={})
-    if safe_get(system_config, 'use_gpu', default=True):
+    system_config = safe_get(config, "system", default={})
+    if safe_get(system_config, "use_gpu", default=True):
         try:
             import jax
+
             devices = jax.devices()
-            gpu_devices = [d for d in devices if d.platform in ['gpu', 'cuda']]
+            gpu_devices = [d for d in devices if d.platform in ["gpu", "cuda"]]
             if len(gpu_devices) == 0:
-                warnings.append("GPU requested but no GPU devices available - will use CPU (slower)")
+                warnings.append(
+                    "GPU requested but no GPU devices available - will use CPU (slower)"
+                )
         except ImportError:
             warnings.append("GPU requested but JAX not available")
 
@@ -320,13 +340,15 @@ class ConfigHelper:
         """
         if isinstance(config_or_dict, dict):
             return config_or_dict
-        elif hasattr(config_or_dict, 'to_dict') and callable(getattr(config_or_dict, 'to_dict')):
+        elif hasattr(config_or_dict, "to_dict") and callable(
+            getattr(config_or_dict, "to_dict")
+        ):
             return config_or_dict.to_dict()
-        elif hasattr(config_or_dict, '__dict__'):
+        elif hasattr(config_or_dict, "__dict__"):
             return config_or_dict.__dict__
         else:
             # If it's a simple value, wrap it
-            return {'value': config_or_dict}
+            return {"value": config_or_dict}
 
     @staticmethod
     def get_output_dir_safe(config_or_dict) -> Path:
@@ -407,6 +429,7 @@ def JAXMemoryManager():
     finally:
         try:
             import jax
+
             # Clear JAX device memory and compilation cache
             jax.clear_caches()
             logger.debug("JAX memory and caches cleared")
@@ -438,8 +461,9 @@ def PlotManager():
     finally:
         try:
             import matplotlib.pyplot as plt
+
             # Close all matplotlib figures to free memory
-            plt.close('all')
+            plt.close("all")
             logger.debug("All matplotlib figures closed")
         except ImportError:
             # Matplotlib not available, nothing to clean up

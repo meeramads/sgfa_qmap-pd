@@ -1,9 +1,10 @@
 """Tests for Latent Class Analysis model."""
 
-import pytest
-import numpy as np
-import jax.numpy as jnp
 from unittest.mock import Mock
+
+import jax.numpy as jnp
+import numpy as np
+import pytest
 
 from models.latent_class_analysis import LatentClassAnalysisModel
 
@@ -23,9 +24,9 @@ class TestLatentClassAnalysisModel:
     def hypers(self):
         """Sample hyperparameters."""
         return {
-            'Dm': [10, 15],  # Two sources with 10 and 15 features
-            'a_sigma': 1.0,
-            'b_sigma': 1.0
+            "Dm": [10, 15],  # Two sources with 10 and 15 features
+            "a_sigma": 1.0,
+            "b_sigma": 1.0,
         }
 
     @pytest.fixture
@@ -68,8 +69,11 @@ class TestLatentClassAnalysisModel:
 
         # Check that all expected keys are present
         expected_keys = [
-            'total_gb', 'parameters_gb', 'gradients_gb',
-            'samples_gb', 'recommended_min_gpu_gb'
+            "total_gb",
+            "parameters_gb",
+            "gradients_gb",
+            "samples_gb",
+            "recommended_min_gpu_gb",
         ]
         for key in expected_keys:
             assert key in memory_est
@@ -77,8 +81,12 @@ class TestLatentClassAnalysisModel:
             assert memory_est[key] > 0
 
         # Check that total memory is sum of components
-        components = memory_est['parameters_gb'] + memory_est['gradients_gb'] + memory_est['samples_gb']
-        assert abs(memory_est['total_gb'] - components) < 0.01
+        components = (
+            memory_est["parameters_gb"]
+            + memory_est["gradients_gb"]
+            + memory_est["samples_gb"]
+        )
+        assert abs(memory_est["total_gb"] - components) < 0.01
 
     def test_model_call_structure(self, mock_config, hypers, sample_data):
         """Test that model call method has correct structure (without running inference)."""
@@ -86,18 +94,21 @@ class TestLatentClassAnalysisModel:
 
         # This test just checks that the method exists and accepts the right arguments
         # We don't actually run inference as it would be computationally expensive
-        assert hasattr(model, '__call__')
+        assert hasattr(model, "__call__")
         assert callable(model)
 
         # Check that calling the model doesn't immediately fail
         # (actual inference would require numpyro context)
         try:
-            # This will fail due to missing numpyro context, but should not fail due to method signature
+            # This will fail due to missing numpyro context, but should not fail due
+            # to method signature
             model(sample_data)
         except Exception as e:
             # Expected to fail without proper numpyro context
             # Just ensure it's not a signature error
-            assert "plate" in str(e) or "sample" in str(e) or "numpyro" in str(e).lower()
+            assert (
+                "plate" in str(e) or "sample" in str(e) or "numpyro" in str(e).lower()
+            )
 
     def test_computational_warning_in_docstring(self, mock_config, hypers):
         """Test that computational warning is included in model docstring."""

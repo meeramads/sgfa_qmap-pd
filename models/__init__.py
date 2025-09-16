@@ -1,16 +1,17 @@
 """Models package - Factory for creating GFA model instances."""
 
-from .factory import ModelFactory
 from .base import BaseGFAModel
+from .factory import ModelFactory
+from .latent_class_analysis import LatentClassAnalysisModel
 from .sparse_gfa import SparseGFAModel
 from .standard_gfa import StandardGFAModel
-from .latent_class_analysis import LatentClassAnalysisModel
+
 
 # Expose the factory method as a standalone function for convenience
 def create_model(model_type: str, config, hypers, **kwargs):
     """
     Create a model instance using the ModelFactory.
-    
+
     Parameters:
     -----------
     model_type : str
@@ -19,18 +20,19 @@ def create_model(model_type: str, config, hypers, **kwargs):
     hypers : Dict
         Hyperparameters
     **kwargs : Additional model-specific arguments
-    
+
     Returns:
     --------
     BaseGFAModel instance
     """
     return ModelFactory.create_model(model_type, config, hypers, **kwargs)
 
+
 __all__ = [
-    'ModelFactory',
-    'create_model',
-    'BaseGFAModel',
-    'SparseGFAModel',
-    'StandardGFAModel',
-    'LatentClassAnalysisModel'
+    "ModelFactory",
+    "create_model",
+    "BaseGFAModel",
+    "SparseGFAModel",
+    "StandardGFAModel",
+    "LatentClassAnalysisModel",
 ]

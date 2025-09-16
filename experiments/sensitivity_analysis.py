@@ -1,62 +1,78 @@
 """Sensitivity analysis experiments for SGFA hyperparameters."""
 
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import Dict, List, Any, Optional, Tuple, Union
-import pandas as pd
-from pathlib import Path
 import logging
-from scipy import stats
-from itertools import product
 import warnings
+from itertools import product
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
-from performance import PerformanceProfiler
-from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from scipy import stats
+
+from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
 from core.experiment_utils import experiment_handler
-from core.validation_utils import validate_parameters, validate_data_types
+from core.validation_utils import validate_data_types, validate_parameters
+from experiments.framework import (
+    ExperimentConfig,
+    ExperimentFramework,
+    ExperimentResult,
+)
+from performance import PerformanceProfiler
+
 
 class SensitivityAnalysisExperiments(ExperimentFramework):
     """Comprehensive sensitivity analysis for SGFA hyperparameters."""
-    
-    def __init__(self, config: ExperimentConfig, logger: Optional[logging.Logger] = None):
+
+    def __init__(
+        self, config: ExperimentConfig, logger: Optional[logging.Logger] = None
+    ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
-        
+
         # Default hyperparameter ranges for sensitivity analysis
         self.hyperparameter_ranges = {
-            'alpha_w': [0.1, 0.5, 1.0, 2.0, 5.0],
-            'alpha_z': [0.1, 0.5, 1.0, 2.0, 5.0], 
-            'tau_w': [0.01, 0.1, 1.0, 10.0],
-            'tau_z': [0.01, 0.1, 1.0, 10.0],
-            'gamma': [0.1, 0.5, 1.0, 2.0, 5.0],
-            'K': [2, 3, 5, 8, 10, 15],
-            'sparsity_level': [0.1, 0.3, 0.5, 0.7, 0.9]
+            "alpha_w": [0.1, 0.5, 1.0, 2.0, 5.0],
+            "alpha_z": [0.1, 0.5, 1.0, 2.0, 5.0],
+            "tau_w": [0.01, 0.1, 1.0, 10.0],
+            "tau_z": [0.01, 0.1, 1.0, 10.0],
+            "gamma": [0.1, 0.5, 1.0, 2.0, 5.0],
+            "K": [2, 3, 5, 8, 10, 15],
+            "sparsity_level": [0.1, 0.3, 0.5, 0.7, 0.9],
         }
-        
+
         # Core hyperparameters that are most critical
-        self.core_hyperparameters = ['alpha_w', 'alpha_z', 'K', 'sparsity_level']
-        
+        self.core_hyperparameters = ["alpha_w", "alpha_z", "K", "sparsity_level"]
+
     @experiment_handler("univariate_sensitivity_analysis")
     @validate_data_types(X_list=list, base_hypers=dict, args=dict)
     @validate_parameters(X_list=lambda x: len(x) > 0)
-    def run_univariate_sensitivity_analysis(self, X_list: List[np.ndarray],
-                                          base_hypers: Dict, args: Dict,
-                                          hyperparameters: List[str] = None,
-                                          **kwargs) -> ExperimentResult:
+    def run_univariate_sensitivity_analysis(
+        self,
+        X_list: List[np.ndarray],
+        base_hypers: Dict,
+        args: Dict,
+        hyperparameters: List[str] = None,
+        **kwargs,
+    ) -> ExperimentResult:
         """Run univariate sensitivity analysis for individual hyperparameters."""
         if hyperparameters is None:
             hyperparameters = self.core_hyperparameters
-            
-        self.logger.info(f"Running univariate sensitivity analysis for: {hyperparameters}")
-        
+
+        self.logger.info(
+            f"Running univariate sensitivity analysis for: {hyperparameters}"
+        )
+
         results = {}
         performance_metrics = {}
 
         for hyperparam in hyperparameters:
             if hyperparam not in self.hyperparameter_ranges:
-                self.logger.warning(f"No range defined for hyperparameter: {hyperparam}")
+                self.logger.warning(
+                    f"No range defined for hyperparameter: {hyperparam}"
+                )
                 continue
 
             self.logger.info(f"Analyzing sensitivity for {hyperparam}")
@@ -74,28 +90,32 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 test_hypers[hyperparam] = param_value
 
                 # Run analysis
-                with self.profiler.profile(f'{hyperparam}_{param_value}') as p:
+                with self.profiler.profile(f"{hyperparam}_{param_value}") as p:
                     try:
-                        result = self._run_sgfa_analysis(X_list, test_hypers, args, **kwargs)
+                        result = self._run_sgfa_analysis(
+                            X_list, test_hypers, args, **kwargs
+                        )
                         hyperparam_results[param_value] = result
 
                         # Store performance metrics
                         metrics = self.profiler.get_current_metrics()
                         hyperparam_metrics[param_value] = {
-                            'execution_time': metrics.execution_time,
-                            'peak_memory_gb': metrics.peak_memory_gb,
-                            'convergence': result.get('convergence', False),
-                            'log_likelihood': result.get('log_likelihood', np.nan)
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                            "convergence": result.get("convergence", False),
+                            "log_likelihood": result.get("log_likelihood", np.nan),
                         }
 
                     except Exception as e:
-                        self.logger.warning(f"Failed for {hyperparam}={param_value}: {str(e)}")
-                        hyperparam_results[param_value] = {'error': str(e)}
+                        self.logger.warning(
+                            f"Failed for {hyperparam}={param_value}: {str(e)}"
+                        )
+                        hyperparam_results[param_value] = {"error": str(e)}
                         hyperparam_metrics[param_value] = {
-                            'execution_time': np.nan,
-                            'peak_memory_gb': np.nan,
-                            'convergence': False,
-                            'log_likelihood': np.nan
+                            "execution_time": np.nan,
+                            "peak_memory_gb": np.nan,
+                            "convergence": False,
+                            "log_likelihood": np.nan,
                         }
 
             results[hyperparam] = hyperparam_results
@@ -120,33 +140,44 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             analysis=analysis,
             plots=plots,
             performance_metrics=performance_metrics,
-            success=True
+            success=True,
         )
-    
+
     @experiment_handler("multivariate_sensitivity_analysis")
     @validate_data_types(X_list=list, base_hypers=dict, args=dict)
     @validate_parameters(X_list=lambda x: len(x) > 0)
-    def run_multivariate_sensitivity_analysis(self, X_list: List[np.ndarray],
-                                            base_hypers: Dict, args: Dict,
-                                            hyperparameter_pairs: List[Tuple[str, str]] = None,
-                                            **kwargs) -> ExperimentResult:
+    def run_multivariate_sensitivity_analysis(
+        self,
+        X_list: List[np.ndarray],
+        base_hypers: Dict,
+        args: Dict,
+        hyperparameter_pairs: List[Tuple[str, str]] = None,
+        **kwargs,
+    ) -> ExperimentResult:
         """Run multivariate sensitivity analysis for hyperparameter interactions."""
         if hyperparameter_pairs is None:
             hyperparameter_pairs = [
-                ('alpha_w', 'alpha_z'),
-                ('alpha_w', 'K'),
-                ('tau_w', 'tau_z'),
-                ('K', 'sparsity_level')
+                ("alpha_w", "alpha_z"),
+                ("alpha_w", "K"),
+                ("tau_w", "tau_z"),
+                ("K", "sparsity_level"),
             ]
-            
-        self.logger.info(f"Running multivariate sensitivity analysis for: {hyperparameter_pairs}")
-        
+
+        self.logger.info(
+            f"Running multivariate sensitivity analysis for: {hyperparameter_pairs}"
+        )
+
         results = {}
         performance_metrics = {}
 
         for param1, param2 in hyperparameter_pairs:
-            if param1 not in self.hyperparameter_ranges or param2 not in self.hyperparameter_ranges:
-                self.logger.warning(f"Missing range for parameter pair: ({param1}, {param2})")
+            if (
+                param1 not in self.hyperparameter_ranges
+                or param2 not in self.hyperparameter_ranges
+            ):
+                self.logger.warning(
+                    f"Missing range for parameter pair: ({param1}, {param2})"
+                )
                 continue
 
             self.logger.info(f"Analyzing interaction between {param1} and {param2}")
@@ -170,34 +201,36 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 # Run analysis
                 with self.profiler.profile(param_key) as p:
                     try:
-                        result = self._run_sgfa_analysis(X_list, test_hypers, args, **kwargs)
+                        result = self._run_sgfa_analysis(
+                            X_list, test_hypers, args, **kwargs
+                        )
                         pair_results[(val1, val2)] = result
 
                         # Store performance metrics
                         metrics = self.profiler.get_current_metrics()
                         pair_metrics[(val1, val2)] = {
-                            'execution_time': metrics.execution_time,
-                            'peak_memory_gb': metrics.peak_memory_gb,
-                            'convergence': result.get('convergence', False),
-                            'log_likelihood': result.get('log_likelihood', np.nan)
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                            "convergence": result.get("convergence", False),
+                            "log_likelihood": result.get("log_likelihood", np.nan),
                         }
 
                     except Exception as e:
                         self.logger.warning(f"Failed for {param_key}: {str(e)}")
-                        pair_results[(val1, val2)] = {'error': str(e)}
+                        pair_results[(val1, val2)] = {"error": str(e)}
                         pair_metrics[(val1, val2)] = {
-                            'execution_time': np.nan,
-                            'peak_memory_gb': np.nan,
-                            'convergence': False,
-                            'log_likelihood': np.nan
+                            "execution_time": np.nan,
+                            "peak_memory_gb": np.nan,
+                            "convergence": False,
+                            "log_likelihood": np.nan,
                         }
 
             results[f"{param1}_vs_{param2}"] = {
-                'results': pair_results,
-                'param1': param1,
-                'param2': param2,
-                'range1': range1,
-                'range2': range2
+                "results": pair_results,
+                "param1": param1,
+                "param2": param2,
+                "range1": range1,
+                "range2": range2,
             }
             performance_metrics[f"{param1}_vs_{param2}"] = pair_metrics
 
@@ -214,25 +247,29 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             analysis=analysis,
             plots=plots,
             performance_metrics=performance_metrics,
-            success=True
+            success=True,
         )
-    
+
     @experiment_handler("gradient_based_sensitivity")
     @validate_data_types(X_list=list, base_hypers=dict, args=dict)
     @validate_parameters(X_list=lambda x: len(x) > 0, epsilon=lambda x: x > 0)
-    def run_gradient_based_sensitivity(self, X_list: List[np.ndarray],
-                                     base_hypers: Dict, args: Dict,
-                                     epsilon: float = 0.01,
-                                     **kwargs) -> ExperimentResult:
+    def run_gradient_based_sensitivity(
+        self,
+        X_list: List[np.ndarray],
+        base_hypers: Dict,
+        args: Dict,
+        epsilon: float = 0.01,
+        **kwargs,
+    ) -> ExperimentResult:
         """Run gradient-based sensitivity analysis using finite differences."""
         self.logger.info("Running gradient-based sensitivity analysis")
-        
+
         results = {}
         gradients = {}
 
         # Get baseline result
         baseline_result = self._run_sgfa_analysis(X_list, base_hypers, args, **kwargs)
-        baseline_likelihood = baseline_result.get('log_likelihood', np.nan)
+        baseline_likelihood = baseline_result.get("log_likelihood", np.nan)
 
         if np.isnan(baseline_likelihood):
             raise ValueError("Baseline analysis failed to produce valid log likelihood")
@@ -251,36 +288,49 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             forward_hypers[param_name] = base_value * (1 + epsilon)
 
             try:
-                forward_result = self._run_sgfa_analysis(X_list, forward_hypers, args, **kwargs)
-                forward_likelihood = forward_result.get('log_likelihood', np.nan)
+                forward_result = self._run_sgfa_analysis(
+                    X_list, forward_hypers, args, **kwargs
+                )
+                forward_likelihood = forward_result.get("log_likelihood", np.nan)
 
                 # Backward difference
                 backward_hypers = base_hypers.copy()
                 backward_hypers[param_name] = base_value * (1 - epsilon)
 
-                backward_result = self._run_sgfa_analysis(X_list, backward_hypers, args, **kwargs)
-                backward_likelihood = backward_result.get('log_likelihood', np.nan)
+                backward_result = self._run_sgfa_analysis(
+                    X_list, backward_hypers, args, **kwargs
+                )
+                backward_likelihood = backward_result.get("log_likelihood", np.nan)
 
                 # Calculate gradient
                 if not (np.isnan(forward_likelihood) or np.isnan(backward_likelihood)):
-                    gradient = (forward_likelihood - backward_likelihood) / (2 * epsilon * base_value)
+                    gradient = (forward_likelihood - backward_likelihood) / (
+                        2 * epsilon * base_value
+                    )
 
                     gradients[param_name] = {
-                        'gradient': gradient,
-                        'forward_likelihood': forward_likelihood,
-                        'backward_likelihood': backward_likelihood,
-                        'baseline_likelihood': baseline_likelihood,
-                        'relative_sensitivity': abs(gradient * base_value / baseline_likelihood)
+                        "gradient": gradient,
+                        "forward_likelihood": forward_likelihood,
+                        "backward_likelihood": backward_likelihood,
+                        "baseline_likelihood": baseline_likelihood,
+                        "relative_sensitivity": abs(
+                            gradient * base_value / baseline_likelihood
+                        ),
                     }
                 else:
-                    gradients[param_name] = {'gradient': np.nan, 'error': 'Failed to compute differences'}
+                    gradients[param_name] = {
+                        "gradient": np.nan,
+                        "error": "Failed to compute differences",
+                    }
 
             except Exception as e:
-                self.logger.warning(f"Failed to compute gradient for {param_name}: {str(e)}")
-                gradients[param_name] = {'gradient': np.nan, 'error': str(e)}
+                self.logger.warning(
+                    f"Failed to compute gradient for {param_name}: {str(e)}"
+                )
+                gradients[param_name] = {"gradient": np.nan, "error": str(e)}
 
-        results['baseline'] = baseline_result
-        results['gradients'] = gradients
+        results["baseline"] = baseline_result
+        results["gradients"] = gradients
 
         # Analyze gradient-based sensitivity
         analysis = self._analyze_gradient_sensitivity(gradients)
@@ -294,28 +344,34 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             data=results,
             analysis=analysis,
             plots=plots,
-            success=True
+            success=True,
         )
-    
+
     @experiment_handler("robustness_analysis")
     @validate_data_types(X_list=list, base_hypers=dict, args=dict)
     @validate_parameters(X_list=lambda x: len(x) > 0, n_trials=lambda x: x > 0)
-    def run_robustness_analysis(self, X_list: List[np.ndarray],
-                              base_hypers: Dict, args: Dict,
-                              noise_levels: List[float] = None,
-                              n_trials: int = 10,
-                              **kwargs) -> ExperimentResult:
+    def run_robustness_analysis(
+        self,
+        X_list: List[np.ndarray],
+        base_hypers: Dict,
+        args: Dict,
+        noise_levels: List[float] = None,
+        n_trials: int = 10,
+        **kwargs,
+    ) -> ExperimentResult:
         """Run robustness analysis with hyperparameter perturbations."""
         if noise_levels is None:
             noise_levels = [0.01, 0.05, 0.1, 0.2, 0.3]
-            
-        self.logger.info(f"Running robustness analysis with noise levels: {noise_levels}")
-        
+
+        self.logger.info(
+            f"Running robustness analysis with noise levels: {noise_levels}"
+        )
+
         results = {}
 
         # Baseline result
         baseline_result = self._run_sgfa_analysis(X_list, base_hypers, args, **kwargs)
-        results['baseline'] = baseline_result
+        results["baseline"] = baseline_result
 
         # Robustness testing
         for noise_level in noise_levels:
@@ -328,25 +384,31 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 noisy_hypers = self._add_hyperparameter_noise(base_hypers, noise_level)
 
                 try:
-                    result = self._run_sgfa_analysis(X_list, noisy_hypers, args, **kwargs)
-                    noise_results.append({
-                        'trial': trial,
-                        'noisy_hypers': noisy_hypers,
-                        'result': result,
-                        'log_likelihood': result.get('log_likelihood', np.nan),
-                        'convergence': result.get('convergence', False)
-                    })
+                    result = self._run_sgfa_analysis(
+                        X_list, noisy_hypers, args, **kwargs
+                    )
+                    noise_results.append(
+                        {
+                            "trial": trial,
+                            "noisy_hypers": noisy_hypers,
+                            "result": result,
+                            "log_likelihood": result.get("log_likelihood", np.nan),
+                            "convergence": result.get("convergence", False),
+                        }
+                    )
 
                 except Exception as e:
-                    noise_results.append({
-                        'trial': trial,
-                        'noisy_hypers': noisy_hypers,
-                        'result': {'error': str(e)},
-                        'log_likelihood': np.nan,
-                        'convergence': False
-                    })
+                    noise_results.append(
+                        {
+                            "trial": trial,
+                            "noisy_hypers": noisy_hypers,
+                            "result": {"error": str(e)},
+                            "log_likelihood": np.nan,
+                            "convergence": False,
+                        }
+                    )
 
-            results[f'noise_{noise_level}'] = noise_results
+            results[f"noise_{noise_level}"] = noise_results
 
         # Analyze robustness
         analysis = self._analyze_robustness(results, baseline_result)
@@ -360,97 +422,114 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             data=results,
             analysis=analysis,
             plots=plots,
-            success=True
+            success=True,
         )
-    
-    
+
     def _get_reduced_range(self, param_name: str, n_values: int = 3) -> List:
         """Get a reduced range for multivariate analysis."""
         full_range = self.hyperparameter_ranges[param_name]
         if len(full_range) <= n_values:
             return full_range
-        
+
         # Select evenly spaced values
         indices = np.linspace(0, len(full_range) - 1, n_values, dtype=int)
         return [full_range[i] for i in indices]
-    
+
     def _add_hyperparameter_noise(self, base_hypers: Dict, noise_level: float) -> Dict:
         """Add noise to hyperparameters for robustness testing."""
         noisy_hypers = {}
-        
+
         for param_name, param_value in base_hypers.items():
             if isinstance(param_value, (int, float)):
                 # Add multiplicative noise
                 noise_factor = 1.0 + np.random.normal(0, noise_level)
                 noisy_value = param_value * noise_factor
-                
+
                 # Ensure positive values
                 noisy_value = max(noisy_value, 0.001)
-                
+
                 # For integer parameters, round appropriately
-                if param_name == 'K':
+                if param_name == "K":
                     noisy_value = max(1, int(round(noisy_value)))
-                    
+
                 noisy_hypers[param_name] = noisy_value
             else:
                 noisy_hypers[param_name] = param_value
-        
+
         return noisy_hypers
 
-    def _run_sgfa_analysis(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
+    def _run_sgfa_analysis(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> Dict:
         """Run actual SGFA analysis for sensitivity testing."""
+        import time
+
         import jax
         import jax.numpy as jnp
         import numpyro
         from numpyro.infer import MCMC, NUTS
-        import time
 
         try:
-            K = hypers.get('K', 5)
-            self.logger.debug(f"Running SGFA sensitivity test: K={K}, n_subjects={X_list[0].shape[0]}, n_features={sum(X.shape[1] for X in X_list)}")
+            K = hypers.get("K", 5)
+            self.logger.debug(
+                f"Running SGFA sensitivity test: K={K}, n_subjects={
+                    X_list[0].shape[0]}, n_features={
+                    sum(
+                        X.shape[1] for X in X_list)}")
 
             # Import the actual SGFA model function
             from core.run_analysis import models
 
             # Setup MCMC configuration for sensitivity analysis (reduced for speed)
-            num_warmup = args.get('num_warmup', 50)  # Reduced for sensitivity analysis
-            num_samples = args.get('num_samples', 100)  # Reduced for sensitivity analysis
-            num_chains = args.get('num_chains', 1)  # Single chain for sensitivity analysis
+            num_warmup = args.get("num_warmup", 50)  # Reduced for sensitivity analysis
+            num_samples = args.get(
+                "num_samples", 100
+            )  # Reduced for sensitivity analysis
+            num_chains = args.get(
+                "num_chains", 1
+            )  # Single chain for sensitivity analysis
 
             # Create args object for model
             import argparse
+
             model_args = argparse.Namespace(
-                model='sparseGFA',
+                model="sparseGFA",
                 K=K,
                 num_sources=len(X_list),
-                reghsZ=args.get('reghsZ', True)
+                reghsZ=args.get("reghsZ", True),
             )
 
             # Setup MCMC
             rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
-            kernel = NUTS(models, target_accept_prob=args.get('target_accept_prob', 0.8))
+            kernel = NUTS(
+                models, target_accept_prob=args.get("target_accept_prob", 0.8)
+            )
             mcmc = MCMC(
                 kernel,
                 num_warmup=num_warmup,
                 num_samples=num_samples,
-                num_chains=num_chains
+                num_chains=num_chains,
             )
 
             # Run inference
             start_time = time.time()
-            mcmc.run(rng_key, X_list, hypers, model_args, extra_fields=('potential_energy',))
+            mcmc.run(
+                rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+            )
             elapsed = time.time() - start_time
 
             # Get samples
             samples = mcmc.get_samples()
 
             # Calculate log likelihood (approximate)
-            potential_energy = samples.get('potential_energy', np.array([0]))
-            log_likelihood = -np.mean(potential_energy) if len(potential_energy) > 0 else 0
+            potential_energy = samples.get("potential_energy", np.array([0]))
+            log_likelihood = (
+                -np.mean(potential_energy) if len(potential_energy) > 0 else 0
+            )
 
             # Extract mean parameters
-            W_samples = samples['W']  # Shape: (num_samples, D, K)
-            Z_samples = samples['Z']  # Shape: (num_samples, N, K)
+            W_samples = samples["W"]  # Shape: (num_samples, D, K)
+            Z_samples = samples["Z"]  # Shape: (num_samples, N, K)
 
             W_mean = np.mean(W_samples, axis=0)
             Z_mean = np.mean(Z_samples, axis=0)
@@ -464,570 +543,667 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 start_idx = end_idx
 
             return {
-                'W': W_list,
-                'Z': Z_mean,
-                'log_likelihood': float(log_likelihood),
-                'n_iterations': num_samples,
-                'convergence': True,
-                'execution_time': elapsed,
-                'sensitivity_info': {
-                    'parameter_tested': hypers,
-                    'mcmc_config': {
-                        'num_warmup': num_warmup,
-                        'num_samples': num_samples,
-                        'num_chains': num_chains
-                    }
-                }
+                "W": W_list,
+                "Z": Z_mean,
+                "log_likelihood": float(log_likelihood),
+                "n_iterations": num_samples,
+                "convergence": True,
+                "execution_time": elapsed,
+                "sensitivity_info": {
+                    "parameter_tested": hypers,
+                    "mcmc_config": {
+                        "num_warmup": num_warmup,
+                        "num_samples": num_samples,
+                        "num_chains": num_chains,
+                    },
+                },
             }
 
         except Exception as e:
             self.logger.error(f"SGFA sensitivity analysis failed: {str(e)}")
             return {
-                'error': str(e),
-                'convergence': False,
-                'execution_time': float('inf'),
-                'log_likelihood': float('-inf')
+                "error": str(e),
+                "convergence": False,
+                "execution_time": float("inf"),
+                "log_likelihood": float("-inf"),
             }
 
-    def _analyze_univariate_sensitivity(self, results: Dict, performance_metrics: Dict) -> Dict:
+    def _analyze_univariate_sensitivity(
+        self, results: Dict, performance_metrics: Dict
+    ) -> Dict:
         """Analyze univariate sensitivity results."""
         analysis = {
-            'sensitivity_ranking': {},
-            'optimal_values': {},
-            'stability_assessment': {},
-            'performance_impact': {}
+            "sensitivity_ranking": {},
+            "optimal_values": {},
+            "stability_assessment": {},
+            "performance_impact": {},
         }
-        
+
         sensitivity_scores = {}
-        
+
         for param_name, param_results in results.items():
             if not param_results:
                 continue
-                
+
             param_metrics = performance_metrics[param_name]
-            
+
             # Extract log likelihoods
             likelihoods = []
             param_values = []
-            
+
             for param_value, result in param_results.items():
-                if 'error' not in result:
-                    likelihood = param_metrics[param_value]['log_likelihood']
+                if "error" not in result:
+                    likelihood = param_metrics[param_value]["log_likelihood"]
                     if not np.isnan(likelihood):
                         likelihoods.append(likelihood)
                         param_values.append(param_value)
-            
+
             if len(likelihoods) > 1:
                 # Calculate sensitivity as range of log likelihoods
                 likelihood_range = max(likelihoods) - min(likelihoods)
                 sensitivity_scores[param_name] = likelihood_range
-                
+
                 # Find optimal value
                 best_idx = np.argmax(likelihoods)
                 optimal_value = param_values[best_idx]
-                
-                analysis['optimal_values'][param_name] = {
-                    'value': optimal_value,
-                    'log_likelihood': likelihoods[best_idx]
+
+                analysis["optimal_values"][param_name] = {
+                    "value": optimal_value,
+                    "log_likelihood": likelihoods[best_idx],
                 }
-                
+
                 # Assess stability (coefficient of variation)
                 cv = np.std(likelihoods) / np.abs(np.mean(likelihoods))
-                analysis['stability_assessment'][param_name] = {
-                    'coefficient_of_variation': cv,
-                    'stability_level': 'high' if cv < 0.1 else 'medium' if cv < 0.3 else 'low'
+                analysis["stability_assessment"][param_name] = {
+                    "coefficient_of_variation": cv,
+                    "stability_level": (
+                        "high" if cv < 0.1 else "medium" if cv < 0.3 else "low"
+                    ),
                 }
-                
+
                 # Performance impact
-                execution_times = [param_metrics[pv]['execution_time'] for pv in param_values]
-                memory_usages = [param_metrics[pv]['peak_memory_gb'] for pv in param_values]
-                
-                analysis['performance_impact'][param_name] = {
-                    'time_range': max(execution_times) - min(execution_times),
-                    'memory_range': max(memory_usages) - min(memory_usages)
+                execution_times = [
+                    param_metrics[pv]["execution_time"] for pv in param_values
+                ]
+                memory_usages = [
+                    param_metrics[pv]["peak_memory_gb"] for pv in param_values
+                ]
+
+                analysis["performance_impact"][param_name] = {
+                    "time_range": max(execution_times) - min(execution_times),
+                    "memory_range": max(memory_usages) - min(memory_usages),
                 }
-        
+
         # Rank parameters by sensitivity
-        sorted_sensitivity = sorted(sensitivity_scores.items(), key=lambda x: x[1], reverse=True)
-        analysis['sensitivity_ranking'] = {
-            'most_sensitive': [name for name, score in sorted_sensitivity],
-            'sensitivity_scores': sensitivity_scores
+        sorted_sensitivity = sorted(
+            sensitivity_scores.items(), key=lambda x: x[1], reverse=True
+        )
+        analysis["sensitivity_ranking"] = {
+            "most_sensitive": [name for name, score in sorted_sensitivity],
+            "sensitivity_scores": sensitivity_scores,
         }
-        
+
         return analysis
-    
-    def _analyze_multivariate_sensitivity(self, results: Dict, performance_metrics: Dict) -> Dict:
+
+    def _analyze_multivariate_sensitivity(
+        self, results: Dict, performance_metrics: Dict
+    ) -> Dict:
         """Analyze multivariate sensitivity results."""
         analysis = {
-            'interaction_effects': {},
-            'optimal_combinations': {},
-            'interaction_strength': {}
+            "interaction_effects": {},
+            "optimal_combinations": {},
+            "interaction_strength": {},
         }
-        
+
         for pair_name, pair_data in results.items():
-            param1 = pair_data['param1']
-            param2 = pair_data['param2']
-            pair_results = pair_data['results']
+            param1 = pair_data["param1"]
+            param2 = pair_data["param2"]
+            pair_results = pair_data["results"]
             pair_metrics = performance_metrics[pair_name]
-            
+
             # Extract log likelihoods in matrix form
-            range1 = pair_data['range1']
-            range2 = pair_data['range2']
-            
+            range1 = pair_data["range1"]
+            range2 = pair_data["range2"]
+
             likelihood_matrix = np.full((len(range1), len(range2)), np.nan)
-            
+
             for i, val1 in enumerate(range1):
                 for j, val2 in enumerate(range2):
                     if (val1, val2) in pair_metrics:
-                        likelihood = pair_metrics[(val1, val2)]['log_likelihood']
+                        likelihood = pair_metrics[(val1, val2)]["log_likelihood"]
                         if not np.isnan(likelihood):
                             likelihood_matrix[i, j] = likelihood
-            
+
             # Find optimal combination
             if not np.all(np.isnan(likelihood_matrix)):
-                best_idx = np.unravel_index(np.nanargmax(likelihood_matrix), likelihood_matrix.shape)
+                best_idx = np.unravel_index(
+                    np.nanargmax(likelihood_matrix), likelihood_matrix.shape
+                )
                 optimal_val1 = range1[best_idx[0]]
                 optimal_val2 = range2[best_idx[1]]
                 optimal_likelihood = likelihood_matrix[best_idx]
-                
-                analysis['optimal_combinations'][pair_name] = {
+
+                analysis["optimal_combinations"][pair_name] = {
                     param1: optimal_val1,
                     param2: optimal_val2,
-                    'log_likelihood': optimal_likelihood
+                    "log_likelihood": optimal_likelihood,
                 }
-                
+
                 # Assess interaction strength
                 # Compare to sum of individual effects (approximation)
-                main_effect_strength = np.nanstd(np.nanmean(likelihood_matrix, axis=1)) + \
-                                     np.nanstd(np.nanmean(likelihood_matrix, axis=0))
+                main_effect_strength = np.nanstd(
+                    np.nanmean(likelihood_matrix, axis=1)
+                ) + np.nanstd(np.nanmean(likelihood_matrix, axis=0))
                 total_variation = np.nanstd(likelihood_matrix.flatten())
-                
+
                 interaction_ratio = total_variation / (main_effect_strength + 1e-10)
-                
-                analysis['interaction_strength'][pair_name] = {
-                    'interaction_ratio': interaction_ratio,
-                    'interaction_level': 'strong' if interaction_ratio > 1.5 else 'moderate' if interaction_ratio > 1.1 else 'weak'
+
+                analysis["interaction_strength"][pair_name] = {
+                    "interaction_ratio": interaction_ratio,
+                    "interaction_level": (
+                        "strong"
+                        if interaction_ratio > 1.5
+                        else "moderate" if interaction_ratio > 1.1 else "weak"
+                    ),
                 }
-        
+
         return analysis
-    
+
     def _analyze_gradient_sensitivity(self, gradients: Dict) -> Dict:
         """Analyze gradient-based sensitivity results."""
         analysis = {
-            'gradient_magnitudes': {},
-            'sensitivity_ranking': {},
-            'relative_importance': {}
+            "gradient_magnitudes": {},
+            "sensitivity_ranking": {},
+            "relative_importance": {},
         }
-        
+
         valid_gradients = {}
-        
+
         for param_name, gradient_data in gradients.items():
-            if 'gradient' in gradient_data and not np.isnan(gradient_data['gradient']):
-                gradient = gradient_data['gradient']
-                relative_sensitivity = gradient_data.get('relative_sensitivity', abs(gradient))
-                
+            if "gradient" in gradient_data and not np.isnan(gradient_data["gradient"]):
+                gradient = gradient_data["gradient"]
+                relative_sensitivity = gradient_data.get(
+                    "relative_sensitivity", abs(gradient)
+                )
+
                 valid_gradients[param_name] = gradient
-                
-                analysis['gradient_magnitudes'][param_name] = {
-                    'gradient': gradient,
-                    'absolute_gradient': abs(gradient),
-                    'relative_sensitivity': relative_sensitivity
+
+                analysis["gradient_magnitudes"][param_name] = {
+                    "gradient": gradient,
+                    "absolute_gradient": abs(gradient),
+                    "relative_sensitivity": relative_sensitivity,
                 }
-        
+
         if valid_gradients:
             # Rank by absolute gradient
-            sorted_gradients = sorted(valid_gradients.items(), key=lambda x: abs(x[1]), reverse=True)
-            analysis['sensitivity_ranking']['most_sensitive'] = [name for name, grad in sorted_gradients]
-            
+            sorted_gradients = sorted(
+                valid_gradients.items(), key=lambda x: abs(x[1]), reverse=True
+            )
+            analysis["sensitivity_ranking"]["most_sensitive"] = [
+                name for name, grad in sorted_gradients
+            ]
+
             # Relative importance
             total_abs_gradient = sum(abs(grad) for grad in valid_gradients.values())
             for param_name, gradient in valid_gradients.items():
-                analysis['relative_importance'][param_name] = abs(gradient) / total_abs_gradient
-        
+                analysis["relative_importance"][param_name] = (
+                    abs(gradient) / total_abs_gradient
+                )
+
         return analysis
-    
+
     def _analyze_robustness(self, results: Dict, baseline_result: Dict) -> Dict:
         """Analyze robustness results."""
         analysis = {
-            'robustness_metrics': {},
-            'convergence_rates': {},
-            'likelihood_stability': {}
+            "robustness_metrics": {},
+            "convergence_rates": {},
+            "likelihood_stability": {},
         }
-        
-        baseline_likelihood = baseline_result.get('log_likelihood', np.nan)
-        
+
+        baseline_likelihood = baseline_result.get("log_likelihood", np.nan)
+
         for noise_key, noise_results in results.items():
-            if noise_key == 'baseline':
+            if noise_key == "baseline":
                 continue
-                
-            noise_level = float(noise_key.split('_')[1])
-            
+
+            noise_level = float(noise_key.split("_")[1])
+
             # Extract metrics
-            likelihoods = [r['log_likelihood'] for r in noise_results if not np.isnan(r['log_likelihood'])]
-            convergence_count = sum(1 for r in noise_results if r['convergence'])
-            
+            likelihoods = [
+                r["log_likelihood"]
+                for r in noise_results
+                if not np.isnan(r["log_likelihood"])
+            ]
+            convergence_count = sum(1 for r in noise_results if r["convergence"])
+
             if likelihoods:
                 likelihood_mean = np.mean(likelihoods)
                 likelihood_std = np.std(likelihoods)
-                
+
                 # Robustness metrics
-                analysis['robustness_metrics'][noise_level] = {
-                    'mean_likelihood': likelihood_mean,
-                    'std_likelihood': likelihood_std,
-                    'coefficient_of_variation': likelihood_std / abs(likelihood_mean),
-                    'likelihood_drop': baseline_likelihood - likelihood_mean if not np.isnan(baseline_likelihood) else np.nan
+                analysis["robustness_metrics"][noise_level] = {
+                    "mean_likelihood": likelihood_mean,
+                    "std_likelihood": likelihood_std,
+                    "coefficient_of_variation": likelihood_std / abs(likelihood_mean),
+                    "likelihood_drop": (
+                        baseline_likelihood - likelihood_mean
+                        if not np.isnan(baseline_likelihood)
+                        else np.nan
+                    ),
                 }
-                
+
                 # Likelihood stability
-                analysis['likelihood_stability'][noise_level] = {
-                    'stability_score': 1.0 / (1.0 + likelihood_std),
-                    'relative_stability': likelihood_std / abs(baseline_likelihood) if not np.isnan(baseline_likelihood) else np.nan
+                analysis["likelihood_stability"][noise_level] = {
+                    "stability_score": 1.0 / (1.0 + likelihood_std),
+                    "relative_stability": (
+                        likelihood_std / abs(baseline_likelihood)
+                        if not np.isnan(baseline_likelihood)
+                        else np.nan
+                    ),
                 }
-            
+
             # Convergence rates
             convergence_rate = convergence_count / len(noise_results)
-            analysis['convergence_rates'][noise_level] = convergence_rate
-        
+            analysis["convergence_rates"][noise_level] = convergence_rate
+
         return analysis
-    
-    def _plot_univariate_sensitivity(self, results: Dict, performance_metrics: Dict) -> Dict:
+
+    def _plot_univariate_sensitivity(
+        self, results: Dict, performance_metrics: Dict
+    ) -> Dict:
         """Generate plots for univariate sensitivity analysis."""
         plots = {}
-        
+
         try:
             n_params = len(results)
             if n_params == 0:
                 return plots
-                
+
             # Create subplots
             fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-            fig.suptitle('Univariate Sensitivity Analysis', fontsize=16)
-            
+            fig.suptitle("Univariate Sensitivity Analysis", fontsize=16)
+
             # Flatten axes for easier indexing
             axes_flat = axes.flatten()
-            
+
             param_names = list(results.keys())
             colors = plt.cm.Set1(np.linspace(0, 1, len(param_names)))
-            
+
             # Plot 1: Log likelihood vs parameter values
             ax1 = axes_flat[0]
             for i, param_name in enumerate(param_names):
                 param_results = results[param_name]
                 param_metrics = performance_metrics[param_name]
-                
+
                 param_values = []
                 likelihoods = []
-                
+
                 for param_value, result in param_results.items():
-                    if 'error' not in result:
-                        likelihood = param_metrics[param_value]['log_likelihood']
+                    if "error" not in result:
+                        likelihood = param_metrics[param_value]["log_likelihood"]
                         if not np.isnan(likelihood):
                             param_values.append(param_value)
                             likelihoods.append(likelihood)
-                
+
                 if param_values:
-                    ax1.plot(param_values, likelihoods, 'o-', label=param_name, color=colors[i])
-            
-            ax1.set_xlabel('Parameter Value')
-            ax1.set_ylabel('Log Likelihood')
-            ax1.set_title('Log Likelihood vs Parameter Values')
+                    ax1.plot(
+                        param_values,
+                        likelihoods,
+                        "o-",
+                        label=param_name,
+                        color=colors[i],
+                    )
+
+            ax1.set_xlabel("Parameter Value")
+            ax1.set_ylabel("Log Likelihood")
+            ax1.set_title("Log Likelihood vs Parameter Values")
             ax1.legend()
             ax1.grid(True, alpha=0.3)
-            
+
             # Plot 2: Execution time vs parameter values
             ax2 = axes_flat[1]
             for i, param_name in enumerate(param_names):
                 param_metrics = performance_metrics[param_name]
-                
+
                 param_values = []
                 times = []
-                
+
                 for param_value, metrics in param_metrics.items():
-                    if not np.isnan(metrics['execution_time']):
+                    if not np.isnan(metrics["execution_time"]):
                         param_values.append(param_value)
-                        times.append(metrics['execution_time'])
-                
+                        times.append(metrics["execution_time"])
+
                 if param_values:
-                    ax2.plot(param_values, times, 's-', label=param_name, color=colors[i])
-            
-            ax2.set_xlabel('Parameter Value')
-            ax2.set_ylabel('Execution Time (seconds)')
-            ax2.set_title('Execution Time vs Parameter Values')
+                    ax2.plot(
+                        param_values, times, "s-", label=param_name, color=colors[i]
+                    )
+
+            ax2.set_xlabel("Parameter Value")
+            ax2.set_ylabel("Execution Time (seconds)")
+            ax2.set_title("Execution Time vs Parameter Values")
             ax2.legend()
             ax2.grid(True, alpha=0.3)
-            
+
             # Plot 3: Sensitivity ranking (bar plot)
             ax3 = axes_flat[2]
             sensitivity_scores = {}
-            
+
             for param_name, param_results in results.items():
                 param_metrics = performance_metrics[param_name]
-                likelihoods = [param_metrics[pv]['log_likelihood'] for pv in param_results.keys()
-                             if 'error' not in param_results[pv] and not np.isnan(param_metrics[pv]['log_likelihood'])]
-                
+                likelihoods = [
+                    param_metrics[pv]["log_likelihood"]
+                    for pv in param_results.keys()
+                    if "error" not in param_results[pv]
+                    and not np.isnan(param_metrics[pv]["log_likelihood"])
+                ]
+
                 if len(likelihoods) > 1:
                     sensitivity_scores[param_name] = max(likelihoods) - min(likelihoods)
-            
+
             if sensitivity_scores:
-                param_names_sorted = sorted(sensitivity_scores.keys(), key=lambda x: sensitivity_scores[x], reverse=True)
-                scores_sorted = [sensitivity_scores[name] for name in param_names_sorted]
-                
+                param_names_sorted = sorted(
+                    sensitivity_scores.keys(),
+                    key=lambda x: sensitivity_scores[x],
+                    reverse=True,
+                )
+                scores_sorted = [
+                    sensitivity_scores[name] for name in param_names_sorted
+                ]
+
                 ax3.bar(param_names_sorted, scores_sorted)
-                ax3.set_ylabel('Likelihood Range')
-                ax3.set_title('Parameter Sensitivity Ranking')
-                ax3.tick_params(axis='x', rotation=45)
-            
+                ax3.set_ylabel("Likelihood Range")
+                ax3.set_title("Parameter Sensitivity Ranking")
+                ax3.tick_params(axis="x", rotation=45)
+
             # Plot 4: Memory usage vs parameter values
             ax4 = axes_flat[3]
             for i, param_name in enumerate(param_names):
                 param_metrics = performance_metrics[param_name]
-                
+
                 param_values = []
                 memory = []
-                
+
                 for param_value, metrics in param_metrics.items():
-                    if not np.isnan(metrics['peak_memory_gb']):
+                    if not np.isnan(metrics["peak_memory_gb"]):
                         param_values.append(param_value)
-                        memory.append(metrics['peak_memory_gb'])
-                
+                        memory.append(metrics["peak_memory_gb"])
+
                 if param_values:
-                    ax4.plot(param_values, memory, '^-', label=param_name, color=colors[i])
-            
-            ax4.set_xlabel('Parameter Value')
-            ax4.set_ylabel('Peak Memory (GB)')
-            ax4.set_title('Memory Usage vs Parameter Values')
+                    ax4.plot(
+                        param_values, memory, "^-", label=param_name, color=colors[i]
+                    )
+
+            ax4.set_xlabel("Parameter Value")
+            ax4.set_ylabel("Peak Memory (GB)")
+            ax4.set_title("Memory Usage vs Parameter Values")
             ax4.legend()
             ax4.grid(True, alpha=0.3)
-            
+
             plt.tight_layout()
-            plots['univariate_sensitivity'] = fig
-            
+            plots["univariate_sensitivity"] = fig
+
         except Exception as e:
-            self.logger.warning(f"Failed to create univariate sensitivity plots: {str(e)}")
-            
+            self.logger.warning(
+                f"Failed to create univariate sensitivity plots: {str(e)}"
+            )
+
         return plots
-    
-    def _plot_multivariate_sensitivity(self, results: Dict, performance_metrics: Dict) -> Dict:
+
+    def _plot_multivariate_sensitivity(
+        self, results: Dict, performance_metrics: Dict
+    ) -> Dict:
         """Generate plots for multivariate sensitivity analysis."""
         plots = {}
-        
+
         try:
             n_pairs = len(results)
             if n_pairs == 0:
                 return plots
-            
+
             # Create heatmaps for each parameter pair
             for pair_name, pair_data in results.items():
-                param1 = pair_data['param1']
-                param2 = pair_data['param2']
-                range1 = pair_data['range1']
-                range2 = pair_data['range2']
+                param1 = pair_data["param1"]
+                param2 = pair_data["param2"]
+                range1 = pair_data["range1"]
+                range2 = pair_data["range2"]
                 pair_metrics = performance_metrics[pair_name]
-                
+
                 # Create likelihood matrix
                 likelihood_matrix = np.full((len(range1), len(range2)), np.nan)
-                
+
                 for i, val1 in enumerate(range1):
                     for j, val2 in enumerate(range2):
                         if (val1, val2) in pair_metrics:
-                            likelihood = pair_metrics[(val1, val2)]['log_likelihood']
+                            likelihood = pair_metrics[(val1, val2)]["log_likelihood"]
                             if not np.isnan(likelihood):
                                 likelihood_matrix[i, j] = likelihood
-                
+
                 # Create heatmap
                 fig, ax = plt.subplots(figsize=(8, 6))
-                
-                im = ax.imshow(likelihood_matrix, cmap='viridis', aspect='auto')
-                
+
+                im = ax.imshow(likelihood_matrix, cmap="viridis", aspect="auto")
+
                 # Set ticks and labels
                 ax.set_xticks(range(len(range2)))
                 ax.set_yticks(range(len(range1)))
                 ax.set_xticklabels([f"{val:.3f}" for val in range2])
                 ax.set_yticklabels([f"{val:.3f}" for val in range1])
-                
+
                 ax.set_xlabel(param2)
                 ax.set_ylabel(param1)
-                ax.set_title(f'Log Likelihood Heatmap: {param1} vs {param2}')
-                
+                ax.set_title(f"Log Likelihood Heatmap: {param1} vs {param2}")
+
                 # Add colorbar
-                plt.colorbar(im, ax=ax, label='Log Likelihood')
-                
+                plt.colorbar(im, ax=ax, label="Log Likelihood")
+
                 # Mark optimal point
                 if not np.all(np.isnan(likelihood_matrix)):
-                    best_idx = np.unravel_index(np.nanargmax(likelihood_matrix), likelihood_matrix.shape)
-                    ax.plot(best_idx[1], best_idx[0], 'r*', markersize=15, label='Optimal')
+                    best_idx = np.unravel_index(
+                        np.nanargmax(likelihood_matrix), likelihood_matrix.shape
+                    )
+                    ax.plot(
+                        best_idx[1], best_idx[0], "r*", markersize=15, label="Optimal"
+                    )
                     ax.legend()
-                
+
                 plt.tight_layout()
-                plots[f'heatmap_{pair_name}'] = fig
-                
+                plots[f"heatmap_{pair_name}"] = fig
+
         except Exception as e:
-            self.logger.warning(f"Failed to create multivariate sensitivity plots: {str(e)}")
-            
+            self.logger.warning(
+                f"Failed to create multivariate sensitivity plots: {str(e)}"
+            )
+
         return plots
-    
+
     def _plot_gradient_sensitivity(self, gradients: Dict) -> Dict:
         """Generate plots for gradient-based sensitivity analysis."""
         plots = {}
-        
+
         try:
             # Filter valid gradients
-            valid_gradients = {name: data for name, data in gradients.items()
-                             if 'gradient' in data and not np.isnan(data['gradient'])}
-            
+            valid_gradients = {
+                name: data
+                for name, data in gradients.items()
+                if "gradient" in data and not np.isnan(data["gradient"])
+            }
+
             if not valid_gradients:
                 return plots
-            
+
             # Create gradient plots
             fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            
+
             param_names = list(valid_gradients.keys())
-            gradient_values = [valid_gradients[name]['gradient'] for name in param_names]
+            gradient_values = [
+                valid_gradients[name]["gradient"] for name in param_names
+            ]
             absolute_gradients = [abs(g) for g in gradient_values]
-            
+
             # Plot 1: Gradient values
             axes[0].bar(param_names, gradient_values)
-            axes[0].set_ylabel('Gradient (∂LL/∂θ)')
-            axes[0].set_title('Gradient-Based Sensitivity')
-            axes[0].tick_params(axis='x', rotation=45)
-            axes[0].axhline(y=0, color='k', linestyle='--', alpha=0.5)
-            
+            axes[0].set_ylabel("Gradient (∂LL/∂θ)")
+            axes[0].set_title("Gradient-Based Sensitivity")
+            axes[0].tick_params(axis="x", rotation=45)
+            axes[0].axhline(y=0, color="k", linestyle="--", alpha=0.5)
+
             # Plot 2: Absolute gradients (sensitivity ranking)
             sorted_indices = np.argsort(absolute_gradients)[::-1]
             sorted_names = [param_names[i] for i in sorted_indices]
             sorted_abs_gradients = [absolute_gradients[i] for i in sorted_indices]
-            
+
             axes[1].bar(sorted_names, sorted_abs_gradients)
-            axes[1].set_ylabel('|Gradient|')
-            axes[1].set_title('Sensitivity Ranking')
-            axes[1].tick_params(axis='x', rotation=45)
-            
+            axes[1].set_ylabel("|Gradient|")
+            axes[1].set_title("Sensitivity Ranking")
+            axes[1].tick_params(axis="x", rotation=45)
+
             plt.tight_layout()
-            plots['gradient_sensitivity'] = fig
-            
+            plots["gradient_sensitivity"] = fig
+
         except Exception as e:
-            self.logger.warning(f"Failed to create gradient sensitivity plots: {str(e)}")
-            
+            self.logger.warning(
+                f"Failed to create gradient sensitivity plots: {str(e)}"
+            )
+
         return plots
-    
+
     def _plot_robustness_analysis(self, results: Dict) -> Dict:
         """Generate plots for robustness analysis."""
         plots = {}
-        
+
         try:
             # Extract noise levels and metrics
             noise_levels = []
             mean_likelihoods = []
             std_likelihoods = []
             convergence_rates = []
-            
+
             for noise_key, noise_results in results.items():
-                if noise_key == 'baseline':
+                if noise_key == "baseline":
                     continue
-                    
-                noise_level = float(noise_key.split('_')[1])
+
+                noise_level = float(noise_key.split("_")[1])
                 noise_levels.append(noise_level)
-                
-                likelihoods = [r['log_likelihood'] for r in noise_results if not np.isnan(r['log_likelihood'])]
-                convergences = [r['convergence'] for r in noise_results]
-                
+
+                likelihoods = [
+                    r["log_likelihood"]
+                    for r in noise_results
+                    if not np.isnan(r["log_likelihood"])
+                ]
+                convergences = [r["convergence"] for r in noise_results]
+
                 mean_likelihoods.append(np.mean(likelihoods) if likelihoods else np.nan)
                 std_likelihoods.append(np.std(likelihoods) if likelihoods else np.nan)
                 convergence_rates.append(np.mean(convergences))
-            
+
             if not noise_levels:
                 return plots
-            
+
             # Create robustness plots
             fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-            fig.suptitle('Robustness Analysis', fontsize=16)
-            
+            fig.suptitle("Robustness Analysis", fontsize=16)
+
             # Plot 1: Mean likelihood vs noise level
-            axes[0, 0].plot(noise_levels, mean_likelihoods, 'o-')
-            axes[0, 0].set_xlabel('Noise Level')
-            axes[0, 0].set_ylabel('Mean Log Likelihood')
-            axes[0, 0].set_title('Likelihood vs Noise Level')
+            axes[0, 0].plot(noise_levels, mean_likelihoods, "o-")
+            axes[0, 0].set_xlabel("Noise Level")
+            axes[0, 0].set_ylabel("Mean Log Likelihood")
+            axes[0, 0].set_title("Likelihood vs Noise Level")
             axes[0, 0].grid(True, alpha=0.3)
-            
+
             # Plot 2: Likelihood standard deviation vs noise level
-            axes[0, 1].plot(noise_levels, std_likelihoods, 's-', color='orange')
-            axes[0, 1].set_xlabel('Noise Level')
-            axes[0, 1].set_ylabel('Likelihood Standard Deviation')
-            axes[0, 1].set_title('Likelihood Variability vs Noise Level')
+            axes[0, 1].plot(noise_levels, std_likelihoods, "s-", color="orange")
+            axes[0, 1].set_xlabel("Noise Level")
+            axes[0, 1].set_ylabel("Likelihood Standard Deviation")
+            axes[0, 1].set_title("Likelihood Variability vs Noise Level")
             axes[0, 1].grid(True, alpha=0.3)
-            
+
             # Plot 3: Convergence rate vs noise level
-            axes[1, 0].plot(noise_levels, convergence_rates, '^-', color='green')
-            axes[1, 0].set_xlabel('Noise Level')
-            axes[1, 0].set_ylabel('Convergence Rate')
-            axes[1, 0].set_title('Convergence Rate vs Noise Level')
+            axes[1, 0].plot(noise_levels, convergence_rates, "^-", color="green")
+            axes[1, 0].set_xlabel("Noise Level")
+            axes[1, 0].set_ylabel("Convergence Rate")
+            axes[1, 0].set_title("Convergence Rate vs Noise Level")
             axes[1, 0].set_ylim([0, 1.1])
             axes[1, 0].grid(True, alpha=0.3)
-            
+
             # Plot 4: Likelihood distribution for highest noise level
             if noise_levels:
                 highest_noise_key = f"noise_{max(noise_levels)}"
                 highest_noise_results = results[highest_noise_key]
-                highest_noise_likelihoods = [r['log_likelihood'] for r in highest_noise_results 
-                                           if not np.isnan(r['log_likelihood'])]
-                
+                highest_noise_likelihoods = [
+                    r["log_likelihood"]
+                    for r in highest_noise_results
+                    if not np.isnan(r["log_likelihood"])
+                ]
+
                 if highest_noise_likelihoods:
-                    axes[1, 1].hist(highest_noise_likelihoods, bins=10, alpha=0.7, color='red')
-                    axes[1, 1].set_xlabel('Log Likelihood')
-                    axes[1, 1].set_ylabel('Frequency')
-                    axes[1, 1].set_title(f'Likelihood Distribution (Noise={max(noise_levels)})')
-                    
+                    axes[1, 1].hist(
+                        highest_noise_likelihoods, bins=10, alpha=0.7, color="red"
+                    )
+                    axes[1, 1].set_xlabel("Log Likelihood")
+                    axes[1, 1].set_ylabel("Frequency")
+                    axes[1, 1].set_title(
+                        f"Likelihood Distribution (Noise={max(noise_levels)})"
+                    )
+
                     # Add baseline line if available
-                    baseline_likelihood = results['baseline'].get('log_likelihood')
+                    baseline_likelihood = results["baseline"].get("log_likelihood")
                     if not np.isnan(baseline_likelihood):
-                        axes[1, 1].axvline(baseline_likelihood, color='black', linestyle='--', 
-                                         label='Baseline')
+                        axes[1, 1].axvline(
+                            baseline_likelihood,
+                            color="black",
+                            linestyle="--",
+                            label="Baseline",
+                        )
                         axes[1, 1].legend()
-            
+
             plt.tight_layout()
-            plots['robustness_analysis'] = fig
-            
+            plots["robustness_analysis"] = fig
+
         except Exception as e:
             self.logger.warning(f"Failed to create robustness analysis plots: {str(e)}")
 
         return plots
 
-    def _create_comprehensive_sensitivity_visualizations(self, X_list: List[np.ndarray],
-                                                        results: Dict, experiment_name: str) -> Dict:
+    def _create_comprehensive_sensitivity_visualizations(
+        self, X_list: List[np.ndarray], results: Dict, experiment_name: str
+    ) -> Dict:
         """Create comprehensive sensitivity visualizations focusing on factor stability."""
         advanced_plots = {}
 
         try:
-            self.logger.info(f"🎨 Creating comprehensive sensitivity visualizations for {experiment_name}")
+            self.logger.info(
+                f"🎨 Creating comprehensive sensitivity visualizations for {experiment_name}")
 
             # Import visualization system
-            from visualization.manager import VisualizationManager
             from core.config_utils import ConfigAccessor
+            from visualization.manager import VisualizationManager
 
             # Create a sensitivity-focused config for visualization
-            viz_config = ConfigAccessor({
-                'visualization': {
-                    'create_brain_viz': True,  # Include brain maps for sensitivity
-                    'output_format': ['png', 'pdf'],
-                    'dpi': 300,
-                    'sensitivity_focus': True
-                },
-                'output_dir': f'/tmp/sensitivity_viz_{experiment_name}'
-            })
+            viz_config = ConfigAccessor(
+                {
+                    "visualization": {
+                        "create_brain_viz": True,  # Include brain maps for sensitivity
+                        "output_format": ["png", "pdf"],
+                        "dpi": 300,
+                        "sensitivity_focus": True,
+                    },
+                    "output_dir": f"/tmp/sensitivity_viz_{experiment_name}",
+                }
+            )
 
             # Initialize visualization manager
             viz_manager = VisualizationManager(viz_config)
 
             # Prepare sensitivity data structure
             data = {
-                'X_list': X_list,
-                'view_names': [f'view_{i}' for i in range(len(X_list))],
-                'n_subjects': X_list[0].shape[0],
-                'view_dimensions': [X.shape[1] for X in X_list],
-                'preprocessing': {
-                    'status': 'completed',
-                    'strategy': 'sensitivity_analysis'
-                }
+                "X_list": X_list,
+                "view_names": [f"view_{i}" for i in range(len(X_list))],
+                "n_subjects": X_list[0].shape[0],
+                "view_dimensions": [X.shape[1] for X in X_list],
+                "preprocessing": {
+                    "status": "completed",
+                    "strategy": "sensitivity_analysis",
+                },
             }
 
             # Extract best sensitivity result for analysis
@@ -1036,75 +1212,86 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             if best_sensitivity_result:
                 # Prepare sensitivity analysis results
                 analysis_results = {
-                    'best_run': best_sensitivity_result,
-                    'all_runs': results,
-                    'model_type': 'sensitivity_sparseGFA',
-                    'convergence': best_sensitivity_result.get('convergence', False),
-                    'sensitivity_analysis': True
+                    "best_run": best_sensitivity_result,
+                    "all_runs": results,
+                    "model_type": "sensitivity_sparseGFA",
+                    "convergence": best_sensitivity_result.get("convergence", False),
+                    "sensitivity_analysis": True,
                 }
 
                 # Add cross-validation style results for factor stability analysis
                 cv_results = {
-                    'factor_stability': {
-                        'parameter_variations': results,
-                        'stability_metrics': self._extract_stability_metrics(results)
+                    "factor_stability": {
+                        "parameter_variations": results,
+                        "stability_metrics": self._extract_stability_metrics(results),
                     }
                 }
 
                 # Create comprehensive visualizations with sensitivity focus
                 viz_manager.create_all_visualizations(
-                    data=data,
-                    analysis_results=analysis_results,
-                    cv_results=cv_results
+                    data=data, analysis_results=analysis_results, cv_results=cv_results
                 )
 
                 # Extract and process generated plots
-                if hasattr(viz_manager, 'plot_dir') and viz_manager.plot_dir.exists():
-                    plot_files = list(viz_manager.plot_dir.glob('**/*.png'))
+                if hasattr(viz_manager, "plot_dir") and viz_manager.plot_dir.exists():
+                    plot_files = list(viz_manager.plot_dir.glob("**/*.png"))
 
                     for plot_file in plot_files:
                         plot_name = f"sensitivity_{plot_file.stem}"
 
                         try:
-                            import matplotlib.pyplot as plt
                             import matplotlib.image as mpimg
+                            import matplotlib.pyplot as plt
 
                             fig, ax = plt.subplots(figsize=(12, 8))
                             img = mpimg.imread(str(plot_file))
                             ax.imshow(img)
-                            ax.axis('off')
-                            ax.set_title(f"Sensitivity Analysis: {plot_name}", fontsize=14)
+                            ax.axis("off")
+                            ax.set_title(
+                                f"Sensitivity Analysis: {plot_name}", fontsize=14
+                            )
 
                             advanced_plots[plot_name] = fig
 
                         except Exception as e:
-                            self.logger.warning(f"Could not load sensitivity plot {plot_name}: {e}")
+                            self.logger.warning(
+                                f"Could not load sensitivity plot {plot_name}: {e}"
+                            )
 
-                    self.logger.info(f"✅ Created {len(plot_files)} comprehensive sensitivity visualizations")
-                    self.logger.info("   → Factor stability and robustness plots generated")
+                    self.logger.info(
+                        f"✅ Created {
+                            len(plot_files)} comprehensive sensitivity visualizations")
+                    self.logger.info(
+                        "   → Factor stability and robustness plots generated"
+                    )
 
                 else:
-                    self.logger.warning("Sensitivity visualization manager did not create plot directory")
+                    self.logger.warning(
+                        "Sensitivity visualization manager did not create plot directory"
+                    )
             else:
-                self.logger.warning("No sensitivity results found for comprehensive visualization")
+                self.logger.warning(
+                    "No sensitivity results found for comprehensive visualization"
+                )
 
         except Exception as e:
-            self.logger.warning(f"Failed to create comprehensive sensitivity visualizations: {e}")
+            self.logger.warning(
+                f"Failed to create comprehensive sensitivity visualizations: {e}"
+            )
 
         return advanced_plots
 
     def _extract_best_sensitivity_result(self, results: Dict) -> Optional[Dict]:
         """Extract the best sensitivity result from analysis results."""
         best_result = None
-        best_likelihood = float('-inf')
+        best_likelihood = float("-inf")
 
         # Look through sensitivity parameter results
         for param_name, param_results in results.items():
             if isinstance(param_results, dict):
                 for param_value, result in param_results.items():
-                    if (isinstance(result, dict) and
-                        result.get('convergence', False)):
-                        likelihood = result.get('log_likelihood', float('-inf'))
+                    if isinstance(result, dict) and result.get("convergence", False):
+                        likelihood = result.get("log_likelihood", float("-inf"))
                         if likelihood > best_likelihood:
                             best_likelihood = likelihood
                             best_result = result
@@ -1114,9 +1301,9 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
     def _extract_stability_metrics(self, results: Dict) -> Dict:
         """Extract stability metrics for visualization."""
         metrics = {
-            'parameter_sensitivity': {},
-            'factor_stability': {},
-            'convergence_rates': {}
+            "parameter_sensitivity": {},
+            "factor_stability": {},
+            "convergence_rates": {},
         }
 
         for param_name, param_results in results.items():
@@ -1128,16 +1315,20 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 for param_value, result in param_results.items():
                     if isinstance(result, dict):
                         total_count += 1
-                        if result.get('convergence', False):
+                        if result.get("convergence", False):
                             convergence_count += 1
-                            param_metrics.append({
-                                'value': param_value,
-                                'log_likelihood': result.get('log_likelihood', 0),
-                                'execution_time': result.get('execution_time', 0)
-                            })
+                            param_metrics.append(
+                                {
+                                    "value": param_value,
+                                    "log_likelihood": result.get("log_likelihood", 0),
+                                    "execution_time": result.get("execution_time", 0),
+                                }
+                            )
 
-                metrics['parameter_sensitivity'][param_name] = param_metrics
-                metrics['convergence_rates'][param_name] = convergence_count / max(total_count, 1)
+                metrics["parameter_sensitivity"][param_name] = param_metrics
+                metrics["convergence_rates"][param_name] = convergence_count / max(
+                    total_count, 1
+                )
 
         return metrics
 
@@ -1145,9 +1336,11 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 def run_sensitivity_analysis(config):
     """Run sensitivity analysis with remote workstation integration."""
     import logging
-    import sys
     import os
+    import sys
+
     import numpy as np
+
     logger = logging.getLogger(__name__)
     logger.info("Starting Sensitivity Analysis Experiments")
 
@@ -1158,17 +1351,18 @@ def run_sensitivity_analysis(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        from experiments.framework import ExperimentFramework, ExperimentConfig
         from pathlib import Path
 
         # Load data with advanced preprocessing for consistent analysis
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
+        from experiments.framework import ExperimentConfig, ExperimentFramework
+
         logger.info("🔧 Loading data for sensitivity analysis...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=get_data_dir(config),
             auto_select_strategy=False,
-            preferred_strategy="standard"  # Use standard preprocessing for sensitivity analysis
+            preferred_strategy="standard",  # Use standard preprocessing for sensitivity analysis
         )
 
         logger.info(f"✅ Data loaded: {len(X_list)} views for sensitivity analysis")
@@ -1176,15 +1370,13 @@ def run_sensitivity_analysis(config):
             logger.info(f"   View {i}: {X.shape}")
 
         # Initialize experiment framework
-        framework = ExperimentFramework(
-            base_output_dir=get_output_dir(config)
-        )
+        framework = ExperimentFramework(base_output_dir=get_output_dir(config))
 
         exp_config = ExperimentConfig(
             experiment_name="sensitivity_analysis",
             description="Hyperparameter sensitivity analysis for SGFA",
             dataset="qmap_pd",
-            data_dir=get_data_dir(config)
+            data_dir=get_data_dir(config),
         )
 
         # Create sensitivity experiment instance
@@ -1192,23 +1384,23 @@ def run_sensitivity_analysis(config):
 
         # Setup base hyperparameters
         base_hypers = {
-            'Dm': [X.shape[1] for X in X_list],
-            'a_sigma': 1.0,
-            'b_sigma': 1.0,
-            'slab_df': 4.0,
-            'slab_scale': 2.0,
-            'percW': 33.0,
-            'K': 10  # Base number of factors
+            "Dm": [X.shape[1] for X in X_list],
+            "a_sigma": 1.0,
+            "b_sigma": 1.0,
+            "slab_df": 4.0,
+            "slab_scale": 2.0,
+            "percW": 33.0,
+            "K": 10,  # Base number of factors
         }
 
         # Setup base args
         base_args = {
-            'K': 10,
-            'num_warmup': 50,   # Reduced for sensitivity analysis speed
-            'num_samples': 100, # Reduced for sensitivity analysis speed
-            'num_chains': 1,
-            'target_accept_prob': 0.8,
-            'reghsZ': True
+            "K": 10,
+            "num_warmup": 50,  # Reduced for sensitivity analysis speed
+            "num_samples": 100,  # Reduced for sensitivity analysis speed
+            "num_chains": 1,
+            "target_accept_prob": 0.8,
+            "reghsZ": True,
         }
 
         # Run the experiment
@@ -1216,8 +1408,8 @@ def run_sensitivity_analysis(config):
             logger.info("🔬 Running comprehensive sensitivity analysis...")
 
             # Get sensitivity analysis configuration
-            sensitivity_config = config.get('sensitivity_analysis', {})
-            parameter_ranges = sensitivity_config.get('parameter_ranges', {})
+            sensitivity_config = config.get("sensitivity_analysis", {})
+            parameter_ranges = sensitivity_config.get("parameter_ranges", {})
 
             results = {}
             total_tests = 0
@@ -1225,39 +1417,50 @@ def run_sensitivity_analysis(config):
 
             # Test K sensitivity (number of factors)
             logger.info("📊 Testing K (number of factors) sensitivity...")
-            K_values = parameter_ranges.get('n_factors', [5, 10, 15, 20])[:3]  # Limit for testing
+            K_values = parameter_ranges.get("n_factors", [5, 10, 15, 20])[
+                :3
+            ]  # Limit for testing
             K_results = {}
 
             for K in K_values:
                 try:
                     test_hypers = base_hypers.copy()
-                    test_hypers['K'] = K
+                    test_hypers["K"] = K
                     test_args = base_args.copy()
-                    test_args['K'] = K
+                    test_args["K"] = K
 
-                    with sensitivity_exp.profiler.profile(f'K_sensitivity_{K}') as p:
-                        result = sensitivity_exp._run_sgfa_analysis(X_list, test_hypers, test_args)
+                    with sensitivity_exp.profiler.profile(f"K_sensitivity_{K}") as p:
+                        result = sensitivity_exp._run_sgfa_analysis(
+                            X_list, test_hypers, test_args
+                        )
 
                     metrics = sensitivity_exp.profiler.get_current_metrics()
-                    K_results[f'K{K}'] = {
-                        'K': K,
-                        'result': result,
-                        'performance': {
-                            'execution_time': metrics.execution_time,
-                            'peak_memory_gb': metrics.peak_memory_gb,
-                            'convergence': result.get('convergence', False),
-                            'log_likelihood': result.get('log_likelihood', float('-inf'))
-                        }
+                    K_results[f"K{K}"] = {
+                        "K": K,
+                        "result": result,
+                        "performance": {
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                            "convergence": result.get("convergence", False),
+                            "log_likelihood": result.get(
+                                "log_likelihood", float("-inf")
+                            ),
+                        },
                     }
                     successful_tests += 1
-                    logger.info(f"✅ K={K}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}")
+                    logger.info(
+                        f"✅ K={K}: {
+                            metrics.execution_time:.1f}s, LL={
+                            result.get(
+                                'log_likelihood',
+                                0):.2f}")
                 except Exception as e:
                     logger.error(f"❌ K={K} sensitivity test failed: {e}")
-                    K_results[f'K{K}'] = {'error': str(e)}
+                    K_results[f"K{K}"] = {"error": str(e)}
 
                 total_tests += 1
 
-            results['K_sensitivity'] = K_results
+            results["K_sensitivity"] = K_results
 
             # Test sparsity sensitivity (percW)
             logger.info("📊 Testing sparsity (percW) sensitivity...")
@@ -1267,96 +1470,120 @@ def run_sensitivity_analysis(config):
             for percW in sparsity_values:
                 try:
                     test_hypers = base_hypers.copy()
-                    test_hypers['percW'] = percW
+                    test_hypers["percW"] = percW
 
-                    with sensitivity_exp.profiler.profile(f'percW_sensitivity_{percW}') as p:
-                        result = sensitivity_exp._run_sgfa_analysis(X_list, test_hypers, base_args)
+                    with sensitivity_exp.profiler.profile(
+                        f"percW_sensitivity_{percW}"
+                    ) as p:
+                        result = sensitivity_exp._run_sgfa_analysis(
+                            X_list, test_hypers, base_args
+                        )
 
                     metrics = sensitivity_exp.profiler.get_current_metrics()
-                    sparsity_results[f'percW{percW}'] = {
-                        'percW': percW,
-                        'result': result,
-                        'performance': {
-                            'execution_time': metrics.execution_time,
-                            'peak_memory_gb': metrics.peak_memory_gb,
-                            'convergence': result.get('convergence', False),
-                            'log_likelihood': result.get('log_likelihood', float('-inf'))
-                        }
+                    sparsity_results[f"percW{percW}"] = {
+                        "percW": percW,
+                        "result": result,
+                        "performance": {
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                            "convergence": result.get("convergence", False),
+                            "log_likelihood": result.get(
+                                "log_likelihood", float("-inf")
+                            ),
+                        },
                     }
                     successful_tests += 1
-                    logger.info(f"✅ percW={percW}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}")
+                    logger.info(
+                        f"✅ percW={percW}: {
+                            metrics.execution_time:.1f}s, LL={
+                            result.get(
+                                'log_likelihood',
+                                0):.2f}")
                 except Exception as e:
                     logger.error(f"❌ percW={percW} sensitivity test failed: {e}")
-                    sparsity_results[f'percW{percW}'] = {'error': str(e)}
+                    sparsity_results[f"percW{percW}"] = {"error": str(e)}
 
                 total_tests += 1
 
-            results['sparsity_sensitivity'] = sparsity_results
+            results["sparsity_sensitivity"] = sparsity_results
 
             # Test MCMC parameter sensitivity
             logger.info("📊 Testing MCMC parameter sensitivity...")
             mcmc_configs = [
-                {'num_samples': 50, 'num_warmup': 25, 'label': 'fast'},
-                {'num_samples': 100, 'num_warmup': 50, 'label': 'standard'},
-                {'num_samples': 200, 'num_warmup': 100, 'label': 'thorough'}
+                {"num_samples": 50, "num_warmup": 25, "label": "fast"},
+                {"num_samples": 100, "num_warmup": 50, "label": "standard"},
+                {"num_samples": 200, "num_warmup": 100, "label": "thorough"},
             ]
             mcmc_results = {}
 
             for mcmc_config in mcmc_configs[:2]:  # Test first 2 for speed
                 try:
                     test_args = base_args.copy()
-                    test_args['num_samples'] = mcmc_config['num_samples']
-                    test_args['num_warmup'] = mcmc_config['num_warmup']
-                    label = mcmc_config['label']
+                    test_args["num_samples"] = mcmc_config["num_samples"]
+                    test_args["num_warmup"] = mcmc_config["num_warmup"]
+                    label = mcmc_config["label"]
 
-                    with sensitivity_exp.profiler.profile(f'mcmc_sensitivity_{label}') as p:
-                        result = sensitivity_exp._run_sgfa_analysis(X_list, base_hypers, test_args)
+                    with sensitivity_exp.profiler.profile(
+                        f"mcmc_sensitivity_{label}"
+                    ) as p:
+                        result = sensitivity_exp._run_sgfa_analysis(
+                            X_list, base_hypers, test_args
+                        )
 
                     metrics = sensitivity_exp.profiler.get_current_metrics()
                     mcmc_results[label] = {
-                        'config': mcmc_config,
-                        'result': result,
-                        'performance': {
-                            'execution_time': metrics.execution_time,
-                            'peak_memory_gb': metrics.peak_memory_gb,
-                            'convergence': result.get('convergence', False),
-                            'log_likelihood': result.get('log_likelihood', float('-inf'))
-                        }
+                        "config": mcmc_config,
+                        "result": result,
+                        "performance": {
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                            "convergence": result.get("convergence", False),
+                            "log_likelihood": result.get(
+                                "log_likelihood", float("-inf")
+                            ),
+                        },
                     }
                     successful_tests += 1
-                    logger.info(f"✅ MCMC {label}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}")
+                    logger.info(
+                        f"✅ MCMC {label}: {
+                            metrics.execution_time:.1f}s, LL={
+                            result.get(
+                                'log_likelihood',
+                                0):.2f}")
                 except Exception as e:
                     logger.error(f"❌ MCMC {label} sensitivity test failed: {e}")
-                    mcmc_results[label] = {'error': str(e)}
+                    mcmc_results[label] = {"error": str(e)}
 
                 total_tests += 1
 
-            results['mcmc_sensitivity'] = mcmc_results
+            results["mcmc_sensitivity"] = mcmc_results
 
             logger.info("🔬 Sensitivity analysis completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
 
             return {
-                'status': 'completed',
-                'sensitivity_results': results,
-                'summary': {
-                    'total_tests': total_tests,
-                    'successful_tests': successful_tests,
-                    'success_rate': successful_tests / total_tests if total_tests > 0 else 0,
-                    'parameters_tested': ['K', 'percW', 'mcmc_config'],
-                    'data_characteristics': {
-                        'n_subjects': X_list[0].shape[0],
-                        'n_views': len(X_list),
-                        'view_dimensions': [X.shape[1] for X in X_list]
-                    }
-                }
+                "status": "completed",
+                "sensitivity_results": results,
+                "summary": {
+                    "total_tests": total_tests,
+                    "successful_tests": successful_tests,
+                    "success_rate": (
+                        successful_tests / total_tests if total_tests > 0 else 0
+                    ),
+                    "parameters_tested": ["K", "percW", "mcmc_config"],
+                    "data_characteristics": {
+                        "n_subjects": X_list[0].shape[0],
+                        "n_views": len(X_list),
+                        "view_dimensions": [X.shape[1] for X in X_list],
+                    },
+                },
             }
 
         # Run experiment using framework
         result = framework.run_experiment(
             experiment_function=sensitivity_analysis_experiment,
             config=exp_config,
-            data={'X_list': X_list, 'preprocessing_info': preprocessing_info}
+            data={"X_list": X_list, "preprocessing_info": preprocessing_info},
         )
 
         logger.info("✅ Sensitivity analysis completed successfully")

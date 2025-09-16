@@ -1,13 +1,14 @@
 """Tests for Standard GFA model implementation."""
 
-import pytest
-import numpy as np
+from typing import Any, Dict, List
+
 import jax
 import jax.numpy as jnp
-from typing import List, Dict, Any
+import numpy as np
+import pytest
 
-from models.standard_gfa import StandardGFAModel as StandardGFA
 from data import generate_synthetic_data
+from models.standard_gfa import StandardGFAModel as StandardGFA
 
 
 class TestStandardGFA:
@@ -17,20 +18,17 @@ class TestStandardGFA:
     def synthetic_data(self):
         """Generate synthetic data for testing."""
         return generate_synthetic_data(
-            num_sources=2,
-            K=3,
-            num_subjects=20,  # Small for fast testing
-            seed=42
+            num_sources=2, K=3, num_subjects=20, seed=42  # Small for fast testing
         )
 
     @pytest.fixture
     def basic_config(self):
         """Basic configuration for StandardGFA."""
         return {
-            'K': 3,
-            'num_samples': 50,  # Small for testing
-            'num_warmup': 25,
-            'num_chains': 1
+            "K": 3,
+            "num_samples": 50,  # Small for testing
+            "num_warmup": 25,
+            "num_chains": 1,
         }
 
     def test_standard_gfa_initialization(self, basic_config):
@@ -43,7 +41,7 @@ class TestStandardGFA:
 
     def test_standard_gfa_fit(self, synthetic_data, basic_config):
         """Test that StandardGFA can fit to data."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = StandardGFA(**basic_config)
 
@@ -51,12 +49,12 @@ class TestStandardGFA:
         model.fit(X_list)
 
         # Check that model has been fitted
-        assert hasattr(model, 'samples')
+        assert hasattr(model, "samples")
         assert model.samples is not None
 
     def test_standard_gfa_transform(self, synthetic_data, basic_config):
         """Test that StandardGFA can transform data."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = StandardGFA(**basic_config)
         model.fit(X_list)
@@ -66,11 +64,11 @@ class TestStandardGFA:
 
         assert Z is not None
         assert Z.shape[0] == X_list[0].shape[0]  # Same number of subjects
-        assert Z.shape[1] == basic_config['K']   # Number of factors
+        assert Z.shape[1] == basic_config["K"]  # Number of factors
 
     def test_standard_gfa_factor_loadings(self, synthetic_data, basic_config):
         """Test that factor loadings are computed correctly."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = StandardGFA(**basic_config)
         model.fit(X_list)
@@ -82,11 +80,11 @@ class TestStandardGFA:
 
         for i, W_view in enumerate(W):
             assert W_view.shape[0] == X_list[i].shape[1]  # Features dimension
-            assert W_view.shape[1] == basic_config['K']   # Number of factors
+            assert W_view.shape[1] == basic_config["K"]  # Number of factors
 
     def test_standard_gfa_reconstruct(self, synthetic_data, basic_config):
         """Test data reconstruction capability."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = StandardGFA(**basic_config)
         model.fit(X_list)
@@ -101,7 +99,7 @@ class TestStandardGFA:
 
     def test_standard_gfa_vs_sparse_gfa(self, synthetic_data, basic_config):
         """Test differences between Standard and Sparse GFA."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         # Fit both models
         standard_model = StandardGFA(**basic_config)
@@ -109,8 +107,9 @@ class TestStandardGFA:
 
         # Import SparseGFA for comparison
         from models.sparse_gfa import SparseGFAModel as SparseGFA
+
         sparse_config = basic_config.copy()
-        sparse_config['sparsity_lambda'] = 0.0  # No sparsity for fair comparison
+        sparse_config["sparsity_lambda"] = 0.0  # No sparsity for fair comparison
         sparse_model = SparseGFA(**sparse_config)
         sparse_model.fit(X_list)
 
@@ -123,14 +122,14 @@ class TestStandardGFA:
 
     def test_standard_gfa_with_different_k(self, synthetic_data):
         """Test StandardGFA with different numbers of factors."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         for K in [2, 4, 6]:
             config = {
-                'K': K,
-                'num_samples': 25,  # Very small for speed
-                'num_warmup': 10,
-                'num_chains': 1
+                "K": K,
+                "num_samples": 25,  # Very small for speed
+                "num_warmup": 10,
+                "num_chains": 1,
             }
 
             model = StandardGFA(**config)
@@ -141,38 +140,38 @@ class TestStandardGFA:
 
     def test_standard_gfa_hyperparameters(self, synthetic_data, basic_config):
         """Test that hyperparameters are properly handled."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = StandardGFA(**basic_config)
         model.fit(X_list)
 
         # Check that hyperparameters are accessible
-        if hasattr(model, 'get_hyperparameters'):
+        if hasattr(model, "get_hyperparameters"):
             hyperparams = model.get_hyperparameters()
             assert isinstance(hyperparams, dict)
 
     def test_standard_gfa_convergence_diagnostics(self, synthetic_data, basic_config):
         """Test convergence diagnostics."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = StandardGFA(**basic_config)
         model.fit(X_list)
 
         # Check for convergence information
-        if hasattr(model, 'get_convergence_info'):
+        if hasattr(model, "get_convergence_info"):
             conv_info = model.get_convergence_info()
             assert conv_info is not None
 
     def test_standard_gfa_error_handling_invalid_k(self, synthetic_data):
         """Test error handling for invalid K values."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         # K too large
         config = {
-            'K': 1000,  # Unreasonably large
-            'num_samples': 10,
-            'num_warmup': 5,
-            'num_chains': 1
+            "K": 1000,  # Unreasonably large
+            "num_samples": 10,
+            "num_warmup": 5,
+            "num_chains": 1,
         }
 
         model = StandardGFA(**config)
@@ -195,16 +194,16 @@ class TestStandardGFA:
 
     def test_standard_gfa_reproducibility(self, synthetic_data, basic_config):
         """Test reproducibility with fixed random seed."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         # Set random seed
         config1 = basic_config.copy()
-        config1['random_seed'] = 42
-        config1['num_samples'] = 25  # Small for speed
+        config1["random_seed"] = 42
+        config1["num_samples"] = 25  # Small for speed
 
         config2 = basic_config.copy()
-        config2['random_seed'] = 42
-        config2['num_samples'] = 25  # Small for speed
+        config2["random_seed"] = 42
+        config2["num_samples"] = 25  # Small for speed
 
         model1 = StandardGFA(**config1)
         model2 = StandardGFA(**config2)
@@ -225,15 +224,12 @@ class TestStandardGFA:
         # Test with 2, 3, and 4 views
         for num_views in [2, 3, 4]:
             synthetic_data = generate_synthetic_data(
-                num_sources=num_views,
-                K=3,
-                num_subjects=15,
-                seed=42
+                num_sources=num_views, K=3, num_subjects=15, seed=42
             )
-            X_list = synthetic_data['X_list']
+            X_list = synthetic_data["X_list"]
 
             config = basic_config.copy()
-            config['num_samples'] = 20  # Very small for speed
+            config["num_samples"] = 20  # Very small for speed
 
             model = StandardGFA(**config)
             model.fit(X_list)
@@ -243,13 +239,13 @@ class TestStandardGFA:
 
     def test_standard_gfa_parameter_extraction(self, synthetic_data, basic_config):
         """Test that model parameters can be extracted."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = StandardGFA(**basic_config)
         model.fit(X_list)
 
         # Check that we can extract various parameters
-        if hasattr(model, 'get_parameters'):
+        if hasattr(model, "get_parameters"):
             params = model.get_parameters()
             assert isinstance(params, dict)
 
@@ -265,16 +261,12 @@ class TestStandardGFA:
         """Test memory efficiency with larger data."""
         # Create larger synthetic data
         large_data = generate_synthetic_data(
-            num_sources=2,
-            K=3,
-            num_subjects=50,
-            features_per_view=[100, 80],
-            seed=42
+            num_sources=2, K=3, num_subjects=50, features_per_view=[100, 80], seed=42
         )
-        X_list = large_data['X_list']
+        X_list = large_data["X_list"]
 
         config = basic_config.copy()
-        config['num_samples'] = 20  # Keep small for testing
+        config["num_samples"] = 20  # Keep small for testing
 
         model = StandardGFA(**config)
 
@@ -283,18 +275,18 @@ class TestStandardGFA:
 
         Z = model.transform(X_list)
         assert Z.shape[0] == 50  # Number of subjects
-        assert Z.shape[1] == 3   # Number of factors
+        assert Z.shape[1] == 3  # Number of factors
 
     def test_standard_gfa_numerical_stability(self, basic_config):
         """Test numerical stability with challenging data."""
         # Create data with different scales
         X_scaled = [
             np.random.randn(20, 30) * 1000,  # Large scale
-            np.random.randn(20, 25) * 0.001  # Small scale
+            np.random.randn(20, 25) * 0.001,  # Small scale
         ]
 
         config = basic_config.copy()
-        config['num_samples'] = 20  # Small for speed
+        config["num_samples"] = 20  # Small for speed
 
         model = StandardGFA(**config)
 
@@ -308,19 +300,19 @@ class TestStandardGFA:
 
     def test_standard_gfa_prior_specification(self, synthetic_data, basic_config):
         """Test different prior specifications."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         # Test with different prior configurations if supported
         prior_configs = [
-            {'prior_type': 'normal'},
-            {'prior_type': 'laplace'},
-            {'prior_type': 'student_t'}
+            {"prior_type": "normal"},
+            {"prior_type": "laplace"},
+            {"prior_type": "student_t"},
         ]
 
         for prior_config in prior_configs:
             config = basic_config.copy()
             config.update(prior_config)
-            config['num_samples'] = 15  # Very small for speed
+            config["num_samples"] = 15  # Very small for speed
 
             try:
                 model = StandardGFA(**config)
@@ -336,17 +328,14 @@ class TestStandardGFA:
     def test_standard_gfa_missing_data_handling(self, basic_config):
         """Test handling of missing data."""
         # Create data with missing values
-        X_missing = [
-            np.random.randn(20, 30),
-            np.random.randn(20, 25)
-        ]
+        X_missing = [np.random.randn(20, 30), np.random.randn(20, 25)]
 
         # Add some missing values
         X_missing[0][5:8, 10:15] = np.nan
         X_missing[1][2:4, 5:10] = np.nan
 
         config = basic_config.copy()
-        config['num_samples'] = 15  # Small for speed
+        config["num_samples"] = 15  # Small for speed
 
         model = StandardGFA(**config)
 

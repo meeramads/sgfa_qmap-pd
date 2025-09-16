@@ -1,21 +1,23 @@
 """Configuration schema validation for SGFA qMAP-PD analysis."""
 
-from typing import Dict, Any, List, Optional, Union
-from pathlib import Path
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigValidationError(Exception):
     """Exception raised for configuration validation errors."""
+
     pass
 
 
 class LogLevel(Enum):
     """Valid logging levels."""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -25,12 +27,14 @@ class LogLevel(Enum):
 
 class ModelType(Enum):
     """Valid model types."""
+
     SPARSE_GFA = "sparse_gfa"
     STANDARD_GFA = "standard_gfa"
 
 
 class PreprocessingStrategy(Enum):
     """Valid preprocessing strategies."""
+
     MINIMAL = "minimal"
     STANDARD = "standard"
     ADVANCED = "advanced"
@@ -40,6 +44,7 @@ class PreprocessingStrategy(Enum):
 @dataclass
 class DataConfig:
     """Data configuration schema."""
+
     data_dir: str
     clinical_file: Optional[str] = None
     volume_dir: Optional[str] = None
@@ -61,6 +66,7 @@ class DataConfig:
 @dataclass
 class ExperimentsConfig:
     """Experiments configuration schema."""
+
     base_output_dir: str
     save_intermediate: bool = True
     generate_plots: bool = True
@@ -86,6 +92,7 @@ class ExperimentsConfig:
 @dataclass
 class ModelConfig:
     """Model configuration schema."""
+
     model_type: str
     K: int
     num_samples: int = 1000
@@ -102,7 +109,9 @@ class ModelConfig:
         # Check model type
         valid_types = [t.value for t in ModelType]
         if self.model_type not in valid_types:
-            errors.append(f"model_type must be one of {valid_types}, got {self.model_type}")
+            errors.append(
+                f"model_type must be one of {valid_types}, got {self.model_type}"
+            )
 
         # Check K (number of factors)
         if self.K < 1:
@@ -152,6 +161,7 @@ class ModelConfig:
 @dataclass
 class PreprocessingConfig:
     """Preprocessing configuration schema."""
+
     strategy: str = "standard"
     enable_advanced_preprocessing: bool = True
     enable_spatial_processing: bool = True
@@ -167,7 +177,9 @@ class PreprocessingConfig:
         # Check strategy
         valid_strategies = [s.value for s in PreprocessingStrategy]
         if self.strategy not in valid_strategies:
-            errors.append(f"strategy must be one of {valid_strategies}, got {self.strategy}")
+            errors.append(
+                f"strategy must be one of {valid_strategies}, got {self.strategy}"
+            )
 
         # Check imputation strategy
         valid_imputation = ["mean", "median", "mode", "drop"]
@@ -192,6 +204,7 @@ class PreprocessingConfig:
 @dataclass
 class CrossValidationConfig:
     """Cross-validation configuration schema."""
+
     n_folds: int = 5
     n_repeats: int = 1
     stratified: bool = True
@@ -221,6 +234,7 @@ class CrossValidationConfig:
 @dataclass
 class MonitoringConfig:
     """Monitoring configuration schema."""
+
     checkpoint_dir: str = "./results/checkpoints"
     log_level: str = "INFO"
     save_checkpoints: bool = True
@@ -245,6 +259,7 @@ class MonitoringConfig:
 @dataclass
 class SystemConfig:
     """System configuration schema."""
+
     use_gpu: bool = True
     memory_limit_gb: Optional[float] = None
     n_cpu_cores: Optional[int] = None
@@ -282,7 +297,9 @@ class ConfigurationValidator:
 
         # Experiments configuration
         if "experiments" in config_dict:
-            config_objects["experiments"] = ExperimentsConfig(**config_dict["experiments"])
+            config_objects["experiments"] = ExperimentsConfig(
+                **config_dict["experiments"]
+            )
 
         # Model configuration
         if "model" in config_dict:
@@ -290,19 +307,27 @@ class ConfigurationValidator:
 
         # Preprocessing configuration
         if "preprocessing" in config_dict:
-            config_objects["preprocessing"] = PreprocessingConfig(**config_dict["preprocessing"])
+            config_objects["preprocessing"] = PreprocessingConfig(
+                **config_dict["preprocessing"]
+            )
         else:
             config_objects["preprocessing"] = PreprocessingConfig()  # Use defaults
 
         # Cross-validation configuration
         if "cross_validation" in config_dict:
-            config_objects["cross_validation"] = CrossValidationConfig(**config_dict["cross_validation"])
+            config_objects["cross_validation"] = CrossValidationConfig(
+                **config_dict["cross_validation"]
+            )
         else:
-            config_objects["cross_validation"] = CrossValidationConfig()  # Use defaults
+            config_objects["cross_validation"] = (
+                CrossValidationConfig()
+            )  # Use defaults
 
         # Monitoring configuration
         if "monitoring" in config_dict:
-            config_objects["monitoring"] = MonitoringConfig(**config_dict["monitoring"])
+            config_objects["monitoring"] = MonitoringConfig(
+                **config_dict["monitoring"]
+            )
         else:
             config_objects["monitoring"] = MonitoringConfig()  # Use defaults
 
@@ -324,7 +349,7 @@ class ConfigurationValidator:
 
             # Validate each configuration section
             for section_name, config_obj in config_objects.items():
-                if hasattr(config_obj, 'validate'):
+                if hasattr(config_obj, "validate"):
                     section_errors = config_obj.validate()
                     if section_errors:
                         for error in section_errors:
@@ -349,15 +374,21 @@ class ConfigurationValidator:
             model_config = config_dict["model"]
             if model_config.get("model_type") == "sparse_gfa":
                 if model_config.get("sparsity_lambda") is None:
-                    errors.append("sparse_gfa model requires sparsity_lambda parameter")
+                    errors.append(
+                        "sparse_gfa model requires sparsity_lambda parameter"
+                    )
 
         # Check if advanced preprocessing is enabled for complex experiments
         if "experiments" in config_dict and "preprocessing" in config_dict:
             exp_config = config_dict["experiments"]
             prep_config = config_dict["preprocessing"]
 
-            if exp_config.get("generate_plots", True) and not prep_config.get("enable_advanced_preprocessing", True):
-                logger.warning("Consider enabling advanced preprocessing for better plot quality")
+            if exp_config.get("generate_plots", True) and not prep_config.get(
+                "enable_advanced_preprocessing", True
+            ):
+                logger.warning(
+                    "Consider enabling advanced preprocessing for better plot quality"
+                )
 
         # Check memory requirements vs system limits
         if "model" in config_dict and "system" in config_dict:
@@ -365,11 +396,16 @@ class ConfigurationValidator:
             system_config = config_dict["system"]
 
             # Estimate memory requirements
-            estimated_memory = ConfigurationValidator._estimate_memory_requirements(model_config)
+            estimated_memory = ConfigurationValidator._estimate_memory_requirements(
+                model_config
+            )
             system_memory = system_config.get("memory_limit_gb")
 
             if system_memory and estimated_memory > system_memory:
-                errors.append(f"Estimated memory requirement ({estimated_memory:.1f}GB) exceeds system limit ({system_memory}GB)")
+                errors.append(
+                    f"Estimated memory requirement ({
+                        estimated_memory:.1f}GB) exceeds system limit ({system_memory}GB)"
+                )
 
         return errors
 
@@ -382,7 +418,9 @@ class ConfigurationValidator:
         num_chains = model_config.get("num_chains", 2)
 
         # Estimate in GB (very rough approximation)
-        estimated_gb = (K * num_samples * num_chains * 8) / (1024**3)  # 8 bytes per float64
+        estimated_gb = (K * num_samples * num_chains * 8) / (
+            1024**3
+        )  # 8 bytes per float64
         estimated_gb *= 10  # Factor for temporary arrays and computation overhead
 
         return max(estimated_gb, 0.5)  # Minimum 0.5GB
@@ -399,7 +437,9 @@ class ConfigurationValidator:
         errors = ConfigurationValidator.validate_configuration(fixed_config)
 
         if errors:
-            error_message = "Configuration validation failed:\n" + "\n".join(f"  - {error}" for error in errors)
+            error_message = "Configuration validation failed:\n" + "\n".join(
+                f"  - {error}" for error in errors
+            )
             raise ConfigValidationError(error_message)
 
         logger.info("Configuration validation passed")
@@ -436,7 +476,9 @@ class ConfigurationValidator:
         if "experiments" in fixed_config:
             output_dir = fixed_config["experiments"]["base_output_dir"]
             if not Path(output_dir).is_absolute():
-                fixed_config["experiments"]["base_output_dir"] = str(Path(output_dir).resolve())
+                fixed_config["experiments"]["base_output_dir"] = str(
+                    Path(output_dir).resolve()
+                )
 
         return fixed_config
 
@@ -444,15 +486,12 @@ class ConfigurationValidator:
     def get_default_configuration() -> Dict[str, Any]:
         """Get default configuration."""
         return {
-            "data": {
-                "data_dir": "./data",
-                "imaging_as_single_view": True
-            },
+            "data": {"data_dir": "./data", "imaging_as_single_view": True},
             "experiments": {
                 "base_output_dir": "./results",
                 "save_intermediate": True,
                 "generate_plots": True,
-                "max_parallel_jobs": 1
+                "max_parallel_jobs": 1,
             },
             "model": {
                 "model_type": "sparse_gfa",
@@ -460,26 +499,20 @@ class ConfigurationValidator:
                 "num_samples": 1000,
                 "num_warmup": 500,
                 "num_chains": 2,
-                "sparsity_lambda": 0.1
+                "sparsity_lambda": 0.1,
             },
             "preprocessing": {
                 "strategy": "standard",
                 "enable_advanced_preprocessing": True,
-                "imputation_strategy": "median"
+                "imputation_strategy": "median",
             },
-            "cross_validation": {
-                "n_folds": 5,
-                "n_repeats": 1,
-                "stratified": True
-            },
+            "cross_validation": {"n_folds": 5, "n_repeats": 1, "stratified": True},
             "monitoring": {
                 "checkpoint_dir": "./results/checkpoints",
                 "log_level": "INFO",
-                "save_checkpoints": True
+                "save_checkpoints": True,
             },
-            "system": {
-                "use_gpu": True
-            }
+            "system": {"use_gpu": True},
         }
 
     @staticmethod
@@ -491,7 +524,11 @@ class ConfigurationValidator:
             """Deep merge two dictionaries."""
             merged = base.copy()
             for key, value in update.items():
-                if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                if (
+                    key in merged
+                    and isinstance(merged[key], dict)
+                    and isinstance(value, dict)
+                ):
                     merged[key] = deep_merge(merged[key], value)
                 else:
                     merged[key] = value

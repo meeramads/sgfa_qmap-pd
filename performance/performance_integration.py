@@ -5,16 +5,19 @@ Replaces basic resource management with sophisticated performance optimization t
 """
 
 import logging
-import numpy as np
-from pathlib import Path
-from typing import Dict, List, Tuple, Any, Optional, Callable
 import time
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 import psutil
 
 logger = logging.getLogger(__name__)
 
 
-def get_optimal_performance_configuration(config: Dict, data_characteristics: Dict = None) -> Tuple[Any, Dict]:
+def get_optimal_performance_configuration(
+    config: Dict, data_characteristics: Dict = None
+) -> Tuple[Any, Dict]:
     """
     Automatically determine optimal performance configuration based on system and data characteristics.
 
@@ -44,15 +47,20 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
         mcmc_heavy = False
 
         if data_characteristics:
-            n_subjects = data_characteristics.get('n_subjects', 0)
-            total_features = data_characteristics.get('total_features', 0)
-            n_views = data_characteristics.get('n_views', 0)
+            n_subjects = data_characteristics.get("n_subjects", 0)
+            total_features = data_characteristics.get("total_features", 0)
+            n_views = data_characteristics.get("n_views", 0)
 
             # Estimate memory requirements
-            estimated_data_size_gb = (n_subjects * total_features * 8) / (1024**3)  # float64
+            estimated_data_size_gb = (n_subjects * total_features * 8) / (
+                1024**3
+            )  # float64
             memory_intensive = estimated_data_size_gb > (available_memory_gb * 0.3)
             large_dataset = n_subjects > 200 or total_features > 50000
-            mcmc_heavy = config.get('training', {}).get('mcmc_config', {}).get('num_samples', 0) > 1000
+            mcmc_heavy = (
+                config.get("training", {}).get("mcmc_config", {}).get("num_samples", 0)
+                > 1000
+            )
 
             logger.info(f"Data characteristics:")
             logger.info(f"   Subjects: {n_subjects}")
@@ -66,7 +74,13 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
         # Determine optimal strategy
         if memory_intensive and large_dataset:
             strategy = "aggressive_memory_optimization"
-            reason = f"Large dataset ({data_characteristics.get('n_subjects', 0)} subjects, {data_characteristics.get('total_features', 0)} features) requires aggressive memory optimization"
+            reason = f"Large dataset ({
+                data_characteristics.get(
+                    'n_subjects',
+                    0)} subjects, {
+                data_characteristics.get(
+                    'total_features',
+                    0)} features) requires aggressive memory optimization"
         elif memory_intensive:
             strategy = "memory_efficient"
             reason = f"Memory-intensive workload requires efficient memory management"
@@ -75,13 +89,20 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
             reason = f"Heavy MCMC sampling requires MCMC-specific optimizations"
         elif available_memory_gb < 8:
             strategy = "low_memory"
-            reason = f"Limited memory ({available_memory_gb:.1f} GB) requires conservative optimization"
+            reason = f"Limited memory ({
+                available_memory_gb:.1f} GB) requires conservative optimization"
         else:
             strategy = "balanced"
             reason = f"Standard optimization for balanced performance"
 
         # Create performance configuration based on strategy
-        from performance.config import PerformanceConfig, MemoryConfig, DataConfig, MCMCConfig, ProfilingConfig
+        from performance.config import (
+            DataConfig,
+            MCMCConfig,
+            MemoryConfig,
+            PerformanceConfig,
+            ProfilingConfig,
+        )
 
         if strategy == "aggressive_memory_optimization":
             perf_config = PerformanceConfig(
@@ -94,15 +115,19 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
                     enable_dtype_optimization=True,
                     target_dtype="float32",
                     enable_monitoring=True,
-                    monitoring_interval=0.5
+                    monitoring_interval=0.5,
                 ),
                 data=DataConfig(
                     enable_chunking=True,
-                    chunk_size=min(50, data_characteristics.get('n_subjects', 100) // 4) if data_characteristics else 50,
+                    chunk_size=(
+                        min(50, data_characteristics.get("n_subjects", 100) // 4)
+                        if data_characteristics
+                        else 50
+                    ),
                     memory_limit_gb=available_memory_gb * 0.4,
                     enable_compression=True,
                     compression_level=6,
-                    parallel_loading=min(cpu_count, 4)
+                    parallel_loading=min(cpu_count, 4),
                 ),
                 mcmc=MCMCConfig(
                     memory_limit_gb=available_memory_gb * 0.6,
@@ -110,13 +135,13 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
                     checkpoint_frequency=100,
                     data_subsample_ratio=0.8,
                     thinning_interval=2,
-                    enable_adaptive_batching=True
+                    enable_adaptive_batching=True,
                 ),
                 profiling=ProfilingConfig(
                     enable_memory_tracking=True,
                     enable_cpu_tracking=True,
-                    sampling_interval=1.0
-                )
+                    sampling_interval=1.0,
+                ),
             )
         elif strategy == "memory_efficient":
             perf_config = PerformanceConfig(
@@ -128,27 +153,27 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
                     gc_frequency=75,
                     enable_dtype_optimization=True,
                     target_dtype="float32",
-                    enable_monitoring=True
+                    enable_monitoring=True,
                 ),
                 data=DataConfig(
                     enable_chunking=True,
                     memory_limit_gb=available_memory_gb * 0.5,
                     enable_compression=True,
                     compression_level=3,
-                    parallel_loading=min(cpu_count, 3)
+                    parallel_loading=min(cpu_count, 3),
                 ),
                 mcmc=MCMCConfig(
                     memory_limit_gb=available_memory_gb * 0.5,
                     enable_checkpointing=True,
-                    data_subsample_ratio=0.9
-                )
+                    data_subsample_ratio=0.9,
+                ),
             )
         elif strategy == "mcmc_optimized":
             perf_config = PerformanceConfig(
                 memory=MemoryConfig(
                     max_memory_gb=available_memory_gb * 0.8,
                     enable_aggressive_cleanup=True,
-                    gc_frequency=100
+                    gc_frequency=100,
                 ),
                 mcmc=MCMCConfig(
                     memory_limit_gb=available_memory_gb * 0.7,
@@ -156,12 +181,11 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
                     checkpoint_frequency=50,
                     data_subsample_ratio=0.95,
                     thinning_interval=1,
-                    enable_adaptive_batching=True
+                    enable_adaptive_batching=True,
                 ),
                 profiling=ProfilingConfig(
-                    enable_memory_tracking=True,
-                    enable_cpu_tracking=True
-                )
+                    enable_memory_tracking=True, enable_cpu_tracking=True
+                ),
             )
         elif strategy == "low_memory":
             perf_config = PerformanceConfig(
@@ -173,7 +197,7 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
                     gc_frequency=25,
                     enable_dtype_optimization=True,
                     target_dtype="float32",
-                    enable_monitoring=True
+                    enable_monitoring=True,
                 ),
                 data=DataConfig(
                     enable_chunking=True,
@@ -181,49 +205,48 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
                     memory_limit_gb=available_memory_gb * 0.3,
                     enable_compression=True,
                     compression_level=9,
-                    parallel_loading=1
+                    parallel_loading=1,
                 ),
                 mcmc=MCMCConfig(
                     memory_limit_gb=available_memory_gb * 0.4,
                     enable_checkpointing=True,
                     checkpoint_frequency=25,
                     data_subsample_ratio=0.7,
-                    thinning_interval=3
-                )
+                    thinning_interval=3,
+                ),
             )
         else:  # balanced
             perf_config = PerformanceConfig(
                 memory=MemoryConfig(
-                    max_memory_gb=available_memory_gb * 0.8,
-                    enable_monitoring=True
+                    max_memory_gb=available_memory_gb * 0.8, enable_monitoring=True
                 ),
                 data=DataConfig(
                     enable_chunking=True,
                     memory_limit_gb=available_memory_gb * 0.5,
-                    parallel_loading=min(cpu_count, 2)
+                    parallel_loading=min(cpu_count, 2),
                 ),
                 mcmc=MCMCConfig(
                     memory_limit_gb=available_memory_gb * 0.6,
-                    enable_checkpointing=True
-                )
+                    enable_checkpointing=True,
+                ),
             )
 
         configuration_info = {
-            'strategy': strategy,
-            'reason': reason,
-            'system_characteristics': {
-                'total_memory_gb': total_memory_gb,
-                'available_memory_gb': available_memory_gb,
-                'cpu_count': cpu_count
+            "strategy": strategy,
+            "reason": reason,
+            "system_characteristics": {
+                "total_memory_gb": total_memory_gb,
+                "available_memory_gb": available_memory_gb,
+                "cpu_count": cpu_count,
             },
-            'data_characteristics': data_characteristics or {},
-            'optimization_features': {
-                'memory_monitoring': perf_config.memory.enable_monitoring,
-                'data_chunking': perf_config.data.enable_chunking,
-                'memory_compression': perf_config.data.enable_compression,
-                'mcmc_checkpointing': perf_config.mcmc.enable_checkpointing,
-                'dtype_optimization': perf_config.memory.enable_dtype_optimization
-            }
+            "data_characteristics": data_characteristics or {},
+            "optimization_features": {
+                "memory_monitoring": perf_config.memory.enable_monitoring,
+                "data_chunking": perf_config.data.enable_chunking,
+                "memory_compression": perf_config.data.enable_compression,
+                "mcmc_checkpointing": perf_config.mcmc.enable_checkpointing,
+                "dtype_optimization": perf_config.memory.enable_dtype_optimization,
+            },
         }
 
         logger.info(f"✅ Optimal performance strategy selected: {strategy}")
@@ -238,17 +261,22 @@ def get_optimal_performance_configuration(config: Dict, data_characteristics: Di
         logger.error(f"Performance configuration failed: {e}")
         # Fallback to default configuration
         from performance.config import auto_configure_for_system
+
         fallback_config = auto_configure_for_system()
         fallback_info = {
-            'strategy': 'fallback_auto',
-            'reason': f'Configuration failed: {e}',
-            'error': str(e)
+            "strategy": "fallback_auto",
+            "reason": f"Configuration failed: {e}",
+            "error": str(e),
         }
         return fallback_config, fallback_info
 
 
-def apply_performance_optimization_to_pipeline(config: Dict, X_list: List[np.ndarray] = None,
-                                              data_dir: str = None, output_dir: str = None) -> Tuple[Any, Dict]:
+def apply_performance_optimization_to_pipeline(
+    config: Dict,
+    X_list: List[np.ndarray] = None,
+    data_dir: str = None,
+    output_dir: str = None,
+) -> Tuple[Any, Dict]:
     """
     Apply comprehensive performance optimization to the remote workstation pipeline.
 
@@ -266,18 +294,21 @@ def apply_performance_optimization_to_pipeline(config: Dict, X_list: List[np.nda
 
         # Analyze data characteristics
         data_characteristics = {
-            'n_subjects': X_list[0].shape[0] if X_list else 0,
-            'total_features': sum(X.shape[1] for X in X_list) if X_list else 0,
-            'n_views': len(X_list) if X_list else 0,
-            'view_shapes': [X.shape for X in X_list] if X_list else []
+            "n_subjects": X_list[0].shape[0] if X_list else 0,
+            "total_features": sum(X.shape[1] for X in X_list) if X_list else 0,
+            "n_views": len(X_list) if X_list else 0,
+            "view_shapes": [X.shape for X in X_list] if X_list else [],
         }
 
         # Get optimal performance configuration
-        perf_config, config_info = get_optimal_performance_configuration(config, data_characteristics)
+        perf_config, config_info = get_optimal_performance_configuration(
+            config, data_characteristics
+        )
 
         # Initialize performance manager
         try:
             from performance import PerformanceManager
+
             performance_manager = PerformanceManager(perf_config)
             logger.info("✅ PerformanceManager initialized successfully")
             framework_available = True
@@ -292,31 +323,46 @@ def apply_performance_optimization_to_pipeline(config: Dict, X_list: List[np.nda
                 logger.info("Applying data loading optimizations...")
 
                 # Check if chunking is beneficial
-                if data_characteristics['n_subjects'] > 100 or data_characteristics['total_features'] > 10000:
-                    logger.info(f"   Large dataset detected - enabling chunked processing")
+                if (
+                    data_characteristics["n_subjects"] > 100
+                    or data_characteristics["total_features"] > 10000
+                ):
+                    logger.info(
+                        f"   Large dataset detected - enabling chunked processing"
+                    )
                     # Note: Actual chunking would be applied during analysis, not here
-                    optimized_data_info['chunking_enabled'] = True
-                    optimized_data_info['recommended_chunk_size'] = perf_config.data.chunk_size
+                    optimized_data_info["chunking_enabled"] = True
+                    optimized_data_info["recommended_chunk_size"] = (
+                        perf_config.data.chunk_size
+                    )
                 else:
                     logger.info(f"   Standard dataset - chunking not required")
-                    optimized_data_info['chunking_enabled'] = False
+                    optimized_data_info["chunking_enabled"] = False
 
                 # Apply memory optimization
                 if perf_config.memory.enable_dtype_optimization:
-                    logger.info(f"   Applying dtype optimization to {perf_config.memory.target_dtype}")
+                    logger.info(
+                        f"   Applying dtype optimization to {
+                            perf_config.memory.target_dtype}"
+                    )
                     # Convert data types if memory optimization is enabled
                     if perf_config.memory.target_dtype == "float32":
                         for i, X in enumerate(X_list):
                             if X.dtype == np.float64:
                                 X_list[i] = X.astype(np.float32)
-                                logger.info(f"   View {i}: {X.dtype} → float32 (memory savings: ~50%)")
+                                logger.info(
+                                    f"   View {i}: {
+                                        X.dtype} → float32 (memory savings: ~50%)"
+                                )
 
-                optimized_data_info['dtype_optimization_applied'] = perf_config.memory.enable_dtype_optimization
-                optimized_data_info['target_dtype'] = perf_config.memory.target_dtype
+                optimized_data_info["dtype_optimization_applied"] = (
+                    perf_config.memory.enable_dtype_optimization
+                )
+                optimized_data_info["target_dtype"] = perf_config.memory.target_dtype
 
             except Exception as data_e:
                 logger.warning(f"Data optimization failed: {data_e}")
-                optimized_data_info['optimization_failed'] = str(data_e)
+                optimized_data_info["optimization_failed"] = str(data_e)
 
         # Setup monitoring if enabled
         monitoring_info = {}
@@ -324,11 +370,13 @@ def apply_performance_optimization_to_pipeline(config: Dict, X_list: List[np.nda
             try:
                 logger.info("Starting performance monitoring...")
                 performance_manager.memory_optimizer.start_monitoring()
-                monitoring_info['memory_monitoring'] = True
-                monitoring_info['monitoring_interval'] = perf_config.memory.monitoring_interval
+                monitoring_info["memory_monitoring"] = True
+                monitoring_info["monitoring_interval"] = (
+                    perf_config.memory.monitoring_interval
+                )
             except Exception as monitor_e:
                 logger.warning(f"Performance monitoring setup failed: {monitor_e}")
-                monitoring_info['monitoring_failed'] = str(monitor_e)
+                monitoring_info["monitoring_failed"] = str(monitor_e)
 
         # Setup profiling if output directory provided
         profiling_info = {}
@@ -337,36 +385,42 @@ def apply_performance_optimization_to_pipeline(config: Dict, X_list: List[np.nda
                 profiling_dir = Path(output_dir) / "performance_profiles"
                 profiling_dir.mkdir(exist_ok=True)
                 logger.info(f"Performance profiling enabled: {profiling_dir}")
-                profiling_info['profiling_enabled'] = True
-                profiling_info['profiling_dir'] = str(profiling_dir)
+                profiling_info["profiling_enabled"] = True
+                profiling_info["profiling_dir"] = str(profiling_dir)
             except Exception as prof_e:
                 logger.warning(f"Performance profiling setup failed: {prof_e}")
-                profiling_info['profiling_failed'] = str(prof_e)
+                profiling_info["profiling_failed"] = str(prof_e)
 
         # Compile optimization information
         optimization_info = {
-            'performance_optimization_enabled': True,
-            'framework_available': framework_available,
-            'configuration_info': config_info,
-            'data_optimization': optimized_data_info,
-            'monitoring_info': monitoring_info,
-            'profiling_info': profiling_info,
-            'performance_features': {
-                'memory_optimization': True,
-                'data_chunking': perf_config.data.enable_chunking,
-                'mcmc_optimization': perf_config.mcmc.enable_checkpointing,
-                'performance_monitoring': perf_config.memory.enable_monitoring,
-                'compression': perf_config.data.enable_compression
-            }
+            "performance_optimization_enabled": True,
+            "framework_available": framework_available,
+            "configuration_info": config_info,
+            "data_optimization": optimized_data_info,
+            "monitoring_info": monitoring_info,
+            "profiling_info": profiling_info,
+            "performance_features": {
+                "memory_optimization": True,
+                "data_chunking": perf_config.data.enable_chunking,
+                "mcmc_optimization": perf_config.mcmc.enable_checkpointing,
+                "performance_monitoring": perf_config.memory.enable_monitoring,
+                "compression": perf_config.data.enable_compression,
+            },
         }
 
         logger.info("✅ Performance optimization integration completed")
         logger.info(f"   Strategy: {config_info['strategy']}")
         logger.info(f"   Memory limit: {perf_config.memory.max_memory_gb:.1f} GB")
-        logger.info(f"   Features enabled: {list(optimization_info['performance_features'].keys())}")
+        logger.info(
+            f"   Features enabled: {
+                list(
+                    optimization_info['performance_features'].keys())}"
+        )
 
         # Wrap performance manager with additional methods
-        wrapped_manager = _wrap_performance_manager(performance_manager, optimization_info)
+        wrapped_manager = _wrap_performance_manager(
+            performance_manager, optimization_info
+        )
         return wrapped_manager, optimization_info
 
     except Exception as e:
@@ -374,18 +428,21 @@ def apply_performance_optimization_to_pipeline(config: Dict, X_list: List[np.nda
         return _fallback_performance_optimization(config, X_list, data_dir)
 
 
-def _fallback_performance_optimization(config: Dict, X_list: List[np.ndarray],
-                                     data_dir: str) -> Tuple[None, Dict]:
+def _fallback_performance_optimization(
+    config: Dict, X_list: List[np.ndarray], data_dir: str
+) -> Tuple[None, Dict]:
     """Fallback performance optimization when comprehensive framework is unavailable."""
     try:
         logger.info("🔧 Running fallback performance optimization...")
 
         # Basic memory optimization
         import gc
+
         gc.collect()
 
         # Basic system information
         import psutil
+
         memory_info = psutil.virtual_memory()
 
         # Basic dtype optimization
@@ -397,34 +454,50 @@ def _fallback_performance_optimization(config: Dict, X_list: List[np.ndarray],
                     optimizations_applied.append(f"View {i}: float64 → float32")
 
         fallback_info = {
-            'performance_optimization_enabled': False,
-            'framework_available': False,
-            'fallback_reason': 'comprehensive_performance_framework_unavailable',
-            'basic_optimizations': {
-                'garbage_collection': True,
-                'dtype_optimization': len(optimizations_applied) > 0,
-                'optimizations_applied': optimizations_applied
+            "performance_optimization_enabled": False,
+            "framework_available": False,
+            "fallback_reason": "comprehensive_performance_framework_unavailable",
+            "basic_optimizations": {
+                "garbage_collection": True,
+                "dtype_optimization": len(optimizations_applied) > 0,
+                "optimizations_applied": optimizations_applied,
             },
-            'system_info': {
-                'total_memory_gb': memory_info.total / (1024**3),
-                'available_memory_gb': memory_info.available / (1024**3),
-                'memory_percent': memory_info.percent
-            }
+            "system_info": {
+                "total_memory_gb": memory_info.total / (1024**3),
+                "available_memory_gb": memory_info.available / (1024**3),
+                "memory_percent": memory_info.percent,
+            },
         }
 
         logger.info(f"✅ Fallback performance optimization completed")
-        logger.info(f"   Basic optimizations applied: {len(optimizations_applied)} dtype conversions")
-        logger.info(f"   Available memory: {fallback_info['system_info']['available_memory_gb']:.1f} GB")
+        logger.info(
+            f"   Basic optimizations applied: {
+                len(optimizations_applied)} dtype conversions"
+        )
+        logger.info(
+            f"   Available memory: {
+                fallback_info['system_info']['available_memory_gb']:.1f} GB"
+        )
 
         return None, fallback_info
 
     except Exception as e:
         logger.error(f"❌ Fallback performance optimization failed: {e}")
-        return None, {'performance_optimization_enabled': False, 'status': 'failed', 'error': str(e)}
+        return None, {
+            "performance_optimization_enabled": False,
+            "status": "failed",
+            "error": str(e),
+        }
 
 
-def optimize_mcmc_execution(performance_manager: Any, model_fn: Callable,
-                           X_list: List[np.ndarray], hypers: Dict, args: Any, rng_key) -> Tuple[Any, Dict]:
+def optimize_mcmc_execution(
+    performance_manager: Any,
+    model_fn: Callable,
+    X_list: List[np.ndarray],
+    hypers: Dict,
+    args: Any,
+    rng_key,
+) -> Tuple[Any, Dict]:
     """
     Apply performance optimizations specifically to MCMC execution.
 
@@ -441,7 +514,7 @@ def optimize_mcmc_execution(performance_manager: Any, model_fn: Callable,
     """
     if performance_manager is None:
         logger.info("No performance manager available - running standard MCMC")
-        return None, {'mcmc_optimization': False, 'reason': 'no_performance_manager'}
+        return None, {"mcmc_optimization": False, "reason": "no_performance_manager"}
 
     try:
         logger.info("🔥 Applying MCMC performance optimizations...")
@@ -451,21 +524,18 @@ def optimize_mcmc_execution(performance_manager: Any, model_fn: Callable,
 
         # Use performance manager's MCMC optimization
         mcmc_results = performance_manager.optimize_mcmc_sampling(
-            model_fn=model_fn,
-            X_list=X_list,
-            hypers=hypers,
-            args=args,
-            rng_key=rng_key
+            model_fn=model_fn, X_list=X_list, hypers=hypers, args=args, rng_key=rng_key
         )
 
         optimization_time = time.time() - start_time
 
         optimization_info = {
-            'mcmc_optimization': True,
-            'optimization_time_seconds': optimization_time,
-            'memory_checkpointing': performance_manager.config.mcmc.enable_checkpointing,
-            'adaptive_batching': performance_manager.config.mcmc.enable_adaptive_batching,
-            'data_subsampling': performance_manager.config.mcmc.data_subsample_ratio < 1.0
+            "mcmc_optimization": True,
+            "optimization_time_seconds": optimization_time,
+            "memory_checkpointing": performance_manager.config.mcmc.enable_checkpointing,
+            "adaptive_batching": performance_manager.config.mcmc.enable_adaptive_batching,
+            "data_subsampling": performance_manager.config.mcmc.data_subsample_ratio
+            < 1.0,
         }
 
         logger.info(f"✅ MCMC optimization completed in {optimization_time:.2f}s")
@@ -474,12 +544,15 @@ def optimize_mcmc_execution(performance_manager: Any, model_fn: Callable,
 
     except Exception as e:
         logger.error(f"MCMC optimization failed: {e}")
-        return None, {'mcmc_optimization': False, 'error': str(e)}
+        return None, {"mcmc_optimization": False, "error": str(e)}
 
 
-def integrate_performance_with_pipeline(config: Dict, data_dir: str,
-                                       X_list: List[np.ndarray] = None,
-                                       output_dir: str = None) -> Tuple[Any, Dict]:
+def integrate_performance_with_pipeline(
+    config: Dict,
+    data_dir: str,
+    X_list: List[np.ndarray] = None,
+    output_dir: str = None,
+) -> Tuple[Any, Dict]:
     """
     Main integration function for performance optimization in the pipeline.
 
@@ -496,38 +569,50 @@ def integrate_performance_with_pipeline(config: Dict, data_dir: str,
         logger.info("🚀 === PERFORMANCE OPTIMIZATION PIPELINE INTEGRATION ===")
 
         # Apply comprehensive performance optimization
-        performance_manager, optimization_info = apply_performance_optimization_to_pipeline(
-            config, X_list, data_dir, output_dir
+        performance_manager, optimization_info = (
+            apply_performance_optimization_to_pipeline(
+                config, X_list, data_dir, output_dir
+            )
         )
 
         # Create integration summary
         integration_summary = {
-            'performance_integration_enabled': True,
-            'framework_available': optimization_info.get('framework_available', False),
-            'optimization_strategy': optimization_info.get('configuration_info', {}).get('strategy', 'unknown'),
-            'features_enabled': list(optimization_info.get('performance_features', {}).keys()),
-            'system_optimized_for': optimization_info.get('configuration_info', {}).get('system_characteristics', {})
+            "performance_integration_enabled": True,
+            "framework_available": optimization_info.get("framework_available", False),
+            "optimization_strategy": optimization_info.get(
+                "configuration_info", {}
+            ).get("strategy", "unknown"),
+            "features_enabled": list(
+                optimization_info.get("performance_features", {}).keys()
+            ),
+            "system_optimized_for": optimization_info.get(
+                "configuration_info", {}
+            ).get("system_characteristics", {}),
         }
 
         # Add memory optimization details
-        if 'data_optimization' in optimization_info:
-            data_opt = optimization_info['data_optimization']
-            integration_summary['memory_optimization'] = {
-                'dtype_optimization': data_opt.get('dtype_optimization_applied', False),
-                'chunking_enabled': data_opt.get('chunking_enabled', False),
-                'target_dtype': data_opt.get('target_dtype', 'unknown')
+        if "data_optimization" in optimization_info:
+            data_opt = optimization_info["data_optimization"]
+            integration_summary["memory_optimization"] = {
+                "dtype_optimization": data_opt.get(
+                    "dtype_optimization_applied", False
+                ),
+                "chunking_enabled": data_opt.get("chunking_enabled", False),
+                "target_dtype": data_opt.get("target_dtype", "unknown"),
             }
 
         # Combine all information
         comprehensive_performance_info = {
-            'performance_integration': integration_summary,
-            'optimization_details': optimization_info
+            "performance_integration": integration_summary,
+            "optimization_details": optimization_info,
         }
 
         logger.info("✅ Performance optimization pipeline integration completed")
-        if integration_summary['framework_available']:
+        if integration_summary["framework_available"]:
             logger.info(f"   Strategy: {integration_summary['optimization_strategy']}")
-            logger.info(f"   Features: {', '.join(integration_summary['features_enabled'])}")
+            logger.info(
+                f"   Features: {', '.join(integration_summary['features_enabled'])}"
+            )
         else:
             logger.info("   Using fallback optimization (framework unavailable)")
 
@@ -538,13 +623,17 @@ def integrate_performance_with_pipeline(config: Dict, data_dir: str,
 
         # Fallback integration summary
         fallback_summary = {
-            'performance_integration_enabled': False,
-            'framework_available': False,
-            'error': str(e),
-            'fallback_optimization': True
+            "performance_integration_enabled": False,
+            "framework_available": False,
+            "error": str(e),
+            "fallback_optimization": True,
         }
 
-        return None, {'status': 'failed', 'error': str(e), 'fallback_info': fallback_summary}
+        return None, {
+            "status": "failed",
+            "error": str(e),
+            "fallback_info": fallback_summary,
+        }
 
 
 class PerformanceManagerWrapper:
@@ -559,7 +648,9 @@ class PerformanceManagerWrapper:
         if self.manager:
             return getattr(self.manager, name)
         else:
-            raise AttributeError(f"No performance manager available for attribute '{name}'")
+            raise AttributeError(
+                f"No performance manager available for attribute '{name}'"
+            )
 
     def optimize_data_arrays(self, X_list):
         """
@@ -579,14 +670,18 @@ class PerformanceManagerWrapper:
 
             for i, X in enumerate(X_list):
                 # Apply dtype optimization
-                if self.optimization_info.get("performance_features", {}).get("dtype_optimization", False):
+                if self.optimization_info.get("performance_features", {}).get(
+                    "dtype_optimization", False
+                ):
                     if self.manager and hasattr(self.manager, "memory_optimizer"):
                         X_opt = self.manager.memory_optimizer.optimize_array_memory(X)
                     else:
                         # Fallback dtype optimization
                         if X.dtype == "float64":
                             X_opt = X.astype("float32")
-                            logger.debug(f"Optimized array {i} dtype: float64 -> float32")
+                            logger.debug(
+                                f"Optimized array {i} dtype: float64 -> float32"
+                            )
                         else:
                             X_opt = X
                 else:
@@ -595,8 +690,12 @@ class PerformanceManagerWrapper:
                 optimized_arrays.append(X_opt)
 
             total_memory_before = sum(X.nbytes for X in X_list) / (1024 * 1024)  # MB
-            total_memory_after = sum(X.nbytes for X in optimized_arrays) / (1024 * 1024)  # MB
-            logger.info(f"Data optimization: {total_memory_before:.1f}MB -> {total_memory_after:.1f}MB")
+            total_memory_after = sum(X.nbytes for X in optimized_arrays) / (
+                1024 * 1024
+            )  # MB
+            logger.info(
+                f"Data optimization: {total_memory_before:.1f}MB -> {total_memory_after:.1f}MB"
+            )
 
             return optimized_arrays
 
@@ -608,4 +707,3 @@ class PerformanceManagerWrapper:
 def _wrap_performance_manager(manager, optimization_info):
     """Wrap performance manager with additional functionality."""
     return PerformanceManagerWrapper(manager, optimization_info)
-

@@ -1,10 +1,11 @@
 """IO utilities for consistent file operations across experiments."""
 
 import json
+import logging
 import pickle
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-import logging
+
 import numpy as np
 import pandas as pd
 
@@ -28,7 +29,7 @@ def save_json(data: Any, filepath: Union[str, Path], indent: int = 2) -> None:
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(data, f, indent=indent, default=str)
         logger.debug(f"Saved JSON to {filepath}")
     except Exception as e:
@@ -52,7 +53,7 @@ def load_json(filepath: Union[str, Path]) -> Any:
     """
     filepath = Path(filepath)
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             data = json.load(f)
         logger.debug(f"Loaded JSON from {filepath}")
         return data
@@ -61,7 +62,9 @@ def load_json(filepath: Union[str, Path]) -> Any:
         raise
 
 
-def save_csv(df: pd.DataFrame, filepath: Union[str, Path], index: bool = False, **kwargs) -> None:
+def save_csv(
+    df: pd.DataFrame, filepath: Union[str, Path], index: bool = False, **kwargs
+) -> None:
     """
     Save DataFrame to CSV with consistent formatting.
 
@@ -113,7 +116,9 @@ def load_csv(filepath: Union[str, Path], **kwargs) -> pd.DataFrame:
         raise
 
 
-def save_numpy(data: np.ndarray, filepath: Union[str, Path], compressed: bool = True) -> None:
+def save_numpy(
+    data: np.ndarray, filepath: Union[str, Path], compressed: bool = True
+) -> None:
     """
     Save numpy array to file.
 
@@ -132,13 +137,13 @@ def save_numpy(data: np.ndarray, filepath: Union[str, Path], compressed: bool = 
     try:
         if compressed:
             # Use .npz extension for compressed
-            if not str(filepath).endswith('.npz'):
-                filepath = filepath.with_suffix('.npz')
+            if not str(filepath).endswith(".npz"):
+                filepath = filepath.with_suffix(".npz")
             np.savez_compressed(filepath, data=data)
         else:
             # Use .npy extension for uncompressed
-            if not str(filepath).endswith('.npy'):
-                filepath = filepath.with_suffix('.npy')
+            if not str(filepath).endswith(".npy"):
+                filepath = filepath.with_suffix(".npy")
             np.save(filepath, data)
         logger.debug(f"Saved numpy array to {filepath}")
     except Exception as e:
@@ -162,11 +167,11 @@ def load_numpy(filepath: Union[str, Path]) -> np.ndarray:
     """
     filepath = Path(filepath)
     try:
-        if str(filepath).endswith('.npz'):
+        if str(filepath).endswith(".npz"):
             # Load from compressed format
             with np.load(filepath) as data:
                 # Assume single array stored as 'data'
-                return data['data']
+                return data["data"]
         else:
             # Load from uncompressed format
             data = np.load(filepath)
@@ -192,7 +197,7 @@ def save_pickle(data: Any, filepath: Union[str, Path]) -> None:
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(data, f)
         logger.debug(f"Saved pickle to {filepath}")
     except Exception as e:
@@ -216,7 +221,7 @@ def load_pickle(filepath: Union[str, Path]) -> Any:
     """
     filepath = Path(filepath)
     try:
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             data = pickle.load(f)
         logger.debug(f"Loaded pickle from {filepath}")
         return data
@@ -225,8 +230,13 @@ def load_pickle(filepath: Union[str, Path]) -> Any:
         raise
 
 
-def save_plot(filepath: Union[str, Path], dpi: int = 300, bbox_inches: str = 'tight',
-              close_after: bool = True, **kwargs) -> None:
+def save_plot(
+    filepath: Union[str, Path],
+    dpi: int = 300,
+    bbox_inches: str = "tight",
+    close_after: bool = True,
+    **kwargs,
+) -> None:
     """
     Save matplotlib plot with consistent formatting.
 
@@ -299,10 +309,11 @@ def safe_filename(filename: str, replacement: str = "_") -> str:
         Safe filename
     """
     import re
+
     # Replace problematic characters with replacement
     safe_name = re.sub(r'[<>:"/\\|?*]', replacement, filename)
     # Remove multiple consecutive replacements
-    safe_name = re.sub(f'{re.escape(replacement)}+', replacement, safe_name)
+    safe_name = re.sub(f"{re.escape(replacement)}+", replacement, safe_name)
     return safe_name.strip(replacement)
 
 

@@ -3,6 +3,7 @@
 import logging
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ def experiment_handler(experiment_name: str):
     ...         # experiment logic here
     ...         return ExperimentResult(...)
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -37,7 +39,9 @@ def experiment_handler(experiment_name: str):
                 error_msg = str(e)
                 self.logger.error(f"{experiment_name} failed: {error_msg}")
                 return self._create_failure_result(experiment_name, error_msg)
+
         return wrapper
+
     return decorator
 
 
@@ -49,8 +53,13 @@ class SGFARunner:
     """
 
     @staticmethod
-    def run_analysis(X_list: List[np.ndarray], hypers: Dict, args: Dict,
-                    experiment_name: str = "sgfa_analysis", **kwargs) -> Dict:
+    def run_analysis(
+        X_list: List[np.ndarray],
+        hypers: Dict,
+        args: Dict,
+        experiment_name: str = "sgfa_analysis",
+        **kwargs,
+    ) -> Dict:
         """
         Run SGFA analysis with consistent error handling and logging.
 
@@ -85,22 +94,19 @@ class SGFARunner:
             from models.sparse_gfa import SparseGFAModel as SGFAModel
 
             # Create model instance
-            model = SGFAModel(
-                K=hypers.get('K', 5),
-                **hypers
-            )
+            model = SGFAModel(K=hypers.get("K", 5), **hypers)
 
             # Run MCMC inference
             nuts_kernel = NUTS(model.model)
             mcmc = MCMC(
                 nuts_kernel,
-                num_warmup=args.get('num_warmup', 1000),
-                num_samples=args.get('num_samples', 2000),
-                **kwargs
+                num_warmup=args.get("num_warmup", 1000),
+                num_samples=args.get("num_samples", 2000),
+                **kwargs,
             )
 
             # Fit model to data
-            rng_key = jax.random.PRNGKey(args.get('seed', 42))
+            rng_key = jax.random.PRNGKey(args.get("seed", 42))
             mcmc.run(rng_key, X_list)
 
             # Extract results
@@ -109,32 +115,30 @@ class SGFARunner:
             logger.info(f"{experiment_name} completed successfully")
 
             return {
-                'success': True,
-                'samples': samples,
-                'mcmc': mcmc,
-                'model': model,
-                'experiment_name': experiment_name
+                "success": True,
+                "samples": samples,
+                "mcmc": mcmc,
+                "model": model,
+                "experiment_name": experiment_name,
             }
 
         except ImportError as e:
             error_msg = f"Missing required dependency for {experiment_name}: {e}"
             logger.error(error_msg)
-            return {
-                'success': False,
-                'error': error_msg,
-                'error_type': 'ImportError'
-            }
+            return {"success": False, "error": error_msg, "error_type": "ImportError"}
         except Exception as e:
             error_msg = f"{experiment_name} failed: {str(e)}"
             logger.error(error_msg)
             return {
-                'success': False,
-                'error': error_msg,
-                'error_type': type(e).__name__
+                "success": False,
+                "error": error_msg,
+                "error_type": type(e).__name__,
             }
 
 
-def get_experiment_logger(experiment_name: str, level: int = logging.INFO) -> logging.Logger:
+def get_experiment_logger(
+    experiment_name: str, level: int = logging.INFO
+) -> logging.Logger:
     """
     Get a standardized logger for experiments.
 
@@ -155,7 +159,7 @@ def get_experiment_logger(experiment_name: str, level: int = logging.INFO) -> lo
     if not logger.handlers:
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
-            f'%(asctime)s - {experiment_name} - %(levelname)s - %(message)s'
+            f"%(asctime)s - {experiment_name} - %(levelname)s - %(message)s"
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
@@ -185,7 +189,9 @@ def validate_experiment_inputs(required_keys: List[str], **kwargs) -> Dict[str, 
     ValueError
         If required parameters are missing
     """
-    missing_keys = [key for key in required_keys if key not in kwargs or kwargs[key] is None]
+    missing_keys = [
+        key for key in required_keys if key not in kwargs or kwargs[key] is None
+    ]
 
     if missing_keys:
         raise ValueError(f"Missing required parameters: {', '.join(missing_keys)}")
@@ -204,7 +210,7 @@ class ExperimentMetrics:
 
         # Extract key metrics and calculate variance
         consensus_scores = []
-        for key in ['log_likelihood', 'factor_correlation', 'reconstruction_error']:
+        for key in ["log_likelihood", "factor_correlation", "reconstruction_error"]:
             values = [r.get(key, 0) for r in results_list if key in r]
             if values:
                 consensus_scores.append(1.0 / (1.0 + np.var(values)))
@@ -220,7 +226,7 @@ class ExperimentMetrics:
         # Calculate stability based on factor loadings consistency
         stability_scores = []
         for key in samples_list[0].keys():
-            if key.startswith('factor_loading'):
+            if key.startswith("factor_loading"):
                 values = [samples[key] for samples in samples_list if key in samples]
                 if values:
                     # Calculate coefficient of variation as stability measure

@@ -1,14 +1,18 @@
 """Tests for model comparison experiments."""
 
-import pytest
-import numpy as np
-import tempfile
 import json
+import tempfile
 from pathlib import Path
 
-from experiments.model_comparison import ModelArchitectureComparison, run_model_comparison
-from experiments.framework import ExperimentConfig
+import numpy as np
+import pytest
+
 from data import generate_synthetic_data
+from experiments.framework import ExperimentConfig
+from experiments.model_comparison import (
+    ModelArchitectureComparison,
+    run_model_comparison,
+)
 
 
 class TestModelArchitectureComparison:
@@ -18,27 +22,18 @@ class TestModelArchitectureComparison:
     def sample_data(self):
         """Generate sample data for testing."""
         data = generate_synthetic_data(
-            n_subjects=20,
-            n_features=50,
-            K=3,
-            num_sources=2,
-            noise_level=0.1
+            n_subjects=20, n_features=50, K=3, num_sources=2, noise_level=0.1
         )
-        return [data['X1'], data['X2']]
+        return [data["X1"], data["X2"]]
 
     @pytest.fixture
     def config(self):
         """Create test configuration."""
         with tempfile.TemporaryDirectory() as tmpdir:
             config = ExperimentConfig(
-                experiments={'base_output_dir': tmpdir},
-                data={'data_dir': tmpdir},
-                model={
-                    'K': 3,
-                    'num_samples': 100,
-                    'num_warmup': 50,
-                    'num_chains': 1
-                }
+                experiments={"base_output_dir": tmpdir},
+                data={"data_dir": tmpdir},
+                model={"K": 3, "num_samples": 100, "num_warmup": 50, "num_chains": 1},
             )
             yield config
 
@@ -47,8 +42,8 @@ class TestModelArchitectureComparison:
         comparison = ModelArchitectureComparison(config)
 
         assert comparison.config == config
-        assert hasattr(comparison, 'model_architectures')
-        assert 'sparseGFA' in comparison.model_architectures
+        assert hasattr(comparison, "model_architectures")
+        assert "sparseGFA" in comparison.model_architectures
         assert comparison.profiler is not None
 
     def test_run_model_architecture_comparison(self, sample_data, config):
@@ -58,19 +53,19 @@ class TestModelArchitectureComparison:
         # Run with minimal parameters for testing
         result = comparison.run_model_architecture_comparison(
             X_list=sample_data,
-            base_hypers={'K': 3, 'alpha_w': 1.0, 'alpha_z': 1.0},
-            args={'num_samples': 50, 'num_warmup': 25, 'num_chains': 1}
+            base_hypers={"K": 3, "alpha_w": 1.0, "alpha_z": 1.0},
+            args={"num_samples": 50, "num_warmup": 25, "num_chains": 1},
         )
 
         # Check result structure
         assert result.success is True
         assert result.experiment_name == "model_architecture_comparison"
         assert result.data is not None
-        assert 'comparison_results' in result.data
-        assert 'model_rankings' in result.data
+        assert "comparison_results" in result.data
+        assert "model_rankings" in result.data
 
         # Check that at least one model was tested
-        assert len(result.data['comparison_results']) >= 1
+        assert len(result.data["comparison_results"]) >= 1
 
     def test_run_traditional_method_comparison(self, sample_data, config):
         """Test running traditional method comparison."""
@@ -78,23 +73,22 @@ class TestModelArchitectureComparison:
 
         # First run SGFA to get reference results
         sgfa_results = {
-            'log_likelihood': -1000.0,
-            'W_mean': np.random.randn(50, 3),
-            'Z_mean': np.random.randn(20, 3)
+            "log_likelihood": -1000.0,
+            "W_mean": np.random.randn(50, 3),
+            "Z_mean": np.random.randn(20, 3),
         }
 
         # Run traditional method comparison
         result = comparison.run_traditional_method_comparison(
-            X_list=sample_data,
-            sgfa_results=sgfa_results
+            X_list=sample_data, sgfa_results=sgfa_results
         )
 
         # Check result structure
         assert result.success is True
         assert result.experiment_name == "traditional_method_comparison"
         assert result.data is not None
-        assert 'method_results' in result.data
-        assert 'comparison_metrics' in result.data
+        assert "method_results" in result.data
+        assert "comparison_metrics" in result.data
 
     def test_model_architecture_comparison_with_invalid_data(self, config):
         """Test model comparison with invalid data."""
@@ -103,9 +97,7 @@ class TestModelArchitectureComparison:
         # Test with empty data list
         with pytest.raises(ValueError):
             comparison.run_model_architecture_comparison(
-                X_list=[],
-                base_hypers={'K': 3},
-                args={'num_samples': 50}
+                X_list=[], base_hypers={"K": 3}, args={"num_samples": 50}
             )
 
     def test_model_architecture_comparison_with_mismatched_dimensions(self, config):
@@ -119,8 +111,8 @@ class TestModelArchitectureComparison:
         # This should handle the mismatch gracefully
         result = comparison.run_model_architecture_comparison(
             X_list=[X1, X2],
-            base_hypers={'K': 3, 'alpha_w': 1.0, 'alpha_z': 1.0},
-            args={'num_samples': 50, 'num_warmup': 25, 'num_chains': 1}
+            base_hypers={"K": 3, "alpha_w": 1.0, "alpha_z": 1.0},
+            args={"num_samples": 50, "num_warmup": 25, "num_chains": 1},
         )
 
         # Should still succeed but may have warnings
@@ -132,13 +124,16 @@ class TestModelArchitectureComparison:
 
         result = comparison.run_model_architecture_comparison(
             X_list=sample_data,
-            base_hypers={'K': 3, 'alpha_w': 1.0, 'alpha_z': 1.0},
-            args={'num_samples': 50, 'num_warmup': 25, 'num_chains': 1}
+            base_hypers={"K": 3, "alpha_w": 1.0, "alpha_z": 1.0},
+            args={"num_samples": 50, "num_warmup": 25, "num_chains": 1},
         )
 
         # Check that performance metrics are included
         assert result.performance_metrics is not None
-        assert 'timing' in result.performance_metrics or 'memory' in result.performance_metrics
+        assert (
+            "timing" in result.performance_metrics
+            or "memory" in result.performance_metrics
+        )
 
 
 class TestModelComparisonStandalone:
@@ -149,34 +144,24 @@ class TestModelComparisonStandalone:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Generate test data
             data = generate_synthetic_data(
-                n_subjects=15,
-                n_features=30,
-                K=2,
-                num_sources=2,
-                noise_level=0.1
+                n_subjects=15, n_features=30, K=2, num_sources=2, noise_level=0.1
             )
 
             # Create minimal config
             config = {
-                'experiments': {'base_output_dir': tmpdir},
-                'data': {'data_dir': tmpdir},
-                'model': {
-                    'K': 2,
-                    'num_samples': 50,
-                    'num_warmup': 25,
-                    'num_chains': 1
-                }
+                "experiments": {"base_output_dir": tmpdir},
+                "data": {"data_dir": tmpdir},
+                "model": {"K": 2, "num_samples": 50, "num_warmup": 25, "num_chains": 1},
             }
 
             # Run model comparison
             result = run_model_comparison(
-                config=config,
-                X_list=[data['X1'], data['X2']]
+                config=config, X_list=[data["X1"], data["X2"]]
             )
 
             # Check that files were created
             output_dir = Path(tmpdir)
-            assert any(output_dir.glob('*.json'))  # Should have JSON results
+            assert any(output_dir.glob("*.json"))  # Should have JSON results
 
             # Check basic return structure
             assert result is not None
@@ -186,10 +171,7 @@ class TestModelComparisonStandalone:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Should handle minimal input gracefully
             result = run_model_comparison(
-                base_output_dir=tmpdir,
-                generate_synthetic=True,
-                n_subjects=10,
-                K=2
+                base_output_dir=tmpdir, generate_synthetic=True, n_subjects=10, K=2
             )
 
             # Should succeed with synthetic data
@@ -204,27 +186,23 @@ class TestModelComparisonIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create realistic test configuration
             config = ExperimentConfig(
-                experiments={'base_output_dir': tmpdir},
-                data={'data_dir': tmpdir},
+                experiments={"base_output_dir": tmpdir},
+                data={"data_dir": tmpdir},
                 model={
-                    'K': 3,
-                    'num_samples': 100,
-                    'num_warmup': 50,
-                    'num_chains': 1,
-                    'alpha_w': 1.0,
-                    'alpha_z': 1.0
-                }
+                    "K": 3,
+                    "num_samples": 100,
+                    "num_warmup": 50,
+                    "num_chains": 1,
+                    "alpha_w": 1.0,
+                    "alpha_z": 1.0,
+                },
             )
 
             # Generate test data
             data = generate_synthetic_data(
-                n_subjects=25,
-                n_features=40,
-                K=3,
-                num_sources=2,
-                noise_level=0.05
+                n_subjects=25, n_features=40, K=3, num_sources=2, noise_level=0.05
             )
-            X_list = [data['X1'], data['X2']]
+            X_list = [data["X1"], data["X2"]]
 
             # Initialize comparison
             comparison = ModelArchitectureComparison(config)
@@ -232,19 +210,18 @@ class TestModelComparisonIntegration:
             # Run model architecture comparison
             arch_result = comparison.run_model_architecture_comparison(
                 X_list=X_list,
-                base_hypers={'K': 3, 'alpha_w': 1.0, 'alpha_z': 1.0},
-                args={'num_samples': 100, 'num_warmup': 50, 'num_chains': 1}
+                base_hypers={"K": 3, "alpha_w": 1.0, "alpha_z": 1.0},
+                args={"num_samples": 100, "num_warmup": 50, "num_chains": 1},
             )
 
             assert arch_result.success is True
 
             # Extract SGFA results for traditional comparison
-            sgfa_results = arch_result.data['comparison_results'].get('sparseGFA', {})
+            sgfa_results = arch_result.data["comparison_results"].get("sparseGFA", {})
 
             # Run traditional method comparison
             trad_result = comparison.run_traditional_method_comparison(
-                X_list=X_list,
-                sgfa_results=sgfa_results
+                X_list=X_list, sgfa_results=sgfa_results
             )
 
             assert trad_result.success is True
@@ -254,12 +231,12 @@ class TestModelComparisonIntegration:
             assert output_dir.exists()
 
             # Check for expected output files
-            json_files = list(output_dir.glob('*.json'))
+            json_files = list(output_dir.glob("*.json"))
             assert len(json_files) >= 1
 
             # Verify JSON content is valid
             for json_file in json_files:
-                with open(json_file, 'r') as f:
+                with open(json_file, "r") as f:
                     data = json.load(f)
                     assert isinstance(data, dict)
 
@@ -267,9 +244,9 @@ class TestModelComparisonIntegration:
         """Test error handling in model comparison."""
         with tempfile.TemporaryDirectory() as tmpdir:
             config = ExperimentConfig(
-                experiments={'base_output_dir': tmpdir},
-                data={'data_dir': tmpdir},
-                model={'K': 3}
+                experiments={"base_output_dir": tmpdir},
+                data={"data_dir": tmpdir},
+                model={"K": 3},
             )
 
             comparison = ModelArchitectureComparison(config)
@@ -277,9 +254,9 @@ class TestModelComparisonIntegration:
             # Test with invalid hyperparameters
             result = comparison.run_model_architecture_comparison(
                 X_list=sample_data,
-                base_hypers={'K': -1},  # Invalid K
-                args={'num_samples': 10}
+                base_hypers={"K": -1},  # Invalid K
+                args={"num_samples": 10},
             )
 
             # Should handle error gracefully
-            assert hasattr(result, 'success')
+            assert hasattr(result, "success")

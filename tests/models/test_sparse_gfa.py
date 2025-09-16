@@ -1,14 +1,15 @@
 """Tests for Sparse GFA model implementation."""
 
-import pytest
-import numpy as np
+from typing import Any, Dict, List
+
 import jax
 import jax.numpy as jnp
+import numpy as np
 import numpyro
-from typing import List, Dict, Any
+import pytest
 
-from models.sparse_gfa import SparseGFAModel as SparseGFA
 from data import generate_synthetic_data
+from models.sparse_gfa import SparseGFAModel as SparseGFA
 
 
 class TestSparseGFA:
@@ -18,22 +19,19 @@ class TestSparseGFA:
     def synthetic_data(self):
         """Generate synthetic data for testing."""
         return generate_synthetic_data(
-            num_sources=2,
-            K=3,
-            num_subjects=20,  # Small for fast testing
-            seed=42
+            num_sources=2, K=3, num_subjects=20, seed=42  # Small for fast testing
         )
 
     @pytest.fixture
     def basic_config(self):
         """Basic configuration for SparseGFA."""
         return {
-            'K': 3,
-            'sparsity_lambda': 0.1,
-            'group_lambda': 0.1,
-            'num_samples': 50,  # Small for testing
-            'num_warmup': 25,
-            'num_chains': 1
+            "K": 3,
+            "sparsity_lambda": 0.1,
+            "group_lambda": 0.1,
+            "num_samples": 50,  # Small for testing
+            "num_warmup": 25,
+            "num_chains": 1,
         }
 
     def test_sparse_gfa_initialization(self, basic_config):
@@ -48,7 +46,7 @@ class TestSparseGFA:
 
     def test_sparse_gfa_fit(self, synthetic_data, basic_config):
         """Test that SparseGFA can fit to data."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = SparseGFA(**basic_config)
 
@@ -56,12 +54,12 @@ class TestSparseGFA:
         model.fit(X_list)
 
         # Check that model has been fitted
-        assert hasattr(model, 'samples')
+        assert hasattr(model, "samples")
         assert model.samples is not None
 
     def test_sparse_gfa_transform(self, synthetic_data, basic_config):
         """Test that SparseGFA can transform data."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = SparseGFA(**basic_config)
         model.fit(X_list)
@@ -71,11 +69,11 @@ class TestSparseGFA:
 
         assert Z is not None
         assert Z.shape[0] == X_list[0].shape[0]  # Same number of subjects
-        assert Z.shape[1] == basic_config['K']   # Number of factors
+        assert Z.shape[1] == basic_config["K"]  # Number of factors
 
     def test_sparse_gfa_factor_loadings(self, synthetic_data, basic_config):
         """Test that factor loadings are computed correctly."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = SparseGFA(**basic_config)
         model.fit(X_list)
@@ -87,11 +85,11 @@ class TestSparseGFA:
 
         for i, W_view in enumerate(W):
             assert W_view.shape[0] == X_list[i].shape[1]  # Features dimension
-            assert W_view.shape[1] == basic_config['K']   # Number of factors
+            assert W_view.shape[1] == basic_config["K"]  # Number of factors
 
     def test_sparse_gfa_reconstruct(self, synthetic_data, basic_config):
         """Test data reconstruction capability."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = SparseGFA(**basic_config)
         model.fit(X_list)
@@ -106,15 +104,15 @@ class TestSparseGFA:
 
     def test_sparse_gfa_with_different_k(self, synthetic_data):
         """Test SparseGFA with different numbers of factors."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         for K in [2, 4, 6]:
             config = {
-                'K': K,
-                'sparsity_lambda': 0.1,
-                'num_samples': 25,  # Very small for speed
-                'num_warmup': 10,
-                'num_chains': 1
+                "K": K,
+                "sparsity_lambda": 0.1,
+                "num_samples": 25,  # Very small for speed
+                "num_warmup": 10,
+                "num_chains": 1,
             }
 
             model = SparseGFA(**config)
@@ -125,12 +123,12 @@ class TestSparseGFA:
 
     def test_sparse_gfa_sparsity_levels(self, synthetic_data, basic_config):
         """Test different sparsity levels."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         for sparsity in [0.01, 0.1, 1.0]:
             config = basic_config.copy()
-            config['sparsity_lambda'] = sparsity
-            config['num_samples'] = 25  # Very small for speed
+            config["sparsity_lambda"] = sparsity
+            config["num_samples"] = 25  # Very small for speed
 
             model = SparseGFA(**config)
             model.fit(X_list)
@@ -140,39 +138,39 @@ class TestSparseGFA:
 
     def test_sparse_gfa_hyperparameters(self, synthetic_data, basic_config):
         """Test that hyperparameters are properly handled."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = SparseGFA(**basic_config)
         model.fit(X_list)
 
         # Check that hyperparameters are accessible
-        if hasattr(model, 'get_hyperparameters'):
+        if hasattr(model, "get_hyperparameters"):
             hyperparams = model.get_hyperparameters()
             assert isinstance(hyperparams, dict)
 
     def test_sparse_gfa_convergence_diagnostics(self, synthetic_data, basic_config):
         """Test convergence diagnostics."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = SparseGFA(**basic_config)
         model.fit(X_list)
 
         # Check for convergence information
-        if hasattr(model, 'get_convergence_info'):
+        if hasattr(model, "get_convergence_info"):
             conv_info = model.get_convergence_info()
             assert conv_info is not None
 
     def test_sparse_gfa_error_handling_invalid_k(self, synthetic_data):
         """Test error handling for invalid K values."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         # K too large
         config = {
-            'K': 1000,  # Unreasonably large
-            'sparsity_lambda': 0.1,
-            'num_samples': 10,
-            'num_warmup': 5,
-            'num_chains': 1
+            "K": 1000,  # Unreasonably large
+            "sparsity_lambda": 0.1,
+            "num_samples": 10,
+            "num_warmup": 5,
+            "num_chains": 1,
         }
 
         model = SparseGFA(**config)
@@ -198,7 +196,7 @@ class TestSparseGFA:
         # Create data with mismatched number of subjects
         X_mismatched = [
             np.random.randn(20, 10),  # 20 subjects
-            np.random.randn(15, 8)    # 15 subjects (mismatch)
+            np.random.randn(15, 8),  # 15 subjects (mismatch)
         ]
 
         model = SparseGFA(**basic_config)
@@ -208,16 +206,16 @@ class TestSparseGFA:
 
     def test_sparse_gfa_reproducibility(self, synthetic_data, basic_config):
         """Test reproducibility with fixed random seed."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         # Set random seed
         config1 = basic_config.copy()
-        config1['random_seed'] = 42
-        config1['num_samples'] = 25  # Small for speed
+        config1["random_seed"] = 42
+        config1["num_samples"] = 25  # Small for speed
 
         config2 = basic_config.copy()
-        config2['random_seed'] = 42
-        config2['num_samples'] = 25  # Small for speed
+        config2["random_seed"] = 42
+        config2["num_samples"] = 25  # Small for speed
 
         model1 = SparseGFA(**config1)
         model2 = SparseGFA(**config2)
@@ -238,15 +236,12 @@ class TestSparseGFA:
         # Test with 2, 3, and 4 views
         for num_views in [2, 3, 4]:
             synthetic_data = generate_synthetic_data(
-                num_sources=num_views,
-                K=3,
-                num_subjects=15,
-                seed=42
+                num_sources=num_views, K=3, num_subjects=15, seed=42
             )
-            X_list = synthetic_data['X_list']
+            X_list = synthetic_data["X_list"]
 
             config = basic_config.copy()
-            config['num_samples'] = 20  # Very small for speed
+            config["num_samples"] = 20  # Very small for speed
 
             model = SparseGFA(**config)
             model.fit(X_list)
@@ -256,13 +251,13 @@ class TestSparseGFA:
 
     def test_sparse_gfa_parameter_extraction(self, synthetic_data, basic_config):
         """Test that model parameters can be extracted."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         model = SparseGFA(**basic_config)
         model.fit(X_list)
 
         # Check that we can extract various parameters
-        if hasattr(model, 'get_parameters'):
+        if hasattr(model, "get_parameters"):
             params = model.get_parameters()
             assert isinstance(params, dict)
 
@@ -276,12 +271,12 @@ class TestSparseGFA:
 
     def test_sparse_gfa_group_sparsity(self, synthetic_data, basic_config):
         """Test group sparsity functionality."""
-        X_list = synthetic_data['X_list']
+        X_list = synthetic_data["X_list"]
 
         # Test with group sparsity enabled
         config = basic_config.copy()
-        config['group_lambda'] = 0.5
-        config['num_samples'] = 25  # Small for speed
+        config["group_lambda"] = 0.5
+        config["num_samples"] = 25  # Small for speed
 
         model = SparseGFA(**config)
         model.fit(X_list)
@@ -296,16 +291,12 @@ class TestSparseGFA:
         """Test memory efficiency with larger data."""
         # Create larger synthetic data
         large_data = generate_synthetic_data(
-            num_sources=2,
-            K=3,
-            num_subjects=50,
-            features_per_view=[100, 80],
-            seed=42
+            num_sources=2, K=3, num_subjects=50, features_per_view=[100, 80], seed=42
         )
-        X_list = large_data['X_list']
+        X_list = large_data["X_list"]
 
         config = basic_config.copy()
-        config['num_samples'] = 20  # Keep small for testing
+        config["num_samples"] = 20  # Keep small for testing
 
         model = SparseGFA(**config)
 
@@ -314,4 +305,4 @@ class TestSparseGFA:
 
         Z = model.transform(X_list)
         assert Z.shape[0] == 50  # Number of subjects
-        assert Z.shape[1] == 3   # Number of factors
+        assert Z.shape[1] == 3  # Number of factors

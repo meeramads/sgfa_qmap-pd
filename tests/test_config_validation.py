@@ -1,14 +1,18 @@
 """Tests for configuration validation system."""
 
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from core.config_schema import (
-    ConfigurationValidator, ConfigValidationError,
-    DataConfig, ExperimentsConfig, ModelConfig
+    ConfigurationValidator,
+    ConfigValidationError,
+    DataConfig,
+    ExperimentsConfig,
+    ModelConfig,
 )
-from core.config_utils import validate_configuration, get_default_configuration
+from core.config_utils import get_default_configuration, validate_configuration
 
 
 class TestConfigValidation:
@@ -17,18 +21,14 @@ class TestConfigValidation:
     def test_valid_configuration(self):
         """Test validation of valid configuration."""
         config = {
-            "data": {
-                "data_dir": "."  # Current directory exists
-            },
-            "experiments": {
-                "base_output_dir": "./results"
-            },
+            "data": {"data_dir": "."},  # Current directory exists
+            "experiments": {"base_output_dir": "./results"},
             "model": {
                 "model_type": "sparse_gfa",
                 "K": 5,
                 "num_samples": 1000,
-                "sparsity_lambda": 0.1
-            }
+                "sparsity_lambda": 0.1,
+            },
         }
 
         # Should not raise any errors
@@ -40,10 +40,7 @@ class TestConfigValidation:
         config = {
             "data": {"data_dir": "."},
             "experiments": {"base_output_dir": "./results"},
-            "model": {
-                "model_type": "invalid_model",
-                "K": 5
-            }
+            "model": {"model_type": "invalid_model", "K": 5},
         }
 
         with pytest.raises(ConfigValidationError):
@@ -54,10 +51,7 @@ class TestConfigValidation:
         config = {
             "data": {"data_dir": "."},
             "experiments": {"base_output_dir": "./results"},
-            "model": {
-                "model_type": "sparse_gfa",
-                "K": 0  # Invalid
-            }
+            "model": {"model_type": "sparse_gfa", "K": 0},  # Invalid
         }
 
         with pytest.raises(ConfigValidationError):
@@ -70,9 +64,9 @@ class TestConfigValidation:
             "experiments": {"base_output_dir": "./results"},
             "model": {
                 "model_type": "sparse_gfa",
-                "K": 5
+                "K": 5,
                 # Missing sparsity_lambda
-            }
+            },
         }
 
         # Should automatically add sparsity_lambda
@@ -81,11 +75,7 @@ class TestConfigValidation:
 
     def test_merge_with_defaults(self):
         """Test merging partial configuration with defaults."""
-        partial_config = {
-            "model": {
-                "K": 3
-            }
-        }
+        partial_config = {"model": {"K": 3}}
 
         merged_config = ConfigurationValidator.merge_with_defaults(partial_config)
 
@@ -119,8 +109,7 @@ class TestConfigValidation:
 
         # Invalid config - too many parallel jobs
         invalid_config = ExperimentsConfig(
-            base_output_dir="./results",
-            max_parallel_jobs=100  # Too many
+            base_output_dir="./results", max_parallel_jobs=100  # Too many
         )
         errors = invalid_config.validate()
         assert len(errors) > 0
@@ -129,19 +118,13 @@ class TestConfigValidation:
     def test_model_config_validation(self):
         """Test ModelConfig validation."""
         # Valid sparse GFA config
-        valid_config = ModelConfig(
-            model_type="sparse_gfa",
-            K=5,
-            sparsity_lambda=0.1
-        )
+        valid_config = ModelConfig(model_type="sparse_gfa", K=5, sparsity_lambda=0.1)
         errors = valid_config.validate()
         assert len(errors) == 0
 
         # Invalid config - negative sparsity
         invalid_config = ModelConfig(
-            model_type="sparse_gfa",
-            K=5,
-            sparsity_lambda=-0.1  # Invalid
+            model_type="sparse_gfa", K=5, sparsity_lambda=-0.1  # Invalid
         )
         errors = invalid_config.validate()
         assert len(errors) > 0
@@ -154,7 +137,7 @@ class TestConfigValidation:
             model_type="standard_gfa",
             K=3,
             num_samples=100,
-            num_warmup=100  # Should be < num_samples
+            num_warmup=100,  # Should be < num_samples
         )
         errors = invalid_config.validate()
         assert len(errors) > 0
@@ -162,13 +145,11 @@ class TestConfigValidation:
 
     def test_memory_estimation(self):
         """Test memory requirement estimation."""
-        model_config = {
-            "K": 10,
-            "num_samples": 2000,
-            "num_chains": 4
-        }
+        model_config = {"K": 10, "num_samples": 2000, "num_chains": 4}
 
-        estimated_memory = ConfigurationValidator._estimate_memory_requirements(model_config)
+        estimated_memory = ConfigurationValidator._estimate_memory_requirements(
+            model_config
+        )
         assert estimated_memory > 0
         assert isinstance(estimated_memory, float)
 
@@ -183,11 +164,9 @@ class TestConfigValidation:
                 "K": 20,
                 "num_samples": 10000,
                 "num_chains": 4,
-                "sparsity_lambda": 0.1
+                "sparsity_lambda": 0.1,
             },
-            "system": {
-                "memory_limit_gb": 1.0  # Low limit
-            }
+            "system": {"memory_limit_gb": 1.0},  # Low limit
         }
 
         errors = ConfigurationValidator.validate_configuration(config)
@@ -216,9 +195,9 @@ class TestConfigValidation:
             "experiments": {"base_output_dir": "./results"},  # Relative path
             "model": {
                 "model_type": "sparse_gfa",
-                "K": 5
+                "K": 5,
                 # Missing sparsity_lambda - should be auto-added
-            }
+            },
         }
 
         fixed_config = ConfigurationValidator._apply_fixes(config)
@@ -238,8 +217,8 @@ class TestConfigValidation:
             "model": {
                 "model_type": "invalid_type",
                 "K": -1,  # Invalid
-                "num_samples": 0  # Invalid
-            }
+                "num_samples": 0,  # Invalid
+            },
         }
 
         try:
@@ -259,8 +238,8 @@ class TestConfigValidation:
             "experiments": {"base_output_dir": "./results"},
             "preprocessing": {
                 "strategy": "invalid_strategy",  # Invalid
-                "variance_threshold": 1.5  # Invalid (> 1)
-            }
+                "variance_threshold": 1.5,  # Invalid (> 1)
+            },
         }
 
         errors = ConfigurationValidator.validate_configuration(config)
@@ -286,7 +265,7 @@ class TestConfigValidation:
         """Test handling of partial configuration sections."""
         partial_config = {
             "data": {"data_dir": "."},
-            "model": {"K": 3}  # Incomplete model config
+            "model": {"K": 3},  # Incomplete model config
         }
 
         # Should merge with defaults and validate
@@ -304,11 +283,11 @@ class TestConfigValidation:
         config = {
             "model": {
                 "K": 25,  # Large number of factors
-                "num_samples": 15000  # Large number of samples
+                "num_samples": 15000,  # Large number of samples
             },
             "system": {
                 "use_gpu": True  # GPU requested (may not be available in test env)
-            }
+            },
         }
 
         warnings = check_configuration_warnings(config)
@@ -322,7 +301,7 @@ class TestConfigValidation:
         config_dict = {
             "data": {"data_dir": "."},
             "experiments": {"base_output_dir": "./results", "max_parallel_jobs": 2},
-            "model": {"model_type": "sparse_gfa", "K": 5, "sparsity_lambda": 0.2}
+            "model": {"model_type": "sparse_gfa", "K": 5, "sparsity_lambda": 0.2},
         }
 
         config_objects = ConfigurationValidator.create_from_dict(config_dict)
