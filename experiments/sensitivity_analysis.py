@@ -1,18 +1,13 @@
 """Sensitivity analysis experiments for SGFA hyperparameters."""
 
 import logging
-import warnings
 from itertools import product
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import seaborn as sns
-from scipy import stats
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
+from core.config_utils import get_data_dir, get_output_dir
 from core.experiment_utils import experiment_handler
 from core.validation_utils import validate_data_types, validate_parameters
 from experiments.framework import (
@@ -465,8 +460,6 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         import time
 
         import jax
-        import jax.numpy as jnp
-        import numpyro
         from numpyro.infer import MCMC, NUTS
 
         try:
@@ -475,7 +468,8 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 f"Running SGFA sensitivity test: K={K}, n_subjects={
                     X_list[0].shape[0]}, n_features={
                     sum(
-                        X.shape[1] for X in X_list)}")
+                        X.shape[1] for X in X_list)}"
+            )
 
             # Import the actual SGFA model function
             from core.run_analysis import models
@@ -658,7 +652,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         for pair_name, pair_data in results.items():
             param1 = pair_data["param1"]
             param2 = pair_data["param2"]
-            pair_results = pair_data["results"]
+            pair_data["results"]
             pair_metrics = performance_metrics[pair_name]
 
             # Extract log likelihoods in matrix form
@@ -1172,7 +1166,8 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 
         try:
             self.logger.info(
-                f"🎨 Creating comprehensive sensitivity visualizations for {experiment_name}")
+                f"🎨 Creating comprehensive sensitivity visualizations for {experiment_name}"
+            )
 
             # Import visualization system
             from core.config_utils import ConfigAccessor
@@ -1260,7 +1255,8 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 
                     self.logger.info(
                         f"✅ Created {
-                            len(plot_files)} comprehensive sensitivity visualizations")
+                            len(plot_files)} comprehensive sensitivity visualizations"
+                    )
                     self.logger.info(
                         "   → Factor stability and robustness plots generated"
                     )
@@ -1339,8 +1335,6 @@ def run_sensitivity_analysis(config):
     import os
     import sys
 
-    import numpy as np
-
     logger = logging.getLogger(__name__)
     logger.info("Starting Sensitivity Analysis Experiments")
 
@@ -1350,8 +1344,6 @@ def run_sensitivity_analysis(config):
         project_root = os.path.dirname(os.path.dirname(current_file))
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
-
-        from pathlib import Path
 
         # Load data with advanced preprocessing for consistent analysis
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
@@ -1453,7 +1445,8 @@ def run_sensitivity_analysis(config):
                             metrics.execution_time:.1f}s, LL={
                             result.get(
                                 'log_likelihood',
-                                0):.2f}")
+                                0):.2f}"
+                    )
                 except Exception as e:
                     logger.error(f"❌ K={K} sensitivity test failed: {e}")
                     K_results[f"K{K}"] = {"error": str(e)}
@@ -1498,7 +1491,8 @@ def run_sensitivity_analysis(config):
                             metrics.execution_time:.1f}s, LL={
                             result.get(
                                 'log_likelihood',
-                                0):.2f}")
+                                0):.2f}"
+                    )
                 except Exception as e:
                     logger.error(f"❌ percW={percW} sensitivity test failed: {e}")
                     sparsity_results[f"percW{percW}"] = {"error": str(e)}
@@ -1549,7 +1543,8 @@ def run_sensitivity_analysis(config):
                             metrics.execution_time:.1f}s, LL={
                             result.get(
                                 'log_likelihood',
-                                0):.2f}")
+                                0):.2f}"
+                    )
                 except Exception as e:
                     logger.error(f"❌ MCMC {label} sensitivity test failed: {e}")
                     mcmc_results[label] = {"error": str(e)}

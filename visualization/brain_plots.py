@@ -5,11 +5,10 @@ Brain visualization module for neuroimaging data.
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 
 from core.io_utils import save_plot
 
@@ -43,7 +42,7 @@ class BrainVisualizer:
     def _check_factor_mapping(self) -> bool:
         """Check if factor mapping module is available."""
         try:
-            from .neuroimaging_utils import add_to_qmap_visualization
+            pass
 
             return True
         except ImportError:
@@ -258,9 +257,7 @@ class BrainVisualizer:
 
             # Check if preprocessing results contain spatial information
             prep_path = results_dir / "preprocessing_results.dictionary"
-            preprocessing_results = safe_pickle_load(
-                prep_path, "Preprocessing results"
-            )
+            preprocessing_results = safe_pickle_load(prep_path, "Preprocessing results")
 
             if preprocessing_results and "metadata" in preprocessing_results:
                 metadata = preprocessing_results["metadata"]
@@ -280,9 +277,7 @@ class BrainVisualizer:
                     }
 
             # If no spatial processing, create basic spatial analysis
-            if not spatial_analysis.get("spatial_processing", {}).get(
-                "applied", False
-            ):
+            if not spatial_analysis.get("spatial_processing", {}).get("applied", False):
                 spatial_analysis = self._basic_spatial_analysis(results_dir, plot_dir)
 
         except Exception as e:
@@ -419,9 +414,7 @@ class BrainVisualizer:
 
         return spatial_analysis
 
-    def _create_region_factor_analysis(
-        self, results_dir: Path, plot_dir: Path
-    ) -> Dict:
+    def _create_region_factor_analysis(self, results_dir: Path, plot_dir: Path) -> Dict:
         """Create region-wise factor analysis."""
         region_analysis = {
             "region_loadings": {},
@@ -457,9 +450,7 @@ class BrainVisualizer:
 
         return region_analysis
 
-    def _create_reconstruction_summary(
-        self, results_dir: Path, plot_dir: Path
-    ) -> Dict:
+    def _create_reconstruction_summary(self, results_dir: Path, plot_dir: Path) -> Dict:
         """Create summary of subject reconstructions."""
         reconstruction_summary = {
             "reconstructions_available": False,

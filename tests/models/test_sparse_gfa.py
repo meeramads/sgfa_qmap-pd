@@ -1,11 +1,6 @@
 """Tests for Sparse GFA model implementation."""
 
-from typing import Any, Dict, List
-
-import jax
-import jax.numpy as jnp
 import numpy as np
-import numpyro
 import pytest
 
 from data import generate_synthetic_data

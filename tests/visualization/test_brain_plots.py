@@ -2,13 +2,11 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from data import generate_synthetic_data
 from visualization.brain_plots import BrainPlotter
 
 

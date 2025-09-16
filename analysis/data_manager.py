@@ -2,8 +2,7 @@
 """Module for data loading and preprocessing."""
 
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 

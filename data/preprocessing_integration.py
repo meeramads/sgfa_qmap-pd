@@ -5,8 +5,7 @@ Replaces basic load_qmap_pd() with full NeuroImagingPreprocessor capabilities.
 """
 
 import logging
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -63,9 +62,7 @@ def get_advanced_preprocessing_data(
         # Determine preprocessing approach
         if not strategy_config.get("enable_advanced_preprocessing", False):
             logger.info("Using minimal preprocessing (basic scaling only)")
-            return _apply_minimal_preprocessing(
-                X_list_raw, view_names, strategy_config
-            )
+            return _apply_minimal_preprocessing(X_list_raw, view_names, strategy_config)
         else:
             logger.info("Using advanced NeuroImagingPreprocessor")
             return _apply_advanced_preprocessing(
@@ -151,9 +148,7 @@ def _apply_advanced_preprocessing(
             roi_based_selection=strategy_config.get("roi_based_selection", False),
             harmonize_scanners=strategy_config.get("harmonize_scanners", False),
             qc_outlier_threshold=strategy_config.get("qc_outlier_threshold", 3.0),
-            spatial_neighbor_radius=strategy_config.get(
-                "spatial_neighbor_radius", 5.0
-            ),
+            spatial_neighbor_radius=strategy_config.get("spatial_neighbor_radius", 5.0),
             min_voxel_distance=strategy_config.get("min_voxel_distance", 3.0),
         )
 
@@ -281,7 +276,8 @@ def get_optimal_preprocessing_strategy(
         # Strategy selection logic
         if avg_missing_pct > 20:
             optimal_strategy = "aggressive"  # KNN imputation for high missing data
-            reason = f"High missing data ({avg_missing_pct:.1f}%) requires robust imputation"
+            reason = f"High missing data ({
+                avg_missing_pct:.1f}%) requires robust imputation"
         elif total_features > 5000 and has_imaging_views:
             optimal_strategy = (
                 "aggressive"  # Feature selection needed for high-dimensional imaging

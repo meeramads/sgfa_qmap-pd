@@ -3,7 +3,7 @@
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from .config_schema import ConfigurationValidator, ConfigValidationError
 

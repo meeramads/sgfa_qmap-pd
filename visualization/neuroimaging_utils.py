@@ -5,12 +5,11 @@ This module provides functionality to map factor loadings back to MRI space
 for visualization and interpretation of neuroimaging results.
 """
 
-import json
 import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -77,9 +76,7 @@ class FactorToMRIMapper:
             if ref_path.exists():
                 self.reference_mri = str(ref_path)
             else:
-                logger.warning(
-                    "No reference MRI specified and standard path not found"
-                )
+                logger.warning("No reference MRI specified and standard path not found")
 
         # Load position lookup files
         self._load_position_files()
@@ -388,9 +385,7 @@ class FactorToMRIMapper:
             max_subjects = 87  # qMAP-PD default, could be made dynamic
             subject_ids = list(range(1, min(11, max_subjects + 1)))
 
-        logging.info(
-            f"Batch reconstructing {len(subject_ids)} subjects: {subject_ids}"
-        )
+        logging.info(f"Batch reconstructing {len(subject_ids)} subjects: {subject_ids}")
 
         # Perform reconstructions
         start_time = time.time()
@@ -519,9 +514,7 @@ class FactorToMRIMapper:
                     roi_dim = len(positions)
 
                     if loading_start + roi_dim <= len(loadings):
-                        roi_loadings = loadings[
-                            loading_start : loading_start + roi_dim
-                        ]
+                        roi_loadings = loadings[loading_start : loading_start + roi_dim]
 
                         output_file = self._create_roi_nifti(
                             roi_loadings,
@@ -1034,7 +1027,7 @@ def create_factor_overlay_images(
         combined_nii.header.set_data_dtype(np.float32)
         combined_nii.header["descrip"] = (
             f"Factor {
-            factor_idx + 1} combined ROI loadings"
+                factor_idx + 1} combined ROI loadings"
         )
 
         nib.save(combined_nii, output_file)
@@ -1095,7 +1088,6 @@ def example_usage():
 
     # Setup (adjust paths as needed)
     base_dir = "qMAP-PD_data"
-    results_dir = "../results/qmap_pd/sparseGFA_K20_4chs_pW33_s5000_reghsZ"
 
     # Initialize mapper
     mapper = FactorToMRIMapper(base_dir)

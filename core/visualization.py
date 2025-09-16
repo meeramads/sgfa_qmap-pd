@@ -30,7 +30,7 @@ def safe_plotting_context(figsize=None, dpi=300):
     """Context manager for safe plotting with automatic cleanup."""
     import matplotlib.pyplot as plt
 
-    original_backend = plt.get_backend()
+    plt.get_backend()
 
     if figsize:
         plt.rcParams["figure.figsize"] = figsize
@@ -145,7 +145,7 @@ def synthetic_data(res_dir: str, true_params: Dict, args: Any, hypers: Dict):
     config = VisualizationConfig()
 
     # Initialize specialized visualizers
-    factor_viz = FactorVisualizer(config)
+    FactorVisualizer(config)
     report_gen = ReportGenerator(config)
 
     plot_path = Path(res_dir) / "plots"
@@ -206,7 +206,7 @@ def qmap_pd(data: Dict, res_dir: str, args: Any, hypers: Dict, topk: int = 20):
     config = VisualizationConfig()
 
     # Initialize specialized visualizers
-    factor_viz = FactorVisualizer(config)
+    FactorVisualizer(config)
     brain_viz = BrainVisualizer(config)
     report_gen = ReportGenerator(config)
 
@@ -301,9 +301,7 @@ def plot_consensus_subtypes(
     """Delegate to CV visualizer."""
     config = VisualizationConfig()
     cv_viz = CrossValidationVisualizer(config)
-    return cv_viz.plot_consensus_subtypes(
-        centroids_data, probabilities_data, plot_path
-    )
+    return cv_viz.plot_consensus_subtypes(centroids_data, probabilities_data, plot_path)
 
 
 def create_brain_visualization_summary(

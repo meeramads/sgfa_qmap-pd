@@ -7,7 +7,7 @@ Replaces basic resource management with sophisticated performance optimization t
 import logging
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 import psutil
@@ -585,18 +585,16 @@ def integrate_performance_with_pipeline(
             "features_enabled": list(
                 optimization_info.get("performance_features", {}).keys()
             ),
-            "system_optimized_for": optimization_info.get(
-                "configuration_info", {}
-            ).get("system_characteristics", {}),
+            "system_optimized_for": optimization_info.get("configuration_info", {}).get(
+                "system_characteristics", {}
+            ),
         }
 
         # Add memory optimization details
         if "data_optimization" in optimization_info:
             data_opt = optimization_info["data_optimization"]
             integration_summary["memory_optimization"] = {
-                "dtype_optimization": data_opt.get(
-                    "dtype_optimization_applied", False
-                ),
+                "dtype_optimization": data_opt.get("dtype_optimization_applied", False),
                 "chunking_enabled": data_opt.get("chunking_enabled", False),
                 "target_dtype": data_opt.get("target_dtype", "unknown"),
             }

@@ -531,7 +531,7 @@ def safe_pickle_save_with_backup(data, filepath, description="File"):
 
         # Verify the written file
         with open(temp_path, "rb") as f:
-            test_load = pickle.load(f)
+            pickle.load(f)
 
         # If verification passed, move temp to final location
         temp_path.rename(filepath)
@@ -1043,17 +1043,13 @@ def validate_core_parameters(args):
         )
 
     if args.num_runs <= 0:
-        raise ValueError(
-            f"Invalid num_runs={args.num_runs}. Must be positive integer."
-        )
+        raise ValueError(f"Invalid num_runs={args.num_runs}. Must be positive integer.")
 
 
 def validate_model_parameters(args):
     """Validate model type and dataset"""
     if args.model not in ["sparseGFA", "GFA"]:
-        raise ValueError(
-            f"Invalid model='{args.model}'. Must be 'sparseGFA' or 'GFA'."
-        )
+        raise ValueError(f"Invalid model='{args.model}'. Must be 'sparseGFA' or 'GFA'.")
 
     if args.dataset not in ["qmap_pd", "synthetic"]:
         raise ValueError(
@@ -1117,9 +1113,7 @@ def validate_gpu_availability(args):
             import jax
 
             if not jax.devices("gpu"):
-                logging.warning(
-                    "GPU requested but not available. Falling back to CPU."
-                )
+                logging.warning("GPU requested but not available. Falling back to CPU.")
                 args.device = "cpu"
         except Exception as e:
             logging.warning(f"JAX GPU support not available ({e}). Using CPU.")

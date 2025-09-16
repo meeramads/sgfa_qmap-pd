@@ -3,23 +3,16 @@
 import hashlib
 import logging
 import pickle
-import warnings
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from scipy import stats
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
+from core.config_utils import get_data_dir, get_output_dir
 from core.experiment_utils import (
     experiment_handler,
-    get_experiment_logger,
-    validate_experiment_inputs,
 )
-from core.io_utils import DataManager, save_csv, save_json, save_numpy, save_plot
 from core.validation_utils import (
     ParameterValidator,
     ResultValidator,
@@ -606,8 +599,6 @@ class ReproducibilityExperiments(ExperimentFramework):
         import time
 
         import jax
-        import jax.numpy as jnp
-        import numpyro
         from numpyro.infer import MCMC, NUTS
 
         try:
@@ -616,7 +607,8 @@ class ReproducibilityExperiments(ExperimentFramework):
                 f"Running SGFA for reproducibility test: K={K}, n_subjects={
                     X_list[0].shape[0]}, n_features={
                     sum(
-                        X.shape[1] for X in X_list)}")
+                        X.shape[1] for X in X_list)}"
+            )
 
             # Import the actual SGFA model function
             from core.run_analysis import models
@@ -1342,7 +1334,8 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         try:
             self.logger.info(
-                f"🎨 Creating comprehensive reproducibility visualizations for {experiment_name}")
+                f"🎨 Creating comprehensive reproducibility visualizations for {experiment_name}"
+            )
 
             # Import visualization system
             from core.config_utils import ConfigAccessor
@@ -1433,7 +1426,8 @@ class ReproducibilityExperiments(ExperimentFramework):
 
                     self.logger.info(
                         f"✅ Created {
-                            len(plot_files)} comprehensive reproducibility visualizations")
+                            len(plot_files)} comprehensive reproducibility visualizations"
+                    )
                     self.logger.info(
                         "   → Consensus factor analysis and stability plots generated"
                     )
@@ -1570,8 +1564,6 @@ def run_reproducibility(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        from pathlib import Path
-
         # Load data with standard preprocessing for reproducibility testing
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
         from experiments.framework import ExperimentConfig, ExperimentFramework
@@ -1666,7 +1658,8 @@ def run_reproducibility(config):
                             metrics.execution_time:.1f}s, LL={
                             result.get(
                                 'log_likelihood',
-                                0):.2f}")
+                                0):.2f}"
+                    )
 
                 except Exception as e:
                     logger.error(f"❌ Seed {seed} test failed: {e}")
@@ -1713,7 +1706,8 @@ def run_reproducibility(config):
                             metrics.execution_time:.1f}s, LL={
                             result.get(
                                 'log_likelihood',
-                                0):.2f}")
+                                0):.2f}"
+                    )
 
                 except Exception as e:
                     logger.error(f"❌ Noise {noise_level} test failed: {e}")
@@ -1758,7 +1752,8 @@ def run_reproducibility(config):
                             metrics.execution_time:.1f}s, LL={
                             result.get(
                                 'log_likelihood',
-                                0):.2f}")
+                                0):.2f}"
+                    )
 
                 except Exception as e:
                     logger.error(f"❌ Init {init_id} test failed: {e}")

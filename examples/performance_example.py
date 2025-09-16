@@ -5,7 +5,6 @@ from pathlib import Path
 
 import numpy as np
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -215,7 +214,8 @@ def example_configuration_management():
     loaded_config = PerformanceConfig.load(config_file)
     print(
         f"Loaded configuration with {
-            loaded_config.memory.max_memory_gb:.1f}GB memory limit")
+            loaded_config.memory.max_memory_gb:.1f}GB memory limit"
+    )
 
     # Clean up
     config_file.unlink()

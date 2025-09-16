@@ -4,7 +4,6 @@ import tempfile
 import time
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from data import generate_synthetic_data

@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from data import generate_synthetic_data
@@ -379,7 +378,7 @@ class TestSensitivityAnalysis:
             assert result is not None
 
             # Check for summary output
-            summary_files = list(Path(tmpdir).rglob("*summary*"))
+            list(Path(tmpdir).rglob("*summary*"))
 
             # Should have some form of summary output
             assert len(list(Path(tmpdir).rglob("*"))) > 0

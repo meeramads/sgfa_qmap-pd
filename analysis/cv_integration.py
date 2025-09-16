@@ -5,7 +5,6 @@ Replaces manual hyperparameter optimization with comprehensive CV framework.
 """
 
 import logging
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -35,11 +34,8 @@ def apply_comprehensive_cv_framework(
         try:
             from analysis.cross_validation_library import (
                 NeuroImagingCrossValidator,
-                NeuroImagingCVConfig,
-                ParkinsonsConfig,
             )
 
-            cv_available = True
             logger.info("✅ NeuroImagingCrossValidator available")
         except ImportError as e:
             logger.warning(f"❌ CV framework not available: {e}")
@@ -101,9 +97,7 @@ def apply_comprehensive_cv_framework(
         )
 
         # Extract enhanced optimal parameters
-        enhanced_optimal_params = _extract_cv_optimal_params(
-            cv_results, optimal_params
-        )
+        enhanced_optimal_params = _extract_cv_optimal_params(cv_results, optimal_params)
 
         # Add comprehensive CV information
         comprehensive_cv_results = {
@@ -315,9 +309,7 @@ def _compare_with_manual_optimization(cv_results: Dict, manual_optimal: Dict) ->
 
         if cv_score > manual_score:
             improvement = cv_score - manual_score
-            comparison["improvements"].append(
-                f"CV score improved by {improvement:.4f}"
-            )
+            comparison["improvements"].append(f"CV score improved by {improvement:.4f}")
 
         # Compare individual parameters
         cv_params = cv_results.get("best_params", {})
@@ -343,7 +335,6 @@ def _fallback_cv_analysis(
         logger.info("🔬 Running fallback CV analysis...")
 
         # Basic cross-validation using sklearn
-        from sklearn.metrics import mean_squared_error
         from sklearn.model_selection import KFold
 
         n_folds = config.get("cv_outer_folds", 5)

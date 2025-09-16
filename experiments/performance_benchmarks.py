@@ -2,27 +2,18 @@
 
 import gc
 import logging
-import time
-import warnings
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import psutil
-import seaborn as sns
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
+from core.config_utils import get_data_dir, get_output_dir
 from core.experiment_utils import (
     experiment_handler,
-    get_experiment_logger,
-    validate_experiment_inputs,
 )
-from core.io_utils import DataManager, save_csv, save_json, save_numpy, save_plot
 from core.validation_utils import (
-    ParameterValidator,
     ResultValidator,
     validate_data_types,
     validate_parameters,
@@ -154,7 +145,8 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                 if estimated_memory > memory_limit * 1.5:  # 50% buffer
                     self.logger.info(
                         f"Skipping scale {scale_factor} (estimated {
-                            estimated_memory:.2f}GB > {memory_limit}GB)")
+                            estimated_memory:.2f}GB > {memory_limit}GB)"
+                    )
                     continue
 
                 try:
@@ -184,7 +176,8 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                 except Exception as e:
                     self.logger.warning(
                         f"Memory test failed for {memory_limit}GB, scale {scale_factor}: {
-                            str(e)}")
+                            str(e)}"
+                    )
                     constraint_results.append(
                         {
                             "scale_factor": scale_factor,
@@ -576,8 +569,6 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         import time
 
         import jax
-        import jax.numpy as jnp
-        import numpyro
         from numpyro.infer import MCMC, NUTS
 
         try:
@@ -586,7 +577,8 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                 f"Running SGFA benchmark: K={K}, n_subjects={
                     X_list[0].shape[0]}, n_features={
                     sum(
-                        X.shape[1] for X in X_list)}")
+                        X.shape[1] for X in X_list)}"
+            )
 
             # Import the actual SGFA model function
             from core.run_analysis import models
@@ -1682,7 +1674,8 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
 
         try:
             self.logger.info(
-                f"🎨 Creating comprehensive performance visualizations for {experiment_name}")
+                f"🎨 Creating comprehensive performance visualizations for {experiment_name}"
+            )
 
             # Import visualization system
             from core.config_utils import ConfigAccessor
@@ -1775,7 +1768,8 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
 
                     self.logger.info(
                         f"✅ Created {
-                            len(plot_files)} comprehensive performance visualizations")
+                            len(plot_files)} comprehensive performance visualizations"
+                    )
 
                     # Additional performance-specific summary
                     if cv_results and "hyperparameter_optimization" in cv_results:
@@ -1942,8 +1936,6 @@ def run_performance_benchmarks(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        from pathlib import Path
-
         # Load data with advanced preprocessing for consistent benchmarking
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
         from experiments.framework import ExperimentConfig, ExperimentFramework
@@ -2088,7 +2080,8 @@ def run_performance_benchmarks(config):
                             metrics.execution_time:.1f}s, LL={
                             result.get(
                                 'log_likelihood',
-                                0):.2f}")
+                                0):.2f}"
+                    )
                 except Exception as e:
                     logger.error(f"❌ K={K} benchmark failed: {e}")
                     component_results[f"K{K}"] = {"error": str(e)}

@@ -67,11 +67,7 @@ class ConfigManager:
         """Check cross-validation module availability"""
         try:
             # Check for neuroimaging-specific features (these actually exist)
-            from .cross_validation_library import (
-                NeuroImagingCrossValidator,
-                NeuroImagingCVConfig,
-                ParkinsonsConfig,
-            )
+            pass
 
             self.dependencies.cv_available = True
             self.dependencies.neuroimaging_cv_available = True
@@ -86,10 +82,7 @@ class ConfigManager:
     def _check_factor_mapping(self):
         """Check factor-to-MRI mapping module"""
         try:
-            from visualization.neuroimaging_utils import (
-                FactorToMRIMapper,
-                integrate_with_visualization,
-            )
+            pass
 
             self.dependencies.factor_mapping_available = True
             logging.info("Factor-to-MRI mapping module available")
@@ -99,7 +92,7 @@ class ConfigManager:
     def _check_preprocessing(self):
         """Check preprocessing module"""
         try:
-            from data.preprocessing import create_preprocessor_from_args
+            pass
 
             self.dependencies.preprocessing_available = True
             logging.info("Preprocessing module available")

@@ -2,9 +2,8 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -112,7 +111,7 @@ class TestFactorPlotter:
         factor_loadings = mock_model_results["factor_loadings"]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            output_path = Path(tmpdir) / "loading_heatmap.png"
+            Path(tmpdir) / "loading_heatmap.png"
 
             # Should complete without error for each view
             for i, loadings in enumerate(factor_loadings):

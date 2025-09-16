@@ -10,29 +10,17 @@ For optimizing hyperparameters within sparseGFA, see experiments/sgfa_parameter_
 import gc
 import logging
 import time
-import warnings
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import seaborn as sns
-from scipy import stats
-from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA, FactorAnalysis, FastICA
-from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 
 # Safe configuration access
-from core.config_utils import ConfigAccessor, get_output_dir, safe_get
 from core.experiment_utils import (
     experiment_handler,
-    get_experiment_logger,
-    validate_experiment_inputs,
 )
-from core.io_utils import DataManager, save_csv, save_json, save_numpy, save_plot
 from core.validation_utils import (
-    ParameterValidator,
     ResultValidator,
     validate_data_types,
     validate_parameters,
@@ -182,8 +170,6 @@ class ModelArchitectureComparison(ExperimentFramework):
     ) -> Dict:
         """Run a specific model architecture."""
         import jax
-        import jax.numpy as jnp
-        import numpyro
         from numpyro.infer import MCMC, NUTS
 
         try:
@@ -824,7 +810,7 @@ def run_model_comparison(config=None, **kwargs):
         # Default fallback
         config_dict = {}
 
-    config_accessor = ConfigAccessor(config_dict)
+    ConfigAccessor(config_dict)
 
     # Check for shared data and optimal parameters
     shared_data = config_dict.get("_shared_data")
@@ -838,7 +824,8 @@ def run_model_comparison(config=None, **kwargs):
         n_subjects = X_list[0].shape[0]
         logger.info(
             f"   → Data shape: {n_subjects} subjects, {
-                len(X_list)} views with dims {view_dims}")
+                len(X_list)} views with dims {view_dims}"
+        )
     else:
         logger.info("   → Loading fresh data (no shared data available)")
         # Fallback to dummy data for testing
@@ -852,7 +839,8 @@ def run_model_comparison(config=None, **kwargs):
         logger.info(
             f"   → Using optimal SGFA parameters: K={
                 optimal_sgfa_params['K']}, percW={
-                optimal_sgfa_params['percW']}")
+                optimal_sgfa_params['percW']}"
+        )
         optimal_K = optimal_sgfa_params["K"]
         optimal_percW = optimal_sgfa_params["percW"]
     else:

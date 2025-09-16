@@ -3,9 +3,7 @@
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import pytest
-import yaml
 
 from data import generate_synthetic_data
 from experiments.data_validation import run_data_validation

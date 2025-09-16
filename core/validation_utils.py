@@ -2,10 +2,9 @@
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Callable, Dict, List, Optional, Type, Union
 
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -276,9 +275,7 @@ class ResultValidator:
                 logger.warning(f"MCMC samples missing expected keys: {missing_keys}")
 
     @staticmethod
-    def validate_data_matrices(
-        X_list: List[np.ndarray], min_samples: int = 10
-    ) -> None:
+    def validate_data_matrices(X_list: List[np.ndarray], min_samples: int = 10) -> None:
         """
         Validate list of data matrices for experiments.
 

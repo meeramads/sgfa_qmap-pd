@@ -3,11 +3,10 @@
 
 import logging
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List
 
 import jax
 import numpy as np
-import numpyro
 from numpyro.infer import MCMC, NUTS
 
 logger = logging.getLogger(__name__)

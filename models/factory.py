@@ -1,7 +1,7 @@
 # models/factory.py
 """Factory for creating model instances."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from .base import BaseGFAModel
 from .latent_class_analysis import LatentClassAnalysisModel

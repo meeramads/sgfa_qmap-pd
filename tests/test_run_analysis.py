@@ -1,8 +1,7 @@
 """Tests for the main run_analysis.py module."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -23,8 +22,7 @@ class TestModels:
         args.num_sources = 3
         args.K = 5
 
-        X_list = sample_synthetic_data["X_list"]
-        hypers = sample_hyperparameters
+        sample_synthetic_data["X_list"]
 
         # Since models() uses numpyro.sample which requires execution context,
         # we'll test the function structure rather than direct execution

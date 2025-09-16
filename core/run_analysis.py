@@ -1,11 +1,8 @@
 import argparse
 import logging
 import sys
-from pathlib import Path
 
-import jax
 import jax.numpy as jnp
-import jax.random
 import numpy as np
 import numpyro
 import numpyro.distributions as dist
@@ -18,8 +15,6 @@ import core.visualization as visualization
 from analysis.config_manager import ConfigManager
 from analysis.cross_validation import (
     CVRunner,
-    should_run_cv_analysis,
-    should_run_standard_analysis,
 )
 from analysis.data_manager import DataManager
 from analysis.model_runner import ModelRunner
@@ -454,9 +449,7 @@ if __name__ == "__main__":
         "--dataset", type=str, default="qmap_pd", choices=["qmap_pd", "synthetic"]
     )
     parser.add_argument("--data_dir", type=str, default="qMAP-PD_data")
-    parser.add_argument(
-        "--device", default="cpu", type=str, help='use "cpu" or "gpu".'
-    )
+    parser.add_argument("--device", default="cpu", type=str, help='use "cpu" or "gpu".')
     parser.add_argument(
         "--noise",
         nargs="?",

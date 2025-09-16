@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -85,9 +85,9 @@ class ImportChecker:
                                 node.module,
                                 node.lineno,
                                 f"from {
-                                node.module} import {
-                                ', '.join(
-                                    alias.name for alias in node.names)}",
+                                    node.module} import {
+                                    ', '.join(
+                                        alias.name for alias in node.names)}",
                             )
                         )
         except Exception as e:

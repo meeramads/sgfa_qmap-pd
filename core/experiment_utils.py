@@ -2,7 +2,7 @@
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 import numpy as np
 
@@ -84,8 +84,6 @@ class SGFARunner:
         try:
             # Import JAX components
             import jax
-            import jax.numpy as jnp
-            import numpyro
             from numpyro.infer import MCMC, NUTS
 
             logger.info(f"Starting {experiment_name} with {len(X_list)} datasets")

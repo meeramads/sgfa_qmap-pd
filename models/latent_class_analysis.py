@@ -6,7 +6,6 @@ from typing import Dict, List
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
-from jax import lax
 
 from .base import BaseGFAModel
 

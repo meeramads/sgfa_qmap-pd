@@ -216,7 +216,7 @@ def example_preprocessing_visualization():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize preprocessing visualizer
-    visualizer = PreprocessingVisualizer()
+    PreprocessingVisualizer()
 
     # Example 1: Before/after comparison
     print(f"\n📊 Creating before/after preprocessing comparison...")
@@ -300,8 +300,9 @@ def example_preprocessing_visualization():
 
     # Processing efficiency
     efficiency = [final / orig for orig, final in zip(orig_features, final_features)]
-    axes[1, 1].bar([f"View {v + 1}" for v in views],
-                   efficiency, color="green", alpha=0.7)
+    axes[1, 1].bar(
+        [f"View {v + 1}" for v in views], efficiency, color="green", alpha=0.7
+    )
     axes[1, 1].set_title("Feature Retention Rate")
     axes[1, 1].set_ylabel("Retained Features Ratio")
     axes[1, 1].set_ylim(0, 1)
@@ -334,7 +335,7 @@ def example_brain_visualization():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize brain visualizer
-    visualizer = BrainVisualizer()
+    BrainVisualizer()
 
     # Example 1: Simulated brain map visualization
     print(f"🔄 Creating simulated brain factor maps...")
@@ -351,7 +352,7 @@ def example_brain_visualization():
     }
 
     # Simulate region names
-    region_names = [f"Region_{i + 1}" for i in range(n_regions)]
+    [f"Region_{i + 1}" for i in range(n_regions)]
 
     # Simulate factor loadings with some spatial structure
     factor_loadings = np.random.randn(n_regions, n_factors)
@@ -519,7 +520,7 @@ def example_comprehensive_report():
     print("=" * 60)
 
     from data import generate_synthetic_data
-    from visualization import ReportGenerator, VisualizationManager
+    from visualization import VisualizationManager
 
     # Generate comprehensive synthetic analysis results
     data = generate_synthetic_data(num_sources=3, K=6, num_subjects=120)
@@ -531,7 +532,7 @@ def example_comprehensive_report():
     print(f"🔄 Generating comprehensive analysis report...")
 
     # Initialize visualization manager
-    viz_manager = VisualizationManager()
+    VisualizationManager()
 
     # Simulate complete analysis results
     analysis_results = {
@@ -631,8 +632,9 @@ def example_comprehensive_report():
 
     # Factor score distributions
     for k in range(min(2, data["Z_true"].shape[1])):
-        axes[1, 1].hist(data["Z_true"][:, k], bins=30,
-                        alpha=0.6, label=f"Factor {k + 1}")
+        axes[1, 1].hist(
+            data["Z_true"][:, k], bins=30, alpha=0.6, label=f"Factor {k + 1}"
+        )
     axes[1, 1].set_title("Factor Score Distributions")
     axes[1, 1].set_xlabel("Score")
     axes[1, 1].set_ylabel("Frequency")
@@ -748,7 +750,6 @@ def example_comprehensive_report():
     """
 
     # Save HTML report
-    import pandas as pd
 
     report_path = output_dir / "analysis_report.html"
     with open(report_path, "w") as f:
@@ -876,8 +877,14 @@ def example_custom_plotting():
         factor_positions[i] = (x, y)
 
         ax.scatter(x, y, s=500, c=color, alpha=0.8, edgecolors="black", linewidths=2)
-        ax.annotate(f"F{i + 1}", (x, y), ha="center",
-                    va="center", fontweight="bold", fontsize=12)
+        ax.annotate(
+            f"F{i + 1}",
+            (x, y),
+            ha="center",
+            va="center",
+            fontweight="bold",
+            fontsize=12,
+        )
 
     # Plot edges (correlations)
     for i in range(len(factor_colors)):
@@ -1042,7 +1049,8 @@ if __name__ == "__main__":
         print(
             f"• Brain visualizations: {
                 brain_results['n_factors']} factors × {
-                brain_results['n_regions']} regions")
+                brain_results['n_regions']} regions"
+        )
         print(
             f"• Preprocessing plots: {len(preprocessing_results['plots_created'])} types"
         )

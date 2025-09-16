@@ -1,12 +1,9 @@
 """Example usage of SGFA models and the model factory."""
 
 import logging
-from pathlib import Path
 
 import numpy as np
-import yaml
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
 from core.io_utils import save_json, save_numpy
 
 # Configure logging
@@ -21,7 +18,7 @@ def example_basic_model_creation():
     print("=" * 60)
 
     from data import generate_synthetic_data
-    from models import ModelFactory, create_model
+    from models import create_model
 
     # Generate synthetic data for testing
     data = generate_synthetic_data(num_sources=3, K=5, num_subjects=100)
@@ -76,7 +73,6 @@ def example_sparse_gfa_training():
 
     import jax
     import jax.numpy as jnp
-    import numpyro
     from numpyro.infer import MCMC, NUTS
 
     from data import generate_synthetic_data
@@ -166,7 +162,6 @@ def example_model_comparison():
 
     import jax
     import jax.numpy as jnp
-    import numpyro
     from numpyro.infer import MCMC, NUTS
 
     from data import generate_synthetic_data
@@ -354,7 +349,8 @@ def example_hyperparameter_optimization():
 
                 try:
                     print(
-                        f"\n🔄 Testing percW={percW}, slab_scale={slab_scale}, a_sigma={a_sigma}")
+                        f"\n🔄 Testing percW={percW}, slab_scale={slab_scale}, a_sigma={a_sigma}"
+                    )
 
                     # Create and run model
                     model = create_model("sparseGFA", config, hypers)
@@ -480,7 +476,8 @@ def example_model_diagnostics():
             print(
                 f"  {param_name}: mean={
                     jnp.mean(ess_value):.1f}, min={
-                    jnp.min(ess_value):.1f}")
+                    jnp.min(ess_value):.1f}"
+            )
         else:
             print(f"  {param_name}: {ess_value:.1f}")
 
@@ -508,13 +505,15 @@ def example_model_diagnostics():
         print(
             f"  Average acceptance probability: {
                 jnp.mean(
-                    extra_fields['accept_prob']):.3f}")
+                    extra_fields['accept_prob']):.3f}"
+        )
     if "diverging" in extra_fields:
         divergent_count = jnp.sum(extra_fields["diverging"])
         total_samples = extra_fields["diverging"].size
         print(
             f"  Divergent transitions: {divergent_count}/{total_samples} ({
-                100 * divergent_count / total_samples:.1f}%)")
+                100 * divergent_count / total_samples:.1f}%)"
+        )
 
     # Posterior summaries
     print(f"\nPOSTERIOR SUMMARIES")

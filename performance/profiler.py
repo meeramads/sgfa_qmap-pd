@@ -2,7 +2,6 @@
 
 import functools
 import gc
-import json
 import logging
 import threading
 import time
@@ -392,7 +391,7 @@ def benchmark_function(
         if profiler:
             with profiler.profile(f"{func.__name__}_iter_{i}"):
                 try:
-                    result = func(**kwargs)
+                    func(**kwargs)
                 except Exception as e:
                     logger.error(f"Benchmark iteration {i} failed: {e}")
                     continue
@@ -405,7 +404,7 @@ def benchmark_function(
             # Simple timing without detailed profiling
             start_time = time.perf_counter()
             try:
-                result = func(**kwargs)
+                func(**kwargs)
                 end_time = time.perf_counter()
                 execution_times.append(end_time - start_time)
             except Exception as e:

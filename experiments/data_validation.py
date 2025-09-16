@@ -2,29 +2,21 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from sklearn.decomposition import PCA
-from sklearn.metrics import silhouette_score
-from sklearn.preprocessing import StandardScaler
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
+from core.config_utils import get_data_dir
 from core.experiment_utils import (
     experiment_handler,
-    get_experiment_logger,
-    validate_experiment_inputs,
 )
-from core.io_utils import DataManager, save_csv, save_json, save_numpy, save_plot
-from core.utils import safe_pickle_load, safe_pickle_save
+from core.io_utils import save_csv, save_plot
 from core.validation_utils import (
-    ParameterValidator,
     ResultValidator,
     validate_data_types,
-    validate_parameters,
 )
 from data.qmap_pd import load_qmap_pd
 from experiments.framework import (
@@ -72,7 +64,8 @@ def _log_preprocessing_summary(preprocessing_info):
             f"   Features: {
                 fr['total_before']:,} → {
                 fr['total_after']:,} ({
-                fr['reduction_ratio']:.3f} ratio)")
+                fr['reduction_ratio']:.3f} ratio)"
+        )
 
     # Log steps applied
     steps = data_source.get("steps_applied", [])
@@ -89,7 +82,8 @@ def _log_preprocessing_summary(preprocessing_info):
             f"   Data: {
                 len(original_shapes)} views, {
                 total_orig_features:,        } → {
-                total_proc_features:,            } features")
+                total_proc_features:,            } features"
+        )
 
 
 def run_data_validation(config):
@@ -685,11 +679,12 @@ class DataValidationExperiments(ExperimentFramework):
                 pca_results["raw_data"][view_name] = {
                     "explained_variance_ratio": pca_raw.explained_variance_ratio_.tolist(),
                     "cumulative_variance": np.cumsum(
-                        pca_raw.explained_variance_ratio_).tolist(),
+                        pca_raw.explained_variance_ratio_
+                    ).tolist(),
                     "n_components_90_var": int(
-                        np.argmax(
-                            np.cumsum(
-                                pca_raw.explained_variance_ratio_) > 0.9) + 1),
+                        np.argmax(np.cumsum(pca_raw.explained_variance_ratio_) > 0.9)
+                        + 1
+                    ),
                 }
 
                 # Plot explained variance
@@ -712,11 +707,12 @@ class DataValidationExperiments(ExperimentFramework):
                 pca_results["preprocessed_data"][view_name] = {
                     "explained_variance_ratio": pca_proc.explained_variance_ratio_.tolist(),
                     "cumulative_variance": np.cumsum(
-                        pca_proc.explained_variance_ratio_).tolist(),
+                        pca_proc.explained_variance_ratio_
+                    ).tolist(),
                     "n_components_90_var": int(
-                        np.argmax(
-                            np.cumsum(
-                                pca_proc.explained_variance_ratio_) > 0.9) + 1),
+                        np.argmax(np.cumsum(pca_proc.explained_variance_ratio_) > 0.9)
+                        + 1
+                    ),
                 }
 
                 # Plot explained variance
@@ -755,7 +751,7 @@ class DataValidationExperiments(ExperimentFramework):
         ]
 
         metrics = ["missing_data_ratio", "low_variance_ratio", "outlier_ratio"]
-        n_views = len(raw_data["X_list"])
+        len(raw_data["X_list"])
 
         fig, axes = plt.subplots(1, len(metrics), figsize=(15, 5))
 
@@ -919,7 +915,8 @@ class DataValidationExperiments(ExperimentFramework):
         strategy_names = list(strategy_data.keys())
         logger.info(
             f"Comparing {
-                len(strategy_names)} preprocessing strategies: {strategy_names}")
+                len(strategy_names)} preprocessing strategies: {strategy_names}"
+        )
 
         # Compare data dimensions
         comparison["data_dimensions"] = {}
@@ -929,7 +926,8 @@ class DataValidationExperiments(ExperimentFramework):
                     logger.error(
                         f"Strategy {strategy_name} missing X_list. Keys: {
                             list(
-                                data.keys())}")
+                                data.keys())}"
+                    )
                     continue
 
                 X_list = data["X_list"]
@@ -973,7 +971,8 @@ class DataValidationExperiments(ExperimentFramework):
                             }
                         except Exception as e:
                             logger.error(
-                                f"Error computing quality metrics for {strategy_name}, view {view_idx}: {e}")
+                                f"Error computing quality metrics for {strategy_name}, view {view_idx}: {e}"
+                            )
                             continue
             else:
                 logger.warning("No valid strategy data found for quality comparison")
@@ -1041,7 +1040,7 @@ class DataValidationExperiments(ExperimentFramework):
             logger.warning("No valid strategy data with X_list for plotting")
             return
 
-        n_strategies = len(valid_strategies)
+        len(valid_strategies)
         strategy_names = list(valid_strategies.keys())
 
         # Feature count comparison
@@ -1265,7 +1264,8 @@ class DataValidationExperiments(ExperimentFramework):
 
         try:
             logger.info(
-                f"🎨 Creating comprehensive data validation visualizations for {experiment_name}")
+                f"🎨 Creating comprehensive data validation visualizations for {experiment_name}"
+            )
 
             # Import visualization system
             from core.config_utils import ConfigAccessor
@@ -1339,7 +1339,8 @@ class DataValidationExperiments(ExperimentFramework):
 
                 logger.info(
                     f"✅ Created {
-                        len(plot_files)} comprehensive data validation visualizations")
+                        len(plot_files)} comprehensive data validation visualizations"
+                )
                 logger.info(
                     "   → Preprocessing quality and optimization plots generated"
                 )

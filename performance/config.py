@@ -92,9 +92,7 @@ class MCMCConfig:
     # Gradient checkpointing
     enable_checkpointing: bool = True
     checkpoint_frequency: int = 5
-    checkpoint_policy: str = (
-        "dots_with_no_batch_dims_saveable"  # JAX checkpoint policy
-    )
+    checkpoint_policy: str = "dots_with_no_batch_dims_saveable"  # JAX checkpoint policy
 
     # GPU memory management
     clear_caches_between_runs: bool = True

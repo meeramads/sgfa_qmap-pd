@@ -3,9 +3,7 @@
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import pytest
-import yaml
 
 from data import generate_synthetic_data
 from experiments.reproducibility import run_reproducibility
@@ -456,7 +454,7 @@ class TestReproducibility:
             assert result is not None
 
             # Check for summary output
-            summary_files = list(Path(tmpdir).rglob("*summary*"))
+            list(Path(tmpdir).rglob("*summary*"))
 
             # Should have some form of summary output
             assert len(list(Path(tmpdir).rglob("*"))) > 0

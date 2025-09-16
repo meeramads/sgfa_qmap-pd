@@ -4,7 +4,7 @@ import logging
 import pickle
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Union
 
 import h5py
 import numpy as np

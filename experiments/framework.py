@@ -1,24 +1,20 @@
 """Core experimental framework for systematic qMAP-PD analysis."""
 
-import json
 import logging
-import pickle
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import yaml
 
-from core.io_utils import DataManager, save_csv, save_json, save_numpy, save_plot
-from core.utils import safe_pickle_load, safe_pickle_save
+from core.io_utils import save_csv, save_json, save_numpy, save_plot
+from core.utils import safe_pickle_save
 from performance import (
-    MemoryOptimizer,
     PerformanceConfig,
     PerformanceManager,
-    PerformanceProfiler,
 )
 
 logger = logging.getLogger(__name__)
@@ -353,7 +349,6 @@ class ExperimentFramework:
 
     def _save_factor_matrices(self, result: ExperimentResult, output_dir: Path):
         """Save factor matrices (W and Z) as separate files for easy access."""
-        import numpy as np
 
         # Create matrices subdirectory
         matrices_dir = output_dir / "matrices"
@@ -391,7 +386,6 @@ class ExperimentFramework:
         self, result_dict: dict, matrices_dir: Path, variant_name: str
     ):
         """Save W, Z matrices and all model parameters for a specific variant/method."""
-        import numpy as np
         import pandas as pd
 
         # Save primary matrices (W and Z)
@@ -480,14 +474,15 @@ class ExperimentFramework:
                         saved_params.append(f"{param_name} (dict)")
                 except Exception as e:
                     print(
-                        f"Warning: Could not save parameter {param_name} for {variant_name}: {e}")
+                        f"Warning: Could not save parameter {param_name} for {variant_name}: {e}"
+                    )
 
         # Save hyperparameters if available
         hyperparams = result_dict.get("hyperparameters")
         if hyperparams and isinstance(hyperparams, dict):
             try:
                 # Save as JSON for easy reading
-                import json
+                pass
 
                 save_json(
                     hyperparams,
@@ -550,7 +545,6 @@ class ExperimentFramework:
 
     def _save_plots(self, result: ExperimentResult, output_dir: Path):
         """Save plots as PNG and PDF files for easy access and reports."""
-        import matplotlib.pyplot as plt
 
         if not result.plots:
             return

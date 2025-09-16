@@ -1,8 +1,7 @@
 """Tests for DataManager."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
-import numpy as np
 import pytest
 
 from analysis.data_manager import DataManager
@@ -157,7 +156,7 @@ class TestDataManagerIntegration:
             mock_load.return_value = mock_data
 
             dm = DataManager(sample_config)
-            result = dm.load_data()
+            dm.load_data()
 
             # Check that preprocessing params were passed
             call_kwargs = mock_load.call_args[1]

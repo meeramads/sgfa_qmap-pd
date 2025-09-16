@@ -4,8 +4,6 @@
 from typing import Dict
 
 import jax.numpy as jnp
-import numpyro
-import numpyro.distributions as dist
 
 from ..sparse_gfa import SparseGFAModel
 

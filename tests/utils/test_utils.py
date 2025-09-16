@@ -1,10 +1,8 @@
 """Tests for utility functions."""
 
-import os
 import pickle
-import tempfile
 from pathlib import Path
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -117,7 +115,6 @@ class TestMemoryUtilities:
     @patch("utils.psutil")
     def test_cleanup_memory(self, mock_psutil):
         """Test memory cleanup function."""
-        import gc
 
         with patch("gc.collect") as mock_gc:
             cleanup_memory()

@@ -19,44 +19,29 @@ Usage:
    python -m analysis.cross_validation_library --dataset qmap_pd --nested_cv --optimize_for_subtypes
 """
 
-import csv
-import json
 import logging
 import multiprocessing as mp
-import os
 import signal
 import tempfile
 import time
-import traceback
 import warnings
-from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 # JAX and NumPyro imports
-import jax
-import jax.numpy as jnp
 import jax.random as jrandom
 import numpy as np
-import numpyro
-import numpyro.distributions as dist
 import pandas as pd
 from scipy import stats
-from scipy.cluster.hierarchy import fcluster, linkage
-from scipy.spatial.distance import pdist, squareform
-from scipy.stats import pearsonr, spearmanr
+from scipy.spatial.distance import pdist
+from scipy.stats import pearsonr
 from sklearn.cluster import KMeans
 from sklearn.metrics import (
     adjusted_rand_score,
     calinski_harabasz_score,
-    classification_report,
-    confusion_matrix,
-    mean_absolute_error,
     mean_squared_error,
-    normalized_mutual_info_score,
     r2_score,
     silhouette_score,
 )
@@ -65,9 +50,6 @@ from sklearn.metrics import (
 from sklearn.model_selection import (
     GroupKFold,
     KFold,
-    ParameterGrid,
-    ParameterSampler,
-    RepeatedKFold,
     StratifiedKFold,
     TimeSeriesSplit,
 )
@@ -240,7 +222,7 @@ class NeuroImagingMetrics:
 
                 # Compute spatial weights based on distance
                 positions = position_info[["x", "y", "z"]].values
-                distances = pdist(positions)
+                pdist(positions)
 
                 # Moran's I for spatial autocorrelation
                 n = len(loadings)
@@ -356,16 +338,12 @@ class NeuroImagingMetrics:
             sparse_ratio = np.sum(np.abs(factor_vals) > sparsity_threshold) / len(
                 factor_vals
             )
-            sparse_ratios.append(
-                1.0 - sparse_ratio
-            )  # Higher score for sparser factors
+            sparse_ratios.append(1.0 - sparse_ratio)  # Higher score for sparser factors
         scores["sparsity"] = np.mean(sparse_ratios)
 
         # 2. Orthogonality score (factors should be distinct)
         correlation_matrix = np.corrcoef(factor_scores.T)
-        off_diagonal = correlation_matrix[
-            np.triu_indices_from(correlation_matrix, k=1)
-        ]
+        off_diagonal = correlation_matrix[np.triu_indices_from(correlation_matrix, k=1)]
         scores["orthogonality"] = 1.0 - np.mean(np.abs(off_diagonal))
 
         # 3. Spatial coherence (for neuroimaging factors)
@@ -1088,9 +1066,7 @@ class NeuroImagingCrossValidator:
 
         for result in converged_results:
             # Primary score: overall interpretability
-            interp_score = result.get("interpretability_scores", {}).get(
-                "overall", 0.0
-            )
+            interp_score = result.get("interpretability_scores", {}).get("overall", 0.0)
             cv_scores.append(interp_score)
             interpretability_scores.append(result.get("interpretability_scores", {}))
 

@@ -3,7 +3,6 @@
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, List
 from unittest.mock import Mock
 
 import numpy as np

@@ -5,7 +5,6 @@ Integrates structured ModelFactory, model variants, and model management into th
 
 import argparse
 import logging
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -138,7 +137,7 @@ def create_model_instance(
     try:
         logger.info(f"🏗️ Creating model instance: {model_type}")
 
-        from models import ModelFactory, create_model
+        from models import create_model
 
         # Convert config dict to args-like object for model compatibility
         model_args = _create_model_args_from_config(config, hypers)
@@ -227,9 +226,7 @@ def _extract_spatial_info(
         # Create basic spatial info structure
         spatial_info = {
             "imaging_views": imaging_views,
-            "spatial_smoothing": config.get("model", {}).get(
-                "spatial_smoothing", True
-            ),
+            "spatial_smoothing": config.get("model", {}).get("spatial_smoothing", True),
             "neighborhood_structure": "voxel_grid",  # Default structure
         }
         logger.info(
@@ -485,7 +482,7 @@ def _assess_model_suitability(model_type: str, data_characteristics: Dict) -> Di
 
     n_subjects = data_characteristics.get("n_subjects", 0)
     total_features = data_characteristics.get("total_features", 0)
-    n_views = data_characteristics.get("n_views", 0)
+    data_characteristics.get("n_views", 0)
     has_imaging_data = data_characteristics.get("has_imaging_data", False)
 
     if model_type == "neuroGFA":
@@ -592,10 +589,8 @@ def integrate_models_with_pipeline(
         logger.info("🚀 === MODELS FRAMEWORK PIPELINE INTEGRATION ===")
 
         # Apply comprehensive models framework
-        model_type, model_instance, framework_info = (
-            apply_models_framework_to_pipeline(
-                config, X_list, data_characteristics, hypers
-            )
+        model_type, model_instance, framework_info = apply_models_framework_to_pipeline(
+            config, X_list, data_characteristics, hypers
         )
 
         # Create integration summary

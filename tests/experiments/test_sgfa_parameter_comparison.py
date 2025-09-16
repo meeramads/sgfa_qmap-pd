@@ -1,6 +1,5 @@
 """Tests for SGFA parameter comparison experiments."""
 
-import json
 import tempfile
 from pathlib import Path
 
@@ -231,8 +230,8 @@ class TestSGFAParameterComparisonStandalone:
         """Test method comparison with custom data."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Generate custom test data
-            X1 = np.random.randn(15, 25)
-            X2 = np.random.randn(15, 30)
+            np.random.randn(15, 25)
+            np.random.randn(15, 30)
 
             config = {
                 "experiments": {"base_output_dir": tmpdir},

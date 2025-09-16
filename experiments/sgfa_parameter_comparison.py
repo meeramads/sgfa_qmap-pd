@@ -6,22 +6,16 @@ see experiments/model_comparison.py.
 """
 
 import logging
-import warnings
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import seaborn as sns
-from scipy import stats
 from sklearn.cluster import KMeans
 from sklearn.cross_decomposition import CCA
 from sklearn.decomposition import PCA, FactorAnalysis
-from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 
 # Safe configuration access
-from core.config_utils import ConfigAccessor, get_output_dir, safe_get
+from core.config_utils import ConfigAccessor, safe_get
 from core.experiment_utils import experiment_handler
 from core.validation_utils import validate_data_types, validate_parameters
 from experiments.framework import (
@@ -126,7 +120,7 @@ class SGFAParameterComparison(ExperimentFramework):
 
         # Concatenate multi-view data for traditional methods
         X_concat = np.hstack(X_list) if len(X_list) > 1 else X_list[0]
-        n_subjects = X_concat.shape[0]
+        X_concat.shape[0]
 
         # Determine number of components
         n_components = kwargs.get("n_components", min(10, X_concat.shape[1] // 2))
@@ -188,7 +182,7 @@ class SGFAParameterComparison(ExperimentFramework):
         n_views = len(X_list)
 
         # Test with different numbers of views
-        view_combinations = [list(range(i + 1)) for i in range(n_views)]
+        [list(range(i + 1)) for i in range(n_views)]
 
         for n_view_test in range(1, n_views + 1):
             view_subset = X_list[:n_view_test]
@@ -318,8 +312,6 @@ class SGFAParameterComparison(ExperimentFramework):
         import time
 
         import jax
-        import jax.numpy as jnp
-        import numpyro
         from numpyro.infer import MCMC, NUTS
 
         try:
@@ -350,7 +342,8 @@ class SGFAParameterComparison(ExperimentFramework):
                         10)}, percW={
                     hypers.get(
                         'percW',
-                        33)}")
+                        33)}"
+            )
 
             # Import the actual SGFA model function
             from core.run_analysis import models
@@ -367,7 +360,8 @@ class SGFAParameterComparison(ExperimentFramework):
                 num_samples = args.get("num_samples", 300)  # Even more reduced
                 num_chains = 1  # Force single chain for high memory variants
                 self.logger.info(
-                    f"Using heavily reduced sampling for high memory variant: warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
+                    f"Using heavily reduced sampling for high memory variant: warmup={num_warmup}, samples={num_samples}, chains={num_chains}"
+                )
             else:
                 num_warmup = args.get("num_warmup", 500)
                 num_samples = args.get("num_samples", 1000)
@@ -430,7 +424,8 @@ class SGFAParameterComparison(ExperimentFramework):
                 self.logger.debug(
                     f"Potential energy stats: mean={
                         np.mean(potential_energy):.3f}, std={
-                        np.std(potential_energy):.3f}")
+                        np.std(potential_energy):.3f}"
+                )
             else:
                 log_likelihood = float("nan")  # Indicate missing data
                 self.logger.warning(
@@ -455,7 +450,8 @@ class SGFAParameterComparison(ExperimentFramework):
             self.logger.info(
                 f"SGFA training completed in {
                     elapsed:.2f}s, log_likelihood: {
-                    log_likelihood:.3f}")
+                    log_likelihood:.3f}"
+            )
 
             result = {
                 "W": W_list,
@@ -692,7 +688,7 @@ class SGFAParameterComparison(ExperimentFramework):
             }
 
         # Multi-view handling assessment
-        total_features = sum(X.shape[1] for X in X_list)
+        sum(X.shape[1] for X in X_list)
         for method_name, result in results.items():
             if method_name == "sgfa":
                 analysis["multi_view_handling"][method_name] = "native_support"
@@ -1124,9 +1120,8 @@ def run_method_comparison(config):
             shared_data = config_accessor.get_shared_data()
             X_list = safe_get(shared_data, "X_list")
             preprocessing_info = safe_get(shared_data, "preprocessing_info", default={})
-            use_shared_data = True
         else:
-            use_shared_data = False
+            pass
 
         # Add project root to path for imports
         import os
@@ -1293,7 +1288,8 @@ def run_method_comparison(config):
                         'integration_summary',
                         {}).get(
                         'framework_type',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(f"   Model type: {models_summary.get('model_type', 'unknown')}")
             logger.info(
                 f"   Model factory: {
@@ -1301,14 +1297,16 @@ def run_method_comparison(config):
                         'integration_summary',
                         {}).get(
                         'model_factory',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(
                 f"   Model instance: {
                     models_summary.get(
                         'integration_summary',
                         {}).get(
                         'model_instance',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(
                 f"   Available models: {
                     ', '.join(
@@ -1316,9 +1314,12 @@ def run_method_comparison(config):
                             'integration_summary',
                             {}).get(
                             'available_models',
-                            []))}")
-            logger.info(f"   Features: {', '.join([f'{k}={v}' for k, v in models_summary.get(
-                'integration_summary', {}).get('features', {}).items()])}")
+                            []))}"
+            )
+            logger.info(
+                f"   Features: {', '.join([f'{k}={v}' for k, v in models_summary.get(
+                'integration_summary', {}).get('features', {}).items()])}"
+            )
 
             logger.info("📊 ANALYSIS FRAMEWORK SUMMARY:")
             logger.info(
@@ -1327,21 +1328,24 @@ def run_method_comparison(config):
                         'integration_summary',
                         {}).get(
                         'framework_type',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(
                 f"   DataManager: {
                     analysis_summary.get(
                         'integration_summary',
                         {}).get(
                         'data_manager',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(
                 f"   ModelRunner: {
                     analysis_summary.get(
                         'integration_summary',
                         {}).get(
                         'model_runner',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(
                 f"   Components: {
                     ', '.join(
@@ -1349,9 +1353,12 @@ def run_method_comparison(config):
                             'integration_summary',
                             {}).get(
                             'components',
-                            []))}")
-            logger.info(f"   Dependencies: {', '.join([f'{k}={v}' for k, v in analysis_summary.get(
-                'integration_summary', {}).get('dependencies', {}).items()])}")
+                            []))}"
+            )
+            logger.info(
+                f"   Dependencies: {', '.join([f'{k}={v}' for k, v in analysis_summary.get(
+                'integration_summary', {}).get('dependencies', {}).items()])}"
+            )
 
             logger.info("⚡ PERFORMANCE OPTIMIZATION SUMMARY:")
             logger.info(
@@ -1360,14 +1367,16 @@ def run_method_comparison(config):
                         'strategy_selection',
                         {}).get(
                         'selected_strategy',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(
                 f"   Framework: {
                     performance_summary.get(
                         'integration_summary',
                         {}).get(
                         'framework_type',
-                        'unknown')}")
+                        'unknown')}"
+            )
 
             logger.info("🔧 PREPROCESSING INTEGRATION SUMMARY:")
             logger.info(
@@ -1376,14 +1385,16 @@ def run_method_comparison(config):
                         'strategy_selection',
                         {}).get(
                         'selected_strategy',
-                        'unknown')}")
+                        'unknown')}"
+            )
             logger.info(
                 f"   Reason: {
                     preprocessing_info.get(
                         'strategy_selection',
                         {}).get(
                         'reason',
-                        'not specified')}")
+                        'not specified')}"
+            )
 
             # Now run actual method comparison experiments
             logger.info("🔬 Starting SGFA parameter comparison experiments...")
@@ -1502,7 +1513,8 @@ def run_method_comparison(config):
                     sum(
                         m.get(
                             'execution_time',
-                            0) for m in performance_metrics.values()):.1f}s")
+                            0) for m in performance_metrics.values()):.1f}s"
+            )
 
             return {
                 "status": "completed",

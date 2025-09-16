@@ -4,15 +4,13 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigValidationError(Exception):
     """Exception raised for configuration validation errors."""
-
-    pass
 
 
 class LogLevel(Enum):
@@ -319,15 +317,11 @@ class ConfigurationValidator:
                 **config_dict["cross_validation"]
             )
         else:
-            config_objects["cross_validation"] = (
-                CrossValidationConfig()
-            )  # Use defaults
+            config_objects["cross_validation"] = CrossValidationConfig()  # Use defaults
 
         # Monitoring configuration
         if "monitoring" in config_dict:
-            config_objects["monitoring"] = MonitoringConfig(
-                **config_dict["monitoring"]
-            )
+            config_objects["monitoring"] = MonitoringConfig(**config_dict["monitoring"])
         else:
             config_objects["monitoring"] = MonitoringConfig()  # Use defaults
 
@@ -374,9 +368,7 @@ class ConfigurationValidator:
             model_config = config_dict["model"]
             if model_config.get("model_type") == "sparse_gfa":
                 if model_config.get("sparsity_lambda") is None:
-                    errors.append(
-                        "sparse_gfa model requires sparsity_lambda parameter"
-                    )
+                    errors.append("sparse_gfa model requires sparsity_lambda parameter")
 
         # Check if advanced preprocessing is enabled for complex experiments
         if "experiments" in config_dict and "preprocessing" in config_dict:

@@ -2,14 +2,11 @@
 
 import functools
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import numpyro
-import numpyro.distributions as dist
-from jax import grad, jit, lax, vmap
 from numpyro.infer import MCMC, NUTS
 
 from .memory_optimizer import MemoryOptimizer, memory_profile
@@ -102,9 +99,7 @@ class MCMCMemoryOptimizer:
             # Enable thinning for memory savings
             if memory_ratio < 0.5:
                 self.thinning_interval = max(2, int(1 / memory_ratio))
-                logger.info(
-                    f"Enabling thinning with interval {self.thinning_interval}"
-                )
+                logger.info(f"Enabling thinning with interval {self.thinning_interval}")
 
             # Enable data subsampling if very constrained
             if memory_ratio < 0.3:

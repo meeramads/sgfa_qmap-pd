@@ -15,16 +15,12 @@ This module can be used in two ways:
 # For standalone CLI functionality
 import argparse
 import logging
-import os
-import sys
-import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from sklearn.feature_selection import (
     SelectKBest,
     VarianceThreshold,
@@ -32,8 +28,6 @@ from sklearn.feature_selection import (
     mutual_info_classif,
 )
 from sklearn.impute import KNNImputer, SimpleImputer
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.preprocessing import StandardScaler
 
@@ -49,24 +43,23 @@ def check_preprocessing_compatibility():
     missing = []
 
     try:
-        from sklearn.preprocessing import RobustScaler, StandardScaler
+        pass
     except ImportError:
         missing.append("scikit-learn (preprocessing)")
 
     try:
-        from sklearn.impute import KNNImputer
+        pass
     except ImportError:
         missing.append("scikit-learn (KNN imputer)")
 
     try:
-        from sklearn.experimental import enable_iterative_imputer
-        from sklearn.impute import IterativeImputer
+        pass
     except ImportError:
         missing.append("scikit-learn (iterative imputer)")
 
     # Check for neuroimaging-specific dependencies
     try:
-        import scipy.spatial
+        pass
     except ImportError:
         missing.append("scipy (spatial functions)")
 
@@ -122,9 +115,7 @@ class PreprocessingConfig:
             )
 
         if not (0.0 <= self.missing_threshold <= 1.0):
-            raise ValueError(
-                f"Invalid missing_threshold. Must be between 0.0 and 1.0."
-            )
+            raise ValueError(f"Invalid missing_threshold. Must be between 0.0 and 1.0.")
 
         if self.variance_threshold < 0:
             raise ValueError(f"Invalid variance_threshold. Must be non-negative.")
@@ -163,10 +154,7 @@ class NeuroImagingConfig(PreprocessingConfig):
         """Extended validation for neuroimaging parameters"""
         super().validate()
 
-        if (
-            self.spatial_smoothing_fwhm is not None
-            and self.spatial_smoothing_fwhm <= 0
-        ):
+        if self.spatial_smoothing_fwhm is not None and self.spatial_smoothing_fwhm <= 0:
             raise ValueError("spatial_smoothing_fwhm must be positive or None")
 
         if self.qc_outlier_threshold <= 0:
@@ -290,9 +278,7 @@ class SpatialProcessingUtils:
                     (scanner_data - scanner_mean) / scanner_std
                 ) * global_std + global_mean
 
-                logging.info(
-                    f"Harmonized {n_subjects} subjects from scanner {scanner}"
-                )
+                logging.info(f"Harmonized {n_subjects} subjects from scanner {scanner}")
 
         return X_harmonized, harmonization_stats
 
@@ -446,7 +432,6 @@ class AdvancedPreprocessor(BasePreprocessor):
             imputer = KNNImputer(n_neighbors=5)
         elif self.imputation_strategy == "iterative":
             try:
-                from sklearn.experimental import enable_iterative_imputer
                 from sklearn.impute import IterativeImputer
 
                 imputer = IterativeImputer(random_state=self.random_state)
@@ -456,9 +441,7 @@ class AdvancedPreprocessor(BasePreprocessor):
                 )
                 imputer = SimpleImputer(strategy="median")
         else:
-            raise ValueError(
-                f"Unknown imputation strategy: {self.imputation_strategy}"
-            )
+            raise ValueError(f"Unknown imputation strategy: {self.imputation_strategy}")
 
         X_imputed = imputer.fit_transform(X)
         self.imputers_[view_name] = imputer
@@ -668,9 +651,9 @@ class AdvancedPreprocessor(BasePreprocessor):
                 indices = self.selected_features_[f"{view_name}_variance_indices"]
                 X_selected = X_imputed[:, indices]
             elif f"{view_name}_variance" in self.feature_selectors_:
-                X_selected = self.feature_selectors_[
-                    f"{view_name}_variance"
-                ].transform(X_imputed)
+                X_selected = self.feature_selectors_[f"{view_name}_variance"].transform(
+                    X_imputed
+                )
             else:
                 X_selected = X_imputed
 
@@ -1465,9 +1448,7 @@ class PreprocessingInspector:
             if missing_pct > 0:
                 missing_per_feature = np.isnan(X).mean(axis=0)
                 high_missing = np.sum(missing_per_feature > 0.1)
-                logging.info(
-                    f"Features with >10% missing: {high_missing}/{X.shape[1]}"
-                )
+                logging.info(f"Features with >10% missing: {high_missing}/{X.shape[1]}")
 
             # Variance statistics
             if not np.any(np.isnan(X)):

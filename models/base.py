@@ -2,11 +2,9 @@
 """Base model interface for all GFA variants."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import jax.numpy as jnp
-import numpyro
-import numpyro.distributions as dist
 
 
 class BaseGFAModel(ABC):
@@ -19,9 +17,7 @@ class BaseGFAModel(ABC):
     @abstractmethod
     def __call__(self, X_list: List[jnp.ndarray], *args, **kwargs):
         """Model definition for NumPyro."""
-        pass
 
     @abstractmethod
     def get_model_name(self) -> str:
         """Return model name for logging."""
-        pass

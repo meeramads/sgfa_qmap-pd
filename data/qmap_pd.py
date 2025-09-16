@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -347,10 +347,7 @@ def load_qmap_pd(
 
         # Create scalers dict for compatibility
         for i, view_name in enumerate(view_names):
-            if (
-                hasattr(preprocessor, "scalers_")
-                and view_name in preprocessor.scalers_
-            ):
+            if hasattr(preprocessor, "scalers_") and view_name in preprocessor.scalers_:
                 scaler = preprocessor.scalers_[view_name]
                 if hasattr(scaler, "center_"):  # RobustScaler
                     scalers[view_name] = {"mu": scaler.center_, "sd": scaler.scale_}

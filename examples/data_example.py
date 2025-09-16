@@ -4,9 +4,8 @@ import logging
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
+from core.config_utils import get_data_dir
 from core.io_utils import save_csv, save_json, save_numpy
 
 # Configure logging
@@ -190,7 +189,9 @@ def example_basic_preprocessing():
     for i, (X_orig, X_proc) in enumerate(zip(X_list, X_processed)):
         orig_std = np.std(X_orig)
         proc_std = np.std(X_proc)
-        print(f"{i:<6} {orig_std:<15.3f} {proc_std:<15.3f} {proc_std / orig_std:<10.2f}")
+        print(
+            f"{i:<6} {orig_std:<15.3f} {proc_std:<15.3f} {proc_std / orig_std:<10.2f}"
+        )
 
     return X_processed, preprocessing_info
 
@@ -280,7 +281,8 @@ def example_advanced_preprocessing():
                     f"   Selected strategy: {
                         strategy_info.get(
                             'selected_strategy',
-                            'unknown')}")
+                            'unknown')}"
+                )
                 print(f"   Quality score: {strategy_info.get('quality_score', 'N/A')}")
 
         except Exception as e:
@@ -410,7 +412,8 @@ def example_data_quality_assessment():
                 'Outliers %':<12} {
                     'Constant':<10} {
                         'Mean Var':<10} {
-                            'Skewness':<10}")
+                            'Skewness':<10}"
+    )
     print("-" * 80)
 
     for i in range(len(X_list)):
@@ -418,11 +421,14 @@ def example_data_quality_assessment():
         print(
             f"{
                 i:<6} {
-                metrics['missing_percentage']:<10.2f} " f"{
+                metrics['missing_percentage']:<10.2f} "
+            f"{
                 metrics['outlier_percentage']:<12.2f} {
-                    metrics['constant_features']:<10} " f"{
+                    metrics['constant_features']:<10} "
+            f"{
                         metrics['mean_variance']:<10.3f} {
-                            metrics['mean_skewness']:<10.3f}")
+                            metrics['mean_skewness']:<10.3f}"
+        )
 
     # Quality recommendations
     print(f"\n💡 QUALITY RECOMMENDATIONS")
@@ -435,22 +441,26 @@ def example_data_quality_assessment():
         if metrics["missing_percentage"] > 5:
             print(
                 f"  ⚠️  High missing values ({
-                    metrics['missing_percentage']:.1f}%) - consider advanced imputation")
+                    metrics['missing_percentage']:.1f}%) - consider advanced imputation"
+            )
 
         if metrics["outlier_percentage"] > 2:
             print(
                 f"  ⚠️  High outlier rate ({
-                    metrics['outlier_percentage']:.1f}%) - consider robust methods")
+                    metrics['outlier_percentage']:.1f}%) - consider robust methods"
+            )
 
         if metrics["constant_features"] > 0:
             print(
                 f"  ⚠️  {
-                    metrics['constant_features']} constant features - should be removed")
+                    metrics['constant_features']} constant features - should be removed"
+            )
 
         if metrics["mean_skewness"] > 2:
             print(
                 f"  ⚠️  High skewness ({
-                    metrics['mean_skewness']:.2f}) - consider transformation")
+                    metrics['mean_skewness']:.2f}) - consider transformation"
+            )
 
         if metrics["mean_variance"] < 0.1:
             print(f"  ⚠️  Low variance features - may need feature selection")
@@ -513,13 +523,15 @@ def example_data_splitting_and_cv():
             len(train_idx)} subjects ({
             len(train_idx) /
             n_subjects *
-            100:.1f}%)")
+            100:.1f}%)"
+    )
     print(
         f"  Validation: {
             len(val_idx)} subjects ({
             len(val_idx) /
             n_subjects *
-            100:.1f}%)")
+            100:.1f}%)"
+    )
     print(f"  Test: {len(test_idx)} subjects ({len(test_idx) / n_subjects * 100:.1f}%)")
 
     # Example 2: K-fold cross-validation

@@ -7,10 +7,9 @@ import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Union
 
 import jax
-import jax.numpy as jnp
 import numpy as np
 import psutil
 

@@ -2,9 +2,7 @@
 """Cross-validation orchestration module."""
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +22,7 @@ class CVRunner:
         cv_available = self._check_cv_availability()
         neuroimaging_cv_available = self._check_neuroimaging_cv_availability()
 
-        if neuroimaging_cv_available and getattr(
-            self.config, "neuroimaging_cv", False
-        ):
+        if neuroimaging_cv_available and getattr(self.config, "neuroimaging_cv", False):
             return self._run_neuroimaging_cv_analysis(X_list, hypers, data)
         elif cv_available:
             return self._run_basic_cv_analysis(X_list, hypers, data)
@@ -37,10 +33,7 @@ class CVRunner:
     def _check_cv_availability(self):
         """Check if basic CV is available"""
         try:
-            from .cross_validation_library import (
-                CVConfig,
-                SparseBayesianGFACrossValidator,
-            )
+            pass
 
             return True
         except ImportError:
@@ -49,11 +42,7 @@ class CVRunner:
     def _check_neuroimaging_cv_availability(self):
         """Check if neuroimaging CV is available"""
         try:
-            from .cross_validation_library import (
-                NeuroImagingCrossValidator,
-                NeuroImagingCVConfig,
-                ParkinsonsConfig,
-            )
+            pass
 
             return True
         except ImportError:

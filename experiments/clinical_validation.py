@@ -1,20 +1,15 @@
 """Clinical validation experiments for SGFA qMAP-PD analysis."""
 
 import logging
-import warnings
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import seaborn as sns
 from scipy import stats
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
-    classification_report,
     confusion_matrix,
     f1_score,
     precision_score,
@@ -24,7 +19,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.svm import SVC
 
-from core.config_utils import ConfigAccessor, get_data_dir, get_output_dir, safe_get
+from core.config_utils import get_data_dir, get_output_dir
 from core.experiment_utils import experiment_handler
 from core.validation_utils import validate_data_types, validate_parameters
 from experiments.framework import (
@@ -994,8 +989,6 @@ class ClinicalValidationExperiments(ExperimentFramework):
         import time
 
         import jax
-        import jax.numpy as jnp
-        import numpyro
         from numpyro.infer import MCMC, NUTS
 
         try:
@@ -1004,7 +997,8 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 f"Running SGFA for clinical validation: K={K}, n_subjects={
                     X_list[0].shape[0]}, n_features={
                     sum(
-                        X.shape[1] for X in X_list)}")
+                        X.shape[1] for X in X_list)}"
+            )
 
             # Import the actual SGFA model function
             from core.run_analysis import models
@@ -1215,7 +1209,8 @@ class ClinicalValidationExperiments(ExperimentFramework):
                     except Exception as e:
                         self.logger.warning(
                             f"Panel validation failed for {k_features} features: {
-                                str(e)}")
+                                str(e)}"
+                        )
 
             else:
                 # Regression task
@@ -1245,7 +1240,8 @@ class ClinicalValidationExperiments(ExperimentFramework):
                     except Exception as e:
                         self.logger.warning(
                             f"Panel validation failed for {k_features} features: {
-                                str(e)}")
+                                str(e)}"
+                        )
 
             results[outcome_name] = outcome_results
 
@@ -2517,7 +2513,8 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         try:
             self.logger.info(
-                f"🎨 Creating comprehensive clinical visualizations for {experiment_name}")
+                f"🎨 Creating comprehensive clinical visualizations for {experiment_name}"
+            )
 
             # Import visualization system
             from core.config_utils import ConfigAccessor
@@ -2606,7 +2603,8 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
                     self.logger.info(
                         f"✅ Created {
-                            len(plot_files)} comprehensive clinical visualizations")
+                            len(plot_files)} comprehensive clinical visualizations"
+                    )
 
                     # Additional clinical-specific summary
                     if cv_results and "subtype_analysis" in cv_results:
@@ -2685,8 +2683,6 @@ def run_clinical_validation(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        from pathlib import Path
-
         # Load data with advanced preprocessing for clinical validation
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
         from experiments.framework import ExperimentConfig, ExperimentFramework
@@ -2707,7 +2703,7 @@ def run_clinical_validation(config):
         try:
             from data.qmap_pd import load_qmap_pd
 
-            clinical_data = load_qmap_pd(get_data_dir(config))
+            load_qmap_pd(get_data_dir(config))
 
             # Extract clinical labels (using mock labels as fallback - real clinical
             # subtype data would be preferred)
@@ -2799,7 +2795,8 @@ def run_clinical_validation(config):
                 logger.info(
                     f"✅ SGFA extraction: {
                         metrics.execution_time:.1f}s, {
-                        Z_sgfa.shape[1]} factors")
+                        Z_sgfa.shape[1]} factors"
+                )
 
             except Exception as e:
                 logger.error(f"❌ SGFA extraction failed: {e}")
@@ -2876,7 +2873,8 @@ def run_clinical_validation(config):
                     f"✅ Classification comparison - SGFA: {
                         sgfa_acc:.3f}, PCA: {
                         pca_acc:.3f}, Raw: {
-                        raw_acc:.3f}")
+                        raw_acc:.3f}"
+                )
 
             except Exception as e:
                 logger.error(f"❌ Baseline comparison failed: {e}")

@@ -1,8 +1,7 @@
 """Tests for cross-validation module."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 
 from analysis.cross_validation import (

@@ -1,7 +1,6 @@
 """Integration tests for the full analysis pipeline."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -187,7 +186,7 @@ class TestPipelineDataFlow:
         assert hypers["Dm"] == [X.shape[1] for X in X_list]
 
         # Verify data can be used by model runner
-        model_runner = ModelRunner(config_manager.config)
+        ModelRunner(config_manager.config)
 
         # This should not raise errors about data format
         assert all(isinstance(X, np.ndarray) for X in X_list)
@@ -247,7 +246,7 @@ class TestPipelineDataFlow:
                 "sigma": np.random.gamma(2, 1, (50, 3)),
             }
 
-            results = model_runner.run_standard_analysis(X_list, hypers, data)
+            model_runner.run_standard_analysis(X_list, hypers, data)
 
         # Each component should have logged something
         assert mock_model_logger.info.called

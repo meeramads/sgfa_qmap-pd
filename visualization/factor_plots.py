@@ -3,12 +3,11 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-import seaborn as sns
 
 from core.io_utils import save_plot
 
@@ -141,7 +140,7 @@ class FactorVisualizer:
     def _plot_factor_heatmap(self, W: np.ndarray, Z: np.ndarray, save_dir: Path):
         """Plot comprehensive factor analysis heatmap."""
         # Calculate factor statistics
-        factor_stats = self._calculate_factor_statistics(W, Z)
+        self._calculate_factor_statistics(W, Z)
 
         fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
