@@ -137,7 +137,7 @@ This directory contains GitHub Actions workflows for automated testing, validati
 ## Configuration Requirements
 
 ### Repository Secrets
-```
+```bash
 PYPI_API_TOKEN          # For PyPI deployment
 CODECOV_TOKEN           # For coverage reporting (optional)
 ```
