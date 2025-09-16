@@ -561,12 +561,17 @@ class ModelArchitectureComparison(ExperimentFramework):
         return plots
 
 
-def run_model_comparison(config_path: str = "config.yaml", **kwargs):
+def run_model_comparison(config=None, **kwargs):
     """
     Run comprehensive model architecture comparison experiments.
 
     This function compares different SGFA model architectures (sparseGFA, neuroGFA, standard GFA)
     with the same hyperparameters for fair comparison.
+
+    Parameters:
+    -----------
+    config : dict or str
+        Configuration dictionary or path to config file
     """
     import yaml
     from core.config_utils import ConfigAccessor
@@ -574,34 +579,60 @@ def run_model_comparison(config_path: str = "config.yaml", **kwargs):
     logger = logging.getLogger(__name__)
     logger.info("🔬 Starting model architecture comparison experiments...")
 
-    # Load configuration
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
+    # Handle config parameter
+    if isinstance(config, str):
+        # Load configuration from file
+        with open(config, 'r') as f:
+            config_dict = yaml.safe_load(f)
+    elif isinstance(config, dict):
+        config_dict = config
+    else:
+        # Default fallback
+        config_dict = {}
 
-    config_accessor = ConfigAccessor(config)
+    config_accessor = ConfigAccessor(config_dict)
 
-    # TODO: Add actual data loading and preprocessing
-    # For now, create dummy data
-    np.random.seed(42)
-    n_subjects = 100
-    view_dims = [50, 75, 60]  # Three views with different dimensions
+    # Check for shared data and optimal parameters
+    shared_data = config_dict.get('_shared_data')
+    optimal_sgfa_params = config_dict.get('_optimal_sgfa_params')
 
-    X_list = []
-    for dim in view_dims:
-        X_list.append(np.random.randn(n_subjects, dim))
+    # Use shared data if available, otherwise load data
+    if shared_data and shared_data.get('X_list') is not None:
+        logger.info("   → Using shared data from previous experiments")
+        X_list = shared_data['X_list']
+        view_dims = [X.shape[1] for X in X_list]
+        n_subjects = X_list[0].shape[0]
+        logger.info(f"   → Data shape: {n_subjects} subjects, {len(X_list)} views with dims {view_dims}")
+    else:
+        logger.info("   → Loading fresh data (no shared data available)")
+        # Fallback to dummy data for testing
+        np.random.seed(42)
+        n_subjects = 100
+        view_dims = [50, 75, 60]
+        X_list = [np.random.randn(n_subjects, dim) for dim in view_dims]
+
+    # Use optimal SGFA parameters if available
+    if optimal_sgfa_params:
+        logger.info(f"   → Using optimal SGFA parameters: K={optimal_sgfa_params['K']}, percW={optimal_sgfa_params['percW']}")
+        optimal_K = optimal_sgfa_params['K']
+        optimal_percW = optimal_sgfa_params['percW']
+    else:
+        logger.info("   → Using default parameters (no optimal parameters available)")
+        optimal_K = 5
+        optimal_percW = 25.0
 
     # Setup hyperparameters
     hypers = {
         'Dm': view_dims,
         'a_sigma': 1.0,
         'b_sigma': 1.0,
-        'percW': 25.0,
+        'percW': optimal_percW,
         'slab_scale': 1.0,
         'slab_df': 4.0
     }
 
     args = {
-        'K': 5,
+        'K': optimal_K,
         'reghsZ': True,
         'device': 'gpu'
     }
@@ -610,7 +641,7 @@ def run_model_comparison(config_path: str = "config.yaml", **kwargs):
     exp_config = ExperimentConfig(
         name="model_architecture_comparison",
         description="Compare different SGFA model architectures",
-        parameters={'K': 5, 'percW': 25.0}
+        parameters={'K': optimal_K, 'percW': optimal_percW}
     )
 
     # Run experiments

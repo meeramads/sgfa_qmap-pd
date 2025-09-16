@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 from core.config_utils import (ConfigAccessor, get_output_dir, ensure_directories, safe_get,
                                validate_configuration, check_configuration_warnings)
 from experiments.data_validation import run_data_validation
-from experiments.sgfa_parameter_comparison import run_method_comparison
+from experiments.sgfa_parameter_comparison import run_method_comparison as run_sgfa_parameter_comparison
+from experiments.model_comparison import run_model_comparison
 from experiments.performance_benchmarks import run_performance_benchmarks
 from experiments.sensitivity_analysis import run_sensitivity_analysis
 from experiments.clinical_validation import run_clinical_validation
@@ -77,7 +78,7 @@ def main():
     parser.add_argument("--config", default="config.yaml",
                        help="Configuration file path")
     parser.add_argument("--experiments", nargs="+",
-                       choices=["data_validation", "method_comparison",
+                       choices=["data_validation", "sgfa_parameter_comparison", "model_comparison",
                                "performance_benchmarks", "sensitivity_analysis", "all"],
                        default=["all"], help="Experiments to run")
     parser.add_argument("--data-dir", help="Override data directory")
@@ -132,9 +133,10 @@ def main():
 
         # Create organized subdirectories in unified folder
         (unified_dir / "01_data_validation").mkdir(exist_ok=True)
-        (unified_dir / "02_method_comparison").mkdir(exist_ok=True)
-        (unified_dir / "03_performance_benchmarks").mkdir(exist_ok=True)
-        (unified_dir / "04_sensitivity_analysis").mkdir(exist_ok=True)
+        (unified_dir / "02_sgfa_parameter_comparison").mkdir(exist_ok=True)
+        (unified_dir / "03_model_comparison").mkdir(exist_ok=True)
+        (unified_dir / "04_performance_benchmarks").mkdir(exist_ok=True)
+        (unified_dir / "05_sensitivity_analysis").mkdir(exist_ok=True)
         (unified_dir / "plots").mkdir(exist_ok=True)
         (unified_dir / "brain_maps").mkdir(exist_ok=True)
         (unified_dir / "summaries").mkdir(exist_ok=True)
@@ -152,7 +154,7 @@ def main():
     # Determine which experiments to run
     experiments_to_run = args.experiments
     if "all" in experiments_to_run:
-        experiments_to_run = ["data_validation", "method_comparison",
+        experiments_to_run = ["data_validation", "sgfa_parameter_comparison", "model_comparison",
                              "performance_benchmarks", "sensitivity_analysis"]
 
     # Determine execution mode
@@ -170,7 +172,9 @@ def main():
         'preprocessing_info': None,
         'data_strategy': None,
         'shared_mode': use_shared_data,
-        'memory_usage_mb': 0
+        'memory_usage_mb': 0,
+        'optimal_sgfa_params': None,  # Store optimal K, percW from parameter comparison
+        'sgfa_performance_metrics': None  # Store performance info for model comparison
     }
 
     logger.info(f"🔄 Pipeline context initialized (shared_mode: {use_shared_data})")
@@ -193,8 +197,8 @@ def main():
             logger.info(f"📊 Data validation loaded data: {len(pipeline_context['X_list'])} views")
             logger.info(f"   Strategy: {pipeline_context.get('data_strategy', 'unknown')}")
 
-    if "method_comparison" in experiments_to_run:
-        logger.info("🧠 Starting Method Comparison Experiment...")
+    if "sgfa_parameter_comparison" in experiments_to_run:
+        logger.info("🔬 2/6 Starting SGFA Parameter Comparison Experiment...")
         exp_config = config.copy()
         if pipeline_context['X_list'] is not None and use_shared_data:
             logger.info("   → Using shared data from data_validation")
@@ -203,10 +207,50 @@ def main():
                 'preprocessing_info': pipeline_context['preprocessing_info'],
                 'mode': 'shared'
             }
-        results['method_comparison'] = run_method_comparison(exp_config)
+        sgfa_result = run_sgfa_parameter_comparison(exp_config)
+        results['sgfa_parameter_comparison'] = sgfa_result
 
-    if "performance_benchmarks" in experiments_to_run:
-        logger.info("⚡ Starting Performance Benchmark Experiment...")
+        # Extract optimal parameters for downstream experiments
+        if sgfa_result and use_shared_data and hasattr(sgfa_result, 'get'):
+            try:
+                # Extract best performing variant info
+                if 'model_results' in sgfa_result:
+                    model_results = sgfa_result['model_results']
+                    if 'sgfa_variants' in model_results:
+                        # Find best variant by execution time and convergence
+                        best_variant = None
+                        best_score = float('inf')
+
+                        for variant_name, variant_data in model_results['sgfa_variants'].items():
+                            if variant_data.get('convergence', False):
+                                exec_time = variant_data.get('execution_time', float('inf'))
+                                if exec_time < best_score:
+                                    best_score = exec_time
+                                    best_variant = variant_name
+
+                        if best_variant:
+                            # Parse K and percW from variant name (e.g., "K5_percW25")
+                            import re
+                            match = re.match(r'K(\d+)_percW(\d+)', best_variant)
+                            if match:
+                                optimal_K = int(match.group(1))
+                                optimal_percW = int(match.group(2))
+
+                                pipeline_context['optimal_sgfa_params'] = {
+                                    'K': optimal_K,
+                                    'percW': optimal_percW,
+                                    'variant_name': best_variant,
+                                    'execution_time': best_score
+                                }
+
+                                logger.info(f"🎯 Identified optimal SGFA parameters: {best_variant} ({best_score:.1f}s)")
+
+            except Exception as e:
+                logger.warning(f"Could not extract optimal parameters: {e}")
+                pipeline_context['optimal_sgfa_params'] = None
+
+    if "model_comparison" in experiments_to_run:
+        logger.info("🧠 3/6 Starting Model Architecture Comparison Experiment...")
         exp_config = config.copy()
         if pipeline_context['X_list'] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -215,10 +259,34 @@ def main():
                 'preprocessing_info': pipeline_context['preprocessing_info'],
                 'mode': 'shared'
             }
+
+            # Pass optimal SGFA parameters if available
+            if pipeline_context['optimal_sgfa_params'] is not None:
+                exp_config['_optimal_sgfa_params'] = pipeline_context['optimal_sgfa_params']
+                logger.info(f"   → Using optimal SGFA params: {pipeline_context['optimal_sgfa_params']['variant_name']}")
+
+        results['model_comparison'] = run_model_comparison(exp_config)
+
+    if "performance_benchmarks" in experiments_to_run:
+        logger.info("⚡ 4/6 Starting Performance Benchmark Experiment...")
+        exp_config = config.copy()
+        if pipeline_context['X_list'] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+            exp_config['_shared_data'] = {
+                'X_list': pipeline_context['X_list'],
+                'preprocessing_info': pipeline_context['preprocessing_info'],
+                'mode': 'shared'
+            }
+
+            # Pass optimal SGFA parameters if available
+            if pipeline_context['optimal_sgfa_params'] is not None:
+                exp_config['_optimal_sgfa_params'] = pipeline_context['optimal_sgfa_params']
+                logger.info(f"   → Using optimal SGFA params: {pipeline_context['optimal_sgfa_params']['variant_name']}")
+
         results['performance_benchmarks'] = run_performance_benchmarks(exp_config)
 
     if "sensitivity_analysis" in experiments_to_run:
-        logger.info("📊 Starting Sensitivity Analysis Experiment...")
+        logger.info("📊 5/6 Starting Sensitivity Analysis Experiment...")
         exp_config = config.copy()
         if pipeline_context['X_list'] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -227,6 +295,12 @@ def main():
                 'preprocessing_info': pipeline_context['preprocessing_info'],
                 'mode': 'shared'
             }
+
+            # Pass optimal SGFA parameters if available
+            if pipeline_context['optimal_sgfa_params'] is not None:
+                exp_config['_optimal_sgfa_params'] = pipeline_context['optimal_sgfa_params']
+                logger.info(f"   → Using optimal SGFA params: {pipeline_context['optimal_sgfa_params']['variant_name']}")
+
         results['sensitivity_analysis'] = run_sensitivity_analysis(exp_config)
 
     # Summary
@@ -269,7 +343,7 @@ def main():
                 }
 
                 # Add specific details based on experiment type
-                if exp_name == 'method_comparison' and hasattr(result, 'model_results'):
+                if exp_name == 'sgfa_parameter_comparison' and hasattr(result, 'model_results'):
                     model_results = result.model_results
                     if 'sgfa_variants' in model_results:
                         exp_summary['sgfa_variants'] = list(model_results['sgfa_variants'].keys())
@@ -277,6 +351,14 @@ def main():
                     if 'plots' in model_results:
                         exp_summary['plots_generated'] = model_results['plots'].get('plot_count', 0)
                         exp_summary['brain_maps_available'] = 'brain_maps' in str(model_results['plots'].get('generated_plots', []))
+
+                elif exp_name == 'model_comparison' and hasattr(result, 'model_results'):
+                    model_results = result.model_results
+                    if 'sparseGFA' in model_results:
+                        exp_summary['implemented_models'] = [k for k, v in model_results.items() if not v.get('skipped', False)]
+                        exp_summary['future_work_models'] = [k for k, v in model_results.items() if v.get('skipped', False)]
+                    if 'traditional_methods' in model_results:
+                        exp_summary['traditional_methods'] = list(model_results['traditional_methods'].keys())
 
                 summary['experiments_executed'][exp_name] = exp_summary
             else:
@@ -298,9 +380,10 @@ def main():
             f.write(f"## Results Structure\\n\\n")
             f.write(f"```\\n")
             f.write(f"01_data_validation/     - Data quality and preprocessing analysis\\n")
-            f.write(f"02_method_comparison/   - SGFA variants and traditional methods\\n")
-            f.write(f"03_performance_benchmarks/ - Scalability and performance tests\\n")
-            f.write(f"04_sensitivity_analysis/ - Parameter sensitivity studies\\n")
+            f.write(f"02_sgfa_parameter_comparison/   - SGFA hyperparameter optimization\\n")
+            f.write(f"03_model_comparison/   - Model architecture comparison\\n")
+            f.write(f"04_performance_benchmarks/ - Scalability and performance tests\\n")
+            f.write(f"05_sensitivity_analysis/ - Parameter sensitivity studies\\n")
             f.write(f"plots/                  - All visualization outputs\\n")
             f.write(f"brain_maps/            - Factor loadings mapped to brain space\\n")
             f.write(f"summaries/             - Detailed summaries and reports\\n")
@@ -311,12 +394,21 @@ def main():
                 if result is not None:
                     f.write(f"### {exp_name.replace('_', ' ').title()}\\n")
                     f.write(f"- Status: Completed\\n")
-                    if exp_name == 'method_comparison' and hasattr(result, 'model_results'):
+                    if exp_name == 'sgfa_parameter_comparison' and hasattr(result, 'model_results'):
                         model_results = result.model_results
                         if 'sgfa_variants' in model_results:
-                            f.write(f"- SGFA Variants: {list(model_results['sgfa_variants'].keys())}\\n")
+                            f.write(f"- SGFA Parameter Variants: {list(model_results['sgfa_variants'].keys())}\\n")
                         if 'plots' in model_results:
                             f.write(f"- Plots Generated: {model_results['plots'].get('plot_count', 0)}\\n")
+
+                    elif exp_name == 'model_comparison' and hasattr(result, 'model_results'):
+                        model_results = result.model_results
+                        implemented_models = [k for k, v in model_results.items() if not v.get('skipped', False)]
+                        future_models = [k for k, v in model_results.items() if v.get('skipped', False)]
+                        if implemented_models:
+                            f.write(f"- Implemented Models: {implemented_models}\\n")
+                        if future_models:
+                            f.write(f"- Future Work Models: {future_models}\\n")
                     f.write(f"\\n")
                 else:
                     f.write(f"### {exp_name.replace('_', ' ').title()}\\n")
