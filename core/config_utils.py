@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, List
 import logging
+from contextlib import contextmanager
 
 from .config_schema import ConfigurationValidator, ConfigValidationError
 
@@ -297,3 +298,151 @@ def check_configuration_warnings(config: Dict[str, Any]) -> List[str]:
             warnings.append("GPU requested but JAX not available")
 
     return warnings
+
+
+class ConfigHelper:
+    """Utility class for standardized configuration handling across the codebase."""
+
+    @staticmethod
+    def to_dict(config_or_dict) -> Dict[str, Any]:
+        """
+        Convert any config object to a dictionary in a standardized way.
+
+        Parameters
+        ----------
+        config_or_dict : Any
+            Config object (with .to_dict() method), dictionary, or object with __dict__
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary representation of the config
+        """
+        if isinstance(config_or_dict, dict):
+            return config_or_dict
+        elif hasattr(config_or_dict, 'to_dict') and callable(getattr(config_or_dict, 'to_dict')):
+            return config_or_dict.to_dict()
+        elif hasattr(config_or_dict, '__dict__'):
+            return config_or_dict.__dict__
+        else:
+            # If it's a simple value, wrap it
+            return {'value': config_or_dict}
+
+    @staticmethod
+    def get_output_dir_safe(config_or_dict) -> Path:
+        """
+        Get output directory from any config format safely.
+
+        Parameters
+        ----------
+        config_or_dict : Any
+            Config object or dictionary
+
+        Returns
+        -------
+        Path
+            Output directory path
+        """
+        config_dict = ConfigHelper.to_dict(config_or_dict)
+        return get_output_dir(config_dict)
+
+    @staticmethod
+    def get_data_dir_safe(config_or_dict) -> Path:
+        """
+        Get data directory from any config format safely.
+
+        Parameters
+        ----------
+        config_or_dict : Any
+            Config object or dictionary
+
+        Returns
+        -------
+        Path
+            Data directory path
+        """
+        config_dict = ConfigHelper.to_dict(config_or_dict)
+        return get_data_dir(config_dict)
+
+    @staticmethod
+    def safe_get_from_config(config_or_dict, *keys: str, default: Any = None) -> Any:
+        """
+        Safely get nested values from any config format.
+
+        Parameters
+        ----------
+        config_or_dict : Any
+            Config object or dictionary
+        *keys : str
+            Nested keys to access
+        default : Any
+            Default value if keys not found
+
+        Returns
+        -------
+        Any
+            Retrieved value or default
+        """
+        config_dict = ConfigHelper.to_dict(config_or_dict)
+        return safe_get(config_dict, *keys, default=default)
+
+
+@contextmanager
+def JAXMemoryManager():
+    """
+    Context manager for automatic JAX memory cleanup.
+
+    Automatically clears JAX device memory and caches on exit,
+    preventing memory buildup in long-running experiments.
+
+    Examples
+    --------
+    >>> with JAXMemoryManager():
+    ...     # JAX computations here
+    ...     result = jax.numpy.array([1, 2, 3])
+    # Memory automatically cleaned up
+    """
+    try:
+        yield
+    finally:
+        try:
+            import jax
+            # Clear JAX device memory and compilation cache
+            jax.clear_caches()
+            logger.debug("JAX memory and caches cleared")
+        except ImportError:
+            # JAX not available, nothing to clean up
+            pass
+        except Exception as e:
+            logger.warning(f"Failed to clear JAX memory: {e}")
+
+
+@contextmanager
+def PlotManager():
+    """
+    Context manager for automatic matplotlib cleanup.
+
+    Automatically closes all matplotlib figures on exit,
+    preventing memory buildup from unclosed plots.
+
+    Examples
+    --------
+    >>> with PlotManager():
+    ...     import matplotlib.pyplot as plt
+    ...     plt.figure()
+    ...     plt.plot([1, 2, 3])
+    # All figures automatically closed
+    """
+    try:
+        yield
+    finally:
+        try:
+            import matplotlib.pyplot as plt
+            # Close all matplotlib figures to free memory
+            plt.close('all')
+            logger.debug("All matplotlib figures closed")
+        except ImportError:
+            # Matplotlib not available, nothing to clean up
+            pass
+        except Exception as e:
+            logger.warning(f"Failed to close matplotlib figures: {e}")
