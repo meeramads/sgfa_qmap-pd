@@ -14,6 +14,8 @@ import warnings
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+from core.experiment_utils import experiment_handler
+from core.validation_utils import validate_parameters, validate_data_types
 
 class SensitivityAnalysisExperiments(ExperimentFramework):
     """Comprehensive sensitivity analysis for SGFA hyperparameters."""
@@ -36,6 +38,9 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         # Core hyperparameters that are most critical
         self.core_hyperparameters = ['alpha_w', 'alpha_z', 'K', 'sparsity_level']
         
+    @experiment_handler("univariate_sensitivity_analysis")
+    @validate_data_types(X_list=list, base_hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0)
     def run_univariate_sensitivity_analysis(self, X_list: List[np.ndarray],
                                           base_hypers: Dict, args: Dict,
                                           hyperparameters: List[str] = None,
@@ -48,81 +53,79 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         
         results = {}
         performance_metrics = {}
-        
-        try:
-            for hyperparam in hyperparameters:
-                if hyperparam not in self.hyperparameter_ranges:
-                    self.logger.warning(f"No range defined for hyperparameter: {hyperparam}")
-                    continue
-                    
-                self.logger.info(f"Analyzing sensitivity for {hyperparam}")
-                
-                hyperparam_results = {}
-                hyperparam_metrics = {}
-                
-                param_range = self.hyperparameter_ranges[hyperparam]
-                
-                for param_value in param_range:
-                    self.logger.debug(f"Testing {hyperparam}={param_value}")
-                    
-                    # Create hyperparameter configuration
-                    test_hypers = base_hypers.copy()
-                    test_hypers[hyperparam] = param_value
-                    
-                    # Run analysis
-                    with self.profiler.profile(f'{hyperparam}_{param_value}') as p:
-                        try:
-                            result = self._run_sgfa_analysis(X_list, test_hypers, args, **kwargs)
-                            hyperparam_results[param_value] = result
-                            
-                            # Store performance metrics
-                            metrics = self.profiler.get_current_metrics()
-                            hyperparam_metrics[param_value] = {
-                                'execution_time': metrics.execution_time,
-                                'peak_memory_gb': metrics.peak_memory_gb,
-                                'convergence': result.get('convergence', False),
-                                'log_likelihood': result.get('log_likelihood', np.nan)
-                            }
-                            
-                        except Exception as e:
-                            self.logger.warning(f"Failed for {hyperparam}={param_value}: {str(e)}")
-                            hyperparam_results[param_value] = {'error': str(e)}
-                            hyperparam_metrics[param_value] = {
-                                'execution_time': np.nan,
-                                'peak_memory_gb': np.nan,
-                                'convergence': False,
-                                'log_likelihood': np.nan
-                            }
-                
-                results[hyperparam] = hyperparam_results
-                performance_metrics[hyperparam] = hyperparam_metrics
-            
-            # Analyze sensitivity
-            analysis = self._analyze_univariate_sensitivity(results, performance_metrics)
-            
-            # Generate basic plots
-            plots = self._plot_univariate_sensitivity(results, performance_metrics)
 
-            # Add comprehensive sensitivity visualizations (focus on factor stability)
-            advanced_plots = self._create_comprehensive_sensitivity_visualizations(
-                X_list, results, "univariate_sensitivity"
-            )
-            plots.update(advanced_plots)
+        for hyperparam in hyperparameters:
+            if hyperparam not in self.hyperparameter_ranges:
+                self.logger.warning(f"No range defined for hyperparameter: {hyperparam}")
+                continue
 
-            return ExperimentResult(
-                experiment_name="univariate_sensitivity_analysis",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                performance_metrics=performance_metrics,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Univariate sensitivity analysis failed: {str(e)}")
-            return self._create_failure_result("univariate_sensitivity_analysis", str(e))
+            self.logger.info(f"Analyzing sensitivity for {hyperparam}")
+
+            hyperparam_results = {}
+            hyperparam_metrics = {}
+
+            param_range = self.hyperparameter_ranges[hyperparam]
+
+            for param_value in param_range:
+                self.logger.debug(f"Testing {hyperparam}={param_value}")
+
+                # Create hyperparameter configuration
+                test_hypers = base_hypers.copy()
+                test_hypers[hyperparam] = param_value
+
+                # Run analysis
+                with self.profiler.profile(f'{hyperparam}_{param_value}') as p:
+                    try:
+                        result = self._run_sgfa_analysis(X_list, test_hypers, args, **kwargs)
+                        hyperparam_results[param_value] = result
+
+                        # Store performance metrics
+                        metrics = self.profiler.get_current_metrics()
+                        hyperparam_metrics[param_value] = {
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb,
+                            'convergence': result.get('convergence', False),
+                            'log_likelihood': result.get('log_likelihood', np.nan)
+                        }
+
+                    except Exception as e:
+                        self.logger.warning(f"Failed for {hyperparam}={param_value}: {str(e)}")
+                        hyperparam_results[param_value] = {'error': str(e)}
+                        hyperparam_metrics[param_value] = {
+                            'execution_time': np.nan,
+                            'peak_memory_gb': np.nan,
+                            'convergence': False,
+                            'log_likelihood': np.nan
+                        }
+
+            results[hyperparam] = hyperparam_results
+            performance_metrics[hyperparam] = hyperparam_metrics
+
+        # Analyze sensitivity
+        analysis = self._analyze_univariate_sensitivity(results, performance_metrics)
+
+        # Generate basic plots
+        plots = self._plot_univariate_sensitivity(results, performance_metrics)
+
+        # Add comprehensive sensitivity visualizations (focus on factor stability)
+        advanced_plots = self._create_comprehensive_sensitivity_visualizations(
+            X_list, results, "univariate_sensitivity"
+        )
+        plots.update(advanced_plots)
+
+        return ExperimentResult(
+            experiment_name="univariate_sensitivity_analysis",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            performance_metrics=performance_metrics,
+            success=True
+        )
     
+    @experiment_handler("multivariate_sensitivity_analysis")
+    @validate_data_types(X_list=list, base_hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0)
     def run_multivariate_sensitivity_analysis(self, X_list: List[np.ndarray],
                                             base_hypers: Dict, args: Dict,
                                             hyperparameter_pairs: List[Tuple[str, str]] = None,
@@ -140,85 +143,83 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         
         results = {}
         performance_metrics = {}
-        
-        try:
-            for param1, param2 in hyperparameter_pairs:
-                if param1 not in self.hyperparameter_ranges or param2 not in self.hyperparameter_ranges:
-                    self.logger.warning(f"Missing range for parameter pair: ({param1}, {param2})")
-                    continue
-                    
-                self.logger.info(f"Analyzing interaction between {param1} and {param2}")
-                
-                pair_results = {}
-                pair_metrics = {}
-                
-                # Use smaller ranges for multivariate analysis to keep computation tractable
-                range1 = self._get_reduced_range(param1)
-                range2 = self._get_reduced_range(param2)
-                
-                for val1, val2 in product(range1, range2):
-                    param_key = f"{param1}={val1}_{param2}={val2}"
-                    self.logger.debug(f"Testing {param_key}")
-                    
-                    # Create hyperparameter configuration
-                    test_hypers = base_hypers.copy()
-                    test_hypers[param1] = val1
-                    test_hypers[param2] = val2
-                    
-                    # Run analysis
-                    with self.profiler.profile(param_key) as p:
-                        try:
-                            result = self._run_sgfa_analysis(X_list, test_hypers, args, **kwargs)
-                            pair_results[(val1, val2)] = result
-                            
-                            # Store performance metrics
-                            metrics = self.profiler.get_current_metrics()
-                            pair_metrics[(val1, val2)] = {
-                                'execution_time': metrics.execution_time,
-                                'peak_memory_gb': metrics.peak_memory_gb,
-                                'convergence': result.get('convergence', False),
-                                'log_likelihood': result.get('log_likelihood', np.nan)
-                            }
-                            
-                        except Exception as e:
-                            self.logger.warning(f"Failed for {param_key}: {str(e)}")
-                            pair_results[(val1, val2)] = {'error': str(e)}
-                            pair_metrics[(val1, val2)] = {
-                                'execution_time': np.nan,
-                                'peak_memory_gb': np.nan,
-                                'convergence': False,
-                                'log_likelihood': np.nan
-                            }
-                
-                results[f"{param1}_vs_{param2}"] = {
-                    'results': pair_results,
-                    'param1': param1,
-                    'param2': param2,
-                    'range1': range1,
-                    'range2': range2
-                }
-                performance_metrics[f"{param1}_vs_{param2}"] = pair_metrics
-            
-            # Analyze multivariate sensitivity
-            analysis = self._analyze_multivariate_sensitivity(results, performance_metrics)
-            
-            # Generate plots
-            plots = self._plot_multivariate_sensitivity(results, performance_metrics)
-            
-            return ExperimentResult(
-                experiment_name="multivariate_sensitivity_analysis",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                performance_metrics=performance_metrics,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Multivariate sensitivity analysis failed: {str(e)}")
-            return self._create_failure_result("multivariate_sensitivity_analysis", str(e))
+
+        for param1, param2 in hyperparameter_pairs:
+            if param1 not in self.hyperparameter_ranges or param2 not in self.hyperparameter_ranges:
+                self.logger.warning(f"Missing range for parameter pair: ({param1}, {param2})")
+                continue
+
+            self.logger.info(f"Analyzing interaction between {param1} and {param2}")
+
+            pair_results = {}
+            pair_metrics = {}
+
+            # Use smaller ranges for multivariate analysis to keep computation tractable
+            range1 = self._get_reduced_range(param1)
+            range2 = self._get_reduced_range(param2)
+
+            for val1, val2 in product(range1, range2):
+                param_key = f"{param1}={val1}_{param2}={val2}"
+                self.logger.debug(f"Testing {param_key}")
+
+                # Create hyperparameter configuration
+                test_hypers = base_hypers.copy()
+                test_hypers[param1] = val1
+                test_hypers[param2] = val2
+
+                # Run analysis
+                with self.profiler.profile(param_key) as p:
+                    try:
+                        result = self._run_sgfa_analysis(X_list, test_hypers, args, **kwargs)
+                        pair_results[(val1, val2)] = result
+
+                        # Store performance metrics
+                        metrics = self.profiler.get_current_metrics()
+                        pair_metrics[(val1, val2)] = {
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb,
+                            'convergence': result.get('convergence', False),
+                            'log_likelihood': result.get('log_likelihood', np.nan)
+                        }
+
+                    except Exception as e:
+                        self.logger.warning(f"Failed for {param_key}: {str(e)}")
+                        pair_results[(val1, val2)] = {'error': str(e)}
+                        pair_metrics[(val1, val2)] = {
+                            'execution_time': np.nan,
+                            'peak_memory_gb': np.nan,
+                            'convergence': False,
+                            'log_likelihood': np.nan
+                        }
+
+            results[f"{param1}_vs_{param2}"] = {
+                'results': pair_results,
+                'param1': param1,
+                'param2': param2,
+                'range1': range1,
+                'range2': range2
+            }
+            performance_metrics[f"{param1}_vs_{param2}"] = pair_metrics
+
+        # Analyze multivariate sensitivity
+        analysis = self._analyze_multivariate_sensitivity(results, performance_metrics)
+
+        # Generate plots
+        plots = self._plot_multivariate_sensitivity(results, performance_metrics)
+
+        return ExperimentResult(
+            experiment_name="multivariate_sensitivity_analysis",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            performance_metrics=performance_metrics,
+            success=True
+        )
     
+    @experiment_handler("gradient_based_sensitivity")
+    @validate_data_types(X_list=list, base_hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0, epsilon=lambda x: x > 0)
     def run_gradient_based_sensitivity(self, X_list: List[np.ndarray],
                                      base_hypers: Dict, args: Dict,
                                      epsilon: float = 0.01,
@@ -228,79 +229,77 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         
         results = {}
         gradients = {}
-        
-        try:
-            # Get baseline result
-            baseline_result = self._run_sgfa_analysis(X_list, base_hypers, args, **kwargs)
-            baseline_likelihood = baseline_result.get('log_likelihood', np.nan)
-            
-            if np.isnan(baseline_likelihood):
-                raise ValueError("Baseline analysis failed to produce valid log likelihood")
-            
-            # Calculate gradients for each hyperparameter
-            for param_name in self.core_hyperparameters:
-                if param_name not in base_hypers:
-                    continue
-                    
-                self.logger.info(f"Calculating gradient for {param_name}")
-                
-                base_value = base_hypers[param_name]
-                
-                # Forward difference
-                forward_hypers = base_hypers.copy()
-                forward_hypers[param_name] = base_value * (1 + epsilon)
-                
-                try:
-                    forward_result = self._run_sgfa_analysis(X_list, forward_hypers, args, **kwargs)
-                    forward_likelihood = forward_result.get('log_likelihood', np.nan)
-                    
-                    # Backward difference  
-                    backward_hypers = base_hypers.copy()
-                    backward_hypers[param_name] = base_value * (1 - epsilon)
-                    
-                    backward_result = self._run_sgfa_analysis(X_list, backward_hypers, args, **kwargs)
-                    backward_likelihood = backward_result.get('log_likelihood', np.nan)
-                    
-                    # Calculate gradient
-                    if not (np.isnan(forward_likelihood) or np.isnan(backward_likelihood)):
-                        gradient = (forward_likelihood - backward_likelihood) / (2 * epsilon * base_value)
-                        
-                        gradients[param_name] = {
-                            'gradient': gradient,
-                            'forward_likelihood': forward_likelihood,
-                            'backward_likelihood': backward_likelihood,
-                            'baseline_likelihood': baseline_likelihood,
-                            'relative_sensitivity': abs(gradient * base_value / baseline_likelihood)
-                        }
-                    else:
-                        gradients[param_name] = {'gradient': np.nan, 'error': 'Failed to compute differences'}
-                        
-                except Exception as e:
-                    self.logger.warning(f"Failed to compute gradient for {param_name}: {str(e)}")
-                    gradients[param_name] = {'gradient': np.nan, 'error': str(e)}
-            
-            results['baseline'] = baseline_result
-            results['gradients'] = gradients
-            
-            # Analyze gradient-based sensitivity
-            analysis = self._analyze_gradient_sensitivity(gradients)
-            
-            # Generate plots
-            plots = self._plot_gradient_sensitivity(gradients)
-            
-            return ExperimentResult(
-                experiment_name="gradient_based_sensitivity",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Gradient-based sensitivity analysis failed: {str(e)}")
-            return self._create_failure_result("gradient_based_sensitivity", str(e))
+
+        # Get baseline result
+        baseline_result = self._run_sgfa_analysis(X_list, base_hypers, args, **kwargs)
+        baseline_likelihood = baseline_result.get('log_likelihood', np.nan)
+
+        if np.isnan(baseline_likelihood):
+            raise ValueError("Baseline analysis failed to produce valid log likelihood")
+
+        # Calculate gradients for each hyperparameter
+        for param_name in self.core_hyperparameters:
+            if param_name not in base_hypers:
+                continue
+
+            self.logger.info(f"Calculating gradient for {param_name}")
+
+            base_value = base_hypers[param_name]
+
+            # Forward difference
+            forward_hypers = base_hypers.copy()
+            forward_hypers[param_name] = base_value * (1 + epsilon)
+
+            try:
+                forward_result = self._run_sgfa_analysis(X_list, forward_hypers, args, **kwargs)
+                forward_likelihood = forward_result.get('log_likelihood', np.nan)
+
+                # Backward difference
+                backward_hypers = base_hypers.copy()
+                backward_hypers[param_name] = base_value * (1 - epsilon)
+
+                backward_result = self._run_sgfa_analysis(X_list, backward_hypers, args, **kwargs)
+                backward_likelihood = backward_result.get('log_likelihood', np.nan)
+
+                # Calculate gradient
+                if not (np.isnan(forward_likelihood) or np.isnan(backward_likelihood)):
+                    gradient = (forward_likelihood - backward_likelihood) / (2 * epsilon * base_value)
+
+                    gradients[param_name] = {
+                        'gradient': gradient,
+                        'forward_likelihood': forward_likelihood,
+                        'backward_likelihood': backward_likelihood,
+                        'baseline_likelihood': baseline_likelihood,
+                        'relative_sensitivity': abs(gradient * base_value / baseline_likelihood)
+                    }
+                else:
+                    gradients[param_name] = {'gradient': np.nan, 'error': 'Failed to compute differences'}
+
+            except Exception as e:
+                self.logger.warning(f"Failed to compute gradient for {param_name}: {str(e)}")
+                gradients[param_name] = {'gradient': np.nan, 'error': str(e)}
+
+        results['baseline'] = baseline_result
+        results['gradients'] = gradients
+
+        # Analyze gradient-based sensitivity
+        analysis = self._analyze_gradient_sensitivity(gradients)
+
+        # Generate plots
+        plots = self._plot_gradient_sensitivity(gradients)
+
+        return ExperimentResult(
+            experiment_name="gradient_based_sensitivity",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
+    @experiment_handler("robustness_analysis")
+    @validate_data_types(X_list=list, base_hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0, n_trials=lambda x: x > 0)
     def run_robustness_analysis(self, X_list: List[np.ndarray],
                               base_hypers: Dict, args: Dict,
                               noise_levels: List[float] = None,
@@ -313,116 +312,57 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         self.logger.info(f"Running robustness analysis with noise levels: {noise_levels}")
         
         results = {}
-        
-        try:
-            # Baseline result
-            baseline_result = self._run_sgfa_analysis(X_list, base_hypers, args, **kwargs)
-            results['baseline'] = baseline_result
-            
-            # Robustness testing
-            for noise_level in noise_levels:
-                self.logger.info(f"Testing robustness with noise level: {noise_level}")
-                
-                noise_results = []
-                
-                for trial in range(n_trials):
-                    # Add noise to hyperparameters
-                    noisy_hypers = self._add_hyperparameter_noise(base_hypers, noise_level)
-                    
-                    try:
-                        result = self._run_sgfa_analysis(X_list, noisy_hypers, args, **kwargs)
-                        noise_results.append({
-                            'trial': trial,
-                            'noisy_hypers': noisy_hypers,
-                            'result': result,
-                            'log_likelihood': result.get('log_likelihood', np.nan),
-                            'convergence': result.get('convergence', False)
-                        })
-                        
-                    except Exception as e:
-                        noise_results.append({
-                            'trial': trial,
-                            'noisy_hypers': noisy_hypers,
-                            'result': {'error': str(e)},
-                            'log_likelihood': np.nan,
-                            'convergence': False
-                        })
-                
-                results[f'noise_{noise_level}'] = noise_results
-            
-            # Analyze robustness
-            analysis = self._analyze_robustness(results, baseline_result)
-            
-            # Generate plots
-            plots = self._plot_robustness_analysis(results)
-            
-            return ExperimentResult(
-                experiment_name="robustness_analysis",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Robustness analysis failed: {str(e)}")
-            return self._create_failure_result("robustness_analysis", str(e))
+
+        # Baseline result
+        baseline_result = self._run_sgfa_analysis(X_list, base_hypers, args, **kwargs)
+        results['baseline'] = baseline_result
+
+        # Robustness testing
+        for noise_level in noise_levels:
+            self.logger.info(f"Testing robustness with noise level: {noise_level}")
+
+            noise_results = []
+
+            for trial in range(n_trials):
+                # Add noise to hyperparameters
+                noisy_hypers = self._add_hyperparameter_noise(base_hypers, noise_level)
+
+                try:
+                    result = self._run_sgfa_analysis(X_list, noisy_hypers, args, **kwargs)
+                    noise_results.append({
+                        'trial': trial,
+                        'noisy_hypers': noisy_hypers,
+                        'result': result,
+                        'log_likelihood': result.get('log_likelihood', np.nan),
+                        'convergence': result.get('convergence', False)
+                    })
+
+                except Exception as e:
+                    noise_results.append({
+                        'trial': trial,
+                        'noisy_hypers': noisy_hypers,
+                        'result': {'error': str(e)},
+                        'log_likelihood': np.nan,
+                        'convergence': False
+                    })
+
+            results[f'noise_{noise_level}'] = noise_results
+
+        # Analyze robustness
+        analysis = self._analyze_robustness(results, baseline_result)
+
+        # Generate plots
+        plots = self._plot_robustness_analysis(results)
+
+        return ExperimentResult(
+            experiment_name="robustness_analysis",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
-    def _run_sgfa_analysis(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
-        """Run SGFA analysis with given hyperparameters."""
-        import jax.numpy as jnp
-        import jax.random as random
-        from jax import random
-        import numpyro
-        import numpyro.distributions as dist
-        from numpyro.infer import MCMC, NUTS
-
-        key = random.PRNGKey(42)
-        K = hypers.get('K', 5)
-        alpha_w = hypers.get('alpha_w', 1.0)
-        alpha_z = hypers.get('alpha_z', 1.0)
-
-        # Convert to JAX arrays
-        X_jax = [jnp.array(X) for X in X_list]
-        n_samples, n_features = X_jax[0].shape
-
-        def sgfa_model():
-            # Priors for factor loadings W
-            W = []
-            for v, X in enumerate(X_jax):
-                W_v = numpyro.sample(f'W_{v}', dist.Normal(0, 1).expand([X.shape[1], K]))
-                W.append(W_v)
-
-            # Prior for factors Z
-            Z = numpyro.sample('Z', dist.Normal(0, 1).expand([n_samples, K]))
-
-            # Likelihood
-            for v, X in enumerate(X_jax):
-                mu = jnp.dot(Z, W[v].T)
-                numpyro.sample(f'obs_{v}', dist.Normal(mu, 1), obs=X)
-
-        # Run reduced MCMC for sensitivity analysis
-        nuts_kernel = NUTS(sgfa_model)
-        mcmc = MCMC(nuts_kernel, num_warmup=50, num_samples=100)
-        mcmc.run(key)
-
-        # Extract results
-        samples = mcmc.get_samples()
-        W_samples = [samples[f'W_{v}'] for v in range(len(X_jax))]
-        Z_samples = samples['Z']
-
-        # Compute log likelihood estimate
-        log_likelihood = float(jnp.mean(mcmc.get_extra_fields()['potential_energy']))
-
-        return {
-            'W': [jnp.mean(W_v, axis=0) for W_v in W_samples],
-            'Z': jnp.mean(Z_samples, axis=0),
-            'log_likelihood': -log_likelihood,  # Convert potential energy to log likelihood
-            'n_iterations': 150,  # warmup + samples
-            'convergence': True,
-            'hyperparameters': hypers.copy()
-        }
     
     def _get_reduced_range(self, param_name: str, n_values: int = 3) -> List:
         """Get a reduced range for multivariate analysis."""

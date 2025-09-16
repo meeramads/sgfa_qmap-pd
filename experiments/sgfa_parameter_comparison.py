@@ -16,6 +16,8 @@ from scipy import stats
 
 # Safe configuration access
 from core.config_utils import safe_get, get_output_dir, ConfigAccessor
+from core.experiment_utils import experiment_handler
+from core.validation_utils import validate_data_types, validate_parameters
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA, FactorAnalysis
@@ -43,249 +45,253 @@ class SGFAParameterComparison(ExperimentFramework):
         # Focus purely on SGFA parameter optimization
         # Traditional methods moved to model_comparison.py
         
-    def run_sgfa_variant_comparison(self, X_list: List[np.ndarray], 
+    @experiment_handler("sgfa_variant_comparison")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0 and all(isinstance(arr, np.ndarray) for arr in x),
+        hypers=lambda x: isinstance(x, dict)
+    )
+    def run_sgfa_variant_comparison(self, X_list: List[np.ndarray],
                                   hypers: Dict, args: Dict,
                                   **kwargs) -> ExperimentResult:
         """Compare different SGFA variants."""
         self.logger.info("Running SGFA variant comparison")
-        
+
         results = {}
         performance_metrics = {}
-        
-        try:
-            for variant_name, variant_config in self.sgfa_variants.items():
-                self.logger.info(f"Testing SGFA variant: {variant_name}")
-                
-                # Update hyperparameters with variant config
-                variant_hypers = hypers.copy()
-                variant_hypers.update(variant_config)
 
-                # Run analysis without profiling to debug the argparse.Namespace error
-                variant_result = self._run_sgfa_variant(
-                    X_list, variant_hypers, args, **kwargs
-                )
+        for variant_name, variant_config in self.sgfa_variants.items():
+            self.logger.info(f"Testing SGFA variant: {variant_name}")
 
-                results[variant_name] = variant_result
+            # Update hyperparameters with variant config
+            variant_hypers = hypers.copy()
+            variant_hypers.update(variant_config)
 
-                # Store basic performance metrics
-                performance_metrics[variant_name] = {
-                    'execution_time': variant_result.get('execution_time', 0),
-                    'peak_memory_gb': 0.0,  # Will be filled by system monitoring
-                    'convergence_iterations': variant_result.get('n_iterations', 0)
-                }
-                
-            # Analyze results
-            analysis = self._analyze_sgfa_variants(results, performance_metrics)
-            
-            # Generate basic plots
-            plots = self._plot_sgfa_comparison(results, performance_metrics)
-
-            # Add comprehensive visualizations
-            advanced_plots = self._create_comprehensive_visualizations(
-                X_list, results, "sgfa_variant_comparison"
+            # Run analysis without profiling to debug the argparse.Namespace error
+            variant_result = self._run_sgfa_variant(
+                X_list, variant_hypers, args, **kwargs
             )
-            plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="sgfa_variant_comparison",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                performance_metrics=performance_metrics,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"SGFA variant comparison failed: {str(e)}")
-            return self._create_failure_result("sgfa_variant_comparison", str(e))
+            results[variant_name] = variant_result
+
+            # Store basic performance metrics
+            performance_metrics[variant_name] = {
+                'execution_time': variant_result.get('execution_time', 0),
+                'peak_memory_gb': 0.0,  # Will be filled by system monitoring
+                'convergence_iterations': variant_result.get('n_iterations', 0)
+            }
+
+        # Analyze results
+        analysis = self._analyze_sgfa_variants(results, performance_metrics)
+
+        # Generate basic plots
+        plots = self._plot_sgfa_comparison(results, performance_metrics)
+
+        # Add comprehensive visualizations
+        advanced_plots = self._create_comprehensive_visualizations(
+            X_list, results, "sgfa_variant_comparison"
+        )
+        plots.update(advanced_plots)
+
+        return ExperimentResult(
+            experiment_name="sgfa_variant_comparison",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            performance_metrics=performance_metrics,
+            success=True
+        )
     
+    @experiment_handler("traditional_method_comparison")
+    @validate_data_types(X_list=list, sgfa_results=(dict, type(None)))
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0 and all(isinstance(arr, np.ndarray) for arr in x)
+    )
     def run_traditional_method_comparison(self, X_list: List[np.ndarray],
                                         sgfa_results: Dict = None,
                                         **kwargs) -> ExperimentResult:
         """Compare SGFA with traditional dimensionality reduction methods."""
         self.logger.info("Running traditional method comparison")
-        
+
         results = {}
         performance_metrics = {}
-        
-        try:
-            # Concatenate multi-view data for traditional methods
-            X_concat = np.hstack(X_list) if len(X_list) > 1 else X_list[0]
-            n_subjects = X_concat.shape[0]
-            
-            # Determine number of components
-            n_components = kwargs.get('n_components', min(10, X_concat.shape[1] // 2))
-            
-            for method_name in self.traditional_methods:
-                self.logger.info(f"Testing traditional method: {method_name}")
-                
-                with self.profiler.profile(f'traditional_{method_name}') as p:
-                    method_result = self._run_traditional_method(
-                        X_concat, method_name, n_components, **kwargs
-                    )
-                    results[method_name] = method_result
-                
-                # Store performance metrics
-                metrics = self.profiler.get_current_metrics()
-                performance_metrics[method_name] = {
-                    'execution_time': metrics.execution_time,
-                    'peak_memory_gb': metrics.peak_memory_gb
-                }
-            
-            # Include SGFA results if provided
-            if sgfa_results:
-                results['sgfa'] = sgfa_results
-                performance_metrics['sgfa'] = {
-                    'execution_time': sgfa_results.get('execution_time', 0),
-                    'peak_memory_gb': sgfa_results.get('peak_memory_gb', 0)
-                }
-            
-            # Analyze method comparison
-            analysis = self._analyze_traditional_comparison(results, X_list)
-            
-            # Generate plots
-            plots = self._plot_traditional_comparison(results, performance_metrics)
-            
-            return ExperimentResult(
-                experiment_name="traditional_method_comparison",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                performance_metrics=performance_metrics,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Traditional method comparison failed: {str(e)}")
-            return self._create_failure_result("traditional_method_comparison", str(e))
+
+        # Concatenate multi-view data for traditional methods
+        X_concat = np.hstack(X_list) if len(X_list) > 1 else X_list[0]
+        n_subjects = X_concat.shape[0]
+
+        # Determine number of components
+        n_components = kwargs.get('n_components', min(10, X_concat.shape[1] // 2))
+
+        traditional_methods = ['pca', 'fa', 'cca', 'kmeans', 'ica']
+        for method_name in traditional_methods:
+            self.logger.info(f"Testing traditional method: {method_name}")
+
+            with self.profiler.profile(f'traditional_{method_name}') as p:
+                method_result = self._run_traditional_method(
+                    X_concat, method_name, n_components, **kwargs
+                )
+                results[method_name] = method_result
+
+            # Store performance metrics
+            metrics = self.profiler.get_current_metrics()
+            performance_metrics[method_name] = {
+                'execution_time': metrics.execution_time,
+                'peak_memory_gb': metrics.peak_memory_gb
+            }
+
+        # Include SGFA results if provided
+        if sgfa_results:
+            results['sgfa'] = sgfa_results
+            performance_metrics['sgfa'] = {
+                'execution_time': sgfa_results.get('execution_time', 0),
+                'peak_memory_gb': sgfa_results.get('peak_memory_gb', 0)
+            }
+
+        # Analyze method comparison
+        analysis = self._analyze_traditional_comparison(results, X_list)
+
+        # Generate plots
+        plots = self._plot_traditional_comparison(results, performance_metrics)
+
+        return ExperimentResult(
+            experiment_name="traditional_method_comparison",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            performance_metrics=performance_metrics,
+            success=True
+        )
     
+    @experiment_handler("multiview_capability_assessment")
+    @validate_data_types(X_list=list)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0 and all(isinstance(arr, np.ndarray) for arr in x)
+    )
     def run_multiview_capability_assessment(self, X_list: List[np.ndarray],
                                           **kwargs) -> ExperimentResult:
         """Assess multi-view capabilities of different methods."""
         self.logger.info("Running multi-view capability assessment")
-        
+
         results = {}
-        
-        try:
-            n_views = len(X_list)
-            
-            # Test with different numbers of views
-            view_combinations = [
-                list(range(i+1)) for i in range(n_views)
-            ]
-            
-            for n_view_test in range(1, n_views + 1):
-                view_subset = X_list[:n_view_test]
-                
-                # SGFA with subset of views
-                sgfa_result = self._run_sgfa_multiview(view_subset, **kwargs)
-                
-                # Traditional methods (concatenated)
-                X_concat = np.hstack(view_subset)
-                traditional_results = {}
-                
-                for method in ['pca', 'fa', 'cca']:
-                    if method == 'cca' and n_view_test < 2:
-                        continue  # CCA needs at least 2 views
-                        
-                    traditional_results[method] = self._run_traditional_method(
-                        X_concat, method, min(10, X_concat.shape[1] // 2)
-                    )
-                
-                results[f'{n_view_test}_views'] = {
-                    'sgfa': sgfa_result,
-                    'traditional': traditional_results,
-                    'view_dimensions': [X.shape[1] for X in view_subset]
-                }
-            
-            # Analyze multi-view capabilities
-            analysis = self._analyze_multiview_capabilities(results)
-            
-            # Generate plots
-            plots = self._plot_multiview_comparison(results)
-            
-            return ExperimentResult(
-                experiment_name="multiview_capability_assessment",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Multi-view capability assessment failed: {str(e)}")
-            return self._create_failure_result("multiview_capability_assessment", str(e))
+
+        n_views = len(X_list)
+
+        # Test with different numbers of views
+        view_combinations = [
+            list(range(i+1)) for i in range(n_views)
+        ]
+
+        for n_view_test in range(1, n_views + 1):
+            view_subset = X_list[:n_view_test]
+
+            # SGFA with subset of views
+            sgfa_result = self._run_sgfa_multiview(view_subset, **kwargs)
+
+            # Traditional methods (concatenated)
+            X_concat = np.hstack(view_subset)
+            traditional_results = {}
+
+            for method in ['pca', 'fa', 'cca']:
+                if method == 'cca' and n_view_test < 2:
+                    continue  # CCA needs at least 2 views
+
+                traditional_results[method] = self._run_traditional_method(
+                    X_concat, method, min(10, X_concat.shape[1] // 2)
+                )
+
+            results[f'{n_view_test}_views'] = {
+                'sgfa': sgfa_result,
+                'traditional': traditional_results,
+                'view_dimensions': [X.shape[1] for X in view_subset]
+            }
+
+        # Analyze multi-view capabilities
+        analysis = self._analyze_multiview_capabilities(results)
+
+        # Generate plots
+        plots = self._plot_multiview_comparison(results)
+
+        return ExperimentResult(
+            experiment_name="multiview_capability_assessment",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
+    @experiment_handler("scalability_comparison")
+    @validate_data_types(X_list=list, sample_sizes=(list, type(None)), feature_sizes=(list, type(None)))
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0 and all(isinstance(arr, np.ndarray) for arr in x),
+        sample_sizes=lambda x: x is None or (isinstance(x, list) and all(isinstance(s, int) and s > 0 for s in x)),
+        feature_sizes=lambda x: x is None or (isinstance(x, list) and all(isinstance(f, int) and f > 0 for f in x))
+    )
     def run_scalability_comparison(self, X_list: List[np.ndarray],
                                  sample_sizes: List[int] = None,
                                  feature_sizes: List[int] = None,
                                  **kwargs) -> ExperimentResult:
         """Compare scalability of different methods."""
         self.logger.info("Running scalability comparison")
-        
+
         if sample_sizes is None:
             sample_sizes = [100, 500, 1000, 2000]
         if feature_sizes is None:
             feature_sizes = [50, 100, 200, 500]
-            
+
         results = {}
-        
-        try:
-            # Sample size scalability
-            self.logger.info("Testing sample size scalability")
-            sample_results = {}
-            
-            for n_samples in sample_sizes:
-                if n_samples > X_list[0].shape[0]:
-                    continue
-                    
-                # Subsample data
-                indices = np.random.choice(X_list[0].shape[0], n_samples, replace=False)
-                X_subset = [X[indices] for X in X_list]
-                
-                sample_results[n_samples] = self._run_scalability_test(X_subset, **kwargs)
-            
-            results['sample_scalability'] = sample_results
-            
-            # Feature size scalability
-            self.logger.info("Testing feature size scalability")
-            feature_results = {}
-            
-            for n_features in feature_sizes:
-                # Select subset of features from each view
-                X_feature_subset = []
-                for X in X_list:
-                    if n_features >= X.shape[1]:
-                        X_feature_subset.append(X)
-                    else:
-                        feature_indices = np.random.choice(X.shape[1], n_features, replace=False)
-                        X_feature_subset.append(X[:, feature_indices])
-                
-                feature_results[n_features] = self._run_scalability_test(X_feature_subset, **kwargs)
-            
-            results['feature_scalability'] = feature_results
-            
-            # Analyze scalability
-            analysis = self._analyze_scalability(results)
-            
-            # Generate plots
-            plots = self._plot_scalability_comparison(results)
-            
-            return ExperimentResult(
-                experiment_name="scalability_comparison", 
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Scalability comparison failed: {str(e)}")
-            return self._create_failure_result("scalability_comparison", str(e))
+
+        # Sample size scalability
+        self.logger.info("Testing sample size scalability")
+        sample_results = {}
+
+        for n_samples in sample_sizes:
+            if n_samples > X_list[0].shape[0]:
+                continue
+
+            # Subsample data
+            indices = np.random.choice(X_list[0].shape[0], n_samples, replace=False)
+            X_subset = [X[indices] for X in X_list]
+
+            sample_results[n_samples] = self._run_scalability_test(X_subset, **kwargs)
+
+        results['sample_scalability'] = sample_results
+
+        # Feature size scalability
+        self.logger.info("Testing feature size scalability")
+        feature_results = {}
+
+        for n_features in feature_sizes:
+            # Select subset of features from each view
+            X_feature_subset = []
+            for X in X_list:
+                if n_features >= X.shape[1]:
+                    X_feature_subset.append(X)
+                else:
+                    feature_indices = np.random.choice(X.shape[1], n_features, replace=False)
+                    X_feature_subset.append(X[:, feature_indices])
+
+            feature_results[n_features] = self._run_scalability_test(X_feature_subset, **kwargs)
+
+        results['feature_scalability'] = feature_results
+
+        # Analyze scalability
+        analysis = self._analyze_scalability(results)
+
+        # Generate plots
+        plots = self._plot_scalability_comparison(results)
+
+        return ExperimentResult(
+            experiment_name="scalability_comparison",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
     def _run_sgfa_variant(self, X_list: List[np.ndarray],
                          hypers: Dict, args: Dict, **kwargs) -> Dict:

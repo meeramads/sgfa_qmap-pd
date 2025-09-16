@@ -15,6 +15,9 @@ from experiments.framework import ExperimentFramework, ExperimentConfig, Experim
 from data.qmap_pd import load_qmap_pd
 from core.utils import safe_pickle_save, safe_pickle_load
 from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+from core.experiment_utils import experiment_handler, get_experiment_logger, validate_experiment_inputs
+from core.io_utils import save_json, save_plot, save_numpy, save_csv, DataManager
+from core.validation_utils import validate_parameters, validate_data_types, ParameterValidator, ResultValidator
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +119,8 @@ class DataValidationExperiments(ExperimentFramework):
         """Initialize data validation experiments."""
         super().__init__(config, None, logger)
     
+    @experiment_handler("data_quality_assessment")
+    @validate_data_types(X_list=(list, type(None)))
     def run_data_quality_assessment(self, X_list: List[np.ndarray] = None,
                                     **kwargs) -> ExperimentResult:
         """
@@ -133,7 +138,9 @@ class DataValidationExperiments(ExperimentFramework):
         """
         logger.info("Running data quality assessment")
 
-        try:
+        # Validate inputs if provided
+        if X_list is not None:
+            ResultValidator.validate_data_matrices(X_list)
             # Load data if not provided
             if X_list is None:
                 logger.info("Loading qMAP-PD data for quality assessment...")
@@ -178,18 +185,14 @@ class DataValidationExperiments(ExperimentFramework):
             )
             plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="data_quality_assessment",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-
-        except Exception as e:
-            self.logger.error(f"Data quality assessment failed: {str(e)}")
-            return self._create_failure_result("data_quality_assessment", str(e))
+        return ExperimentResult(
+            experiment_name="data_quality_assessment",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
     def _analyze_data_structure(self, raw_data: Dict, preprocessed_data: Dict) -> Dict[str, Any]:
         """Analyze basic data structure and dimensions."""
@@ -439,8 +442,7 @@ class DataValidationExperiments(ExperimentFramework):
             axes[1, view_idx].set_ylabel('Frequency')
         
         plt.tight_layout()
-        plt.savefig(output_dir / 'feature_distributions.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / 'feature_distributions.png', dpi=300, bbox_inches='tight', close_after=True)
     
     def _plot_missing_data_patterns(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Plot missing data patterns."""
@@ -477,8 +479,7 @@ class DataValidationExperiments(ExperimentFramework):
             axes[1, view_idx].set_ylabel('Features')
         
         plt.tight_layout()
-        plt.savefig(output_dir / 'missing_data_patterns.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / 'missing_data_patterns.png', dpi=300, bbox_inches='tight', close_after=True)
     
     def _plot_correlation_matrices(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Plot correlation matrices for each view."""
@@ -516,8 +517,7 @@ class DataValidationExperiments(ExperimentFramework):
                 plt.colorbar(im2, ax=axes[1, view_idx])
         
         plt.tight_layout()
-        plt.savefig(output_dir / 'correlation_matrices.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / 'correlation_matrices.png', dpi=300, bbox_inches='tight', close_after=True)
     
     def _perform_pca_analysis(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path) -> Dict[str, Any]:
         """Perform PCA analysis and visualization."""
@@ -579,8 +579,7 @@ class DataValidationExperiments(ExperimentFramework):
                 axes[1, view_idx].grid(True)
         
         plt.tight_layout()
-        plt.savefig(output_dir / 'pca_visualization.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / 'pca_visualization.png', dpi=300, bbox_inches='tight', close_after=True)
         
         return pca_results
     
@@ -623,8 +622,7 @@ class DataValidationExperiments(ExperimentFramework):
             axes[metric_idx].legend()
         
         plt.tight_layout()
-        plt.savefig(output_dir / 'quality_metrics.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / 'quality_metrics.png', dpi=300, bbox_inches='tight', close_after=True)
     
     def _save_data_summaries(self, raw_data: Dict, preprocessed_data: Dict, output_dir: Path):
         """Save detailed data summaries to files."""
@@ -634,15 +632,15 @@ class DataValidationExperiments(ExperimentFramework):
             
         # Raw data summary
         raw_summary = self._create_detailed_summary(raw_data, "raw")
-        raw_summary.to_csv(output_dir / 'raw_data_summary.csv', index=False)
-        
+        save_csv(raw_summary, output_dir / 'raw_data_summary.csv', index=False)
+
         # Preprocessed data summary
         proc_summary = self._create_detailed_summary(preprocessed_data, "preprocessed")
-        proc_summary.to_csv(output_dir / 'preprocessed_data_summary.csv', index=False)
-        
+        save_csv(proc_summary, output_dir / 'preprocessed_data_summary.csv', index=False)
+
         # Comparison summary
         comparison_df = self._create_comparison_summary(raw_data, preprocessed_data)
-        comparison_df.to_csv(output_dir / 'data_comparison_summary.csv', index=False)
+        save_csv(comparison_df, output_dir / 'data_comparison_summary.csv', index=False)
     
     def _create_detailed_summary(self, data: Dict, data_type: str) -> pd.DataFrame:
         """Create detailed summary DataFrame for data."""
@@ -912,9 +910,7 @@ class DataValidationExperiments(ExperimentFramework):
             axes[1, 1].tick_params(axis='x', rotation=45)
         
         plt.tight_layout()
-        plt.savefig(output_dir / 'preprocessing_strategy_comparison.png', 
-                   dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / 'preprocessing_strategy_comparison.png', dpi=300, bbox_inches='tight', close_after=True)
         
         logger.info("Preprocessing strategy comparison plots saved")
 

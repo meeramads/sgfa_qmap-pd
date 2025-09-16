@@ -13,6 +13,7 @@ import yaml
 
 from performance import PerformanceProfiler, MemoryOptimizer, PerformanceManager, PerformanceConfig
 from core.utils import safe_pickle_save, safe_pickle_load
+from core.io_utils import save_json, save_plot, save_numpy, save_csv, DataManager
 
 logger = logging.getLogger(__name__)
 
@@ -167,10 +168,9 @@ class ExperimentFramework:
         # Handle both ExperimentConfig and direct path for backward compatibility
         if hasattr(config_or_output_dir, 'experiment_name'):
             # It's an ExperimentConfig
-            from core.config_utils import get_output_dir
+            from core.config_utils import ConfigHelper
             self.config = config_or_output_dir
-            config_dict = config_or_output_dir.to_dict() if hasattr(config_or_output_dir, 'to_dict') else config_or_output_dir.__dict__
-            self.base_output_dir = Path(get_output_dir(config_dict))
+            self.base_output_dir = ConfigHelper.get_output_dir_safe(config_or_output_dir)
         else:
             # It's a direct path (backward compatibility)
             self.config = None
@@ -295,8 +295,7 @@ class ExperimentFramework:
         """Save experiment result to files."""
         # Save as JSON
         result_json = output_dir / "result.json"
-        with open(result_json, 'w') as f:
-            json.dump(result.to_dict(), f, indent=2, default=str)
+        save_json(result.to_dict(), result_json, indent=2)
         
         # Save as pickle for complete object
         result_pkl = output_dir / "result.pkl"
@@ -338,7 +337,7 @@ class ExperimentFramework:
         
         # Save as single-row CSV
         df = pd.DataFrame([summary_data])
-        df.to_csv(filepath, index=False)
+        save_csv(df, filepath, index=False)
 
     def _save_factor_matrices(self, result: ExperimentResult, output_dir: Path):
         """Save factor matrices (W and Z) as separate files for easy access."""
@@ -388,17 +387,19 @@ class ExperimentFramework:
                     for view_idx, W_view in enumerate(W):
                         if hasattr(W_view, 'shape'):
                             # Save as numpy
-                            np.save(matrices_dir / f"{variant_name}_factor_loadings_view{view_idx}.npy", W_view)
+                            save_numpy(W_view, matrices_dir / f"{variant_name}_factor_loadings_view{view_idx}.npy")
                             # Save as CSV for readability
-                            pd.DataFrame(W_view).to_csv(
+                            save_csv(
+                                pd.DataFrame(W_view),
                                 matrices_dir / f"{variant_name}_factor_loadings_view{view_idx}.csv",
                                 index=False
                             )
                 else:
                     # Single matrix case
                     if hasattr(W, 'shape'):
-                        np.save(matrices_dir / f"{variant_name}_factor_loadings.npy", W)
-                        pd.DataFrame(W).to_csv(
+                        save_numpy(W, matrices_dir / f"{variant_name}_factor_loadings.npy")
+                        save_csv(
+                            pd.DataFrame(W),
                             matrices_dir / f"{variant_name}_factor_loadings.csv",
                             index=False
                         )
@@ -409,10 +410,11 @@ class ExperimentFramework:
             try:
                 if hasattr(Z, 'shape'):
                     # Save factor scores
-                    np.save(matrices_dir / f"{variant_name}_factor_scores.npy", Z)
+                    save_numpy(Z, matrices_dir / f"{variant_name}_factor_scores.npy")
                     # Create DataFrame with meaningful column names
                     factor_cols = [f"Factor_{i+1}" for i in range(Z.shape[1])]
-                    pd.DataFrame(Z, columns=factor_cols).to_csv(
+                    save_csv(
+                        pd.DataFrame(Z, columns=factor_cols),
                         matrices_dir / f"{variant_name}_factor_scores.csv",
                         index=False
                     )
@@ -429,13 +431,14 @@ class ExperimentFramework:
                 try:
                     if hasattr(param_value, 'shape'):
                         # Save as numpy array
-                        np.save(matrices_dir / f"{variant_name}_{param_name}.npy", param_value)
+                        save_numpy(param_value, matrices_dir / f"{variant_name}_{param_name}.npy")
                         saved_params.append(param_name)
 
                         # Save smaller parameters as CSV for readability
                         if param_value.size <= 1000:  # Only for reasonably sized parameters
                             if param_value.ndim <= 2:  # Only for 1D or 2D arrays
-                                pd.DataFrame(param_value).to_csv(
+                                save_csv(
+                                    pd.DataFrame(param_value),
                                     matrices_dir / f"{variant_name}_{param_name}.csv",
                                     index=False
                                 )
@@ -452,8 +455,7 @@ class ExperimentFramework:
             try:
                 # Save as JSON for easy reading
                 import json
-                with open(matrices_dir / f"{variant_name}_hyperparameters.json", 'w') as f:
-                    json.dump(hyperparams, f, indent=2, default=str)
+                save_json(hyperparams, matrices_dir / f"{variant_name}_hyperparameters.json", indent=2)
                 saved_params.append('hyperparameters')
             except Exception as e:
                 print(f"Warning: Could not save hyperparameters for {variant_name}: {e}")
@@ -467,8 +469,7 @@ class ExperimentFramework:
                     'saved_parameters': saved_params,
                     'timestamp': pd.Timestamp.now().isoformat()
                 }
-                with open(matrices_dir / f"{variant_name}_parameter_summary.json", 'w') as f:
-                    json.dump(summary, f, indent=2)
+                save_json(summary, matrices_dir / f"{variant_name}_parameter_summary.json", indent=2)
             except Exception as e:
                 print(f"Warning: Could not save parameter summary for {variant_name}: {e}")
 
@@ -479,7 +480,7 @@ class ExperimentFramework:
         for key, value in param_dict.items():
             try:
                 if hasattr(value, 'shape'):
-                    np.save(matrices_dir / f"{prefix}_{key}.npy", value)
+                    save_numpy(value, matrices_dir / f"{prefix}_{key}.npy")
                     # Save summary statistics for large sample arrays
                     if value.ndim > 2:  # Likely MCMC samples
                         summary_stats = {
@@ -490,7 +491,7 @@ class ExperimentFramework:
                             'q975': np.percentile(value, 97.5, axis=0)
                         }
                         for stat_name, stat_value in summary_stats.items():
-                            np.save(matrices_dir / f"{prefix}_{key}_{stat_name}.npy", stat_value)
+                            save_numpy(stat_value, matrices_dir / f"{prefix}_{key}_{stat_name}.npy")
             except Exception as e:
                 print(f"Warning: Could not save parameter {key} from {prefix}: {e}")
 
@@ -511,21 +512,19 @@ class ExperimentFramework:
             if plot_figure is None:
                 continue
 
+            # Use standardized plot saving from io_utils
             try:
                 # Save as PNG (high quality for viewing)
                 png_path = plots_dir / f"{plot_name}.png"
-                plot_figure.savefig(png_path, dpi=300, bbox_inches='tight',
-                                  facecolor='white', edgecolor='none')
+                save_plot(png_path, dpi=300, bbox_inches='tight',
+                         facecolor='white', edgecolor='none', close_after=False)
 
                 # Save as PDF (vector format for publications)
                 pdf_path = plots_dir / f"{plot_name}.pdf"
-                plot_figure.savefig(pdf_path, bbox_inches='tight',
-                                  facecolor='white', edgecolor='none')
+                save_plot(pdf_path, bbox_inches='tight',
+                         facecolor='white', edgecolor='none', close_after=True)
 
                 logger.info(f"  ✅ Saved plot: {plot_name}")
-
-                # Close the figure to free memory
-                plt.close(plot_figure)
 
             except Exception as e:
                 logger.warning(f"Failed to save plot {plot_name}: {e}")
@@ -618,7 +617,7 @@ class ExperimentFramework:
         # Save grid summary
         df = pd.DataFrame(summary_data)
         grid_summary_path = self.base_output_dir / "grid_search_summary.csv"
-        df.to_csv(grid_summary_path, index=False)
+        save_csv(df, grid_summary_path, index=False)
         
         logger.info(f"Grid search summary saved to: {grid_summary_path}")
     
@@ -736,8 +735,7 @@ class ExperimentFramework:
         """Save experiment report to file."""
         report = self.generate_experiment_report(results)
         
-        with open(filepath, 'w') as f:
-            json.dump(report, f, indent=2, default=str)
+        save_json(report, filepath, indent=2)
         
         logger.info(f"Experiment report saved to: {filepath}")
 

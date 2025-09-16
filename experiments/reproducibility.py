@@ -15,6 +15,9 @@ import warnings
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+from core.experiment_utils import experiment_handler, get_experiment_logger, validate_experiment_inputs
+from core.io_utils import save_json, save_plot, save_numpy, save_csv, DataManager
+from core.validation_utils import validate_parameters, validate_data_types, ParameterValidator, ResultValidator
 
 class ReproducibilityExperiments(ExperimentFramework):
     """Comprehensive reproducibility and robustness testing for SGFA analysis."""
@@ -27,69 +30,79 @@ class ReproducibilityExperiments(ExperimentFramework):
         self.random_seeds = [42, 123, 456, 789, 999, 1234, 5678, 9999]
         self.perturbation_types = ['gaussian', 'uniform', 'dropout', 'permutation']
         
+    @experiment_handler("seed_reproducibility_test")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        seeds=(lambda x: x is None or (isinstance(x, list) and all(isinstance(s, int) for s in x)), "seeds must be None or list of integers")
+    )
     def run_seed_reproducibility_test(self, X_list: List[np.ndarray],
                                     hypers: Dict, args: Dict,
                                     seeds: List[int] = None,
                                     **kwargs) -> ExperimentResult:
         """Test reproducibility across different random seeds."""
+        # Validate inputs
+        ResultValidator.validate_data_matrices(X_list)
+
         if seeds is None:
             seeds = self.random_seeds
-            
+
         self.logger.info(f"Running seed reproducibility test with seeds: {seeds}")
-        
+
         results = {}
         performance_metrics = {}
+        for seed in seeds:
+            self.logger.info(f"Testing with seed: {seed}")
+            
+            # Set random seed for reproducibility
+            np.random.seed(seed)
+            
+            # Update args with seed
+            seed_args = args.copy()
+            seed_args['random_seed'] = seed
+            
+            with self.profiler.profile(f'seed_{seed}') as p:
+                result = self._run_sgfa_analysis(X_list, hypers, seed_args, **kwargs)
+                results[seed] = result
+                
+                # Store performance metrics
+                metrics = self.profiler.get_current_metrics()
+                performance_metrics[seed] = {
+                    'execution_time': metrics.execution_time,
+                    'peak_memory_gb': metrics.peak_memory_gb,
+                    'convergence': result.get('convergence', False),
+                    'log_likelihood': result.get('log_likelihood', np.nan)
+                }
         
-        try:
-            for seed in seeds:
-                self.logger.info(f"Testing with seed: {seed}")
-                
-                # Set random seed for reproducibility
-                np.random.seed(seed)
-                
-                # Update args with seed
-                seed_args = args.copy()
-                seed_args['random_seed'] = seed
-                
-                with self.profiler.profile(f'seed_{seed}') as p:
-                    result = self._run_sgfa_analysis(X_list, hypers, seed_args, **kwargs)
-                    results[seed] = result
-                    
-                    # Store performance metrics
-                    metrics = self.profiler.get_current_metrics()
-                    performance_metrics[seed] = {
-                        'execution_time': metrics.execution_time,
-                        'peak_memory_gb': metrics.peak_memory_gb,
-                        'convergence': result.get('convergence', False),
-                        'log_likelihood': result.get('log_likelihood', np.nan)
-                    }
-            
-            # Analyze reproducibility
-            analysis = self._analyze_seed_reproducibility(results, performance_metrics)
-            
-            # Generate basic plots
-            plots = self._plot_seed_reproducibility(results, performance_metrics)
+        # Analyze reproducibility
+        analysis = self._analyze_seed_reproducibility(results, performance_metrics)
+        
+        # Generate basic plots
+        plots = self._plot_seed_reproducibility(results, performance_metrics)
 
-            # Add comprehensive reproducibility visualizations (focus on stability & consensus)
-            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
-                X_list, results, "seed_reproducibility"
-            )
-            plots.update(advanced_plots)
+        # Add comprehensive reproducibility visualizations (focus on stability & consensus)
+        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+        X_list, results, "seed_reproducibility"
+        )
+        plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="seed_reproducibility_test",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                performance_metrics=performance_metrics,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Seed reproducibility test failed: {str(e)}")
-            return self._create_failure_result("seed_reproducibility_test", str(e))
+        return ExperimentResult(
+        experiment_name="seed_reproducibility_test",
+        config=self.config,
+        data=results,
+        analysis=analysis,
+        plots=plots,
+        performance_metrics=performance_metrics,
+        success=True
+        )
     
+    @experiment_handler("data_perturbation_robustness")
+    @validate_data_types(X_list=list, hypers=dict, args=dict, n_trials=int)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        n_trials=lambda x: x > 0,
+        perturbation_levels=(lambda x: x is None or (isinstance(x, list) and all(isinstance(l, (int, float)) and l >= 0 for l in x)), "perturbation_levels must be None or list of non-negative numbers")
+    )
     def run_data_perturbation_robustness(self, X_list: List[np.ndarray],
                                        hypers: Dict, args: Dict,
                                        perturbation_levels: List[float] = None,
@@ -97,247 +110,249 @@ class ReproducibilityExperiments(ExperimentFramework):
                                        n_trials: int = 5,
                                        **kwargs) -> ExperimentResult:
         """Test robustness to data perturbations."""
+        # Validate inputs
+        ResultValidator.validate_data_matrices(X_list)
+        ParameterValidator.validate_positive(n_trials, "n_trials")
+
         if perturbation_levels is None:
             perturbation_levels = [0.01, 0.05, 0.1, 0.2]
         if perturbation_types is None:
             perturbation_types = self.perturbation_types
-            
+
         self.logger.info(f"Running data perturbation robustness test")
         self.logger.info(f"Perturbation types: {perturbation_types}")
         self.logger.info(f"Perturbation levels: {perturbation_levels}")
-        
+
         results = {}
+        # Baseline result
+        baseline_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+        results['baseline'] = {
+            'result': baseline_result,
+            'perturbation_type': 'none',
+            'perturbation_level': 0.0
+        }
         
-        try:
-            # Baseline result
-            baseline_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
-            results['baseline'] = {
-                'result': baseline_result,
-                'perturbation_type': 'none',
-                'perturbation_level': 0.0
-            }
+        # Test different perturbation types and levels
+        for perturbation_type in perturbation_types:
+            self.logger.info(f"Testing perturbation type: {perturbation_type}")
             
-            # Test different perturbation types and levels
-            for perturbation_type in perturbation_types:
-                self.logger.info(f"Testing perturbation type: {perturbation_type}")
+            type_results = {}
+            
+            for perturbation_level in perturbation_levels:
+                self.logger.info(f"Testing perturbation level: {perturbation_level}")
                 
-                type_results = {}
+                level_results = []
                 
-                for perturbation_level in perturbation_levels:
-                    self.logger.info(f"Testing perturbation level: {perturbation_level}")
+                for trial in range(n_trials):
+                    # Apply perturbation
+                    X_perturbed = self._apply_data_perturbation(
+                        X_list, perturbation_type, perturbation_level
+                    )
                     
-                    level_results = []
-                    
-                    for trial in range(n_trials):
-                        # Apply perturbation
-                        X_perturbed = self._apply_data_perturbation(
-                            X_list, perturbation_type, perturbation_level
-                        )
+                    try:
+                        result = self._run_sgfa_analysis(X_perturbed, hypers, args, **kwargs)
+                        level_results.append({
+                            'trial': trial,
+                            'result': result,
+                            'log_likelihood': result.get('log_likelihood', np.nan),
+                            'convergence': result.get('convergence', False)
+                        })
                         
-                        try:
-                            result = self._run_sgfa_analysis(X_perturbed, hypers, args, **kwargs)
-                            level_results.append({
-                                'trial': trial,
-                                'result': result,
-                                'log_likelihood': result.get('log_likelihood', np.nan),
-                                'convergence': result.get('convergence', False)
-                            })
-                            
-                        except Exception as e:
-                            self.logger.warning(f"Trial {trial} failed: {str(e)}")
-                            level_results.append({
-                                'trial': trial,
-                                'result': {'error': str(e)},
-                                'log_likelihood': np.nan,
-                                'convergence': False
-                            })
-                    
-                    type_results[perturbation_level] = level_results
+                    except Exception as e:
+                        self.logger.warning(f"Trial {trial} failed: {str(e)}")
+                        level_results.append({
+                            'trial': trial,
+                            'result': {'error': str(e)},
+                            'log_likelihood': np.nan,
+                            'convergence': False
+                        })
                 
-                results[perturbation_type] = type_results
+                type_results[perturbation_level] = level_results
             
-            # Analyze robustness
-            analysis = self._analyze_data_perturbation_robustness(results, baseline_result)
-            
-            # Generate basic plots
-            plots = self._plot_data_perturbation_robustness(results)
+            results[perturbation_type] = type_results
+        
+        # Analyze robustness
+        analysis = self._analyze_data_perturbation_robustness(results, baseline_result)
+        
+        # Generate basic plots
+        plots = self._plot_data_perturbation_robustness(results)
 
-            # Add comprehensive reproducibility visualizations (focus on robustness)
-            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
-                X_list, results, "data_perturbation_robustness"
-            )
-            plots.update(advanced_plots)
+        # Add comprehensive reproducibility visualizations (focus on robustness)
+        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+            X_list, results, "data_perturbation_robustness"
+        )
+        plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="data_perturbation_robustness",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Data perturbation robustness test failed: {str(e)}")
-            return self._create_failure_result("data_perturbation_robustness", str(e))
+        return ExperimentResult(
+        experiment_name="data_perturbation_robustness",
+        config=self.config,
+        data=results,
+        analysis=analysis,
+        plots=plots,
+        success=True
+        )
     
+    @experiment_handler("initialization_robustness")
+    @validate_data_types(X_list=list, hypers=dict, args=dict, n_initializations=int)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        n_initializations=lambda x: x > 0
+    )
     def run_initialization_robustness(self, X_list: List[np.ndarray],
                                     hypers: Dict, args: Dict,
                                     n_initializations: int = 10,
                                     initialization_strategies: List[str] = None,
-                                    **kwargs) -> ExperimentResult:
+                                **kwargs) -> ExperimentResult:
         """Test robustness to different initializations."""
+        # Validate inputs
+        ResultValidator.validate_data_matrices(X_list)
+        ParameterValidator.validate_positive(n_initializations, "n_initializations")
+
         if initialization_strategies is None:
             initialization_strategies = ['random', 'pca_based', 'kmeans_based', 'zero']
-            
+
         self.logger.info(f"Running initialization robustness test")
         self.logger.info(f"Strategies: {initialization_strategies}")
         self.logger.info(f"Initializations per strategy: {n_initializations}")
-        
+
         results = {}
         performance_metrics = {}
+        for strategy in initialization_strategies:
+            self.logger.info(f"Testing initialization strategy: {strategy}")
+            
+            strategy_results = []
+            strategy_metrics = []
+            
+            for init_idx in range(n_initializations):
+                self.logger.debug(f"Initialization {init_idx + 1}/{n_initializations}")
+                
+                # Prepare args with initialization strategy
+                init_args = args.copy()
+                init_args['initialization_strategy'] = strategy
+                init_args['initialization_seed'] = init_idx
+                
+                with self.profiler.profile(f'{strategy}_init_{init_idx}') as p:
+                    try:
+                        result = self._run_sgfa_analysis(X_list, hypers, init_args, **kwargs)
+                        strategy_results.append({
+                            'initialization': init_idx,
+                            'result': result,
+                            'log_likelihood': result.get('log_likelihood', np.nan),
+                            'convergence': result.get('convergence', False),
+                            'n_iterations': result.get('n_iterations', np.nan)
+                        })
+                        
+                        # Store performance metrics
+                        metrics = self.profiler.get_current_metrics()
+                        strategy_metrics.append({
+                            'initialization': init_idx,
+                            'execution_time': metrics.execution_time,
+                            'peak_memory_gb': metrics.peak_memory_gb
+                        })
+                        
+                    except Exception as e:
+                        self.logger.warning(f"Initialization {init_idx} failed: {str(e)}")
+                        strategy_results.append({
+                            'initialization': init_idx,
+                            'result': {'error': str(e)},
+                            'log_likelihood': np.nan,
+                            'convergence': False,
+                            'n_iterations': np.nan
+                        })
+                        strategy_metrics.append({
+                            'initialization': init_idx,
+                            'execution_time': np.nan,
+                            'peak_memory_gb': np.nan
+                        })
+            
+            results[strategy] = strategy_results
+            performance_metrics[strategy] = strategy_metrics
         
-        try:
-            for strategy in initialization_strategies:
-                self.logger.info(f"Testing initialization strategy: {strategy}")
-                
-                strategy_results = []
-                strategy_metrics = []
-                
-                for init_idx in range(n_initializations):
-                    self.logger.debug(f"Initialization {init_idx + 1}/{n_initializations}")
-                    
-                    # Prepare args with initialization strategy
-                    init_args = args.copy()
-                    init_args['initialization_strategy'] = strategy
-                    init_args['initialization_seed'] = init_idx
-                    
-                    with self.profiler.profile(f'{strategy}_init_{init_idx}') as p:
-                        try:
-                            result = self._run_sgfa_analysis(X_list, hypers, init_args, **kwargs)
-                            strategy_results.append({
-                                'initialization': init_idx,
-                                'result': result,
-                                'log_likelihood': result.get('log_likelihood', np.nan),
-                                'convergence': result.get('convergence', False),
-                                'n_iterations': result.get('n_iterations', np.nan)
-                            })
-                            
-                            # Store performance metrics
-                            metrics = self.profiler.get_current_metrics()
-                            strategy_metrics.append({
-                                'initialization': init_idx,
-                                'execution_time': metrics.execution_time,
-                                'peak_memory_gb': metrics.peak_memory_gb
-                            })
-                            
-                        except Exception as e:
-                            self.logger.warning(f"Initialization {init_idx} failed: {str(e)}")
-                            strategy_results.append({
-                                'initialization': init_idx,
-                                'result': {'error': str(e)},
-                                'log_likelihood': np.nan,
-                                'convergence': False,
-                                'n_iterations': np.nan
-                            })
-                            strategy_metrics.append({
-                                'initialization': init_idx,
-                                'execution_time': np.nan,
-                                'peak_memory_gb': np.nan
-                            })
-                
-                results[strategy] = strategy_results
-                performance_metrics[strategy] = strategy_metrics
-            
-            # Analyze initialization robustness
-            analysis = self._analyze_initialization_robustness(results, performance_metrics)
-            
-            # Generate basic plots
-            plots = self._plot_initialization_robustness(results, performance_metrics)
+        # Analyze initialization robustness
+        analysis = self._analyze_initialization_robustness(results, performance_metrics)
+        
+        # Generate basic plots
+        plots = self._plot_initialization_robustness(results, performance_metrics)
 
-            # Add comprehensive reproducibility visualizations
-            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
-                X_list, results, "initialization_robustness"
-            )
-            plots.update(advanced_plots)
+        # Add comprehensive reproducibility visualizations
+        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+            X_list, results, "initialization_robustness"
+        )
+        plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="initialization_robustness",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                performance_metrics=performance_metrics,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Initialization robustness test failed: {str(e)}")
-            return self._create_failure_result("initialization_robustness", str(e))
+        return ExperimentResult(
+        experiment_name="initialization_robustness",
+        config=self.config,
+        data=results,
+        analysis=analysis,
+        plots=plots,
+        performance_metrics=performance_metrics,
+        success=True
+        )
     
+    @experiment_handler("computational_reproducibility_audit")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0)
     def run_computational_reproducibility_audit(self, X_list: List[np.ndarray],
-                                              hypers: Dict, args: Dict,
-                                              **kwargs) -> ExperimentResult:
+                                          hypers: Dict, args: Dict,
+                                          **kwargs) -> ExperimentResult:
         """Comprehensive computational reproducibility audit."""
+        # Validate inputs
+        ResultValidator.validate_data_matrices(X_list)
+
         self.logger.info("Running computational reproducibility audit")
-        
+
         results = {}
+        # 1. Exact reproducibility test (same seed, same everything)
+        self.logger.info("Testing exact reproducibility...")
+        exact_results = []
+        fixed_seed = 42
         
-        try:
-            # 1. Exact reproducibility test (same seed, same everything)
-            self.logger.info("Testing exact reproducibility...")
-            exact_results = []
-            fixed_seed = 42
+        for run in range(3):
+            np.random.seed(fixed_seed)
+            run_args = args.copy()
+            run_args['random_seed'] = fixed_seed
             
-            for run in range(3):
-                np.random.seed(fixed_seed)
-                run_args = args.copy()
-                run_args['random_seed'] = fixed_seed
-                
-                result = self._run_sgfa_analysis(X_list, hypers, run_args, **kwargs)
-                exact_results.append(result)
-            
-            results['exact_reproducibility'] = exact_results
-            
-            # 2. Numerical stability test
-            self.logger.info("Testing numerical stability...")
-            stability_results = self._test_numerical_stability(X_list, hypers, args, **kwargs)
-            results['numerical_stability'] = stability_results
-            
-            # 3. Platform consistency test (different random number generators)
-            self.logger.info("Testing platform consistency...")
-            platform_results = self._test_platform_consistency(X_list, hypers, args, **kwargs)
-            results['platform_consistency'] = platform_results
-            
-            # 4. Checksum verification
-            self.logger.info("Computing result checksums...")
-            checksums = self._compute_result_checksums(results)
-            results['checksums'] = checksums
-            
-            # Analyze computational reproducibility
-            analysis = self._analyze_computational_reproducibility(results)
-            
-            # Generate basic plots
-            plots = self._plot_computational_reproducibility(results)
+            result = self._run_sgfa_analysis(X_list, hypers, run_args, **kwargs)
+            exact_results.append(result)
+        
+        results['exact_reproducibility'] = exact_results
+        
+        # 2. Numerical stability test
+        self.logger.info("Testing numerical stability...")
+        stability_results = self._test_numerical_stability(X_list, hypers, args, **kwargs)
+        results['numerical_stability'] = stability_results
+        
+        # 3. Platform consistency test (different random number generators)
+        self.logger.info("Testing platform consistency...")
+        platform_results = self._test_platform_consistency(X_list, hypers, args, **kwargs)
+        results['platform_consistency'] = platform_results
+        
+        # 4. Checksum verification
+        self.logger.info("Computing result checksums...")
+        checksums = self._compute_result_checksums(results)
+        results['checksums'] = checksums
+        
+        # Analyze computational reproducibility
+        analysis = self._analyze_computational_reproducibility(results)
+        
+        # Generate basic plots
+        plots = self._plot_computational_reproducibility(results)
 
-            # Add comprehensive reproducibility visualizations
-            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
-                X_list, results, "computational_reproducibility"
-            )
-            plots.update(advanced_plots)
+        # Add comprehensive reproducibility visualizations
+        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+            X_list, results, "computational_reproducibility"
+        )
+        plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="computational_reproducibility_audit",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Computational reproducibility audit failed: {str(e)}")
-            return self._create_failure_result("computational_reproducibility_audit", str(e))
+        return ExperimentResult(
+        experiment_name="computational_reproducibility_audit",
+        config=self.config,
+        data=results,
+        analysis=analysis,
+        plots=plots,
+        success=True
+        )
     
     def _run_sgfa_analysis(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
         """Run SGFA analysis with given parameters."""

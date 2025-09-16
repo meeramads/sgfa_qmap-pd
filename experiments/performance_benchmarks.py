@@ -16,6 +16,9 @@ import warnings
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler, PerformanceManager
 from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+from core.experiment_utils import experiment_handler, get_experiment_logger, validate_experiment_inputs
+from core.io_utils import save_json, save_plot, save_numpy, save_csv, DataManager
+from core.validation_utils import validate_parameters, validate_data_types, ParameterValidator, ResultValidator
 
 class PerformanceBenchmarkExperiments(ExperimentFramework):
     """Comprehensive performance benchmarking for SGFA analysis."""
@@ -33,64 +36,67 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         # System monitoring
         self.system_monitor = SystemMonitor()
         
+    @experiment_handler("scalability_benchmarks")
+    @validate_data_types(X_base=list, hypers=dict, args=dict)
+    @validate_parameters(X_base=lambda x: len(x) > 0)
     def run_scalability_benchmarks(self, X_base: List[np.ndarray],
                                  hypers: Dict, args: Dict,
                                  **kwargs) -> ExperimentResult:
         """Run comprehensive scalability benchmarks."""
+        # Validate inputs
+        ResultValidator.validate_data_matrices(X_base)
+
         self.logger.info("Running scalability benchmarks")
-        
+
         results = {}
+        # Sample size scalability
+        self.logger.info("Benchmarking sample size scalability")
+        sample_results = self._benchmark_sample_scalability(X_base, hypers, args, **kwargs)
+        results['sample_scalability'] = sample_results
         
-        try:
-            # Sample size scalability
-            self.logger.info("Benchmarking sample size scalability")
-            sample_results = self._benchmark_sample_scalability(X_base, hypers, args, **kwargs)
-            results['sample_scalability'] = sample_results
-            
-            # Feature size scalability  
-            self.logger.info("Benchmarking feature size scalability")
-            feature_results = self._benchmark_feature_scalability(X_base, hypers, args, **kwargs)
-            results['feature_scalability'] = feature_results
-            
-            # Component scalability
-            self.logger.info("Benchmarking component scalability")
-            component_results = self._benchmark_component_scalability(X_base, hypers, args, **kwargs)
-            results['component_scalability'] = component_results
-            
-            # Multi-chain scalability
-            self.logger.info("Benchmarking multi-chain scalability")
-            chain_results = self._benchmark_chain_scalability(X_base, hypers, args, **kwargs)
-            results['chain_scalability'] = chain_results
-            
-            # Analyze scalability
-            analysis = self._analyze_scalability_benchmarks(results)
-            
-            # Generate basic plots
-            plots = self._plot_scalability_benchmarks(results)
+        # Feature size scalability  
+        self.logger.info("Benchmarking feature size scalability")
+        feature_results = self._benchmark_feature_scalability(X_base, hypers, args, **kwargs)
+        results['feature_scalability'] = feature_results
+        
+        # Component scalability
+        self.logger.info("Benchmarking component scalability")
+        component_results = self._benchmark_component_scalability(X_base, hypers, args, **kwargs)
+        results['component_scalability'] = component_results
+        
+        # Multi-chain scalability
+        self.logger.info("Benchmarking multi-chain scalability")
+        chain_results = self._benchmark_chain_scalability(X_base, hypers, args, **kwargs)
+        results['chain_scalability'] = chain_results
+        
+        # Analyze scalability
+        analysis = self._analyze_scalability_benchmarks(results)
+        
+        # Generate basic plots
+        plots = self._plot_scalability_benchmarks(results)
 
-            # Add comprehensive performance visualizations (focus on optimization surfaces)
-            advanced_plots = self._create_comprehensive_performance_visualizations(
-                X_base, results, "scalability_benchmarks"
-            )
-            plots.update(advanced_plots)
+        # Add comprehensive performance visualizations (focus on optimization surfaces)
+        advanced_plots = self._create_comprehensive_performance_visualizations(
+            X_base, results, "scalability_benchmarks"
+        )
+        plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="scalability_benchmarks",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Scalability benchmarks failed: {str(e)}")
-            return self._create_failure_result("scalability_benchmarks", str(e))
+        return ExperimentResult(
+        experiment_name="scalability_benchmarks",
+        config=self.config,
+        data=results,
+        analysis=analysis,
+        plots=plots,
+        success=True
+        )
     
+    @experiment_handler("memory_benchmarks")
+    @validate_data_types(X_base=list, hypers=dict, args=dict)
+    @validate_parameters(X_base=lambda x: len(x) > 0)
     def run_memory_benchmarks(self, X_base: List[np.ndarray],
-                            hypers: Dict, args: Dict,
-                            memory_constraints: List[float] = None,
-                            **kwargs) -> ExperimentResult:
+                        hypers: Dict, args: Dict,
+                        memory_constraints: List[float] = None,
+                        **kwargs) -> ExperimentResult:
         """Run memory usage benchmarks."""
         if memory_constraints is None:
             memory_constraints = [1.0, 2.0, 4.0, 8.0, 16.0]  # GB
@@ -99,227 +105,225 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         
         results = {}
         
-        try:
-            for memory_limit in memory_constraints:
-                self.logger.info(f"Testing memory constraint: {memory_limit}GB")
+        # Memory benchmark tests
+        for memory_limit in memory_constraints:
+            self.logger.info(f"Testing memory constraint: {memory_limit}GB")
+            
+            # Configure memory-constrained environment
+            memory_config = self._create_memory_config(memory_limit)
+            
+            constraint_results = []
+            
+            # Test different dataset sizes under memory constraint
+            for scale_factor in [0.5, 1.0, 2.0, 4.0]:
+                X_scaled = self._scale_dataset(X_base, scale_factor)
                 
-                # Configure memory-constrained environment
-                memory_config = self._create_memory_config(memory_limit)
+                # Skip if dataset would be too large
+                estimated_memory = self._estimate_memory_usage(X_scaled)
+                if estimated_memory > memory_limit * 1.5:  # 50% buffer
+                    self.logger.info(f"Skipping scale {scale_factor} (estimated {estimated_memory:.2f}GB > {memory_limit}GB)")
+                    continue
                 
-                constraint_results = []
-                
-                # Test different dataset sizes under memory constraint
-                for scale_factor in [0.5, 1.0, 2.0, 4.0]:
-                    X_scaled = self._scale_dataset(X_base, scale_factor)
-                    
-                    # Skip if dataset would be too large
-                    estimated_memory = self._estimate_memory_usage(X_scaled)
-                    if estimated_memory > memory_limit * 1.5:  # 50% buffer
-                        self.logger.info(f"Skipping scale {scale_factor} (estimated {estimated_memory:.2f}GB > {memory_limit}GB)")
-                        continue
-                    
-                    try:
-                        with self.system_monitor.monitor_memory():
-                            with PerformanceManager(memory_config) as manager:
-                                with self.profiler.profile(f'memory_{memory_limit}GB_scale_{scale_factor}') as p:
-                                    result = self._run_sgfa_analysis(X_scaled, hypers, args, **kwargs)
-                                    
-                                # Get detailed memory metrics
-                                memory_metrics = self.system_monitor.get_memory_report()
-                                performance_metrics = self.profiler.get_current_metrics()
+                try:
+                    with self.system_monitor.monitor_memory():
+                        with PerformanceManager(memory_config) as manager:
+                            with self.profiler.profile(f'memory_{memory_limit}GB_scale_{scale_factor}') as p:
+                                result = self._run_sgfa_analysis(X_scaled, hypers, args, **kwargs)
                                 
-                                constraint_results.append({
-                                    'scale_factor': scale_factor,
-                                    'result': result,
-                                    'memory_metrics': memory_metrics,
-                                    'performance_metrics': performance_metrics,
-                                    'success': True
-                                })
-                                
-                    except Exception as e:
-                        self.logger.warning(f"Memory test failed for {memory_limit}GB, scale {scale_factor}: {str(e)}")
-                        constraint_results.append({
-                            'scale_factor': scale_factor,
-                            'result': {'error': str(e)},
-                            'memory_metrics': {},
-                            'performance_metrics': {},
-                            'success': False
-                        })
-                
-                results[f'{memory_limit}GB'] = constraint_results
+                            # Get detailed memory metrics
+                            memory_metrics = self.system_monitor.get_memory_report()
+                            performance_metrics = self.profiler.get_current_metrics()
+                            
+                            constraint_results.append({
+                                'scale_factor': scale_factor,
+                                'result': result,
+                                'memory_metrics': memory_metrics,
+                                'performance_metrics': performance_metrics,
+                                'success': True
+                            })
+                            
+                except Exception as e:
+                    self.logger.warning(f"Memory test failed for {memory_limit}GB, scale {scale_factor}: {str(e)}")
+                    constraint_results.append({
+                        'scale_factor': scale_factor,
+                        'result': {'error': str(e)},
+                        'memory_metrics': {},
+                        'performance_metrics': {},
+                        'success': False
+                    })
             
-            # Analyze memory benchmarks
-            analysis = self._analyze_memory_benchmarks(results)
-            
-            # Generate basic plots
-            plots = self._plot_memory_benchmarks(results)
+            results[f'{memory_limit}GB'] = constraint_results
+        
+        # Analyze memory benchmarks
+        analysis = self._analyze_memory_benchmarks(results)
+        
+        # Generate basic plots
+        plots = self._plot_memory_benchmarks(results)
 
-            # Add comprehensive performance visualizations
-            advanced_plots = self._create_comprehensive_performance_visualizations(
-                X_base, results, "memory_benchmarks"
-            )
-            plots.update(advanced_plots)
+        # Add comprehensive performance visualizations
+        advanced_plots = self._create_comprehensive_performance_visualizations(
+            X_base, results, "memory_benchmarks"
+        )
+        plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="memory_benchmarks",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Memory benchmarks failed: {str(e)}")
-            return self._create_failure_result("memory_benchmarks", str(e))
+        return ExperimentResult(
+            experiment_name="memory_benchmarks",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
+        
     
+    @experiment_handler("optimization_benchmarks")
+    @validate_data_types(X_base=list, hypers=dict, args=dict)
+    @validate_parameters(X_base=lambda x: len(x) > 0)
     def run_optimization_benchmarks(self, X_base: List[np.ndarray],
-                                  hypers: Dict, args: Dict,
-                                  optimization_strategies: List[str] = None,
-                                  **kwargs) -> ExperimentResult:
+                              hypers: Dict, args: Dict,
+                              optimization_strategies: List[str] = None,
+                              **kwargs) -> ExperimentResult:
         """Benchmark different optimization strategies."""
         if optimization_strategies is None:
             optimization_strategies = [
-                'standard', 'memory_efficient', 'speed_optimized', 
-                'balanced', 'high_precision'
-            ]
-            
+            'standard', 'memory_efficient', 'speed_optimized', 
+            'balanced', 'high_precision'
+        ]
+        
         self.logger.info(f"Running optimization benchmarks: {optimization_strategies}")
         
         results = {}
         
-        try:
-            # Test different dataset sizes
-            test_scales = [0.5, 1.0, 2.0]
+        # Test different dataset sizes
+        test_scales = [0.5, 1.0, 2.0]
+
+        for scale in test_scales:
+            self.logger.info(f"Testing dataset scale: {scale}")
             
-            for scale in test_scales:
-                self.logger.info(f"Testing dataset scale: {scale}")
+            X_scaled = self._scale_dataset(X_base, scale)
+            scale_results = {}
+            
+            for strategy in optimization_strategies:
+                self.logger.info(f"Testing optimization strategy: {strategy}")
                 
-                X_scaled = self._scale_dataset(X_base, scale)
-                scale_results = {}
-                
-                for strategy in optimization_strategies:
-                    self.logger.info(f"Testing optimization strategy: {strategy}")
+                try:
+                    # Configure strategy
+                    strategy_config = self._create_optimization_config(strategy)
                     
-                    try:
-                        # Configure strategy
-                        strategy_config = self._create_optimization_config(strategy)
+                    with PerformanceManager(strategy_config) as manager:
+                        with self.profiler.profile(f'{strategy}_scale_{scale}') as p:
+                            result = self._run_sgfa_analysis(X_scaled, hypers, args, **kwargs)
+                            
+                        # Get comprehensive metrics
+                        performance_metrics = self.profiler.get_current_metrics()
+                        optimization_metrics = manager.get_optimization_report()
                         
-                        with PerformanceManager(strategy_config) as manager:
-                            with self.profiler.profile(f'{strategy}_scale_{scale}') as p:
-                                result = self._run_sgfa_analysis(X_scaled, hypers, args, **kwargs)
-                                
-                            # Get comprehensive metrics
-                            performance_metrics = self.profiler.get_current_metrics()
-                            optimization_metrics = manager.get_optimization_report()
-                            
-                            scale_results[strategy] = {
-                                'result': result,
-                                'performance_metrics': performance_metrics,
-                                'optimization_metrics': optimization_metrics,
-                                'success': True
-                            }
-                            
-                    except Exception as e:
-                        self.logger.warning(f"Strategy {strategy} failed for scale {scale}: {str(e)}")
                         scale_results[strategy] = {
-                            'result': {'error': str(e)},
-                            'performance_metrics': {},
-                            'optimization_metrics': {},
-                            'success': False
+                            'result': result,
+                            'performance_metrics': performance_metrics,
+                            'optimization_metrics': optimization_metrics,
+                            'success': True
                         }
-                
-                results[f'scale_{scale}'] = scale_results
+                        
+                except Exception as e:
+                    self.logger.warning(f"Strategy {strategy} failed for scale {scale}: {str(e)}")
+                    scale_results[strategy] = {
+                        'result': {'error': str(e)},
+                        'performance_metrics': {},
+                        'optimization_metrics': {},
+                        'success': False
+                    }
             
-            # Analyze optimization benchmarks
-            analysis = self._analyze_optimization_benchmarks(results)
-            
-            # Generate plots
-            plots = self._plot_optimization_benchmarks(results)
-            
-            return ExperimentResult(
-                experiment_name="optimization_benchmarks",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Optimization benchmarks failed: {str(e)}")
-            return self._create_failure_result("optimization_benchmarks", str(e))
+            results[f'scale_{scale}'] = scale_results
+        
+        # Analyze optimization benchmarks
+        analysis = self._analyze_optimization_benchmarks(results)
+        
+        # Generate plots
+        plots = self._plot_optimization_benchmarks(results)
+        
+        return ExperimentResult(
+            experiment_name="optimization_benchmarks",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
+        
     
+    @experiment_handler("comparative_benchmarks")
+    @validate_data_types(X_base=list, hypers=dict, args=dict)
+    @validate_parameters(X_base=lambda x: len(x) > 0)
     def run_comparative_benchmarks(self, X_base: List[np.ndarray],
-                                 hypers: Dict, args: Dict,
-                                 baseline_methods: List[str] = None,
-                                 **kwargs) -> ExperimentResult:
+                             hypers: Dict, args: Dict,
+                             baseline_methods: List[str] = None,
+                             **kwargs) -> ExperimentResult:
         """Run comparative benchmarks against baseline methods."""
         if baseline_methods is None:
             baseline_methods = ['pca', 'ica', 'factor_analysis', 'nmf']
-            
+        
         self.logger.info(f"Running comparative benchmarks against: {baseline_methods}")
         
         results = {}
         
-        try:
-            # Test different dataset configurations
-            test_configs = [
-                {'n_subjects': 500, 'n_features_per_view': 100, 'n_views': 2},
-                {'n_subjects': 1000, 'n_features_per_view': 200, 'n_views': 3},
-                {'n_subjects': 2000, 'n_features_per_view': 150, 'n_views': 4}
-            ]
+        # Test different dataset configurations
+        test_configs = [
+            {'n_subjects': 500, 'n_features_per_view': 100, 'n_views': 2},
+            {'n_subjects': 1000, 'n_features_per_view': 200, 'n_views': 3},
+            {'n_subjects': 2000, 'n_features_per_view': 150, 'n_views': 4}
+        ]
+        
+        for i, config in enumerate(test_configs):
+            config_name = f"config_{i+1}"
+            self.logger.info(f"Testing configuration {config_name}: {config}")
             
-            for i, config in enumerate(test_configs):
-                config_name = f"config_{i+1}"
-                self.logger.info(f"Testing configuration {config_name}: {config}")
+            # Generate test dataset with specified configuration
+            X_test = self._generate_test_dataset(**config)
+            
+            config_results = {}
+            
+            # Test SGFA
+            self.logger.info("Benchmarking SGFA")
+            with self.profiler.profile(f'sgfa_{config_name}') as p:
+                sgfa_result = self._run_sgfa_analysis(X_test, hypers, args, **kwargs)
+            
+            sgfa_metrics = self.profiler.get_current_metrics()
+            config_results['sgfa'] = {
+                'result': sgfa_result,
+                'performance_metrics': sgfa_metrics,
+                'method_type': 'multiview'
+            }
+            
+            # Test baseline methods
+            X_concat = np.hstack(X_test)  # Concatenate for traditional methods
+
+            for method in baseline_methods:
+                self.logger.info(f"Benchmarking {method}")
                 
-                # Generate test dataset with specified configuration
-                X_test = self._generate_test_dataset(**config)
-                
-                config_results = {}
-                
-                # Test SGFA
-                self.logger.info("Benchmarking SGFA")
-                with self.profiler.profile(f'sgfa_{config_name}') as p:
-                    sgfa_result = self._run_sgfa_analysis(X_test, hypers, args, **kwargs)
-                
-                sgfa_metrics = self.profiler.get_current_metrics()
-                config_results['sgfa'] = {
-                    'result': sgfa_result,
-                    'performance_metrics': sgfa_metrics,
-                    'method_type': 'multiview'
-                }
-                
-                # Test baseline methods
-                X_concat = np.hstack(X_test)  # Concatenate for traditional methods
-                
-                for method in baseline_methods:
-                    self.logger.info(f"Benchmarking {method}")
+                try:
+                    with self.profiler.profile(f'{method}_{config_name}') as p:
+                        baseline_result = self._run_baseline_method(X_concat, method, **kwargs)
                     
-                    try:
-                        with self.profiler.profile(f'{method}_{config_name}') as p:
-                            baseline_result = self._run_baseline_method(X_concat, method, **kwargs)
-                        
-                        baseline_metrics = self.profiler.get_current_metrics()
-                        config_results[method] = {
-                            'result': baseline_result,
-                            'performance_metrics': baseline_metrics,
-                            'method_type': 'traditional'
-                        }
-                        
-                    except Exception as e:
-                        self.logger.warning(f"Baseline method {method} failed: {str(e)}")
-                        config_results[method] = {
-                            'result': {'error': str(e)},
-                            'performance_metrics': {},
-                            'method_type': 'traditional'
-                        }
-                
-                results[config_name] = {
-                    'config': config,
-                    'results': config_results
-                }
+                    baseline_metrics = self.profiler.get_current_metrics()
+                    config_results[method] = {
+                        'result': baseline_result,
+                        'performance_metrics': baseline_metrics,
+                        'method_type': 'traditional'
+                    }
+                    
+                except Exception as e:
+                    self.logger.warning(f"Baseline method {method} failed: {str(e)}")
+                    config_results[method] = {
+                        'result': {'error': str(e)},
+                        'performance_metrics': {},
+                        'method_type': 'traditional'
+                    }
+            
+            results[config_name] = {
+                'config': config,
+                'results': config_results
+            }
             
             # Analyze comparative benchmarks
             analysis = self._analyze_comparative_benchmarks(results)
@@ -328,17 +332,14 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             plots = self._plot_comparative_benchmarks(results)
             
             return ExperimentResult(
-                experiment_name="comparative_benchmarks",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
+            experiment_name="comparative_benchmarks",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
             )
             
-        except Exception as e:
-            self.logger.error(f"Comparative benchmarks failed: {str(e)}")
-            return self._create_failure_result("comparative_benchmarks", str(e))
     
     def _benchmark_sample_scalability(self, X_base: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
         """Benchmark scalability with respect to sample size."""

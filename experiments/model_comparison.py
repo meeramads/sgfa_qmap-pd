@@ -27,6 +27,9 @@ import warnings
 
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
+from core.experiment_utils import experiment_handler, get_experiment_logger, validate_experiment_inputs
+from core.io_utils import save_json, save_plot, save_numpy, save_csv, DataManager
+from core.validation_utils import validate_parameters, validate_data_types, ParameterValidator, ResultValidator
 
 class ModelArchitectureComparison(ExperimentFramework):
     """Compare different SGFA model architectures (sparseGFA, neuroGFA, standard GFA)."""
@@ -76,80 +79,82 @@ class ModelArchitectureComparison(ExperimentFramework):
         # Traditional methods for comparison
         self.traditional_methods = ['pca', 'ica', 'fa']
 
+    @experiment_handler("model_architecture_comparison")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0)
     def run_model_architecture_comparison(self, X_list: List[np.ndarray],
                                         hypers: Dict, args: Dict,
                                         **kwargs) -> ExperimentResult:
         """Compare different model architectures with fixed hyperparameters."""
+        # Validate inputs
+        ResultValidator.validate_data_matrices(X_list)
+
         self.logger.info("🧠 Starting model architecture comparison")
 
         results = {}
         performance_metrics = {}
 
-        try:
-            # Test each model architecture
-            for model_name, model_config in self.model_architectures.items():
-                if model_config.get('implemented', True):
-                    self.logger.info(f"Testing model architecture: {model_name}")
-                    self.logger.info(f"Description: {model_config['description']}")
+        # Test each model architecture
+        for model_name, model_config in self.model_architectures.items():
+            if model_config.get('implemented', True):
+                self.logger.info(f"Testing model architecture: {model_name}")
+                self.logger.info(f"Description: {model_config['description']}")
 
-                    # Update model configuration
-                    model_args = args.copy()
-                    model_args.update({
-                        'model': model_config['model_type'],
-                        **self.comparison_params
-                    })
+                # Update model configuration
+                model_args = args.copy()
+                model_args.update({
+                    'model': model_config['model_type'],
+                    **self.comparison_params
+                })
 
-                    # Run model
-                    model_result = self._run_model_architecture(
-                        X_list, hypers, model_args, model_name, **kwargs
-                    )
+                # Run model
+                model_result = self._run_model_architecture(
+                    X_list, hypers, model_args, model_name, **kwargs
+                )
 
-                    results[model_name] = model_result
+                results[model_name] = model_result
 
-                    # Store basic performance metrics
-                    performance_metrics[model_name] = {
-                        'execution_time': model_result.get('execution_time', 0),
-                        'peak_memory_gb': model_result.get('peak_memory_gb', 0.0),
-                        'convergence': model_result.get('convergence', False),
-                        'log_likelihood': model_result.get('log_likelihood', float('-inf'))
-                    }
-                else:
-                    self.logger.info(f"Skipping model architecture: {model_name}")
-                    self.logger.info(f"Reason: {model_config.get('reason', 'Not implemented')}")
+                # Store basic performance metrics
+                performance_metrics[model_name] = {
+                    'execution_time': model_result.get('execution_time', 0),
+                    'peak_memory_gb': model_result.get('peak_memory_gb', 0.0),
+                    'convergence': model_result.get('convergence', False),
+                    'log_likelihood': model_result.get('log_likelihood', float('-inf'))
+                }
+            else:
+                self.logger.info(f"Skipping model architecture: {model_name}")
+                self.logger.info(f"Reason: {model_config.get('reason', 'Not implemented')}")
 
-                    # Record as skipped
-                    results[model_name] = {
-                        'skipped': True,
-                        'reason': model_config.get('reason', 'Not implemented'),
-                        'model_type': model_config['model_type'],
-                        'description': model_config['description']
-                    }
+                # Record as skipped
+                results[model_name] = {
+                    'skipped': True,
+                    'reason': model_config.get('reason', 'Not implemented'),
+                    'model_type': model_config['model_type'],
+                    'description': model_config['description']
+                }
 
-            # Analyze results
-            analysis = self._analyze_model_architectures(results, performance_metrics)
+        # Analyze results
+        analysis = self._analyze_model_architectures(results, performance_metrics)
 
-            # Generate basic plots
-            plots = self._plot_model_comparison(results, performance_metrics)
+        # Generate basic plots
+        plots = self._plot_model_comparison(results, performance_metrics)
 
-            # Add comprehensive visualizations
-            advanced_plots = self._create_comprehensive_visualizations(
-                X_list, results, "model_architecture_comparison"
+        # Add comprehensive visualizations
+        advanced_plots = self._create_comprehensive_visualizations(
+            X_list, results, "model_architecture_comparison"
+        )
+        plots.update(advanced_plots)
+
+        return ExperimentResult(
+            experiment_name="model_architecture_comparison",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            performance_metrics=performance_metrics,
+            success=True
             )
-            plots.update(advanced_plots)
 
-            return ExperimentResult(
-                experiment_name="model_architecture_comparison",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                performance_metrics=performance_metrics,
-                success=True
-            )
-
-        except Exception as e:
-            self.logger.error(f"Model architecture comparison failed: {str(e)}")
-            return self._create_failure_result("model_architecture_comparison", str(e))
 
     def _run_model_architecture(self, X_list: List[np.ndarray],
                                hypers: Dict, args: Dict, model_name: str,

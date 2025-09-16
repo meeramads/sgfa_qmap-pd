@@ -21,6 +21,8 @@ import warnings
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+from core.experiment_utils import experiment_handler
+from core.validation_utils import validate_data_types, validate_parameters
 
 class ClinicalValidationExperiments(ExperimentFramework):
     """Comprehensive clinical validation experiments for SGFA qMAP-PD analysis."""
@@ -42,94 +44,112 @@ class ClinicalValidationExperiments(ExperimentFramework):
             'specificity', 'npv', 'ppv'
         ]
         
+    @experiment_handler("subtype_classification_validation")
+    @validate_data_types(X_list=list, clinical_labels=np.ndarray, hypers=dict, args=dict)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        clinical_labels=lambda x: len(x) > 0,
+        hypers=lambda x: isinstance(x, dict)
+    )
     def run_subtype_classification_validation(self, X_list: List[np.ndarray],
                                             clinical_labels: np.ndarray,
                                             hypers: Dict, args: Dict,
                                             **kwargs) -> ExperimentResult:
         """Validate SGFA factors for PD subtype classification."""
         self.logger.info("Running subtype classification validation")
-        
+
         results = {}
-        
-        try:
-            # Run SGFA to get factor scores
-            self.logger.info("Extracting SGFA factors")
-            sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
-            
-            if 'error' in sgfa_result:
-                raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
-            
-            Z_sgfa = sgfa_result['Z']  # Factor scores
-            
-            # Test different classification approaches
-            classification_results = {}
-            
-            # 1. Direct factor-based classification
-            self.logger.info("Testing direct factor-based classification")
-            direct_results = self._test_factor_classification(
-                Z_sgfa, clinical_labels, 'sgfa_factors'
-            )
-            classification_results['sgfa_factors'] = direct_results
-            
-            # 2. Compare with raw data classification
-            self.logger.info("Testing raw data classification")
-            X_concat = np.hstack(X_list)
-            raw_results = self._test_factor_classification(
-                X_concat, clinical_labels, 'raw_data'
-            )
-            classification_results['raw_data'] = raw_results
-            
-            # 3. Compare with PCA features
-            self.logger.info("Testing PCA-based classification")
-            from sklearn.decomposition import PCA
-            pca = PCA(n_components=Z_sgfa.shape[1])
-            Z_pca = pca.fit_transform(X_concat)
-            pca_results = self._test_factor_classification(
-                Z_pca, clinical_labels, 'pca_features'
-            )
-            classification_results['pca_features'] = pca_results
-            
-            results['classification_comparison'] = classification_results
-            
-            # 4. Clinical interpretation analysis
-            self.logger.info("Analyzing clinical interpretability")
-            interpretation_results = self._analyze_clinical_interpretability(
-                Z_sgfa, clinical_labels, sgfa_result
-            )
-            results['clinical_interpretation'] = interpretation_results
-            
-            # 5. Subtype stability analysis
-            self.logger.info("Analyzing subtype stability")
-            stability_results = self._analyze_subtype_stability(
-                X_list, clinical_labels, hypers, args, **kwargs
-            )
-            results['subtype_stability'] = stability_results
-            
-            # Analyze validation results
-            analysis = self._analyze_subtype_classification(results)
-            
-            # Generate basic plots
-            plots = self._plot_subtype_classification(results, clinical_labels)
 
-            # Add comprehensive clinical visualizations (focus on subtypes + brain maps)
-            advanced_plots = self._create_comprehensive_clinical_visualizations(
-                X_list, results, clinical_labels, "subtype_classification"
-            )
-            plots.update(advanced_plots)
+        # Run SGFA to get factor scores
+        self.logger.info("Extracting SGFA factors")
+        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
 
-            return ExperimentResult(
-                experiment_name="subtype_classification_validation",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Subtype classification validation failed: {str(e)}")
-            return self._create_failure_result("subtype_classification_validation", str(e))
+        if 'error' in sgfa_result:
+            raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
+
+        Z_sgfa = sgfa_result['Z']  # Factor scores
+
+        # Test different classification approaches
+        classification_results = {}
+
+        # 1. Direct factor-based classification
+        self.logger.info("Testing direct factor-based classification")
+        direct_results = self._test_factor_classification(
+            Z_sgfa, clinical_labels, 'sgfa_factors'
+        )
+        classification_results['sgfa_factors'] = direct_results
+
+        # 2. Compare with raw data classification
+        self.logger.info("Testing raw data classification")
+        X_concat = np.hstack(X_list)
+        raw_results = self._test_factor_classification(
+            X_concat, clinical_labels, 'raw_data'
+        )
+        classification_results['raw_data'] = raw_results
+
+        # 3. Compare with PCA features
+        self.logger.info("Testing PCA-based classification")
+        from sklearn.decomposition import PCA
+        pca = PCA(n_components=Z_sgfa.shape[1])
+        Z_pca = pca.fit_transform(X_concat)
+        pca_results = self._test_factor_classification(
+            Z_pca, clinical_labels, 'pca_features'
+        )
+        classification_results['pca_features'] = pca_results
+
+        results['classification_comparison'] = classification_results
+
+        # 4. Clinical interpretation analysis
+        self.logger.info("Analyzing clinical interpretability")
+        interpretation_results = self._analyze_clinical_interpretability(
+            Z_sgfa, clinical_labels, sgfa_result
+        )
+        results['clinical_interpretation'] = interpretation_results
+
+        # 5. Subtype stability analysis
+        self.logger.info("Analyzing subtype stability")
+        stability_results = self._analyze_subtype_stability(
+            X_list, clinical_labels, hypers, args, **kwargs
+        )
+        results['subtype_stability'] = stability_results
+
+        # Analyze validation results
+        analysis = self._analyze_subtype_classification(results)
+
+        # Generate basic plots
+        plots = self._plot_subtype_classification(results, clinical_labels)
+
+        # Add comprehensive clinical visualizations (focus on subtypes + brain maps)
+        advanced_plots = self._create_comprehensive_clinical_visualizations(
+            X_list, results, clinical_labels, "subtype_classification"
+        )
+        plots.update(advanced_plots)
+
+        return ExperimentResult(
+            experiment_name="subtype_classification_validation",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
+    @experiment_handler("disease_progression_validation")
+    @validate_data_types(
+        X_list=list,
+        progression_scores=np.ndarray,
+        time_points=np.ndarray,
+        subject_ids=np.ndarray,
+        hypers=dict,
+        args=dict
+    )
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        progression_scores=lambda x: len(x) > 0,
+        time_points=lambda x: len(x) > 0,
+        subject_ids=lambda x: len(x) > 0,
+        hypers=lambda x: isinstance(x, dict)
+    )
     def run_disease_progression_validation(self, X_list: List[np.ndarray],
                                          progression_scores: np.ndarray,
                                          time_points: np.ndarray,
@@ -138,143 +158,156 @@ class ClinicalValidationExperiments(ExperimentFramework):
                                          **kwargs) -> ExperimentResult:
         """Validate SGFA factors for disease progression prediction."""
         self.logger.info("Running disease progression validation")
-        
+
         results = {}
-        
-        try:
-            # Run SGFA to get factor scores
-            self.logger.info("Extracting SGFA factors for progression analysis")
-            sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
-            
-            if 'error' in sgfa_result:
-                raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
-            
-            Z_sgfa = sgfa_result['Z']
-            
-            # 1. Cross-sectional correlation analysis
-            self.logger.info("Analyzing cross-sectional correlations")
-            cross_sectional_results = self._analyze_cross_sectional_correlations(
-                Z_sgfa, progression_scores
-            )
-            results['cross_sectional_correlations'] = cross_sectional_results
-            
-            # 2. Longitudinal progression modeling
-            if len(np.unique(subject_ids)) < len(subject_ids):  # Longitudinal data available
-                self.logger.info("Analyzing longitudinal progression")
-                longitudinal_results = self._analyze_longitudinal_progression(
-                    Z_sgfa, progression_scores, time_points, subject_ids
-                )
-                results['longitudinal_analysis'] = longitudinal_results
-            else:
-                self.logger.info("No longitudinal data available, skipping longitudinal analysis")
-                results['longitudinal_analysis'] = {'status': 'no_longitudinal_data'}
-            
-            # 3. Progression prediction validation
-            self.logger.info("Validating progression prediction")
-            prediction_results = self._validate_progression_prediction(
-                Z_sgfa, progression_scores, time_points
-            )
-            results['progression_prediction'] = prediction_results
-            
-            # 4. Clinical milestone prediction
-            self.logger.info("Analyzing clinical milestone prediction")
-            milestone_results = self._analyze_clinical_milestones(
-                Z_sgfa, progression_scores, time_points
-            )
-            results['clinical_milestones'] = milestone_results
-            
-            # Analyze progression validation results
-            analysis = self._analyze_disease_progression_validation(results)
-            
-            # Generate basic plots
-            plots = self._plot_disease_progression_validation(results, progression_scores)
 
-            # Add comprehensive clinical visualizations (focus on progression + brain maps)
-            advanced_plots = self._create_comprehensive_clinical_visualizations(
-                X_list, results, progression_scores, "disease_progression"
-            )
-            plots.update(advanced_plots)
+        # Run SGFA to get factor scores
+        self.logger.info("Extracting SGFA factors for progression analysis")
+        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
 
-            return ExperimentResult(
-                experiment_name="disease_progression_validation",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
+        if 'error' in sgfa_result:
+            raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
+
+        Z_sgfa = sgfa_result['Z']
+
+        # 1. Cross-sectional correlation analysis
+        self.logger.info("Analyzing cross-sectional correlations")
+        cross_sectional_results = self._analyze_cross_sectional_correlations(
+            Z_sgfa, progression_scores
+        )
+        results['cross_sectional_correlations'] = cross_sectional_results
+
+        # 2. Longitudinal progression modeling
+        if len(np.unique(subject_ids)) < len(subject_ids):  # Longitudinal data available
+            self.logger.info("Analyzing longitudinal progression")
+            longitudinal_results = self._analyze_longitudinal_progression(
+                Z_sgfa, progression_scores, time_points, subject_ids
             )
-            
-        except Exception as e:
-            self.logger.error(f"Disease progression validation failed: {str(e)}")
-            return self._create_failure_result("disease_progression_validation", str(e))
+            results['longitudinal_analysis'] = longitudinal_results
+        else:
+            self.logger.info("No longitudinal data available, skipping longitudinal analysis")
+            results['longitudinal_analysis'] = {'status': 'no_longitudinal_data'}
+
+        # 3. Progression prediction validation
+        self.logger.info("Validating progression prediction")
+        prediction_results = self._validate_progression_prediction(
+            Z_sgfa, progression_scores, time_points
+        )
+        results['progression_prediction'] = prediction_results
+
+        # 4. Clinical milestone prediction
+        self.logger.info("Analyzing clinical milestone prediction")
+        milestone_results = self._analyze_clinical_milestones(
+            Z_sgfa, progression_scores, time_points
+        )
+        results['clinical_milestones'] = milestone_results
+
+        # Analyze progression validation results
+        analysis = self._analyze_disease_progression_validation(results)
+
+        # Generate basic plots
+        plots = self._plot_disease_progression_validation(results, progression_scores)
+
+        # Add comprehensive clinical visualizations (focus on progression + brain maps)
+        advanced_plots = self._create_comprehensive_clinical_visualizations(
+            X_list, results, progression_scores, "disease_progression"
+        )
+        plots.update(advanced_plots)
+
+        return ExperimentResult(
+            experiment_name="disease_progression_validation",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
+    @experiment_handler("biomarker_discovery_validation")
+    @validate_data_types(X_list=list, clinical_outcomes=dict, hypers=dict, args=dict)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        clinical_outcomes=lambda x: isinstance(x, dict) and len(x) > 0,
+        hypers=lambda x: isinstance(x, dict)
+    )
     def run_biomarker_discovery_validation(self, X_list: List[np.ndarray],
                                          clinical_outcomes: Dict[str, np.ndarray],
                                          hypers: Dict, args: Dict,
                                          **kwargs) -> ExperimentResult:
         """Validate SGFA factors as potential biomarkers."""
         self.logger.info("Running biomarker discovery validation")
-        
+
         results = {}
-        
-        try:
-            # Run SGFA to get factors and loadings
-            self.logger.info("Extracting SGFA factors and loadings")
-            sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
-            
-            if 'error' in sgfa_result:
-                raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
-            
-            Z_sgfa = sgfa_result['Z']
-            W_sgfa = sgfa_result['W']
-            
-            # 1. Factor-outcome associations
-            self.logger.info("Analyzing factor-outcome associations")
-            association_results = self._analyze_factor_outcome_associations(
-                Z_sgfa, clinical_outcomes
-            )
-            results['factor_associations'] = association_results
-            
-            # 2. Feature importance analysis
-            self.logger.info("Analyzing feature importance")
-            importance_results = self._analyze_feature_importance(
-                W_sgfa, X_list, clinical_outcomes
-            )
-            results['feature_importance'] = importance_results
-            
-            # 3. Biomarker panel validation
-            self.logger.info("Validating biomarker panels")
-            panel_results = self._validate_biomarker_panels(
-                Z_sgfa, clinical_outcomes
-            )
-            results['biomarker_panels'] = panel_results
-            
-            # 4. Cross-validation robustness
-            self.logger.info("Testing biomarker robustness")
-            robustness_results = self._test_biomarker_robustness(
-                X_list, clinical_outcomes, hypers, args, **kwargs
-            )
-            results['robustness_analysis'] = robustness_results
-            
-            # Analyze biomarker validation results
-            analysis = self._analyze_biomarker_discovery(results)
-            
-            # Generate plots
-            plots = self._plot_biomarker_discovery(results, clinical_outcomes)
-            
-            return ExperimentResult(
-                experiment_name="biomarker_discovery_validation",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Biomarker discovery validation failed: {str(e)}")
-            return self._create_failure_result("biomarker_discovery_validation", str(e))
+
+        # Run SGFA to get factors and loadings
+        self.logger.info("Extracting SGFA factors and loadings")
+        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+
+        if 'error' in sgfa_result:
+            raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
+
+        Z_sgfa = sgfa_result['Z']
+        W_sgfa = sgfa_result['W']
+
+        # 1. Factor-outcome associations
+        self.logger.info("Analyzing factor-outcome associations")
+        association_results = self._analyze_factor_outcome_associations(
+            Z_sgfa, clinical_outcomes
+        )
+        results['factor_associations'] = association_results
+
+        # 2. Feature importance analysis
+        self.logger.info("Analyzing feature importance")
+        importance_results = self._analyze_feature_importance(
+            W_sgfa, X_list, clinical_outcomes
+        )
+        results['feature_importance'] = importance_results
+
+        # 3. Biomarker panel validation
+        self.logger.info("Validating biomarker panels")
+        panel_results = self._validate_biomarker_panels(
+            Z_sgfa, clinical_outcomes
+        )
+        results['biomarker_panels'] = panel_results
+
+        # 4. Cross-validation robustness
+        self.logger.info("Testing biomarker robustness")
+        robustness_results = self._test_biomarker_robustness(
+            X_list, clinical_outcomes, hypers, args, **kwargs
+        )
+        results['robustness_analysis'] = robustness_results
+
+        # Analyze biomarker validation results
+        analysis = self._analyze_biomarker_discovery(results)
+
+        # Generate plots
+        plots = self._plot_biomarker_discovery(results, clinical_outcomes)
+
+        return ExperimentResult(
+            experiment_name="biomarker_discovery_validation",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
+    @experiment_handler("external_cohort_validation")
+    @validate_data_types(
+        X_train_list=list,
+        X_test_list=list,
+        clinical_labels_train=np.ndarray,
+        clinical_labels_test=np.ndarray,
+        hypers=dict,
+        args=dict
+    )
+    @validate_parameters(
+        X_train_list=lambda x: len(x) > 0,
+        X_test_list=lambda x: len(x) > 0,
+        clinical_labels_train=lambda x: len(x) > 0,
+        clinical_labels_test=lambda x: len(x) > 0,
+        hypers=lambda x: isinstance(x, dict)
+    )
     def run_external_cohort_validation(self, X_train_list: List[np.ndarray],
                                      X_test_list: List[np.ndarray],
                                      clinical_labels_train: np.ndarray,
@@ -283,66 +316,61 @@ class ClinicalValidationExperiments(ExperimentFramework):
                                      **kwargs) -> ExperimentResult:
         """Validate SGFA model on external cohort."""
         self.logger.info("Running external cohort validation")
-        
+
         results = {}
-        
-        try:
-            # 1. Train model on training cohort
-            self.logger.info("Training SGFA model on training cohort")
-            train_result = self._run_sgfa_analysis(X_train_list, hypers, args, **kwargs)
-            
-            if 'error' in train_result:
-                raise ValueError(f"Training failed: {train_result['error']}")
-            
-            results['training_result'] = train_result
-            
-            # 2. Apply trained model to test cohort
-            self.logger.info("Applying model to test cohort")
-            test_result = self._apply_trained_model(
-                X_test_list, train_result, hypers, args, **kwargs
-            )
-            results['test_application'] = test_result
-            
-            # 3. Compare factor distributions
-            self.logger.info("Comparing factor distributions")
-            distribution_comparison = self._compare_factor_distributions(
-                train_result['Z'], test_result['Z']
-            )
-            results['distribution_comparison'] = distribution_comparison
-            
-            # 4. Cross-cohort classification
-            self.logger.info("Testing cross-cohort classification")
-            classification_results = self._test_cross_cohort_classification(
-                train_result['Z'], test_result['Z'],
-                clinical_labels_train, clinical_labels_test
-            )
-            results['cross_cohort_classification'] = classification_results
-            
-            # 5. Model transferability analysis
-            self.logger.info("Analyzing model transferability")
-            transferability_results = self._analyze_model_transferability(
-                train_result, test_result, clinical_labels_train, clinical_labels_test
-            )
-            results['transferability_analysis'] = transferability_results
-            
-            # Analyze external validation results
-            analysis = self._analyze_external_cohort_validation(results)
-            
-            # Generate plots
-            plots = self._plot_external_cohort_validation(results, clinical_labels_train, clinical_labels_test)
-            
-            return ExperimentResult(
-                experiment_name="external_cohort_validation",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True
-            )
-            
-        except Exception as e:
-            self.logger.error(f"External cohort validation failed: {str(e)}")
-            return self._create_failure_result("external_cohort_validation", str(e))
+
+        # 1. Train model on training cohort
+        self.logger.info("Training SGFA model on training cohort")
+        train_result = self._run_sgfa_analysis(X_train_list, hypers, args, **kwargs)
+
+        if 'error' in train_result:
+            raise ValueError(f"Training failed: {train_result['error']}")
+
+        results['training_result'] = train_result
+
+        # 2. Apply trained model to test cohort
+        self.logger.info("Applying model to test cohort")
+        test_result = self._apply_trained_model(
+            X_test_list, train_result, hypers, args, **kwargs
+        )
+        results['test_application'] = test_result
+
+        # 3. Compare factor distributions
+        self.logger.info("Comparing factor distributions")
+        distribution_comparison = self._compare_factor_distributions(
+            train_result['Z'], test_result['Z']
+        )
+        results['distribution_comparison'] = distribution_comparison
+
+        # 4. Cross-cohort classification
+        self.logger.info("Testing cross-cohort classification")
+        classification_results = self._test_cross_cohort_classification(
+            train_result['Z'], test_result['Z'],
+            clinical_labels_train, clinical_labels_test
+        )
+        results['cross_cohort_classification'] = classification_results
+
+        # 5. Model transferability analysis
+        self.logger.info("Analyzing model transferability")
+        transferability_results = self._analyze_model_transferability(
+            train_result, test_result, clinical_labels_train, clinical_labels_test
+        )
+        results['transferability_analysis'] = transferability_results
+
+        # Analyze external validation results
+        analysis = self._analyze_external_cohort_validation(results)
+
+        # Generate plots
+        plots = self._plot_external_cohort_validation(results, clinical_labels_train, clinical_labels_test)
+
+        return ExperimentResult(
+            experiment_name="external_cohort_validation",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True
+        )
     
     def _run_sgfa_analysis(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs) -> Dict:
         """Run SGFA analysis for clinical validation."""
