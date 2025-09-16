@@ -185,17 +185,16 @@ class MCMCMemoryOptimizer:
         return [X[indices] for X in X_list]
 
     def _add_gradient_checkpointing(self, model_fn: Callable) -> Callable:
-        """Add gradient checkpointing to model."""
-        # This is a simplified version - in practice, you'd use JAX's checkpointing
+        """Add gradient checkpointing to model using JAX remat."""
         @functools.wraps(model_fn)
         def checkpointed_model(*args, **kwargs):
-            # For now, just add memory cleanup points
-            if hasattr(model_fn, '__call__'):
-                result = model_fn(*args, **kwargs)
-                # Force intermediate cleanup
-                jax.clear_backends()
-                return result
-            return model_fn(*args, **kwargs)
+            # Use JAX checkpoint (remat) for memory efficiency
+            # This trades computation for memory by not storing intermediate gradients
+            checkpointed_fn = jax.checkpoint(
+                model_fn,
+                policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable
+            )
+            return checkpointed_fn(*args, **kwargs)
         
         return checkpointed_model
 

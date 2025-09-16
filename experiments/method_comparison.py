@@ -293,8 +293,22 @@ class MethodComparisonExperiments(ExperimentFramework):
         import numpyro
         from numpyro.infer import MCMC, NUTS
         import time
+        import gc
 
         try:
+            # Clear GPU memory before starting
+            jax.clear_caches()
+            if jax.default_backend() == 'gpu':
+                # Force garbage collection
+                gc.collect()
+                # Clear JAX device arrays
+                for device in jax.local_devices():
+                    if device.platform == 'gpu':
+                        try:
+                            device.synchronize_all_activity()
+                        except:
+                            pass
+
             self.logger.info(f"Training SGFA model with K={args.get('K', 10)}, percW={hypers.get('percW', 33)}")
 
             # Import the actual SGFA model function
@@ -314,14 +328,22 @@ class MethodComparisonExperiments(ExperimentFramework):
                 reghsZ=args.get('reghsZ', True)
             )
 
+            # Apply gradient checkpointing for memory efficiency
+            checkpointed_models = jax.checkpoint(
+                models,
+                policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable
+            )
+
             # Setup MCMC
             rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
-            kernel = NUTS(models, target_accept_prob=args.get('target_accept_prob', 0.8))
+            kernel = NUTS(checkpointed_models, target_accept_prob=args.get('target_accept_prob', 0.8))
             mcmc = MCMC(
                 kernel,
                 num_warmup=num_warmup,
                 num_samples=num_samples,
-                num_chains=num_chains
+                num_chains=num_chains,
+                # Reduce memory footprint by not keeping samples in device memory
+                progress_bar=False  # Reduces memory usage
             )
 
             # Run inference
@@ -353,7 +375,7 @@ class MethodComparisonExperiments(ExperimentFramework):
 
             self.logger.info(f"SGFA training completed in {elapsed:.2f}s, log_likelihood: {log_likelihood:.3f}")
 
-            return {
+            result = {
                 'W': W_list,
                 'Z': Z_mean,
                 'W_samples': W_samples,
@@ -369,6 +391,13 @@ class MethodComparisonExperiments(ExperimentFramework):
                     'num_chains': num_chains
                 }
             }
+
+            # Clear GPU memory after training
+            del samples, W_samples, Z_samples, mcmc
+            jax.clear_caches()
+            gc.collect()
+
+            return result
 
         except Exception as e:
             self.logger.error(f"SGFA variant training failed: {str(e)}")
