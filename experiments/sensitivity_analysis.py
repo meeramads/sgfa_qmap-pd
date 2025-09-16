@@ -100,9 +100,15 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             # Analyze sensitivity
             analysis = self._analyze_univariate_sensitivity(results, performance_metrics)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_univariate_sensitivity(results, performance_metrics)
-            
+
+            # Add comprehensive sensitivity visualizations (focus on factor stability)
+            advanced_plots = self._create_comprehensive_sensitivity_visualizations(
+                X_list, results, "univariate_sensitivity"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="univariate_sensitivity_analysis",
                 config=self.config,
@@ -1045,6 +1051,155 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             self.logger.warning(f"Failed to create robustness analysis plots: {str(e)}")
 
         return plots
+
+    def _create_comprehensive_sensitivity_visualizations(self, X_list: List[np.ndarray],
+                                                        results: Dict, experiment_name: str) -> Dict:
+        """Create comprehensive sensitivity visualizations focusing on factor stability."""
+        advanced_plots = {}
+
+        try:
+            self.logger.info(f"🎨 Creating comprehensive sensitivity visualizations for {experiment_name}")
+
+            # Import visualization system
+            from visualization.manager import VisualizationManager
+            from core.config_utils import ConfigAccessor
+
+            # Create a sensitivity-focused config for visualization
+            viz_config = ConfigAccessor({
+                'visualization': {
+                    'create_brain_viz': True,  # Include brain maps for sensitivity
+                    'output_format': ['png', 'pdf'],
+                    'dpi': 300,
+                    'sensitivity_focus': True
+                },
+                'output_dir': f'/tmp/sensitivity_viz_{experiment_name}'
+            })
+
+            # Initialize visualization manager
+            viz_manager = VisualizationManager(viz_config)
+
+            # Prepare sensitivity data structure
+            data = {
+                'X_list': X_list,
+                'view_names': [f'view_{i}' for i in range(len(X_list))],
+                'n_subjects': X_list[0].shape[0],
+                'view_dimensions': [X.shape[1] for X in X_list],
+                'preprocessing': {
+                    'status': 'completed',
+                    'strategy': 'sensitivity_analysis'
+                }
+            }
+
+            # Extract best sensitivity result for analysis
+            best_sensitivity_result = self._extract_best_sensitivity_result(results)
+
+            if best_sensitivity_result:
+                # Prepare sensitivity analysis results
+                analysis_results = {
+                    'best_run': best_sensitivity_result,
+                    'all_runs': results,
+                    'model_type': 'sensitivity_sparseGFA',
+                    'convergence': best_sensitivity_result.get('convergence', False),
+                    'sensitivity_analysis': True
+                }
+
+                # Add cross-validation style results for factor stability analysis
+                cv_results = {
+                    'factor_stability': {
+                        'parameter_variations': results,
+                        'stability_metrics': self._extract_stability_metrics(results)
+                    }
+                }
+
+                # Create comprehensive visualizations with sensitivity focus
+                viz_manager.create_all_visualizations(
+                    data=data,
+                    analysis_results=analysis_results,
+                    cv_results=cv_results
+                )
+
+                # Extract and process generated plots
+                if hasattr(viz_manager, 'plot_dir') and viz_manager.plot_dir.exists():
+                    plot_files = list(viz_manager.plot_dir.glob('**/*.png'))
+
+                    for plot_file in plot_files:
+                        plot_name = f"sensitivity_{plot_file.stem}"
+
+                        try:
+                            import matplotlib.pyplot as plt
+                            import matplotlib.image as mpimg
+
+                            fig, ax = plt.subplots(figsize=(12, 8))
+                            img = mpimg.imread(str(plot_file))
+                            ax.imshow(img)
+                            ax.axis('off')
+                            ax.set_title(f"Sensitivity Analysis: {plot_name}", fontsize=14)
+
+                            advanced_plots[plot_name] = fig
+
+                        except Exception as e:
+                            self.logger.warning(f"Could not load sensitivity plot {plot_name}: {e}")
+
+                    self.logger.info(f"✅ Created {len(plot_files)} comprehensive sensitivity visualizations")
+                    self.logger.info("   → Factor stability and robustness plots generated")
+
+                else:
+                    self.logger.warning("Sensitivity visualization manager did not create plot directory")
+            else:
+                self.logger.warning("No sensitivity results found for comprehensive visualization")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create comprehensive sensitivity visualizations: {e}")
+
+        return advanced_plots
+
+    def _extract_best_sensitivity_result(self, results: Dict) -> Optional[Dict]:
+        """Extract the best sensitivity result from analysis results."""
+        best_result = None
+        best_likelihood = float('-inf')
+
+        # Look through sensitivity parameter results
+        for param_name, param_results in results.items():
+            if isinstance(param_results, dict):
+                for param_value, result in param_results.items():
+                    if (isinstance(result, dict) and
+                        result.get('convergence', False)):
+                        likelihood = result.get('log_likelihood', float('-inf'))
+                        if likelihood > best_likelihood:
+                            best_likelihood = likelihood
+                            best_result = result
+
+        return best_result
+
+    def _extract_stability_metrics(self, results: Dict) -> Dict:
+        """Extract stability metrics for visualization."""
+        metrics = {
+            'parameter_sensitivity': {},
+            'factor_stability': {},
+            'convergence_rates': {}
+        }
+
+        for param_name, param_results in results.items():
+            if isinstance(param_results, dict):
+                param_metrics = []
+                convergence_count = 0
+                total_count = 0
+
+                for param_value, result in param_results.items():
+                    if isinstance(result, dict):
+                        total_count += 1
+                        if result.get('convergence', False):
+                            convergence_count += 1
+                            param_metrics.append({
+                                'value': param_value,
+                                'log_likelihood': result.get('log_likelihood', 0),
+                                'execution_time': result.get('execution_time', 0)
+                            })
+
+                metrics['parameter_sensitivity'][param_name] = param_metrics
+                metrics['convergence_rates'][param_name] = convergence_count / max(total_count, 1)
+
+        return metrics
 
 
 def run_sensitivity_analysis(config):

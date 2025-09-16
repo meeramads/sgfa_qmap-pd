@@ -133,8 +133,14 @@ class ModelArchitectureComparison(ExperimentFramework):
             # Analyze results
             analysis = self._analyze_model_architectures(results, performance_metrics)
 
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_model_comparison(results, performance_metrics)
+
+            # Add comprehensive visualizations
+            advanced_plots = self._create_comprehensive_visualizations(
+                X_list, results, "model_architecture_comparison"
+            )
+            plots.update(advanced_plots)
 
             return ExperimentResult(
                 experiment_name="model_architecture_comparison",
@@ -559,6 +565,116 @@ class ModelArchitectureComparison(ExperimentFramework):
             self.logger.warning(f"Failed to generate traditional method plots: {e}")
 
         return plots
+
+    def _create_comprehensive_visualizations(self, X_list: List[np.ndarray],
+                                           results: Dict, experiment_name: str) -> Dict:
+        """Create comprehensive visualizations using the advanced visualization system."""
+        advanced_plots = {}
+
+        try:
+            self.logger.info(f"🎨 Creating comprehensive visualizations for {experiment_name}")
+
+            # Import visualization system
+            from visualization.manager import VisualizationManager
+            from core.config_utils import ConfigAccessor
+
+            # Create a temporary config for visualization
+            viz_config = ConfigAccessor({
+                'visualization': {
+                    'create_brain_viz': True,
+                    'output_format': ['png', 'pdf'],
+                    'dpi': 300
+                },
+                'output_dir': '/tmp/model_comparison_viz'  # Will be overridden
+            })
+
+            # Initialize visualization manager
+            viz_manager = VisualizationManager(viz_config)
+
+            # Prepare data structure for visualizations
+            data = {
+                'X_list': X_list,
+                'view_names': [f'view_{i}' for i in range(len(X_list))],
+                'n_subjects': X_list[0].shape[0],
+                'view_dimensions': [X.shape[1] for X in X_list],
+                'preprocessing': {
+                    'status': 'completed',
+                    'strategy': 'neuroimaging_aware'
+                }
+            }
+
+            # Extract the best model result for detailed analysis
+            best_model_result = self._extract_best_model_result(results)
+
+            if best_model_result:
+                analysis_results = {
+                    'best_run': best_model_result,
+                    'all_runs': results,
+                    'model_type': best_model_result.get('model_type', 'sparseGFA'),
+                    'convergence': best_model_result.get('convergence', False)
+                }
+
+                # Create all comprehensive visualizations
+                viz_manager.create_all_visualizations(
+                    data=data,
+                    analysis_results=analysis_results
+                )
+
+                # Extract the generated plots and create matplotlib figures for the framework
+                if hasattr(viz_manager, 'plot_dir') and viz_manager.plot_dir.exists():
+                    plot_files = list(viz_manager.plot_dir.glob('**/*.png'))
+
+                    for plot_file in plot_files:
+                        plot_name = f"advanced_{plot_file.stem}"
+
+                        # Load the saved plot as a matplotlib figure for the framework
+                        try:
+                            import matplotlib.pyplot as plt
+                            import matplotlib.image as mpimg
+
+                            fig, ax = plt.subplots(figsize=(12, 8))
+                            img = mpimg.imread(str(plot_file))
+                            ax.imshow(img)
+                            ax.axis('off')
+                            ax.set_title(f"Advanced: {plot_name}", fontsize=14)
+
+                            advanced_plots[plot_name] = fig
+
+                        except Exception as e:
+                            self.logger.warning(f"Could not load advanced plot {plot_name}: {e}")
+                            # Store path reference as fallback
+                            advanced_plots[plot_name] = {
+                                'file_path': str(plot_file),
+                                'type': 'advanced_visualization'
+                            }
+
+                    self.logger.info(f"✅ Created {len(plot_files)} comprehensive visualizations")
+                else:
+                    self.logger.warning("Visualization manager did not create plot directory")
+            else:
+                self.logger.warning("No converged model results found for comprehensive visualization")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create comprehensive visualizations: {e}")
+            # Don't fail the experiment if advanced visualizations fail
+
+        return advanced_plots
+
+    def _extract_best_model_result(self, results: Dict) -> Optional[Dict]:
+        """Extract the best model result from experiment results."""
+        best_result = None
+        best_likelihood = float('-inf')
+
+        # Look for successful model results
+        for model_name, model_result in results.items():
+            if (model_result and not model_result.get('skipped', False) and
+                model_result.get('convergence', False)):
+                likelihood = model_result.get('log_likelihood', float('-inf'))
+                if likelihood > best_likelihood:
+                    best_likelihood = likelihood
+                    best_result = model_result
+
+        return best_result
 
 
 def run_model_comparison(config=None, **kwargs):

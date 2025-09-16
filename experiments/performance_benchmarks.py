@@ -65,9 +65,15 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             # Analyze scalability
             analysis = self._analyze_scalability_benchmarks(results)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_scalability_benchmarks(results)
-            
+
+            # Add comprehensive performance visualizations (focus on optimization surfaces)
+            advanced_plots = self._create_comprehensive_performance_visualizations(
+                X_base, results, "scalability_benchmarks"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="scalability_benchmarks",
                 config=self.config,
@@ -145,9 +151,15 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             # Analyze memory benchmarks
             analysis = self._analyze_memory_benchmarks(results)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_memory_benchmarks(results)
-            
+
+            # Add comprehensive performance visualizations
+            advanced_plots = self._create_comprehensive_performance_visualizations(
+                X_base, results, "memory_benchmarks"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="memory_benchmarks",
                 config=self.config,
@@ -1436,6 +1448,158 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             self.logger.warning(f"Failed to create comparative benchmark plots: {str(e)}")
         
         return plots
+
+    def _create_comprehensive_performance_visualizations(self, X_base: List[np.ndarray],
+                                                        results: Dict, experiment_name: str) -> Dict:
+        """Create comprehensive performance visualizations focusing on optimization surfaces."""
+        advanced_plots = {}
+
+        try:
+            self.logger.info(f"🎨 Creating comprehensive performance visualizations for {experiment_name}")
+
+            # Import visualization system
+            from visualization.manager import VisualizationManager
+            from core.config_utils import ConfigAccessor
+
+            # Create a performance-focused config for visualization
+            viz_config = ConfigAccessor({
+                'visualization': {
+                    'create_brain_viz': False,  # Focus on performance, not brain maps
+                    'output_format': ['png', 'pdf'],
+                    'dpi': 300,
+                    'performance_focus': True
+                },
+                'output_dir': f'/tmp/performance_viz_{experiment_name}'
+            })
+
+            # Initialize visualization manager
+            viz_manager = VisualizationManager(viz_config)
+
+            # Prepare performance data structure for visualizations
+            data = {
+                'X_list': X_base,
+                'view_names': [f'view_{i}' for i in range(len(X_base))],
+                'n_subjects': X_base[0].shape[0],
+                'view_dimensions': [X.shape[1] for X in X_base],
+                'preprocessing': {
+                    'status': 'completed',
+                    'strategy': 'performance_optimized'
+                }
+            }
+
+            # Extract performance metrics for visualization
+            best_performance_result = self._extract_best_performance_result(results)
+
+            if best_performance_result:
+                # Prepare performance analysis results with hyperparameter data
+                analysis_results = {
+                    'best_run': best_performance_result,
+                    'all_runs': results,
+                    'model_type': 'performance_sparseGFA',
+                    'convergence': best_performance_result.get('convergence', False),
+                    'performance_optimization': True
+                }
+
+                # Add cross-validation results for hyperparameter optimization
+                cv_results = None
+                if any('scalability' in key for key in results.keys()):
+                    cv_results = {
+                        'hyperparameter_optimization': {
+                            'scalability_results': results,
+                            'performance_metrics': self._extract_performance_metrics(results)
+                        }
+                    }
+
+                # Create all comprehensive visualizations with performance focus
+                viz_manager.create_all_visualizations(
+                    data=data,
+                    analysis_results=analysis_results,
+                    cv_results=cv_results
+                )
+
+                # Extract the generated plots and convert to matplotlib figures
+                if hasattr(viz_manager, 'plot_dir') and viz_manager.plot_dir.exists():
+                    plot_files = list(viz_manager.plot_dir.glob('**/*.png'))
+
+                    for plot_file in plot_files:
+                        plot_name = f"performance_{plot_file.stem}"
+
+                        # Load the saved plot as a matplotlib figure
+                        try:
+                            import matplotlib.pyplot as plt
+                            import matplotlib.image as mpimg
+
+                            fig, ax = plt.subplots(figsize=(12, 8))
+                            img = mpimg.imread(str(plot_file))
+                            ax.imshow(img)
+                            ax.axis('off')
+                            ax.set_title(f"Performance Analysis: {plot_name}", fontsize=14)
+
+                            advanced_plots[plot_name] = fig
+
+                        except Exception as e:
+                            self.logger.warning(f"Could not load performance plot {plot_name}: {e}")
+
+                    self.logger.info(f"✅ Created {len(plot_files)} comprehensive performance visualizations")
+
+                    # Additional performance-specific summary
+                    if cv_results and 'hyperparameter_optimization' in cv_results:
+                        self.logger.info("   → Hyperparameter optimization surface plots generated")
+                    self.logger.info("   → Scalability and memory analysis visualizations generated")
+
+                else:
+                    self.logger.warning("Performance visualization manager did not create plot directory")
+            else:
+                self.logger.warning("No performance results found for comprehensive visualization")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create comprehensive performance visualizations: {e}")
+            # Don't fail the experiment if advanced visualizations fail
+
+        return advanced_plots
+
+    def _extract_best_performance_result(self, results: Dict) -> Optional[Dict]:
+        """Extract the best performance result from benchmark results."""
+        best_result = None
+        best_score = float('inf')  # Lower execution time is better
+
+        # Look through different performance result structures
+        for key, result_set in results.items():
+            if isinstance(result_set, list):
+                for result in result_set:
+                    if (isinstance(result, dict) and
+                        result.get('result', {}).get('convergence', False)):
+                        exec_time = result.get('result', {}).get('execution_time', float('inf'))
+                        if exec_time < best_score:
+                            best_score = exec_time
+                            best_result = result.get('result', {})
+            elif isinstance(result_set, dict) and 'execution_time' in result_set:
+                exec_time = result_set.get('execution_time', float('inf'))
+                if exec_time < best_score:
+                    best_score = exec_time
+                    best_result = result_set
+
+        return best_result
+
+    def _extract_performance_metrics(self, results: Dict) -> Dict:
+        """Extract performance metrics for hyperparameter optimization visualization."""
+        metrics = {
+            'execution_times': [],
+            'memory_usage': [],
+            'parameter_combinations': [],
+            'convergence_rates': []
+        }
+
+        for key, result_set in results.items():
+            if isinstance(result_set, list):
+                for result in result_set:
+                    if isinstance(result, dict) and 'result' in result:
+                        sgfa_result = result['result']
+                        metrics['execution_times'].append(sgfa_result.get('execution_time', 0))
+                        metrics['memory_usage'].append(result.get('memory_metrics', {}).get('peak_memory_gb', 0))
+                        metrics['convergence_rates'].append(1 if sgfa_result.get('convergence', False) else 0)
+
+        return metrics
 
 
 class SystemMonitor:

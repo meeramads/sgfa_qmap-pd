@@ -67,9 +67,15 @@ class ReproducibilityExperiments(ExperimentFramework):
             # Analyze reproducibility
             analysis = self._analyze_seed_reproducibility(results, performance_metrics)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_seed_reproducibility(results, performance_metrics)
-            
+
+            # Add comprehensive reproducibility visualizations (focus on stability & consensus)
+            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+                X_list, results, "seed_reproducibility"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="seed_reproducibility_test",
                 config=self.config,
@@ -153,9 +159,15 @@ class ReproducibilityExperiments(ExperimentFramework):
             # Analyze robustness
             analysis = self._analyze_data_perturbation_robustness(results, baseline_result)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_data_perturbation_robustness(results)
-            
+
+            # Add comprehensive reproducibility visualizations (focus on robustness)
+            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+                X_list, results, "data_perturbation_robustness"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="data_perturbation_robustness",
                 config=self.config,
@@ -240,9 +252,15 @@ class ReproducibilityExperiments(ExperimentFramework):
             # Analyze initialization robustness
             analysis = self._analyze_initialization_robustness(results, performance_metrics)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_initialization_robustness(results, performance_metrics)
-            
+
+            # Add comprehensive reproducibility visualizations
+            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+                X_list, results, "initialization_robustness"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="initialization_robustness",
                 config=self.config,
@@ -299,9 +317,15 @@ class ReproducibilityExperiments(ExperimentFramework):
             # Analyze computational reproducibility
             analysis = self._analyze_computational_reproducibility(results)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_computational_reproducibility(results)
-            
+
+            # Add comprehensive reproducibility visualizations
+            advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+                X_list, results, "computational_reproducibility"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="computational_reproducibility_audit",
                 config=self.config,
@@ -1092,6 +1116,190 @@ class ReproducibilityExperiments(ExperimentFramework):
             self.logger.warning(f"Failed to create computational reproducibility plots: {str(e)}")
 
         return plots
+
+    def _create_comprehensive_reproducibility_visualizations(self, X_list: List[np.ndarray],
+                                                           results: Dict, experiment_name: str) -> Dict:
+        """Create comprehensive reproducibility visualizations focusing on consensus and stability."""
+        advanced_plots = {}
+
+        try:
+            self.logger.info(f"🎨 Creating comprehensive reproducibility visualizations for {experiment_name}")
+
+            # Import visualization system
+            from visualization.manager import VisualizationManager
+            from core.config_utils import ConfigAccessor
+
+            # Create a reproducibility-focused config for visualization
+            viz_config = ConfigAccessor({
+                'visualization': {
+                    'create_brain_viz': True,  # Include brain maps for reproducibility assessment
+                    'output_format': ['png', 'pdf'],
+                    'dpi': 300,
+                    'reproducibility_focus': True
+                },
+                'output_dir': f'/tmp/reproducibility_viz_{experiment_name}'
+            })
+
+            # Initialize visualization manager
+            viz_manager = VisualizationManager(viz_config)
+
+            # Prepare reproducibility data structure
+            data = {
+                'X_list': X_list,
+                'view_names': [f'view_{i}' for i in range(len(X_list))],
+                'n_subjects': X_list[0].shape[0],
+                'view_dimensions': [X.shape[1] for X in X_list],
+                'preprocessing': {
+                    'status': 'completed',
+                    'strategy': 'reproducibility_analysis'
+                }
+            }
+
+            # Extract best reproducible result for analysis
+            best_repro_result = self._extract_best_reproducible_result(results)
+
+            if best_repro_result:
+                # Prepare reproducibility analysis results
+                analysis_results = {
+                    'best_run': best_repro_result,
+                    'all_runs': results,
+                    'model_type': 'reproducibility_sparseGFA',
+                    'convergence': best_repro_result.get('convergence', False),
+                    'reproducibility_analysis': True
+                }
+
+                # Add cross-validation style results for consensus analysis
+                cv_results = {
+                    'consensus_analysis': {
+                        'multiple_runs': results,
+                        'stability_metrics': self._extract_reproducibility_metrics(results),
+                        'seed_variations': self._extract_seed_variations(results)
+                    }
+                }
+
+                # Create comprehensive visualizations with reproducibility focus
+                viz_manager.create_all_visualizations(
+                    data=data,
+                    analysis_results=analysis_results,
+                    cv_results=cv_results
+                )
+
+                # Extract and process generated plots
+                if hasattr(viz_manager, 'plot_dir') and viz_manager.plot_dir.exists():
+                    plot_files = list(viz_manager.plot_dir.glob('**/*.png'))
+
+                    for plot_file in plot_files:
+                        plot_name = f"reproducibility_{plot_file.stem}"
+
+                        try:
+                            import matplotlib.pyplot as plt
+                            import matplotlib.image as mpimg
+
+                            fig, ax = plt.subplots(figsize=(12, 8))
+                            img = mpimg.imread(str(plot_file))
+                            ax.imshow(img)
+                            ax.axis('off')
+                            ax.set_title(f"Reproducibility Analysis: {plot_name}", fontsize=14)
+
+                            advanced_plots[plot_name] = fig
+
+                        except Exception as e:
+                            self.logger.warning(f"Could not load reproducibility plot {plot_name}: {e}")
+
+                    self.logger.info(f"✅ Created {len(plot_files)} comprehensive reproducibility visualizations")
+                    self.logger.info("   → Consensus factor analysis and stability plots generated")
+                    self.logger.info("   → Cross-seed reproducibility and robustness visualizations generated")
+
+                else:
+                    self.logger.warning("Reproducibility visualization manager did not create plot directory")
+            else:
+                self.logger.warning("No reproducible results found for comprehensive visualization")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create comprehensive reproducibility visualizations: {e}")
+
+        return advanced_plots
+
+    def _extract_best_reproducible_result(self, results: Dict) -> Optional[Dict]:
+        """Extract the most reproducible result from multiple runs."""
+        best_result = None
+        best_consistency = 0
+
+        # Look through different reproducibility result structures
+        if isinstance(results, list):
+            # Multiple seed results
+            convergence_count = sum(1 for r in results if r.get('convergence', False))
+            if convergence_count > best_consistency:
+                best_consistency = convergence_count
+                # Return the result with median likelihood
+                converged = [r for r in results if r.get('convergence', False)]
+                if converged:
+                    likelihoods = [r.get('log_likelihood', float('-inf')) for r in converged]
+                    median_idx = np.argsort(likelihoods)[len(likelihoods)//2]
+                    best_result = converged[median_idx]
+
+        elif isinstance(results, dict):
+            # Nested result structure
+            for key, result_set in results.items():
+                if isinstance(result_set, list):
+                    convergence_count = sum(1 for r in result_set if r.get('convergence', False))
+                    if convergence_count > best_consistency:
+                        best_consistency = convergence_count
+                        converged = [r for r in result_set if r.get('convergence', False)]
+                        if converged:
+                            likelihoods = [r.get('log_likelihood', float('-inf')) for r in converged]
+                            median_idx = np.argsort(likelihoods)[len(likelihoods)//2]
+                            best_result = converged[median_idx]
+
+        return best_result
+
+    def _extract_reproducibility_metrics(self, results: Dict) -> Dict:
+        """Extract reproducibility metrics for visualization."""
+        metrics = {
+            'convergence_rates': {},
+            'likelihood_stability': {},
+            'factor_consistency': {},
+            'computational_stability': {}
+        }
+
+        # Process different types of reproducibility results
+        if isinstance(results, list):
+            # Multiple seed results
+            convergence_rate = sum(1 for r in results if r.get('convergence', False)) / len(results)
+            metrics['convergence_rates']['overall'] = convergence_rate
+
+            converged_results = [r for r in results if r.get('convergence', False)]
+            if converged_results:
+                likelihoods = [r.get('log_likelihood', 0) for r in converged_results]
+                metrics['likelihood_stability']['mean'] = np.mean(likelihoods)
+                metrics['likelihood_stability']['std'] = np.std(likelihoods)
+
+        elif isinstance(results, dict):
+            for key, result_set in results.items():
+                if isinstance(result_set, list):
+                    convergence_rate = sum(1 for r in result_set if r.get('convergence', False)) / len(result_set)
+                    metrics['convergence_rates'][key] = convergence_rate
+
+        return metrics
+
+    def _extract_seed_variations(self, results: Dict) -> Dict:
+        """Extract seed variation data for visualization."""
+        variations = {
+            'seed_results': [],
+            'perturbation_effects': {},
+            'initialization_effects': {}
+        }
+
+        # Extract seed-specific results if available
+        if isinstance(results, list):
+            variations['seed_results'] = results
+        elif isinstance(results, dict):
+            for key, result_set in results.items():
+                if 'seed' in key.lower() or isinstance(result_set, list):
+                    variations['seed_results'] = result_set
+                    break
+
+        return variations
 
 
 def run_reproducibility(config):

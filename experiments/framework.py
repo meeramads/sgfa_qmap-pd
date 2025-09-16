@@ -87,20 +87,21 @@ class ExperimentConfig:
 @dataclass
 class ExperimentResult:
     """Container for experiment results."""
-    
+
     experiment_id: str
     config: ExperimentConfig
     start_time: datetime
     end_time: Optional[datetime] = None
     status: str = "running"  # running, completed, failed
     error_message: Optional[str] = None
-    
+
     # Results
     model_results: Dict[str, Any] = field(default_factory=dict)
     cv_results: Dict[str, Any] = field(default_factory=dict)
     performance_metrics: Dict[str, Any] = field(default_factory=dict)
     diagnostics: Dict[str, Any] = field(default_factory=dict)
-    
+    plots: Dict[str, Any] = field(default_factory=dict)
+
     # Metadata
     data_summary: Dict[str, Any] = field(default_factory=dict)
     convergence_diagnostics: Dict[str, Any] = field(default_factory=dict)
@@ -129,6 +130,18 @@ class ExperimentResult:
         result_dict['start_time'] = self.start_time.isoformat()
         if self.end_time:
             result_dict['end_time'] = self.end_time.isoformat()
+
+        # Convert plots to metadata only (don't serialize matplotlib figures)
+        if self.plots:
+            result_dict['plots'] = {
+                plot_name: {
+                    'type': 'matplotlib_figure',
+                    'saved': True,
+                    'files': [f"{plot_name}.png", f"{plot_name}.pdf"]
+                }
+                for plot_name in self.plots.keys()
+            }
+
         return result_dict
 
 
@@ -279,6 +292,9 @@ class ExperimentFramework:
 
         # Save factor matrices if available
         self._save_factor_matrices(result, output_dir)
+
+        # Save plots if available
+        self._save_plots(result, output_dir)
     
     def _save_result_summary(self, result: ExperimentResult, filepath: Path):
         """Save a summary of results as CSV."""
@@ -462,7 +478,45 @@ class ExperimentFramework:
                             np.save(matrices_dir / f"{prefix}_{key}_{stat_name}.npy", stat_value)
             except Exception as e:
                 print(f"Warning: Could not save parameter {key} from {prefix}: {e}")
-    
+
+    def _save_plots(self, result: ExperimentResult, output_dir: Path):
+        """Save plots as PNG and PDF files for easy access and reports."""
+        import matplotlib.pyplot as plt
+
+        if not result.plots:
+            return
+
+        # Create plots subdirectory
+        plots_dir = output_dir / "plots"
+        plots_dir.mkdir(exist_ok=True)
+
+        logger.info(f"Saving {len(result.plots)} plots to {plots_dir}")
+
+        for plot_name, plot_figure in result.plots.items():
+            if plot_figure is None:
+                continue
+
+            try:
+                # Save as PNG (high quality for viewing)
+                png_path = plots_dir / f"{plot_name}.png"
+                plot_figure.savefig(png_path, dpi=300, bbox_inches='tight',
+                                  facecolor='white', edgecolor='none')
+
+                # Save as PDF (vector format for publications)
+                pdf_path = plots_dir / f"{plot_name}.pdf"
+                plot_figure.savefig(pdf_path, bbox_inches='tight',
+                                  facecolor='white', edgecolor='none')
+
+                logger.info(f"  ✅ Saved plot: {plot_name}")
+
+                # Close the figure to free memory
+                plt.close(plot_figure)
+
+            except Exception as e:
+                logger.warning(f"Failed to save plot {plot_name}: {e}")
+
+        logger.info(f"All plots saved to: {plots_dir}")
+
     def run_experiment_grid(self,
                            base_config: ExperimentConfig,
                            parameter_grid: Dict[str, List[Any]],

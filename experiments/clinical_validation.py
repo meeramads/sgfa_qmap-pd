@@ -108,9 +108,15 @@ class ClinicalValidationExperiments(ExperimentFramework):
             # Analyze validation results
             analysis = self._analyze_subtype_classification(results)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_subtype_classification(results, clinical_labels)
-            
+
+            # Add comprehensive clinical visualizations (focus on subtypes + brain maps)
+            advanced_plots = self._create_comprehensive_clinical_visualizations(
+                X_list, results, clinical_labels, "subtype_classification"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="subtype_classification_validation",
                 config=self.config,
@@ -180,9 +186,15 @@ class ClinicalValidationExperiments(ExperimentFramework):
             # Analyze progression validation results
             analysis = self._analyze_disease_progression_validation(results)
             
-            # Generate plots
+            # Generate basic plots
             plots = self._plot_disease_progression_validation(results, progression_scores)
-            
+
+            # Add comprehensive clinical visualizations (focus on progression + brain maps)
+            advanced_plots = self._create_comprehensive_clinical_visualizations(
+                X_list, results, progression_scores, "disease_progression"
+            )
+            plots.update(advanced_plots)
+
             return ExperimentResult(
                 experiment_name="disease_progression_validation",
                 config=self.config,
@@ -1976,6 +1988,143 @@ class ClinicalValidationExperiments(ExperimentFramework):
             self.logger.warning(f"Failed to create external cohort validation plots: {str(e)}")
 
         return plots
+
+    def _create_comprehensive_clinical_visualizations(self, X_list: List[np.ndarray],
+                                                    results: Dict, clinical_data: np.ndarray,
+                                                    experiment_name: str) -> Dict:
+        """Create comprehensive clinical visualizations focusing on subtypes and brain maps."""
+        advanced_plots = {}
+
+        try:
+            self.logger.info(f"🎨 Creating comprehensive clinical visualizations for {experiment_name}")
+
+            # Import visualization system
+            from visualization.manager import VisualizationManager
+            from core.config_utils import ConfigAccessor
+
+            # Create a clinical-focused config for visualization
+            viz_config = ConfigAccessor({
+                'visualization': {
+                    'create_brain_viz': True,
+                    'output_format': ['png', 'pdf'],
+                    'dpi': 300,
+                    'clinical_focus': True
+                },
+                'output_dir': f'/tmp/clinical_viz_{experiment_name}'
+            })
+
+            # Initialize visualization manager
+            viz_manager = VisualizationManager(viz_config)
+
+            # Prepare clinical data structure for visualizations
+            data = {
+                'X_list': X_list,
+                'view_names': [f'view_{i}' for i in range(len(X_list))],
+                'n_subjects': X_list[0].shape[0],
+                'view_dimensions': [X.shape[1] for X in X_list],
+                'clinical_labels': clinical_data,
+                'preprocessing': {
+                    'status': 'completed',
+                    'strategy': 'clinical_neuroimaging'
+                }
+            }
+
+            # Extract the best clinical result for detailed analysis
+            best_clinical_result = self._extract_best_clinical_result(results)
+
+            if best_clinical_result:
+                # Prepare clinical analysis results
+                analysis_results = {
+                    'best_run': best_clinical_result,
+                    'all_runs': results,
+                    'model_type': 'clinical_sparseGFA',
+                    'convergence': best_clinical_result.get('convergence', False),
+                    'clinical_validation': True
+                }
+
+                # Add cross-validation results for subtype consensus if available
+                cv_results = None
+                if 'subtype_stability' in results:
+                    cv_results = {
+                        'subtype_analysis': results['subtype_stability'],
+                        'consensus_subtypes': results.get('consensus_subtypes', {}),
+                        'stability_metrics': results.get('stability_analysis', {})
+                    }
+
+                # Create all comprehensive visualizations with clinical focus
+                viz_manager.create_all_visualizations(
+                    data=data,
+                    analysis_results=analysis_results,
+                    cv_results=cv_results
+                )
+
+                # Extract the generated plots and convert to matplotlib figures
+                if hasattr(viz_manager, 'plot_dir') and viz_manager.plot_dir.exists():
+                    plot_files = list(viz_manager.plot_dir.glob('**/*.png'))
+
+                    for plot_file in plot_files:
+                        plot_name = f"clinical_{plot_file.stem}"
+
+                        # Load the saved plot as a matplotlib figure
+                        try:
+                            import matplotlib.pyplot as plt
+                            import matplotlib.image as mpimg
+
+                            fig, ax = plt.subplots(figsize=(12, 8))
+                            img = mpimg.imread(str(plot_file))
+                            ax.imshow(img)
+                            ax.axis('off')
+                            ax.set_title(f"Clinical Analysis: {plot_name}", fontsize=14)
+
+                            advanced_plots[plot_name] = fig
+
+                        except Exception as e:
+                            self.logger.warning(f"Could not load clinical plot {plot_name}: {e}")
+
+                    self.logger.info(f"✅ Created {len(plot_files)} comprehensive clinical visualizations")
+
+                    # Additional clinical-specific summary
+                    if cv_results and 'subtype_analysis' in cv_results:
+                        self.logger.info("   → Subtype discovery and consensus plots generated")
+                    if 'brain_maps' in [f.stem for f in plot_files]:
+                        self.logger.info("   → Clinical brain mapping visualizations generated")
+
+                else:
+                    self.logger.warning("Clinical visualization manager did not create plot directory")
+            else:
+                self.logger.warning("No converged clinical results found for comprehensive visualization")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create comprehensive clinical visualizations: {e}")
+            # Don't fail the experiment if advanced visualizations fail
+
+        return advanced_plots
+
+    def _extract_best_clinical_result(self, results: Dict) -> Optional[Dict]:
+        """Extract the best clinical analysis result from experiment results."""
+        best_result = None
+        best_score = float('-inf')
+
+        # Look for clinical results with SGFA data
+        if 'sgfa_factors' in results:
+            # From subtype classification
+            result = results['sgfa_factors']
+            if result and result.get('convergence', False):
+                score = result.get('accuracy', result.get('log_likelihood', float('-inf')))
+                if score > best_score:
+                    best_score = score
+                    best_result = result
+
+        # Look in other result structures
+        for key, result in results.items():
+            if (isinstance(result, dict) and
+                'Z' in result and result.get('convergence', False)):
+                score = result.get('log_likelihood', float('-inf'))
+                if score > best_score:
+                    best_score = score
+                    best_result = result
+
+        return best_result
 
 
 def run_clinical_validation(config):
