@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpyro
 from typing import List, Dict, Any
 
-from models.sparse_gfa import SparseGFA
+from models.sparse_gfa import SparseGFAModel as SparseGFA
 from data import generate_synthetic_data
 
 

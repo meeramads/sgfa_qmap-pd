@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from typing import List, Dict, Any
 
-from models.standard_gfa import StandardGFA
+from models.standard_gfa import StandardGFAModel as StandardGFA
 from data import generate_synthetic_data
 
 
@@ -108,7 +108,7 @@ class TestStandardGFA:
         standard_model.fit(X_list)
 
         # Import SparseGFA for comparison
-        from models.sparse_gfa import SparseGFA
+        from models.sparse_gfa import SparseGFAModel as SparseGFA
         sparse_config = basic_config.copy()
         sparse_config['sparsity_lambda'] = 0.0  # No sparsity for fair comparison
         sparse_model = SparseGFA(**sparse_config)
