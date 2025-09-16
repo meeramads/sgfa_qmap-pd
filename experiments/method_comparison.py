@@ -57,24 +57,21 @@ class MethodComparisonExperiments(ExperimentFramework):
             for variant_name, variant_config in self.sgfa_variants.items():
                 self.logger.info(f"Testing SGFA variant: {variant_name}")
                 
-                # Profile variant performance
-                with self.profiler.profile(f'sgfa_{variant_name}') as p:
-                    # Update hyperparameters with variant config
-                    variant_hypers = hypers.copy()
-                    variant_hypers.update(variant_config)
-                    
-                    # Run analysis (would call your SGFA implementation)
-                    variant_result = self._run_sgfa_variant(
-                        X_list, variant_hypers, args, **kwargs
-                    )
-                    
-                    results[variant_name] = variant_result
-                
-                # Store performance metrics
-                metrics = self.profiler.get_current_metrics()
+                # Update hyperparameters with variant config
+                variant_hypers = hypers.copy()
+                variant_hypers.update(variant_config)
+
+                # Run analysis without profiling to debug the argparse.Namespace error
+                variant_result = self._run_sgfa_variant(
+                    X_list, variant_hypers, args, **kwargs
+                )
+
+                results[variant_name] = variant_result
+
+                # Store basic performance metrics
                 performance_metrics[variant_name] = {
-                    'execution_time': metrics.execution_time,
-                    'peak_memory_gb': metrics.peak_memory_gb,
+                    'execution_time': variant_result.get('execution_time', 0),
+                    'peak_memory_gb': 0.0,  # Will be filled by system monitoring
                     'convergence_iterations': variant_result.get('n_iterations', 0)
                 }
                 
@@ -308,6 +305,10 @@ class MethodComparisonExperiments(ExperimentFramework):
                             device.synchronize_all_activity()
                         except:
                             pass
+
+            # Disable any potential performance optimizations that might cause issues
+            import os
+            os.environ['JAX_DISABLE_JIT'] = '0'  # Keep JIT enabled but ensure no other transforms
 
             self.logger.info(f"Training SGFA model with K={args.get('K', 10)}, percW={hypers.get('percW', 33)}")
 
