@@ -1,4 +1,9 @@
-"""SGFA parameter comparison experiments for qMAP-PD analysis."""
+"""SGFA parameter comparison experiments for qMAP-PD analysis.
+
+This module focuses on optimizing hyperparameters (K, percW) for the sparseGFA model.
+For comparing different model architectures (sparseGFA vs alternatives),
+see experiments/model_comparison.py.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,8 +46,8 @@ class SGFAParameterComparison(ExperimentFramework):
             'basic_fa': {'use_sparse': False, 'use_group': False}
         }
         
-        # Traditional methods for comparison
-        self.traditional_methods = ['pca', 'ica', 'fa', 'cca', 'kmeans']
+        # Focus purely on SGFA parameter optimization
+        # Traditional methods moved to model_comparison.py
         
     def run_sgfa_variant_comparison(self, X_list: List[np.ndarray], 
                                   hypers: Dict, args: Dict,
