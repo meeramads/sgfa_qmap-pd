@@ -373,8 +373,13 @@ class MethodComparisonExperiments(ExperimentFramework):
             samples = mcmc.get_samples()
 
             # Calculate log likelihood (approximate)
-            potential_energy = samples.get('potential_energy', np.array([0]))
-            log_likelihood = -np.mean(potential_energy) if len(potential_energy) > 0 else 0
+            potential_energy = samples.get('potential_energy', np.array([]))
+            if len(potential_energy) > 0:
+                log_likelihood = -np.mean(potential_energy)
+                self.logger.debug(f"Potential energy stats: mean={np.mean(potential_energy):.3f}, std={np.std(potential_energy):.3f}")
+            else:
+                log_likelihood = float('nan')  # Indicate missing data
+                self.logger.warning("No potential energy data collected - log likelihood unavailable")
 
             # Extract mean parameters
             W_samples = samples['W']  # Shape: (num_samples, D, K)
