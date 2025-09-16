@@ -315,10 +315,20 @@ class MethodComparisonExperiments(ExperimentFramework):
             # Import the actual SGFA model function
             from core.run_analysis import models
 
-            # Setup MCMC configuration
-            num_warmup = args.get('num_warmup', 500)  # Reduced for faster comparison
-            num_samples = args.get('num_samples', 1000)  # Reduced for faster comparison
-            num_chains = args.get('num_chains', 2)  # Reduced for faster comparison
+            # Setup MCMC configuration with memory-aware adjustments
+            K = args.get('K', 10)
+            percW = hypers.get('percW', 33)
+
+            # Reduce sampling parameters for high memory variants
+            if K >= 10 and percW >= 33:
+                num_warmup = args.get('num_warmup', 300)  # Further reduced for high memory
+                num_samples = args.get('num_samples', 500)  # Further reduced
+                num_chains = 1  # Force single chain for high memory variants
+                self.logger.info(f"Using reduced sampling for high memory variant: warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
+            else:
+                num_warmup = args.get('num_warmup', 500)
+                num_samples = args.get('num_samples', 1000)
+                num_chains = args.get('num_chains', 2)
 
             # Create args object for model
             import argparse
@@ -341,6 +351,15 @@ class MethodComparisonExperiments(ExperimentFramework):
                 progress_bar=False,  # Reduces memory usage
                 chain_method='sequential'  # Use sequential chains to reduce GPU memory
             )
+
+            # Additional memory optimization for high memory variants
+            if K >= 10 and percW >= 33:
+                # Force more aggressive memory management
+                import jax
+                jax.config.update('jax_gpu_memory_allocation_percentage', 0.8)  # Limit GPU memory
+                # Clear any cached compilations
+                jax._src.dispatch.xla_callable_cache.clear()
+                self.logger.info("Applied aggressive memory limits for high memory variant")
 
             # Run inference
             start_time = time.time()
