@@ -4,15 +4,15 @@
 
 ```yaml
 data:
-  data_dir: "./qMAP-PD_data"           # ✅ REQUIRED: Data directory path
+  data_dir: "./qMAP-PD_data"           # REQUIRED: Data directory path
 
 experiments:
-  base_output_dir: "./results"         # ✅ REQUIRED: Results directory
+  base_output_dir: "./results"         # REQUIRED: Results directory
 
 model:
-  model_type: "sparse_gfa"             # ✅ REQUIRED: "sparse_gfa" or "standard_gfa"
-  K: 5                                 # ✅ REQUIRED: Number of factors (1-50)
-  sparsity_lambda: 0.1                 # ✅ REQUIRED for sparse_gfa (≥0)
+  model_type: "sparse_gfa"             # REQUIRED: "sparse_gfa" or "standard_gfa"
+  K: 5                                 # REQUIRED: Number of factors (1-50)
+  sparsity_lambda: 0.1                 # REQUIRED for sparse_gfa (≥0)
 ```
 
 ## Common Optional Fields
@@ -88,7 +88,7 @@ cross_validation:
 
 ```bash
 # Test configuration
-python -c "from core.config_utils import validate_configuration; import yaml; print('✅ Valid' if validate_configuration(yaml.safe_load(open('config.yaml'))) else '❌ Invalid')"
+python -c "from core.config_utils import validate_configuration; import yaml; print('Valid' if validate_configuration(yaml.safe_load(open('config.yaml'))) else 'Invalid')"
 
 # Get defaults
 python -c "from core.config_utils import get_default_configuration; import yaml; print(yaml.dump(get_default_configuration()))"
