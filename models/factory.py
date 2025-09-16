@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from .base import BaseGFAModel
 from .sparse_gfa import SparseGFAModel
 from .standard_gfa import StandardGFAModel
+from .latent_class_analysis import LatentClassAnalysisModel
 from .variants.neuroimaging_gfa import NeuroimagingGFAModel
 
 
@@ -14,7 +15,8 @@ class ModelFactory:
     _models = {
         'sparseGFA': SparseGFAModel,
         'GFA': StandardGFAModel,
-        'neuroGFA': NeuroimagingGFAModel
+        'neuroGFA': NeuroimagingGFAModel,
+        'LCA': LatentClassAnalysisModel
     }
     
     @classmethod
@@ -26,7 +28,7 @@ class ModelFactory:
         Parameters:
         -----------
         model_type : str
-            Type of model ('sparseGFA', 'GFA', 'neuroGFA')
+            Type of model ('sparseGFA', 'GFA', 'neuroGFA', 'LCA')
         config : Configuration object
         hypers : Dict
             Hyperparameters
@@ -45,7 +47,16 @@ class ModelFactory:
         # Special handling for neuroimaging model
         if model_type == 'neuroGFA':
             return model_class(config, hypers, spatial_info=kwargs.get('spatial_info'))
-        
+
+        # Special handling for LCA model (memory warning)
+        if model_type == 'LCA':
+            lca_model = model_class(config, hypers)
+            # Log memory warning when creating LCA model
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(lca_model.get_memory_warning())
+            return lca_model
+
         return model_class(config, hypers)
     
     @classmethod

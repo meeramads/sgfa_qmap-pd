@@ -4,6 +4,7 @@ from .factory import ModelFactory
 from .base import BaseGFAModel
 from .sparse_gfa import SparseGFAModel
 from .standard_gfa import StandardGFAModel
+from .latent_class_analysis import LatentClassAnalysisModel
 
 # Expose the factory method as a standalone function for convenience
 def create_model(model_type: str, config, hypers, **kwargs):
@@ -13,7 +14,7 @@ def create_model(model_type: str, config, hypers, **kwargs):
     Parameters:
     -----------
     model_type : str
-        Type of model ('sparseGFA', 'GFA', 'neuroGFA')
+        Type of model ('sparseGFA', 'GFA', 'neuroGFA', 'LCA')
     config : Configuration object
     hypers : Dict
         Hyperparameters
@@ -27,8 +28,9 @@ def create_model(model_type: str, config, hypers, **kwargs):
 
 __all__ = [
     'ModelFactory',
-    'create_model', 
+    'create_model',
     'BaseGFAModel',
-    'SparseGFAModel', 
-    'StandardGFAModel'
+    'SparseGFAModel',
+    'StandardGFAModel',
+    'LatentClassAnalysisModel'
 ]
