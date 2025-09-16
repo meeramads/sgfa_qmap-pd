@@ -32,12 +32,7 @@ class ModelArchitectureComparison(ExperimentFramework):
     """Compare different SGFA model architectures (sparseGFA, neuroGFA, standard GFA)."""
 
     def __init__(self, config: ExperimentConfig, logger: Optional[logging.Logger] = None):
-        # ExperimentFramework expects base_output_dir, not config
-        import tempfile
-        dummy_output_dir = tempfile.mkdtemp()
-        super().__init__(dummy_output_dir)
-        self.config = config
-        self.logger = logger if logger else logging.getLogger(__name__)
+        super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
 
         # Model architectures to compare

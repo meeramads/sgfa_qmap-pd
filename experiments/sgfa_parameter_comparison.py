@@ -29,13 +29,7 @@ class SGFAParameterComparison(ExperimentFramework):
     """SGFA parameter comparison experiments for K and percW optimization."""
     
     def __init__(self, config: ExperimentConfig, logger: Optional[logging.Logger] = None):
-        # ExperimentFramework expects base_output_dir, not config
-        # We'll create a dummy output dir for now since this class doesn't really need the framework inheritance
-        import tempfile
-        dummy_output_dir = tempfile.mkdtemp()
-        super().__init__(dummy_output_dir)
-        self.config = config
-        self.logger = logger if logger else logging.getLogger(__name__)
+        super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
         
         # Method configurations

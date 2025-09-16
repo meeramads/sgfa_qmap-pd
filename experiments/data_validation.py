@@ -114,12 +114,7 @@ class DataValidationExperiments(ExperimentFramework):
 
     def __init__(self, config: ExperimentConfig, logger: Optional[logging.Logger] = None):
         """Initialize data validation experiments."""
-        # ExperimentFramework expects base_output_dir, not config
-        import tempfile
-        temp_dir = tempfile.mkdtemp(prefix='data_validation_')
-        super().__init__(temp_dir, None)
-        self.config = config
-        self.logger = logger or logging.getLogger(__name__)
+        super().__init__(config, None, logger)
     
     def run_data_quality_assessment(self, X_list: List[np.ndarray] = None,
                                     **kwargs) -> ExperimentResult:

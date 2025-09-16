@@ -148,29 +148,44 @@ class ExperimentResult:
 class ExperimentFramework:
     """Core framework for running systematic experiments."""
     
-    def __init__(self, 
-                 base_output_dir: Path,
-                 performance_config: Optional[PerformanceConfig] = None):
+    def __init__(self,
+                 config_or_output_dir,
+                 performance_config: Optional[PerformanceConfig] = None,
+                 logger: Optional[logging.Logger] = None):
         """
         Initialize experiment framework.
-        
+
         Parameters
         ----------
-        base_output_dir : Path
-            Base directory for all experiment outputs.
+        config_or_output_dir : ExperimentConfig or Path
+            Either an ExperimentConfig (preferred) or base directory path for outputs.
         performance_config : PerformanceConfig, optional
             Performance optimization configuration.
+        logger : logging.Logger, optional
+            Logger instance.
         """
-        self.base_output_dir = Path(base_output_dir)
+        # Handle both ExperimentConfig and direct path for backward compatibility
+        if hasattr(config_or_output_dir, 'experiment_name'):
+            # It's an ExperimentConfig
+            from core.config_utils import get_output_dir
+            self.config = config_or_output_dir
+            config_dict = config_or_output_dir.to_dict() if hasattr(config_or_output_dir, 'to_dict') else config_or_output_dir.__dict__
+            self.base_output_dir = Path(get_output_dir(config_dict))
+        else:
+            # It's a direct path (backward compatibility)
+            self.config = None
+            self.base_output_dir = Path(config_or_output_dir)
+
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.performance_config = performance_config
+        self.logger = logger or logging.getLogger(__name__)
         self.results_history: List[ExperimentResult] = []
         
         # Initialize logging
         self._setup_logging()
         
-        logger.info(f"ExperimentFramework initialized with output dir: {base_output_dir}")
+        self.logger.info(f"ExperimentFramework initialized with output dir: {self.base_output_dir}")
     
     def _setup_logging(self):
         """Setup experiment-specific logging."""

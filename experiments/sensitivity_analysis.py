@@ -19,7 +19,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
     """Comprehensive sensitivity analysis for SGFA hyperparameters."""
     
     def __init__(self, config: ExperimentConfig, logger: Optional[logging.Logger] = None):
-        super().__init__(config, logger)
+        super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
         
         # Default hyperparameter ranges for sensitivity analysis
