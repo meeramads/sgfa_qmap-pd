@@ -31,6 +31,7 @@ import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
+from core.io_utils import save_plot
 
 logging.basicConfig(level=logging.INFO)
 
@@ -1313,8 +1314,7 @@ class PreprocessingInspector:
                 plt.colorbar(im4, ax=axes[1,1])
             
             plt.tight_layout()
-            plt.savefig(output_dir / f'{view_name}_inspection.png', dpi=150, bbox_inches='tight')
-            plt.close()
+            save_plot(output_dir / f'{view_name}_inspection.png', dpi=150)
             
         logging.info("Inspection plots saved")
     

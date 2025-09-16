@@ -9,6 +9,8 @@ from typing import Dict, List, Optional, Any, Tuple
 import logging
 import json
 
+from core.io_utils import save_plot
+
 logger = logging.getLogger(__name__)
 
 
@@ -295,8 +297,7 @@ class BrainVisualizer:
         axes[1, 1].set_title('Processing Summary')
         
         plt.tight_layout()
-        plt.savefig(plot_dir / 'spatial_processing_summary.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_dir / 'spatial_processing_summary.png')
     
     def _basic_spatial_analysis(self, results_dir: Path, plot_dir: Path) -> Dict:
         """Perform basic spatial analysis without full preprocessing."""
@@ -320,8 +321,7 @@ class BrainVisualizer:
         ax.set_title('Spatial Analysis Summary')
         
         plt.tight_layout()
-        plt.savefig(plot_dir / 'basic_spatial_analysis.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_dir / 'basic_spatial_analysis.png')
         
         return spatial_analysis
     
@@ -346,8 +346,7 @@ class BrainVisualizer:
             ax.set_title('Region-wise Analysis')
             
             plt.tight_layout()
-            plt.savefig(plot_dir / 'region_factor_analysis.png', dpi=300, bbox_inches='tight')
-            plt.close()
+            save_plot(plot_dir / 'region_factor_analysis.png')
             
         except Exception as e:
             logger.warning(f"Region factor analysis failed: {e}")
@@ -410,8 +409,7 @@ File types: {set(f.suffix for f in reconstruction_files)}
             axes[1, 1].set_title('Summary Statistics')
             
             plt.tight_layout()
-            plt.savefig(plot_dir / 'subject_reconstruction_summary.png', dpi=300, bbox_inches='tight')
-            plt.close()
+            save_plot(plot_dir / 'subject_reconstruction_summary.png')
         
         return reconstruction_summary
     

@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+from core.io_utils import save_plot
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,7 +50,7 @@ def example_factor_visualization():
         )
 
         plt.tight_layout()
-        plt.savefig(output_dir / f"loadings_heatmap_view_{i}.png", dpi=300, bbox_inches='tight')
+        save_plot(output_dir / f"loadings_heatmap_view_{i}.png")
         plt.close()
 
         print(f"  ✅ Saved loadings heatmap for view {i+1}")
@@ -78,7 +80,7 @@ def example_factor_visualization():
         fig.delaxes(axes[i])
 
     plt.tight_layout()
-    plt.savefig(output_dir / "factor_scatter_plots.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "factor_scatter_plots.png")
     plt.close()
 
     print(f"  ✅ Saved factor scatter plots")
@@ -98,7 +100,7 @@ def example_factor_visualization():
         )
 
     plt.tight_layout()
-    plt.savefig(output_dir / "factor_distributions.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "factor_distributions.png")
     plt.close()
 
     print(f"  ✅ Saved factor distribution plots")
@@ -131,7 +133,7 @@ def example_factor_visualization():
     ax2.set_ylim(0, 1)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "factor_interpretability.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "factor_interpretability.png")
     plt.close()
 
     print(f"  ✅ Saved factor interpretability plots")
@@ -240,9 +242,7 @@ def example_preprocessing_visualization():
         plt.colorbar(im, ax=axes[1, 1])
 
         plt.tight_layout()
-        plt.savefig(output_dir / f"preprocessing_comparison_view_{i}.png",
-                   dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / f"preprocessing_comparison_view_{i}.png")
 
         print(f"  ✅ Saved preprocessing comparison for view {i+1}")
 
@@ -287,7 +287,7 @@ def example_preprocessing_visualization():
     axes[1, 1].set_ylim(0, 1)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "preprocessing_summary.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "preprocessing_summary.png")
     plt.close()
 
     print(f"  ✅ Saved preprocessing summary")
@@ -387,9 +387,7 @@ def example_brain_visualization():
         plt.colorbar(scatter, ax=axes[2], label='Loading Strength')
 
         plt.tight_layout()
-        plt.savefig(output_dir / f"brain_factor_{k+1}_maps.png",
-                   dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(output_dir / f"brain_factor_{k+1}_maps.png")
 
         print(f"  ✅ Saved brain maps for factor {k+1}")
 
@@ -443,7 +441,7 @@ def example_brain_visualization():
     axes[1].set_title('Brain Network (Top 5% Connections)')
 
     plt.tight_layout()
-    plt.savefig(output_dir / "brain_connectivity.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "brain_connectivity.png")
     plt.close()
 
     print(f"  ✅ Saved brain connectivity visualization")
@@ -541,7 +539,7 @@ def example_comprehensive_report():
     axes[1, 1].set_ylim(0, 1)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "model_performance_summary.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "model_performance_summary.png")
     plt.close()
 
     print(f"  ✅ Created model performance summary")
@@ -593,7 +591,7 @@ def example_comprehensive_report():
     axes[1, 2].set_ylim(0, 1)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "data_quality_dashboard.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "data_quality_dashboard.png")
     plt.close()
 
     print(f"  ✅ Created data quality dashboard")
@@ -846,7 +844,7 @@ def example_custom_plotting():
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "custom_factor_analysis.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "custom_factor_analysis.png")
     plt.close()
 
     print(f"  ✅ Created custom factor analysis plot")
@@ -908,7 +906,7 @@ def example_custom_plotting():
     fig.suptitle('Sparse Group Factor Analysis: Comprehensive Results',
                 fontsize=18, fontweight='bold', y=0.95)
 
-    plt.savefig(output_dir / "publication_ready_figure.png", dpi=300, bbox_inches='tight')
+    save_plot(output_dir / "publication_ready_figure.png")
     plt.close()
 
     print(f"  ✅ Created publication-ready figure")

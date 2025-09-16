@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import logging
 
+from core.io_utils import save_plot
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,8 +120,7 @@ class CrossValidationVisualizer:
             axes[1, 1].grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig(plot_path / f'{run_name}_cv_performance_summary.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / f'{run_name}_cv_performance_summary.png')
     
     def _plot_factor_stability_heatmap(self, fold_results: Dict, plot_path: Path):
         """Plot factor stability across CV folds."""
@@ -154,8 +155,7 @@ class CrossValidationVisualizer:
         plt.xlabel('CV Fold')
         plt.ylabel('Factor Index')
         plt.tight_layout()
-        plt.savefig(plot_path / 'factor_stability_heatmap.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'factor_stability_heatmap.png')
     
     def _plot_hyperparameter_optimization(self, hp_results: Dict, plot_path: Path):
         """Plot hyperparameter optimization results."""
@@ -206,8 +206,7 @@ class CrossValidationVisualizer:
                 axes[1, 1].set_title('Parameter Correlation Matrix')
         
         plt.tight_layout()
-        plt.savefig(plot_path / 'hyperparameter_optimization.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'hyperparameter_optimization.png')
     
     def _plot_spatial_coherence(self, cv_results: Dict, plot_path: Path):
         """Plot neuroimaging spatial coherence results."""
@@ -240,8 +239,7 @@ class CrossValidationVisualizer:
             axes[1].set_xlabel('Coherence Score')
         
         plt.tight_layout()
-        plt.savefig(plot_path / 'spatial_coherence_analysis.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'spatial_coherence_analysis.png')
     
     def _plot_subtype_validation(self, subtype_results: Dict, plot_path: Path):
         """Plot subtype validation results."""
@@ -291,8 +289,7 @@ class CrossValidationVisualizer:
             axes[1, 1].set_title('Subtype Distribution')
         
         plt.tight_layout()
-        plt.savefig(plot_path / 'subtype_validation.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'subtype_validation.png')
     
     def plot_consensus_subtypes(self, centroids_data: Dict, probabilities_data: Dict, plot_path: str):
         """
@@ -336,8 +333,7 @@ class CrossValidationVisualizer:
         plt.xlabel('Subtype')
         plt.ylabel('Factor')
         plt.tight_layout()
-        plt.savefig(plot_path / 'subtype_centroids_heatmap.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'subtype_centroids_heatmap.png')
     
     def _plot_centroids_radar(self, C: np.ndarray, plot_path: Path):
         """Plot subtype centroids as radar chart."""
@@ -369,8 +365,7 @@ class CrossValidationVisualizer:
         ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
         
         plt.tight_layout()
-        plt.savefig(plot_path / 'subtype_centroids_radar.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'subtype_centroids_radar.png')
     
     def _plot_subtype_probabilities(self, prob_data: Dict, plot_path: Path):
         """Plot subtype assignment probabilities."""
@@ -423,8 +418,7 @@ class CrossValidationVisualizer:
         axes[1, 1].set_ylabel('Count')
         
         plt.tight_layout()
-        plt.savefig(plot_path / 'subtype_probabilities_analysis.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'subtype_probabilities_analysis.png')
     
     def _plot_subtype_assignments(self, prob_data: Dict, plot_path: Path):
         """Plot final subtype assignments."""
@@ -455,5 +449,4 @@ class CrossValidationVisualizer:
         plt.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig(plot_path / 'subtype_assignments_scatter.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        save_plot(plot_path / 'subtype_assignments_scatter.png')

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import logging
 
+from core.io_utils import save_plot
+
 logger = logging.getLogger(__name__)
 
 
@@ -98,7 +100,7 @@ class FactorVisualizer:
         
         # Save
         save_path = save_dir / 'factor_loadings_by_view.png'
-        plt.savefig(save_path)
+        save_plot(save_path)
         plt.close()
         logger.info(f"Saved: {save_path}")
         
@@ -129,7 +131,7 @@ class FactorVisualizer:
         
         # Save
         save_path = save_dir / 'factor_scores.png'
-        plt.savefig(save_path)
+        save_plot(save_path)
         plt.close()
         logger.info(f"Saved: {save_path}")
         
@@ -187,7 +189,7 @@ class FactorVisualizer:
         
         # Save
         save_path = save_dir / 'factor_summary.png'
-        plt.savefig(save_path)
+        save_plot(save_path)
         plt.close()
         logger.info(f"Saved: {save_path}")
         
@@ -233,7 +235,7 @@ class FactorVisualizer:
         
         # Save
         save_path = save_dir / 'view_contributions.png'
-        plt.savefig(save_path)
+        save_plot(save_path)
         plt.close()
         logger.info(f"Saved: {save_path}")
         

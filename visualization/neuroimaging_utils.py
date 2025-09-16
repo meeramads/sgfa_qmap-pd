@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import List, Dict, Union, Optional, Tuple
 import logging
 
+from core.io_utils import save_plot, save_json
+
 # Optional neuroimaging dependency
 try:
     import nibabel as nib
@@ -303,8 +305,7 @@ class FactorToMRIMapper:
             
             plt.suptitle(f'Subject Reconstruction Overview', fontsize=16, fontweight='bold')
             plt.tight_layout()
-            plt.savefig(output_file, dpi=150, bbox_inches='tight')
-            plt.close()
+            save_plot(output_file, dpi=150)
             
             logging.debug(f"Created overlay plot: {output_file}")
             
@@ -673,14 +674,13 @@ def integrate_subject_reconstructions_with_factors(results_dir: str, data: Dict,
     
     # Save metadata
     metadata_file = brain_viz_dir / "brain_visualization_metadata.json"
-    with open(metadata_file, 'w') as f:
-        json.dump({
-            'creation_time': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'n_factors_mapped': len(results.get('factor_maps', {})),
-            'n_subjects_reconstructed': len(subject_ids) if subject_ids else 0,
-            'subject_ids': subject_ids,
-            'output_directory': str(brain_viz_dir)
-        }, f, indent=2)
+    save_json({
+        'creation_time': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'n_factors_mapped': len(results.get('factor_maps', {})),
+        'n_subjects_reconstructed': len(subject_ids) if subject_ids else 0,
+        'subject_ids': subject_ids,
+        'output_directory': str(brain_viz_dir)
+    }, metadata_file)
     
     logging.info(f"Comprehensive brain visualization completed: {brain_viz_dir}")
     return results

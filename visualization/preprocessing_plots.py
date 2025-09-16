@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import Dict
 import logging
+from core.io_utils import save_plot
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +89,7 @@ class PreprocessingVisualizer:
         
         # Save
         save_path = save_dir / 'feature_reduction.png'
-        plt.savefig(save_path)
-        plt.close()
+        save_plot(save_path)
         logger.info(f"Saved: {save_path}")
         
     def _plot_source_validation(self, source_validation: Dict, save_dir: Path):
@@ -118,8 +118,7 @@ class PreprocessingVisualizer:
         
         # Save
         save_path = save_dir / 'source_validation.png'
-        plt.savefig(save_path)
-        plt.close()
+        save_plot(save_path)
         logger.info(f"Saved: {save_path}")
         
     def _plot_optimization_results(self, optimization: Dict, save_dir: Path):
@@ -163,6 +162,5 @@ class PreprocessingVisualizer:
         
         # Save
         save_path = save_dir / 'optimization_results.png'
-        plt.savefig(save_path)
-        plt.close()
+        save_plot(save_path)
         logger.info(f"Saved: {save_path}")
