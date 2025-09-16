@@ -14,9 +14,9 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 
 ### Core Modules
 
-- **[get_data.py](get_data.py)**: High-level interface to load datasets or generate synthetic data
-- **[run_analysis.py](run_analysis.py)**: Main script containing the SGFA model and experiment runner
-- **[utils.py](utils.py)**: Utility functions supporting the analysis pipeline
+- **[core/get_data.py](core/get_data.py)**: High-level interface to load datasets or generate synthetic data
+- **[core/run_analysis.py](core/run_analysis.py)**: Main script containing the SGFA model and experiment runner
+- **[core/utils.py](core/utils.py)**: Utility functions supporting the analysis pipeline
 
 ### Data Management
 
@@ -45,16 +45,26 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 
 - **[experiments/](experiments/)**: Comprehensive experimental framework
   - `data_validation.py`: Data quality and preprocessing validation
-  - `method_comparison.py`: SGFA vs traditional method comparison
+  - `model_comparison.py`: SGFA vs traditional method comparison
+  - `sgfa_parameter_comparison.py`: SGFA variant comparison and parameter studies
   - `sensitivity_analysis.py`: Hyperparameter sensitivity testing
   - `reproducibility.py`: Reproducibility and robustness validation
   - `performance_benchmarks.py`: Scalability and efficiency benchmarking
   - `clinical_validation.py`: Clinical subtype and biomarker validation
 
-### Visualization & Models
+### Models & Implementation
+
+- **[models/](models/)**: Core model implementations
+  - `base.py`: Base model class and shared functionality
+  - `standard_gfa.py`: Standard Group Factor Analysis with ARD priors
+  - `sparse_gfa.py`: Sparse GFA with regularized horseshoe priors
+  - `latent_class_analysis.py`: Patient subtyping and clustering models
+  - `factory.py`: Model factory for instantiation and configuration
+  - `variants/neuroimaging_gfa.py`: Specialized neuroimaging variants (framework in development)
+
+### Visualization & Testing
 
 - **[visualization/](visualization/)**: Result visualization and diagnostic plots
-- **[models/](models/)**: Model definitions and variants
 - **[tests/](tests/)**: Comprehensive test suite
 
 ## Installation
@@ -71,14 +81,14 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### Development Installation
 
 ```bash
 # Install with development tools
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 
 # Run tests
 pytest
@@ -123,14 +133,47 @@ with PerformanceManager(config) as manager:
 ### Comprehensive Experiments
 
 ```python
-from experiments import ExperimentConfig, DataValidationExperiments
+from experiments import (
+    ExperimentConfig,
+    DataValidationExperiments,
+    ModelArchitectureComparison,
+    SGFAParameterComparison,
+    SensitivityAnalysisExperiments,
+    ReproducibilityExperiments,
+    PerformanceBenchmarkExperiments,
+    ClinicalValidationExperiments
+)
 
 # Configure experiments
 config = ExperimentConfig(output_dir="./results", save_plots=True)
 
-# Run validation experiments
-validator = DataValidationExperiments(config)
-results = validator.run_comprehensive_data_validation(X_list)
+# Run data validation experiments
+data_validator = DataValidationExperiments(config)
+data_results = data_validator.run_comprehensive_data_validation(X_list)
+
+# Run model comparison experiments
+model_comparison = ModelArchitectureComparison(config)
+comparison_results = model_comparison.run_full_comparison(X_list)
+
+# Run SGFA parameter optimization
+sgfa_optimizer = SGFAParameterComparison(config)
+param_results = sgfa_optimizer.run_parameter_sweep(X_list)
+
+# Run sensitivity analysis
+sensitivity = SensitivityAnalysisExperiments(config)
+sensitivity_results = sensitivity.run_sensitivity_analysis(X_list)
+
+# Run reproducibility validation
+reproducibility = ReproducibilityExperiments(config)
+repro_results = reproducibility.run_reproducibility_tests(X_list)
+
+# Run performance benchmarks
+benchmarks = PerformanceBenchmarkExperiments(config)
+perf_results = benchmarks.run_performance_benchmarks(X_list)
+
+# Run clinical validation (if clinical data available)
+clinical = ClinicalValidationExperiments(config)
+clinical_results = clinical.run_clinical_validation(X_list, clinical_data)
 ```
 
 ## Performance Optimization
@@ -164,6 +207,7 @@ from performance.config import auto_configure_for_system
 config = auto_configure_for_system()
 
 # Or use predefined presets
+from performance.config import PerformanceConfig
 config = PerformanceConfig().create_preset('memory_efficient')  # For limited RAM
 config = PerformanceConfig().create_preset('fast')              # For speed
 config = PerformanceConfig().create_preset('balanced')          # Balanced approach
@@ -179,10 +223,11 @@ The framework includes comprehensive validation experiments:
 - Preprocessing strategy comparison
 - Multi-view data alignment validation
 
-### Method Comparison  
+### Method Comparison
 
 - SGFA variants (sparse vs group vs standard)
 - Traditional methods (PCA, ICA, Factor Analysis)
+- SGFA parameter comparison and optimization
 - Scalability and performance benchmarking
 
 ### Clinical Validation
@@ -195,24 +240,20 @@ The framework includes comprehensive validation experiments:
 ### Run Experiments
 
 ```bash
-# Run comprehensive validation
-python -m experiments.run_all_experiments
+# Run specific experiments directly
+python -c "
+from experiments import DataValidationExperiments, ExperimentConfig
+config = ExperimentConfig(output_dir='./results')
+validator = DataValidationExperiments(config)
+# Add your data and run experiments
+"
 
-# Run specific experiment
-python -c "from experiments import DataValidationExperiments; ..."
-```
-
-## Running on Colab (GPU)
-
-For GPU-accelerated training:
-
-1. Open `run-Colab_GPU.ipynb` in Google Colab
-2. Go to Runtime → Change runtime type → Select GPU hardware accelerator
-3. Run the setup cells to configure the environment
-4. Train the model:
-
-```bash
-!py310cuda run_analysis.py --device gpu --K 5 --sparsity_level 0.3
+# Or use the experiment runner
+python -c "
+from experiments.framework import ExperimentRunner
+runner = ExperimentRunner('./results')
+# Configure and run experiments
+"
 ```
 
 ## Testing
@@ -227,9 +268,11 @@ pytest
 pytest --cov=. --cov-report=html
 
 # Run specific test modules
-pytest tests/test_data/
-pytest tests/test_analysis/
-pytest tests/test_performance/
+pytest tests/data/
+pytest tests/analysis/
+pytest tests/models/
+pytest tests/experiments/
+pytest tests/visualization/
 ```
 
 ## Configuration
@@ -237,11 +280,21 @@ pytest tests/test_performance/
 ### Basic Configuration
 
 ```python
-from analysis.config_manager import ConfigManager
+from core.config_utils import get_default_configuration, validate_configuration
+import yaml
 
-config = ConfigManager()
-config.set_model_params(K=5, sparsity_level=0.3)
-config.set_mcmc_params(num_samples=1000, num_chains=4)
+# Get default configuration
+config = get_default_configuration()
+
+# Modify as needed
+config['model']['K'] = 5
+config['model']['sparsity_lambda'] = 0.3
+config['model']['num_samples'] = 1000
+config['model']['num_chains'] = 4
+
+# Validate configuration
+if validate_configuration(config):
+    print("Configuration is valid!")
 ```
 
 ### Performance Configuration
@@ -276,7 +329,7 @@ mcmc:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## References
 
