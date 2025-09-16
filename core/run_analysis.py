@@ -475,6 +475,92 @@ if __name__ == "__main__":
     numpyro.set_platform(args.device)
     numpyro.set_host_device_count(args.num_chains)
     
+def run_sgfa_analysis(X_list, K=5, sparsity_level=0.3, num_samples=2000, num_warmup=1000,
+                      num_chains=1, output_dir='./results', **kwargs):
+    """
+    Simple wrapper function for running SGFA analysis.
+
+    Parameters
+    ----------
+    X_list : List[np.ndarray]
+        List of data matrices
+    K : int, optional
+        Number of factors
+    sparsity_level : float, optional
+        Sparsity level for factor loadings
+    num_samples : int, optional
+        Number of MCMC samples
+    num_warmup : int, optional
+        Number of warmup samples
+    num_chains : int, optional
+        Number of MCMC chains
+    output_dir : str, optional
+        Output directory
+    **kwargs
+        Additional arguments
+
+    Returns
+    -------
+    dict
+        Analysis results
+    """
+    import argparse
+    from pathlib import Path
+
+    # Create args object for main function
+    args = argparse.Namespace()
+    args.K = K
+    args.percW = sparsity_level
+    args.num_samples = num_samples
+    args.num_warmup = num_warmup
+    args.num_chains = num_chains
+    args.output_dir = Path(output_dir)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Set default args
+    args.data_dir = kwargs.get('data_dir', './data')
+    args.num_grid_search = kwargs.get('num_grid_search', 0)
+    args.num_cv_folds = kwargs.get('num_cv_folds', 5)
+    args.disable_cv = kwargs.get('disable_cv', True)  # Disable CV for simple API
+    args.cv_type = kwargs.get('cv_type', 'standard')
+    args.disable_visualization = kwargs.get('disable_visualization', False)
+    args.disable_neuroimaging = kwargs.get('disable_neuroimaging', True)
+    args.seed = kwargs.get('seed', 42)
+
+    # Store X_list for the analysis
+    # We'll need to save it temporarily and reference it
+    import tempfile
+    import numpy as np
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Save data temporarily
+        for i, X in enumerate(X_list):
+            np.save(temp_path / f'data_view_{i}.npy', X)
+
+        args.data_dir = str(temp_path)
+        args.load_synthetic_data = False
+
+        try:
+            # Run main analysis
+            main(args)
+
+            # Load and return results
+            results_file = args.output_dir / 'analysis_results.json'
+            if results_file.exists():
+                import json
+                with open(results_file, 'r') as f:
+                    return json.load(f)
+            else:
+                return {'status': 'completed', 'output_dir': str(args.output_dir)}
+
+        except Exception as e:
+            logging.error(f"SGFA analysis failed: {e}")
+            return {'status': 'failed', 'error': str(e)}
+
+
+if __name__ == "__main__":
     # Error and stoppage handling
     try:
         main(args)

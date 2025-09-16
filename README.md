@@ -95,8 +95,12 @@ pytest --cov=. --cov-report=html
 from core.get_data import qmap_pd, generate_synthetic_data
 from core.run_analysis import run_sgfa_analysis
 
-# Load data
-X_list, metadata = qmap_pd()  # Or generate_synthetic_data()
+# Load data - Option 1: Real qMAP-PD data
+# X_list, metadata = qmap_pd(data_dir='path/to/data')
+
+# Load data - Option 2: Synthetic data
+data = generate_synthetic_data(num_sources=3, K=5)
+X_list = data['X_list']
 
 # Run SGFA analysis
 results = run_sgfa_analysis(X_list, K=5, sparsity_level=0.3)
