@@ -328,22 +328,17 @@ class MethodComparisonExperiments(ExperimentFramework):
                 reghsZ=args.get('reghsZ', True)
             )
 
-            # Apply gradient checkpointing for memory efficiency
-            checkpointed_models = jax.checkpoint(
-                models,
-                policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable
-            )
-
-            # Setup MCMC
+            # Setup MCMC - we'll apply checkpointing at a lower level in the performance module
             rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
-            kernel = NUTS(checkpointed_models, target_accept_prob=args.get('target_accept_prob', 0.8))
+            kernel = NUTS(models, target_accept_prob=args.get('target_accept_prob', 0.8))
             mcmc = MCMC(
                 kernel,
                 num_warmup=num_warmup,
                 num_samples=num_samples,
                 num_chains=num_chains,
-                # Reduce memory footprint by not keeping samples in device memory
-                progress_bar=False  # Reduces memory usage
+                # Memory efficiency options
+                progress_bar=False,  # Reduces memory usage
+                chain_method='sequential'  # Use sequential chains to reduce GPU memory
             )
 
             # Run inference
@@ -401,6 +396,9 @@ class MethodComparisonExperiments(ExperimentFramework):
 
         except Exception as e:
             self.logger.error(f"SGFA variant training failed: {str(e)}")
+            # Clear memory even on failure
+            jax.clear_caches()
+            gc.collect()
             return {
                 'error': str(e),
                 'convergence': False,
