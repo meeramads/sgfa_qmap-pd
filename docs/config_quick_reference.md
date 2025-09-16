@@ -56,6 +56,7 @@ system:
 ## Quick Start Configurations
 
 ### Development (Fast)
+
 ```yaml
 model:
   K: 3
@@ -64,6 +65,7 @@ model:
 ```
 
 ### Research (Balanced)
+
 ```yaml
 model:
   K: 5
@@ -73,6 +75,7 @@ model:
 ```
 
 ### Production (Robust)
+
 ```yaml
 model:
   K: 8

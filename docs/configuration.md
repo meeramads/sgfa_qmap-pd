@@ -33,9 +33,11 @@ data:
 ```
 
 **Required Fields**:
+
 - `data_dir`: Path to root data directory (must exist)
 
 **Optional Fields**:
+
 - `clinical_file`: Relative path to clinical data TSV file
 - `volume_dir`: Relative path to volume matrices directory
 - `imaging_as_single_view`: Whether to treat all imaging data as single view
@@ -53,9 +55,11 @@ experiments:
 ```
 
 **Required Fields**:
+
 - `base_output_dir`: Directory for saving all experiment results
 
 **Optional Fields**:
+
 - `save_intermediate`: Save intermediate analysis results
 - `generate_plots`: Generate visualization plots
 - `max_parallel_jobs`: Number of experiments to run in parallel (1-16)
@@ -77,13 +81,16 @@ model:
 ```
 
 **Required Fields**:
+
 - `model_type`: Model type (`"sparse_gfa"` or `"standard_gfa"`)
 - `K`: Number of latent factors (1-50 recommended)
 
 **Conditionally Required Fields**:
+
 - `sparsity_lambda`: Required for `sparse_gfa` model type (≥0, typically 0.01-1.0)
 
 **Optional Fields**:
+
 - `num_samples`: Number of MCMC samples (10-50000, default: 1000)
 - `num_warmup`: Number of warmup steps (10 to num_samples-1, default: 500)
 - `num_chains`: Number of MCMC chains (1-8, default: 2)
@@ -110,6 +117,7 @@ preprocessing:
 **All fields are optional with sensible defaults.**
 
 **Field Options**:
+
 - `strategy`: `"minimal"`, `"standard"`, `"advanced"`, `"clinical_focused"`
 - `imputation_strategy`: `"mean"`, `"median"`, `"mode"`, `"drop"`
 - `feature_selection_method`: `"variance"`, `"correlation"`, `"mutual_info"`, `"none"`
@@ -132,6 +140,7 @@ cross_validation:
 **All fields are optional with sensible defaults.**
 
 **Field Constraints**:
+
 - `n_folds`: 2-20 (recommended: 5-10)
 - `n_repeats`: 1-10 (recommended: 1-3)
 - `random_seed`: ≥0
@@ -151,6 +160,7 @@ monitoring:
 **All fields are optional with sensible defaults.**
 
 **Field Options**:
+
 - `log_level`: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"`, `"CRITICAL"`
 - `checkpoint_interval`: ≥1 (how often to save checkpoints)
 
@@ -168,6 +178,7 @@ system:
 **All fields are optional with automatic detection.**
 
 **Field Constraints**:
+
 - `memory_limit_gb`: >0 (reasonable values: 2-1000)
 - `n_cpu_cores`: ≥1 (should not exceed system cores)
 
