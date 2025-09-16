@@ -940,7 +940,7 @@ def example_custom_plotting():
 
     print(f"  ✅ Created custom factor analysis plot")
 
-    # Example 2: Publication-ready figure
+    # Example 2: Detailed figure
     fig = plt.figure(figsize=(16, 12))
     gs = fig.add_gridspec(3, 4, hspace=0.3, wspace=0.3)
 
@@ -1013,15 +1013,15 @@ def example_custom_plotting():
         y=0.95,
     )
 
-    save_plot(output_dir / "publication_ready_figure.png")
+    save_plot(output_dir / "detailed_figure.png")
     plt.close()
 
-    print(f"  ✅ Created publication-ready figure")
+    print(f"  ✅ Created detailed figure")
 
     return {
         "output_dir": output_dir,
         "custom_colors": factor_colors,
-        "plots_created": ["custom_factor_analysis", "publication_figure"],
+        "plots_created": ["custom_factor_analysis", "detailed_figure"],
     }
 
 
@@ -1056,7 +1056,7 @@ if __name__ == "__main__":
         )
         print(f"• Comprehensive report: {report_results['report_path']}")
         print(
-            f"• Custom styling: {len(custom_results['plots_created'])} publication-ready plots"
+            f"• Custom styling: {len(custom_results['plots_created'])} detailed plots"
         )
         print(f"• All outputs saved to: {factor_results['output_dir']}")
 

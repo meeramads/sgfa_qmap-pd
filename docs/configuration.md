@@ -364,7 +364,7 @@ preprocessing:
 
 - **Development**: 100-500 samples, 1-2 chains
 - **Research**: 1000-5000 samples, 2-4 chains
-- **Publication**: 5000+ samples, 4 chains
+- **High-quality results**: 5000+ samples, 4 chains
 
 ### 3. Cross-Validation
 
