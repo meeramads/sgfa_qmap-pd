@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 from core.config_utils import (ConfigAccessor, get_output_dir, ensure_directories, safe_get,
                                validate_configuration, check_configuration_warnings)
 from experiments.data_validation import run_data_validation
-from experiments.method_comparison import run_method_comparison
+from experiments.sgfa_parameter_comparison import run_method_comparison
 from experiments.performance_benchmarks import run_performance_benchmarks
 from experiments.sensitivity_analysis import run_sensitivity_analysis
 from experiments.clinical_validation import run_clinical_validation

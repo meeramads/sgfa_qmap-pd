@@ -1,4 +1,4 @@
-"""Method comparison experiments for SGFA qMAP-PD analysis."""
+"""SGFA parameter comparison experiments for qMAP-PD analysis."""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,8 +20,8 @@ import warnings
 from experiments.framework import ExperimentFramework, ExperimentConfig, ExperimentResult
 from performance import PerformanceProfiler
 
-class MethodComparisonExperiments(ExperimentFramework):
-    """Comprehensive method comparison experiments for SGFA analysis."""
+class SGFAParameterComparison(ExperimentFramework):
+    """SGFA parameter comparison experiments for K and percW optimization."""
     
     def __init__(self, config: ExperimentConfig, logger: Optional[logging.Logger] = None):
         # ExperimentFramework expects base_output_dir, not config
@@ -1060,10 +1060,10 @@ def run_method_comparison(config):
             logger.info(f"   Reason: {preprocessing_info.get('strategy_selection', {}).get('reason', 'not specified')}")
 
             # Now run actual method comparison experiments
-            logger.info("🔬 Starting actual SGFA model comparison experiments...")
+            logger.info("🔬 Starting SGFA parameter comparison experiments...")
 
-            # Create method comparison experiment instance
-            method_exp = MethodComparisonExperiments(exp_config, logger)
+            # Create SGFA parameter comparison experiment instance
+            method_exp = SGFAParameterComparison(exp_config, logger)
 
             # Setup hyperparameters for comparison
             comparison_hypers = {
@@ -1160,8 +1160,8 @@ def run_method_comparison(config):
                 'traditional_methods': traditional_results
             }
 
-            logger.info("🔬 Method comparison experiments completed!")
-            logger.info(f"   SGFA variants tested: {len(model_results)}")
+            logger.info("🔬 SGFA parameter comparison experiments completed!")
+            logger.info(f"   SGFA parameter variants tested: {len(model_results)}")
             logger.info(f"   Traditional methods tested: {len(traditional_results)}")
             logger.info(f"   Total execution time: {sum(m.get('execution_time', 0) for m in performance_metrics.values()):.1f}s")
 
