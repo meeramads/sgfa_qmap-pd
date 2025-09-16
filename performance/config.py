@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 import json
 import psutil
+from core.io_utils import save_json
 
 logger = logging.getLogger(__name__)
 
@@ -264,8 +265,7 @@ class PerformanceConfig:
             with open(filepath, 'w') as f:
                 yaml.dump(config_dict, f, default_flow_style=False, indent=2)
         elif format.lower() == "json":
-            with open(filepath, 'w') as f:
-                json.dump(config_dict, f, indent=2)
+            save_json(config_dict, filepath)
         else:
             raise ValueError(f"Unsupported format: {format}")
         

@@ -37,6 +37,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+from core.io_utils import save_json
 
 # Scientific computing imports
 from sklearn.model_selection import (
@@ -664,9 +665,9 @@ class NeuroImagingCrossValidator:
         
         # Import run_analysis for MCMC inference
         try:
-            import run_analysis as RA
+            from core import run_analysis as RA
         except ImportError:
-            raise ImportError("run_analysis module required for neuroimaging CV")
+            raise ImportError("core.run_analysis module required for neuroimaging CV")
         
         # Run MCMC inference
         rng = jrandom.PRNGKey(self.config.random_state + fold_id)
@@ -1196,7 +1197,7 @@ class NeuroImagingCrossValidator:
                         hypers_eval['Dm'] = [X.shape[1] for X in X_subset]
                         
                         # Quick MCMC run
-                        import run_analysis as RA
+                        from core import run_analysis as RA
                         rng = jrandom.PRNGKey(self.config.random_state + i)
                         mcmc = RA.run_inference(RA.models, args_eval, rng, X_subset, hypers_eval)
                         samples = mcmc.get_samples()
@@ -1265,9 +1266,8 @@ class NeuroImagingCrossValidator:
             for key in ['W', 'Z', 'cluster_labels']:
                 if key in fold_result and isinstance(fold_result[key], np.ndarray):
                     fold_result[key] = fold_result[key].tolist()
-        
-        with open(results_path, 'w') as f:
-            json.dump(results_json, f, indent=2, default=str)
+
+        save_json(results_json, results_path)
         
         # Create detailed summary report
         summary_path = output_dir / f"{run_name}_neuroimaging_summary.txt"

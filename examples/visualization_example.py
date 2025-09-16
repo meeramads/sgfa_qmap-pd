@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from core.io_utils import save_plot
+from core.io_utils import save_plot, save_json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -720,9 +720,7 @@ def example_comprehensive_report():
         }
     }
 
-    import json
-    with open(output_dir / "analysis_summary.json", 'w') as f:
-        json.dump(summary_stats, f, indent=2)
+    save_json(summary_stats, output_dir / "analysis_summary.json")
 
     print(f"  ✅ Generated summary statistics: analysis_summary.json")
 

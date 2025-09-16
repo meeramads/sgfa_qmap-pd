@@ -12,6 +12,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from pathlib import Path
+from core.io_utils import save_json
 
 logger = logging.getLogger(__name__)
 
@@ -278,29 +279,27 @@ class MemoryOptimizer:
     def save_memory_profile(self, filepath: Union[str, Path]):
         """Save memory profile to file."""
         report = self.get_memory_report()
-        
-        import json
-        with open(filepath, 'w') as f:
-            # Convert numpy types to native Python types for JSON serialization
-            def convert_numpy(obj):
-                if isinstance(obj, np.integer):
-                    return int(obj)
-                elif isinstance(obj, np.floating):
-                    return float(obj)
-                elif isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                return obj
-            
-            # Recursively convert numpy types
-            def deep_convert(obj):
-                if isinstance(obj, dict):
-                    return {k: deep_convert(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
-                    return [deep_convert(v) for v in obj]
-                else:
-                    return convert_numpy(obj)
-            
-            json.dump(deep_convert(report), f, indent=2)
+
+        # Convert numpy types to native Python types for JSON serialization
+        def convert_numpy(obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return obj
+
+        # Recursively convert numpy types
+        def deep_convert(obj):
+            if isinstance(obj, dict):
+                return {k: deep_convert(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [deep_convert(v) for v in obj]
+            else:
+                return convert_numpy(obj)
+
+        save_json(deep_convert(report), filepath)
         
         logger.info(f"Memory profile saved to {filepath}")
 

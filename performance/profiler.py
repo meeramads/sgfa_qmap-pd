@@ -13,6 +13,7 @@ import json
 import psutil
 import gc
 from dataclasses import dataclass, asdict
+from core.io_utils import save_json, save_csv
 
 logger = logging.getLogger(__name__)
 
@@ -261,11 +262,10 @@ class PerformanceProfiler:
         report = self.generate_report()
         
         if format == 'json':
-            with open(filepath, 'w') as f:
-                json.dump(report, f, indent=2, default=str)
+            save_json(report, filepath)
         elif format == 'csv':
             df = pd.DataFrame([m.to_dict() for m in self.metrics_history])
-            df.to_csv(filepath, index=False)
+            save_csv(df, filepath)
         else:
             raise ValueError(f"Unsupported format: {format}")
         

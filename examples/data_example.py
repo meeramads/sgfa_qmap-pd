@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+from core.io_utils import save_json, save_csv, save_numpy
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -583,12 +584,12 @@ def example_data_export_and_formats():
     # 1. NumPy format (.npy)
     print(f"\n💾 Exporting in NumPy format...")
     for i, X in enumerate(X_list):
-        np.save(export_dir / f"data_view_{i}.npy", X)
+        save_numpy(X, export_dir / f"data_view_{i}.npy")
         print(f"  ✅ Saved view {i}: {X.shape}")
 
-    np.save(export_dir / "true_factors.npy", Z_true)
+    save_numpy(Z_true, export_dir / "true_factors.npy")
     for i, W in enumerate(W_true):
-        np.save(export_dir / f"true_loadings_view_{i}.npy", W)
+        save_numpy(W, export_dir / f"true_loadings_view_{i}.npy")
 
     # 2. CSV format (for smaller datasets or inspection)
     print(f"\n📊 Exporting in CSV format...")
@@ -598,7 +599,7 @@ def example_data_export_and_formats():
         subject_names = [f"Subject_{j+1}" for j in range(X.shape[0])]
 
         df = pd.DataFrame(X, columns=feature_names, index=subject_names)
-        df.to_csv(export_dir / f"data_view_{i}.csv")
+        save_csv(df, export_dir / f"data_view_{i}.csv")
         print(f"  ✅ Saved view {i} CSV: {df.shape}")
 
     # Factor scores as CSV
@@ -606,7 +607,7 @@ def example_data_export_and_formats():
     subject_names = [f"Subject_{j+1}" for j in range(Z_true.shape[0])]
 
     factor_df = pd.DataFrame(Z_true, columns=factor_names, index=subject_names)
-    factor_df.to_csv(export_dir / "true_factors.csv")
+    save_csv(factor_df, export_dir / "true_factors.csv")
     print(f"  ✅ Saved factors CSV: {factor_df.shape}")
 
     # 3. HDF5 format (efficient for large datasets)
@@ -697,9 +698,7 @@ def example_data_export_and_formats():
         ]
     }
 
-    import json
-    with open(export_dir / "data_summary.json", 'w') as f:
-        json.dump(data_summary, f, indent=2)
+    save_json(data_summary, export_dir / "data_summary.json")
 
     # Create README
     readme_content = f"""# Exported Dataset

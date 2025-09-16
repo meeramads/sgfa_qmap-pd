@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 import yaml
 from core.config_utils import safe_get, get_output_dir, get_data_dir, ConfigAccessor
+from core.io_utils import save_json, save_numpy
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -560,8 +561,8 @@ def example_saving_and_loading():
 
     # 2. Save posterior means (numpy)
     import numpy as np
-    np.save(save_dir / "W_mean.npy", result['W_mean'])
-    np.save(save_dir / "Z_mean.npy", result['Z_mean'])
+    save_numpy(result['W_mean'], save_dir / "W_mean.npy")
+    save_numpy(result['Z_mean'], save_dir / "Z_mean.npy")
     print(f"✅ Saved posterior means: W_mean.npy, Z_mean.npy")
 
     # 3. Save configuration and hyperparameters (JSON)
@@ -574,8 +575,7 @@ def example_saving_and_loading():
     }
 
     config_file = save_dir / "model_config.json"
-    with open(config_file, 'w') as f:
-        json.dump(config_dict, f, indent=2)
+    save_json(config_dict, config_file)
     print(f"✅ Saved configuration: {config_file}")
 
     # 4. Create a summary report
@@ -597,8 +597,7 @@ def example_saving_and_loading():
     }
 
     summary_file = save_dir / "model_summary.json"
-    with open(summary_file, 'w') as f:
-        json.dump(summary, f, indent=2)
+    save_json(summary, summary_file)
     print(f"✅ Saved summary: {summary_file}")
 
     # Demonstrate loading

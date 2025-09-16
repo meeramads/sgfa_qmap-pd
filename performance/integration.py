@@ -10,6 +10,7 @@ from .memory_optimizer import MemoryOptimizer, memory_efficient
 from .data_streaming import ChunkedDataLoader, memory_efficient_data_context
 from .mcmc_optimizer import MCMCMemoryOptimizer
 from .profiler import PerformanceProfiler, benchmark_function
+from core.io_utils import save_json
 
 logger = logging.getLogger(__name__)
 
@@ -158,10 +159,8 @@ class PerformanceManager:
     def save_performance_report(self, filepath: Path):
         """Save performance report to file."""
         report = self.generate_performance_report()
-        
-        import json
-        with open(filepath, 'w') as f:
-            json.dump(report, f, indent=2, default=str)
+
+        save_json(report, filepath)
         
         logger.info(f"Performance report saved to {filepath}")
     
