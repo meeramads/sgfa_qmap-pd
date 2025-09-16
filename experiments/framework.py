@@ -760,9 +760,9 @@ class ExperimentRunner:
                             base_config: ExperimentConfig,
                             methods: List[str]) -> List[ExperimentResult]:
         """Run method comparison experiment."""
-        from experiments.method_comparison import MethodComparisonExperiments
-        
-        comparison_exp = MethodComparisonExperiments(self.framework)
+        from experiments.model_comparison import ModelArchitectureComparison
+
+        comparison_exp = ModelArchitectureComparison(self.framework)
         return comparison_exp.compare_methods(base_config, methods)
     
     def run_reproducibility_test(self,

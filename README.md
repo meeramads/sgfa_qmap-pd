@@ -92,8 +92,8 @@ pytest --cov=. --cov-report=html
 ### Basic Analysis
 
 ```python
-from get_data import qmap_pd, generate_synthetic_data
-from run_analysis import run_sgfa_analysis
+from core.get_data import qmap_pd, generate_synthetic_data
+from core.run_analysis import run_sgfa_analysis
 
 # Load data
 X_list, metadata = qmap_pd()  # Or generate_synthetic_data()

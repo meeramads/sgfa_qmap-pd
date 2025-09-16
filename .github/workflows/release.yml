@@ -165,8 +165,8 @@ jobs:
         
         ## Quick Start
         \`\`\`python
-        from get_data import generate_synthetic_data
-        from run_analysis import run_sgfa_analysis
+        from core.get_data import generate_synthetic_data
+        from core.run_analysis import run_sgfa_analysis
         
         # Generate synthetic data
         data = generate_synthetic_data(num_sources=3, K=5)

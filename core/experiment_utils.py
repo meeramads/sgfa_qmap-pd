@@ -82,7 +82,7 @@ class SGFARunner:
             logger.info(f"Starting {experiment_name} with {len(X_list)} datasets")
 
             # Set up SGFA model and inference
-            from models.sgfa_model import SGFAModel
+            from models.sparse_gfa import SparseGFAModel as SGFAModel
 
             # Create model instance
             model = SGFAModel(
