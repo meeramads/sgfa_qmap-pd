@@ -10,6 +10,7 @@ For optimizing hyperparameters within sparseGFA, see experiments/sgfa_parameter_
 import gc
 import logging
 import time
+from datetime import datetime
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
@@ -173,13 +174,14 @@ class ModelArchitectureComparison(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="model_architecture_comparison",
+            experiment_id="model_architecture_comparison",
             config=self.config,
-            data=results,
-            analysis=analysis,
-            plots=plots,
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            status="completed",
+            model_results=results,
             performance_metrics=performance_metrics,
-            success=True,
+            plots=plots,
         )
 
     def _run_model_architecture(
@@ -368,13 +370,14 @@ class ModelArchitectureComparison(ExperimentFramework):
             plots = self._plot_traditional_comparison(results, performance_metrics)
 
             return ExperimentResult(
-                experiment_name="traditional_method_comparison",
+                experiment_id="traditional_method_comparison",
                 config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
+                start_time=datetime.now(),
+                end_time=datetime.now(),
+                status="completed",
+                model_results=results,
                 performance_metrics=performance_metrics,
-                success=True,
+                plots=plots,
             )
 
         except Exception as e:
@@ -1123,6 +1126,17 @@ class ModelArchitectureComparison(ExperimentFramework):
                     best_result = model_result
 
         return best_result
+
+    def _create_failure_result(self, experiment_name: str, error_message: str) -> ExperimentResult:
+        """Create a failure result for failed experiments."""
+        return ExperimentResult(
+            experiment_id=experiment_name,
+            config=self.config,
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            status="failed",
+            error_message=error_message,
+        )
 
 
 def run_model_comparison(config=None, **kwargs):
