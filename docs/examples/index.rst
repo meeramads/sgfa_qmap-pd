@@ -16,30 +16,47 @@ Quick Start
 
 .. code-block:: python
 
-   from data.qmap_pd import load_qmap_pd_data
-   from models.factory import create_model
-   from analysis.model_runner import ModelRunner
+   from core.get_data import generate_synthetic_data
+   from analysis import quick_sgfa_run
 
-   # Load qMAP-PD data
-   X_list = load_qmap_pd_data()
-   
-   # Create sparse GFA model
-   model = create_model('sparse_gfa', config={'K': 10, 'sparsity_level': 0.1})
-   
-   # Run MCMC inference
-   runner = ModelRunner(model)
-   results = runner.run_mcmc(X_list, num_samples=1000)
+   # Generate synthetic data
+   data = generate_synthetic_data(num_sources=3, K=5)
+   X_list = data['X_list']
+
+   # Quick SGFA analysis
+   results = quick_sgfa_run(X_list, K=5, percW=25.0)
+
+Using Analysis Pipeline Components
+----------------------------------
+
+.. code-block:: python
+
+   from analysis import create_analysis_components
+
+   # Create pipeline components
+   data_manager, model_runner = create_analysis_components({
+       'K': 5, 'num_sources': 3, 'dataset': 'synthetic'
+   })
+
+   # Load and prepare data
+   data = data_manager.load_data()
+   X_list, hypers = data_manager.prepare_for_analysis(data)
+
+   # Run analysis
+   results = model_runner.run_standard_analysis(X_list, hypers, data)
 
 Model Comparison
 ----------------
 
 .. code-block:: python
 
-   from experiments.method_comparison import MethodComparisonExperiments
-   
+   from experiments.model_comparison import ModelArchitectureComparison
+   from experiments.framework import ExperimentConfig
+
    # Compare different GFA variants
-   exp = MethodComparisonExperiments(config)
-   results = exp.run_gfa_variant_comparison(X_list)
+   config = ExperimentConfig(output_dir="./results")
+   exp = ModelArchitectureComparison(config)
+   results = exp.run_sgfa_variant_comparison(X_list, hypers={}, args={})
 
 Cross-Validation
 ----------------
@@ -47,7 +64,11 @@ Cross-Validation
 .. code-block:: python
 
    from analysis.cross_validation import CVRunner
-   
-   # K-fold cross-validation
-   cv = CVRunner(model, cv_type='kfold', k=5)
-   cv_results = cv.run_cv(X_list)
+
+   # Cross-validation with fallback support
+   cv_runner = CVRunner(config, results_dir="./results")
+   cv_results, cv_obj = cv_runner.run_cv_analysis(
+       X_list=X_list,
+       hypers={"percW": 25.0},
+       data={"K": 5, "model": "sparseGFA"}
+   )

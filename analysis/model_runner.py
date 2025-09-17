@@ -15,9 +15,19 @@ logger = logging.getLogger(__name__)
 class ModelRunner:
     """Handles MCMC model execution."""
 
-    def __init__(self, args, results_dir=None):
-        self.args = args
-        self.results_dir = results_dir
+    def __init__(self, config_or_args, results_dir=None):
+        # Support both old (config) and new (args, results_dir) patterns
+        if results_dir is not None:
+            # New pattern: ModelRunner(args, results_dir)
+            self.args = config_or_args
+            self.results_dir = results_dir
+            # For backward compatibility
+            self.config = config_or_args
+        else:
+            # Old pattern: ModelRunner(config)
+            self.config = config_or_args
+            self.args = config_or_args
+            self.results_dir = None
 
     def run_standard_analysis(
         self, X_list: List[np.ndarray], hypers: Dict, data: Dict

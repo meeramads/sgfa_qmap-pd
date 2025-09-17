@@ -43,3 +43,17 @@ analysis.config_manager
    :members:
    :undoc-members:
    :show-inheritance:
+
+analysis.experiment_utils
+--------------------------
+.. automodule:: analysis.experiment_utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+analysis.cv_fallbacks
+----------------------
+.. automodule:: analysis.cv_fallbacks
+   :members:
+   :undoc-members:
+   :show-inheritance:

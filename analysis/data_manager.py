@@ -12,9 +12,20 @@ logger = logging.getLogger(__name__)
 class DataManager:
     """Manages data loading and preprocessing."""
 
-    def __init__(self, args, hyperparameters_dir=None):
-        self.args = args
-        self.hyperparameters_dir = hyperparameters_dir
+    def __init__(self, config_or_args, hyperparameters_dir=None):
+        # Support both old (config) and new (args, hyperparameters_dir) patterns
+        if hyperparameters_dir is not None:
+            # New pattern: DataManager(args, hyperparameters_dir)
+            self.args = config_or_args
+            self.hyperparameters_dir = hyperparameters_dir
+            # For backward compatibility
+            self.config = config_or_args
+        else:
+            # Old pattern: DataManager(config)
+            self.config = config_or_args
+            self.args = config_or_args
+            self.hyperparameters_dir = None
+
         self.preprocessor = None
 
     def load_data(self) -> Dict:
@@ -71,6 +82,31 @@ class DataManager:
         }
 
         return X_list, hypers
+
+    def load_and_prepare_data(self, hypers: Dict) -> Tuple[List[np.ndarray], Dict, Dict]:
+        """Load data and prepare it for analysis (backward compatibility method)."""
+        # Load data
+        data = self.load_data()
+
+        # Prepare for analysis
+        X_list, prepared_hypers = self.prepare_for_analysis(data)
+
+        # Merge provided hypers with prepared hypers
+        final_hypers = {**prepared_hypers, **hypers}
+
+        return X_list, data, final_hypers
+
+    def estimate_memory_requirements(self, X_list: List[np.ndarray]) -> None:
+        """Estimate memory requirements for the analysis (backward compatibility method)."""
+        total_size = sum(X.nbytes for X in X_list)
+        total_size_gb = total_size / (1024**3)
+
+        logger.info(f"Estimated memory requirement: {total_size_gb:.2f} GB")
+
+        if total_size_gb > 8:
+            logger.warning("Large dataset detected. Consider using memory optimization.")
+        elif total_size_gb > 16:
+            logger.error("Very large dataset. Memory optimization strongly recommended.")
 
     def _log_preprocessing_results(self, preprocessing: Dict):
         """Log preprocessing results."""
