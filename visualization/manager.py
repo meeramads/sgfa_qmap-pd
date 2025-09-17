@@ -54,7 +54,11 @@ class VisualizationManager:
             self.cv_viz.create_plots(cv_results, self.plot_dir)
 
         # Brain visualizations (if applicable)
-        if self.config.create_brain_viz and analysis_results:
+        # Handle different config access patterns
+        create_brain_viz = getattr(self.config, 'create_brain_viz', None) or \
+                          self.config.get('visualization', {}).get('create_brain_viz', False)
+
+        if create_brain_viz and analysis_results:
             self.brain_viz.create_plots(analysis_results, data, self.plot_dir)
 
         # Generate comprehensive report
@@ -69,10 +73,17 @@ class VisualizationManager:
 
     def _setup_plot_directory(self) -> Path:
         """Setup directory for plots."""
-        if self.config.should_run_standard():
-            base_dir = self.config.standard_results_dir
-        else:
+        # Handle different config types gracefully
+        if hasattr(self.config, 'should_run_standard') and self.config.should_run_standard():
+            base_dir = getattr(self.config, 'standard_results_dir', Path('./results'))
+        elif hasattr(self.config, 'cv_results_dir'):
             base_dir = self.config.cv_results_dir
+        elif hasattr(self.config, 'output_dir'):
+            base_dir = self.config.output_dir
+        else:
+            # Fallback for basic ConfigAccessor or dict-like configs
+            output_dir = self.config.get("output_dir", "/tmp/model_comparison_viz")
+            base_dir = Path(output_dir)
 
         plot_dir = base_dir / "plots"
         plot_dir.mkdir(parents=True, exist_ok=True)

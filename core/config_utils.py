@@ -206,6 +206,10 @@ class ConfigAccessor:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
 
+    def get(self, key: str, default=None):
+        """Get configuration value with default fallback (dict-like interface)."""
+        return self.config.get(key, default)
+
     @property
     def data_dir(self) -> Path:
         """Get data directory."""
