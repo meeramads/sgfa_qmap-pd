@@ -996,20 +996,12 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             clinical_data = self._generate_synthetic_clinical_data(X_base[0].shape[0])
 
         # Initialize neuroimaging CV configuration
-        cv_config = NeuroImagingCVConfig(
-            n_folds=5,
-            test_size=0.2,
-            stratify_by=["diagnosis", "age_group"],
-            preserve_groups=True,
-            ensure_clinical_balance=True,
-            min_samples_per_group=10
-        )
+        cv_config = NeuroImagingCVConfig()
+        cv_config.outer_cv_folds = 5
+        # Note: Using basic config - may need to extend for clinical awareness
 
         # Initialize clinical-aware splitter
-        splitter = ClinicalAwareSplitter(
-            config=cv_config,
-            random_state=42
-        )
+        splitter = ClinicalAwareSplitter(config=cv_config)
 
         # Initialize neuroimaging metrics
         metrics_calculator = NeuroImagingMetrics()

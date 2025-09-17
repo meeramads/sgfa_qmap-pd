@@ -444,11 +444,11 @@ def main():
             }
 
         # Run clinical-aware CV benchmarks from performance_benchmarks
-        from experiments.performance_benchmarks import PerformanceBenchmarks
+        from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
         from experiments.framework import ExperimentConfig
 
         experiment_config = ExperimentConfig.from_dict(exp_config)
-        perf_exp = PerformanceBenchmarks(experiment_config)
+        perf_exp = PerformanceBenchmarkExperiments(experiment_config)
 
         results["neuroimaging_cv_benchmarks"] = perf_exp.run_clinical_aware_cv_benchmarks(
             X_base=pipeline_context.get("X_list"),

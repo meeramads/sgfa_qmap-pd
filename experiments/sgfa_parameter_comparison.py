@@ -37,18 +37,10 @@ class SGFAParameterComparison(ExperimentFramework):
         self.profiler = PerformanceProfiler()
 
         # Initialize neuroimaging hyperparameter optimizer
-        cv_config = NeuroImagingCVConfig(
-            n_folds=3,  # Reduced for hyperparameter optimization
-            test_size=0.2,
-            stratify_by=["diagnosis"] if hasattr(config, 'clinical_data') else None,
-            preserve_groups=True,
-            ensure_clinical_balance=True
-        )
-        self.hyperopt = NeuroImagingHyperOptimizer(
-            cv_config=cv_config,
-            n_trials=20,  # Manageable number for experiments
-            random_state=42
-        )
+        cv_config = NeuroImagingCVConfig()
+        cv_config.inner_cv_folds = 3  # Reduced for hyperparameter optimization
+
+        self.hyperopt = NeuroImagingHyperOptimizer(config=cv_config)
 
         # Method configurations
         self.sgfa_variants = {

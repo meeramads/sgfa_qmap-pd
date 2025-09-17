@@ -45,20 +45,11 @@ class ClinicalValidationExperiments(ExperimentFramework):
         self.profiler = PerformanceProfiler()
 
         # Initialize neuroimaging-specific cross-validation
-        self.neuroimaging_cv_config = NeuroImagingCVConfig(
-            n_folds=5,
-            test_size=0.2,
-            stratify_by=["diagnosis", "age_group", "site"],
-            preserve_groups=True,
-            ensure_clinical_balance=True,
-            min_samples_per_group=5
-        )
+        self.neuroimaging_cv_config = NeuroImagingCVConfig()
+        self.neuroimaging_cv_config.outer_cv_folds = 5
 
         # Initialize clinical-aware splitter
-        self.clinical_splitter = ClinicalAwareSplitter(
-            config=self.neuroimaging_cv_config,
-            random_state=42
-        )
+        self.clinical_splitter = ClinicalAwareSplitter(config=self.neuroimaging_cv_config)
 
         # Initialize neuroimaging metrics
         self.neuroimaging_metrics = NeuroImagingMetrics()
