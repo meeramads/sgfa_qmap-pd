@@ -76,6 +76,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 The following features have **framework infrastructure** in place but require **substantial development work**:
 
 #### **Advanced Cross-Validation (High Priority)**
+
 - **ClinicalAwareSplitter**: Clinical-aware CV splitting logic
 - **NeuroImagingMetrics**: Domain-specific evaluation metrics
 - **NeuroImagingHyperOptimizer**: Bayesian hyperparameter optimization
@@ -83,6 +84,7 @@ The following features have **framework infrastructure** in place but require **
 - **Estimated Effort**: 2-4 weeks for experienced ML developer
 
 #### **NeuroGFA Models (Research Priority)**
+
 - **neuroimaging_gfa.py**: Specialized spatial priors for neuroimaging
 - **Status**: Framework ready, requires deep neuroimaging + Bayesian expertise
 - **Estimated Effort**: 1-3 months for neuroimaging researcher
@@ -92,26 +94,29 @@ The following features have **framework infrastructure** in place but require **
 **CAUTION**: The following models have **high computational requirements**:
 
 #### **Standard GFA** (`standard_gfa.py`)
+
 - **GPU Memory**: High usage (8-16GB+ depending on data size)
 - **Recommendation**: Use sparse_gfa for most applications
 - **Alternative**: Reduce K (number of factors) or data size
 
 #### **Latent Class Analysis** (`latent_class_analysis.py`)
+
 - **GPU Memory**: Very high usage (16GB+ typical, may exceed most GPU limits)
 - **Recommendation**: Use for small datasets only or powerful GPU clusters
 - **Alternative**: Use clustering post-hoc on sparse_gfa factors
 
 #### **Safe Default**: `sparse_gfa.py`
+
 - **GPU Memory**: Moderate usage (2-8GB typical)
 - **Recommendation**: Start here for most neuroimaging applications
 - **Performance**: Excellent for PD subtype analysis
 
 ### 📋 **Planning Frameworks**
 
-<details>
-<summary><strong>Advanced CV Development Plan</strong></summary>
+#### Advanced CV Development Plan
 
 #### Phase 1: ClinicalAwareSplitter (1-2 weeks)
+
 ```python
 # Core functionality needed:
 class ClinicalAwareSplitter:
@@ -124,6 +129,7 @@ class ClinicalAwareSplitter:
 ```
 
 #### Phase 2: NeuroImagingMetrics (1-2 weeks)
+
 ```python
 # Core functionality needed:
 class NeuroImagingMetrics:
@@ -141,6 +147,7 @@ class NeuroImagingMetrics:
 ```
 
 #### Phase 3: NeuroImagingHyperOptimizer (2-3 weeks)
+
 ```python
 # Core functionality needed:
 class NeuroImagingHyperOptimizer:
@@ -155,12 +162,12 @@ class NeuroImagingHyperOptimizer:
 **Dependencies**: sklearn, optuna/hyperopt, scipy.stats
 **Testing Requirements**: Synthetic + real clinical data validation
 
-</details>
+---
 
-<details>
-<summary><strong>NeuroGFA Development Plan</strong></summary>
+#### NeuroGFA Development Plan
 
 #### Phase 1: Spatial Prior Framework (3-4 weeks)
+
 ```python
 # Core research needed:
 class NeuroImagingGFA:
@@ -172,6 +179,7 @@ class NeuroImagingGFA:
 ```
 
 #### Phase 2: Advanced Neuroimaging Features (4-6 weeks)
+
 ```python
 # Advanced functionality:
 - Atlas-based factor initialization
@@ -182,6 +190,7 @@ class NeuroImagingGFA:
 ```
 
 #### Phase 3: Clinical Integration (2-3 weeks)
+
 ```python
 # Clinical neuroimaging integration:
 - Disease progression modeling
@@ -192,8 +201,6 @@ class NeuroImagingGFA:
 
 **Dependencies**: nibabel, nilearn, advanced Bayesian modeling, neuroimaging expertise
 **Data Requirements**: Multi-modal neuroimaging datasets with anatomical atlases
-
-</details>
 
 ## Installation
 
