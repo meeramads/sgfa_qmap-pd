@@ -1168,8 +1168,7 @@ def run_model_comparison(config=None, **kwargs):
         view_dims = [X.shape[1] for X in X_list]
         n_subjects = X_list[0].shape[0]
         logger.info(
-            f"   → Data shape: {n_subjects} subjects, {
-                len(X_list)} views with dims {view_dims}"
+            f" → Data shape: {n_subjects} subjects, { len(X_list)} views with dims {view_dims}"
         )
     else:
         logger.info("   → Loading fresh data (no shared data available)")
@@ -1182,9 +1181,7 @@ def run_model_comparison(config=None, **kwargs):
     # Use optimal SGFA parameters if available
     if optimal_sgfa_params:
         logger.info(
-            f"   → Using optimal SGFA parameters: K={
-                optimal_sgfa_params['K']}, percW={
-                optimal_sgfa_params['percW']}"
+            f" → Using optimal SGFA parameters: K={ optimal_sgfa_params['K']}, percW={ optimal_sgfa_params['percW']}"
         )
         optimal_K = optimal_sgfa_params["K"]
         optimal_percW = optimal_sgfa_params["percW"]

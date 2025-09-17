@@ -395,8 +395,7 @@ class ConfigurationValidator:
 
             if system_memory and estimated_memory > system_memory:
                 errors.append(
-                    f"Estimated memory requirement ({
-                        estimated_memory:.1f}GB) exceeds system limit ({system_memory}GB)"
+                    f"Estimated memory requirement ({ estimated_memory:.1f}GB) exceeds system limit ({system_memory}GB)"
                 )
 
         return errors

@@ -160,9 +160,7 @@ def _create_cv_configuration(config: Dict, has_clinical_data: bool) -> Any:
         cv_config.enable_early_stopping = True
 
         logger.info(
-            f"CV configuration created: {
-                cv_config.outer_cv_folds} outer × {
-                cv_config.inner_cv_folds} inner folds"
+            f"CV configuration created: { cv_config.outer_cv_folds} outer × { cv_config.inner_cv_folds} inner folds"
         )
 
         return cv_config
@@ -183,9 +181,7 @@ def _load_clinical_data(data_dir: str) -> Optional[Any]:
         if "clinical_data" in data and data["clinical_data"] is not None:
             clinical_data = data["clinical_data"]
             logger.info(
-                f"Clinical data loaded: {
-                    clinical_data.shape[0]} subjects, {
-                    clinical_data.shape[1]} variables"
+                f"Clinical data loaded: { clinical_data.shape[0]} subjects, { clinical_data.shape[1]} variables"
             )
             return clinical_data
         else:
@@ -470,9 +466,7 @@ def integrate_cv_with_pipeline(
         logger.info("✅ CV framework pipeline integration completed")
         if integration_summary["parameter_enhancement"]:
             logger.info(
-                f"   Parameters enhanced by CV: {
-                    integration_summary.get(
-                        'parameter_changes', [])}"
+                f" Parameters enhanced by CV: { integration_summary.get( 'parameter_changes', [])}"
             )
         else:
             logger.info("   Parameters validated by CV (no changes recommended)")

@@ -161,8 +161,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                 estimated_memory = self._estimate_memory_usage(X_scaled)
                 if estimated_memory > memory_limit * 1.5:  # 50% buffer
                     self.logger.info(
-                        f"Skipping scale {scale_factor} (estimated {
-                            estimated_memory:.2f}GB > {memory_limit}GB)"
+                        f"Skipping scale {scale_factor} (estimated { estimated_memory:.2f}GB > {memory_limit}GB)"
                     )
                     continue
 
@@ -192,8 +191,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
 
                 except Exception as e:
                     self.logger.warning(
-                        f"Memory test failed for {memory_limit}GB, scale {scale_factor}: {
-                            str(e)}"
+                        f"Memory test failed for {memory_limit}GB, scale {scale_factor}: { str(e)}"
                     )
                     constraint_results.append(
                         {
@@ -596,10 +594,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         try:
             K = hypers.get("K", 5)
             self.logger.debug(
-                f"Running SGFA benchmark: K={K}, n_subjects={
-                    X_list[0].shape[0]}, n_features={
-                    sum(
-                        X.shape[1] for X in X_list)}"
+                f"Running SGFA benchmark: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
             )
 
             # Import the actual SGFA model function
@@ -2317,8 +2312,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                             )
 
                     self.logger.info(
-                        f"✅ Created {
-                            len(plot_files)} comprehensive performance visualizations"
+                        f"✅ Created { len(plot_files)} comprehensive performance visualizations"
                     )
 
                     # Additional performance-specific summary
@@ -2633,11 +2627,7 @@ def run_performance_benchmarks(config):
                     }
                     successful_tests += 1
                     logger.info(
-                        f"✅ K={K}: {
-                            metrics.execution_time:.1f}s, LL={
-                            result.get(
-                                'log_likelihood',
-                                0):.2f}"
+                        f"✅ K={K}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                     )
                 except Exception as e:
                     logger.error(f"❌ K={K} benchmark failed: {e}")

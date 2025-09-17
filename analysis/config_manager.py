@@ -108,9 +108,7 @@ class ConfigManager:
         self._create_result_directories()
 
         logging.info(
-            f"Analysis plan: Standard={
-                self.config.run_standard}, CV={
-                self.config.run_cv}"
+            f"Analysis plan: Standard={self.config.run_standard}, CV={self.config.run_cv}"
         )
 
         return self.config
@@ -130,18 +128,9 @@ class ConfigManager:
     def _create_flag_strings(self):
         """Create flag strings for directory naming"""
         if "synthetic" in self.args.dataset:
-            self.config.flag = f"K{
-                self.args.K}_{
-                self.args.num_chains}chs_pW{
-                self.args.percW}_s{
-                self.args.num_samples}_addNoise{
-                    self.args.noise}"
+            self.config.flag = f"K{ self.args.K}_{ self.args.num_chains}chs_pW{ self.args.percW}_s{ self.args.num_samples}_addNoise{ self.args.noise}"
         else:
-            self.config.flag = f"K{
-                self.args.K}_{
-                self.args.num_chains}chs_pW{
-                self.args.percW}_s{
-                self.args.num_samples}"
+            self.config.flag = f"K{ self.args.K}_{ self.args.num_chains}chs_pW{ self.args.percW}_s{ self.args.num_samples}"
 
         if self.args.model == "sparseGFA":
             self.config.flag_regZ = "_reghsZ" if self.args.reghsZ else "_hsZ"

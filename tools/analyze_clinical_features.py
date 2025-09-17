@@ -53,15 +53,7 @@ def examine_clinical_features():
                 std = np.std(values)
                 unique_vals = len(values.unique())
                 print(
-                    f"{
-                        i +
-                        1:2d}. {
-                        col:25s}: var={
-                        var:8.4f}, std={
-                        std:6.3f}, unique={
-                        unique_vals:3d}, range=({
-                            values.min():.2f}, {
-                                values.max():.2f})"
+                    f"{ i + 1:2d}. { col:25s}: var={ var:8.4f}, std={ std:6.3f}, unique={ unique_vals:3d}, range=({ values.min():.2f}, { values.max():.2f})"
                 )
             else:
                 print(f"{i + 1:2d}. {col:25s}: ALL NaN")
@@ -82,10 +74,7 @@ def examine_clinical_features():
             n_removed = clinical_matrix.shape[1] - n_selected
 
             print(
-                f"Threshold {
-                    threshold:5.3f}: {
-                    n_selected:2d} features kept, {
-                    n_removed:2d} removed"
+                f"Threshold { threshold:5.3f}: { n_selected:2d} features kept, { n_removed:2d} removed"
             )
 
             if n_removed > 0:

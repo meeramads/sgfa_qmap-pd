@@ -304,8 +304,7 @@ def main():
                                 }
 
                                 logger.info(
-                                    f"🎯 Identified optimal SGFA parameters: {best_variant} ({
-                                        best_score:.1f}s)"
+                                    f"🎯 Identified optimal SGFA parameters: {best_variant} ({ best_score:.1f}s)"
                                 )
 
             except Exception as e:
@@ -329,8 +328,7 @@ def main():
                     "optimal_sgfa_params"
                 ]
                 logger.info(
-                    f"   → Using optimal SGFA params: {
-                        pipeline_context['optimal_sgfa_params']['variant_name']}"
+                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
                 )
 
         results["model_comparison"] = run_model_comparison(exp_config)
@@ -352,8 +350,7 @@ def main():
                     "optimal_sgfa_params"
                 ]
                 logger.info(
-                    f"   → Using optimal SGFA params: {
-                        pipeline_context['optimal_sgfa_params']['variant_name']}"
+                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
                 )
 
         results["performance_benchmarks"] = run_performance_benchmarks(exp_config)
@@ -375,8 +372,7 @@ def main():
                     "optimal_sgfa_params"
                 ]
                 logger.info(
-                    f"   → Using optimal SGFA params: {
-                        pipeline_context['optimal_sgfa_params']['variant_name']}"
+                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
                 )
 
         results["sensitivity_analysis"] = run_sensitivity_analysis(exp_config)
@@ -398,8 +394,7 @@ def main():
                     "optimal_sgfa_params"
                 ]
                 logger.info(
-                    f"   → Using optimal SGFA params: {
-                        pipeline_context['optimal_sgfa_params']['variant_name']}"
+                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
                 )
 
         results["clinical_validation"] = run_clinical_validation(exp_config)

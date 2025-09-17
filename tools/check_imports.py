@@ -84,10 +84,7 @@ class ImportChecker:
                             (
                                 node.module,
                                 node.lineno,
-                                f"from {
-                                    node.module} import {
-                                    ', '.join(
-                                        alias.name for alias in node.names)}",
+                                f"from { node.module} import { ', '.join( alias.name for alias in node.names)}",
                             )
                         )
         except Exception as e:

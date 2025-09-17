@@ -741,13 +741,7 @@ class SGFAParameterComparison(ExperimentFramework):
             )
 
             self.logger.info(
-                f"Training SGFA model with K={
-                    args.get(
-                        'K',
-                        10)}, percW={
-                    hypers.get(
-                        'percW',
-                        33)}"
+                f"Training SGFA model with K={ args.get( 'K', 10)}, percW={ hypers.get( 'percW', 33)}"
             )
 
             # Import the actual SGFA model function
@@ -827,9 +821,7 @@ class SGFAParameterComparison(ExperimentFramework):
             if len(potential_energy) > 0:
                 log_likelihood = -np.mean(potential_energy)
                 self.logger.debug(
-                    f"Potential energy stats: mean={
-                        np.mean(potential_energy):.3f}, std={
-                        np.std(potential_energy):.3f}"
+                    f"Potential energy stats: mean={ np.mean(potential_energy):.3f}, std={ np.std(potential_energy):.3f}"
                 )
             else:
                 log_likelihood = float("nan")  # Indicate missing data
@@ -853,9 +845,7 @@ class SGFAParameterComparison(ExperimentFramework):
                 start_idx = end_idx
 
             self.logger.info(
-                f"SGFA training completed in {
-                    elapsed:.2f}s, log_likelihood: {
-                    log_likelihood:.3f}"
+                f"SGFA training completed in { elapsed:.2f}s, log_likelihood: { log_likelihood:.3f}"
             )
 
             result = {
@@ -1688,117 +1678,53 @@ def run_method_comparison(config):
             # Log integration summaries
             logger.info("🧠 MODELS FRAMEWORK SUMMARY:")
             logger.info(
-                f"   Framework: {
-                    models_summary.get(
-                        'integration_summary',
-                        {}).get(
-                        'framework_type',
-                        'unknown')}"
+                f" Framework: { models_summary.get( 'integration_summary', {}).get( 'framework_type', 'unknown')}"
             )
             logger.info(f"   Model type: {models_summary.get('model_type', 'unknown')}")
             logger.info(
-                f"   Model factory: {
-                    models_summary.get(
-                        'integration_summary',
-                        {}).get(
-                        'model_factory',
-                        'unknown')}"
+                f" Model factory: { models_summary.get( 'integration_summary', {}).get( 'model_factory', 'unknown')}"
             )
             logger.info(
-                f"   Model instance: {
-                    models_summary.get(
-                        'integration_summary',
-                        {}).get(
-                        'model_instance',
-                        'unknown')}"
+                f" Model instance: { models_summary.get( 'integration_summary', {}).get( 'model_instance', 'unknown')}"
             )
             logger.info(
-                f"   Available models: {
-                    ', '.join(
-                        models_summary.get(
-                            'integration_summary',
-                            {}).get(
-                            'available_models',
-                            []))}"
+                f" Available models: { ', '.join( models_summary.get( 'integration_summary', {}).get( 'available_models', []))}"
             )
             logger.info(
-                f"   Features: {', '.join([f'{k}={v}' for k, v in models_summary.get(
-                'integration_summary', {}).get('features', {}).items()])}"
+                f" Features: {', '.join([f'{k}={v}' for k, v in models_summary.get( 'integration_summary', {}).get('features', {}).items()])}"
             )
 
             logger.info("📊 ANALYSIS FRAMEWORK SUMMARY:")
             logger.info(
-                f"   Framework: {
-                    analysis_summary.get(
-                        'integration_summary',
-                        {}).get(
-                        'framework_type',
-                        'unknown')}"
+                f" Framework: { analysis_summary.get( 'integration_summary', {}).get( 'framework_type', 'unknown')}"
             )
             logger.info(
-                f"   DataManager: {
-                    analysis_summary.get(
-                        'integration_summary',
-                        {}).get(
-                        'data_manager',
-                        'unknown')}"
+                f" DataManager: { analysis_summary.get( 'integration_summary', {}).get( 'data_manager', 'unknown')}"
             )
             logger.info(
-                f"   ModelRunner: {
-                    analysis_summary.get(
-                        'integration_summary',
-                        {}).get(
-                        'model_runner',
-                        'unknown')}"
+                f" ModelRunner: { analysis_summary.get( 'integration_summary', {}).get( 'model_runner', 'unknown')}"
             )
             logger.info(
-                f"   Components: {
-                    ', '.join(
-                        analysis_summary.get(
-                            'integration_summary',
-                            {}).get(
-                            'components',
-                            []))}"
+                f" Components: { ', '.join( analysis_summary.get( 'integration_summary', {}).get( 'components', []))}"
             )
             logger.info(
-                f"   Dependencies: {', '.join([f'{k}={v}' for k, v in analysis_summary.get(
-                'integration_summary', {}).get('dependencies', {}).items()])}"
+                f" Dependencies: {', '.join([f'{k}={v}' for k, v in analysis_summary.get( 'integration_summary', {}).get('dependencies', {}).items()])}"
             )
 
             logger.info("⚡ PERFORMANCE OPTIMIZATION SUMMARY:")
             logger.info(
-                f"   Strategy: {
-                    performance_summary.get(
-                        'strategy_selection',
-                        {}).get(
-                        'selected_strategy',
-                        'unknown')}"
+                f" Strategy: { performance_summary.get( 'strategy_selection', {}).get( 'selected_strategy', 'unknown')}"
             )
             logger.info(
-                f"   Framework: {
-                    performance_summary.get(
-                        'integration_summary',
-                        {}).get(
-                        'framework_type',
-                        'unknown')}"
+                f" Framework: { performance_summary.get( 'integration_summary', {}).get( 'framework_type', 'unknown')}"
             )
 
             logger.info("🔧 PREPROCESSING INTEGRATION SUMMARY:")
             logger.info(
-                f"   Strategy: {
-                    preprocessing_info.get(
-                        'strategy_selection',
-                        {}).get(
-                        'selected_strategy',
-                        'unknown')}"
+                f" Strategy: { preprocessing_info.get( 'strategy_selection', {}).get( 'selected_strategy', 'unknown')}"
             )
             logger.info(
-                f"   Reason: {
-                    preprocessing_info.get(
-                        'strategy_selection',
-                        {}).get(
-                        'reason',
-                        'not specified')}"
+                f" Reason: { preprocessing_info.get( 'strategy_selection', {}).get( 'reason', 'not specified')}"
             )
 
             # Now run actual method comparison experiments
@@ -1914,11 +1840,7 @@ def run_method_comparison(config):
             logger.info(f"   SGFA parameter variants tested: {len(model_results)}")
             logger.info(f"   Traditional methods tested: {len(traditional_results)}")
             logger.info(
-                f"   Total execution time: {
-                    sum(
-                        m.get(
-                            'execution_time',
-                            0) for m in performance_metrics.values()):.1f}s"
+                f" Total execution time: { sum( m.get( 'execution_time', 0) for m in performance_metrics.values()):.1f}s"
             )
 
             return {

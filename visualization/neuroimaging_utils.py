@@ -1026,8 +1026,7 @@ def create_factor_overlay_images(
         )
         combined_nii.header.set_data_dtype(np.float32)
         combined_nii.header["descrip"] = (
-            f"Factor {
-                factor_idx + 1} combined ROI loadings"
+            f"Factor { factor_idx + 1} combined ROI loadings"
         )
 
         nib.save(combined_nii, output_file)

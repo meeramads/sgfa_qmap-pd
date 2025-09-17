@@ -474,9 +474,7 @@ def example_model_diagnostics():
     for param_name, ess_value in ess.items():
         if hasattr(ess_value, "shape") and ess_value.size > 1:
             print(
-                f"  {param_name}: mean={
-                    jnp.mean(ess_value):.1f}, min={
-                    jnp.min(ess_value):.1f}"
+                f" {param_name}: mean={ jnp.mean(ess_value):.1f}, min={ jnp.min(ess_value):.1f}"
             )
         else:
             print(f"  {param_name}: {ess_value:.1f}")
@@ -503,16 +501,13 @@ def example_model_diagnostics():
         print(f"  Average steps per sample: {jnp.mean(extra_fields['num_steps']):.1f}")
     if "accept_prob" in extra_fields:
         print(
-            f"  Average acceptance probability: {
-                jnp.mean(
-                    extra_fields['accept_prob']):.3f}"
+            f" Average acceptance probability: { jnp.mean( extra_fields['accept_prob']):.3f}"
         )
     if "diverging" in extra_fields:
         divergent_count = jnp.sum(extra_fields["diverging"])
         total_samples = extra_fields["diverging"].size
         print(
-            f"  Divergent transitions: {divergent_count}/{total_samples} ({
-                100 * divergent_count / total_samples:.1f}%)"
+            f" Divergent transitions: {divergent_count}/{total_samples} ({ 100 * divergent_count / total_samples:.1f}%)"
         )
 
     # Posterior summaries

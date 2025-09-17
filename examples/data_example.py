@@ -278,10 +278,7 @@ def example_advanced_preprocessing():
             if "strategy_selection" in preprocessing_info:
                 strategy_info = preprocessing_info["strategy_selection"]
                 print(
-                    f"   Selected strategy: {
-                        strategy_info.get(
-                            'selected_strategy',
-                            'unknown')}"
+                    f" Selected strategy: { strategy_info.get( 'selected_strategy', 'unknown')}"
                 )
                 print(f"   Quality score: {strategy_info.get('quality_score', 'N/A')}")
 
@@ -406,28 +403,16 @@ def example_data_quality_assessment():
     print(f"\n📋 DATA QUALITY REPORT")
     print("-" * 80)
     print(
-        f"{
-            'View':<6} {
-            'Missing %':<10} {
-                'Outliers %':<12} {
-                    'Constant':<10} {
-                        'Mean Var':<10} {
-                            'Skewness':<10}"
+        f"{ 'View':<6} { 'Missing %':<10} { 'Outliers %':<12} { 'Constant':<10} { 'Mean Var':<10} { 'Skewness':<10}"
     )
     print("-" * 80)
 
     for i in range(len(X_list)):
         metrics = quality_metrics[f"view_{i}"]
         print(
-            f"{
-                i:<6} {
-                metrics['missing_percentage']:<10.2f} "
-            f"{
-                metrics['outlier_percentage']:<12.2f} {
-                    metrics['constant_features']:<10} "
-            f"{
-                        metrics['mean_variance']:<10.3f} {
-                            metrics['mean_skewness']:<10.3f}"
+            f"{ i:<6} { metrics['missing_percentage']:<10.2f} "
+            f"{ metrics['outlier_percentage']:<12.2f} { metrics['constant_features']:<10} "
+            f"{ metrics['mean_variance']:<10.3f} { metrics['mean_skewness']:<10.3f}"
         )
 
     # Quality recommendations
@@ -440,26 +425,22 @@ def example_data_quality_assessment():
 
         if metrics["missing_percentage"] > 5:
             print(
-                f"  ⚠️  High missing values ({
-                    metrics['missing_percentage']:.1f}%) - consider advanced imputation"
+                f" ⚠️ High missing values ({ metrics['missing_percentage']:.1f}%) - consider advanced imputation"
             )
 
         if metrics["outlier_percentage"] > 2:
             print(
-                f"  ⚠️  High outlier rate ({
-                    metrics['outlier_percentage']:.1f}%) - consider robust methods"
+                f" ⚠️ High outlier rate ({ metrics['outlier_percentage']:.1f}%) - consider robust methods"
             )
 
         if metrics["constant_features"] > 0:
             print(
-                f"  ⚠️  {
-                    metrics['constant_features']} constant features - should be removed"
+                f" ⚠️ { metrics['constant_features']} constant features - should be removed"
             )
 
         if metrics["mean_skewness"] > 2:
             print(
-                f"  ⚠️  High skewness ({
-                    metrics['mean_skewness']:.2f}) - consider transformation"
+                f" ⚠️ High skewness ({ metrics['mean_skewness']:.2f}) - consider transformation"
             )
 
         if metrics["mean_variance"] < 0.1:
@@ -519,18 +500,10 @@ def example_data_splitting_and_cv():
     )
 
     print(
-        f"  Train: {
-            len(train_idx)} subjects ({
-            len(train_idx) /
-            n_subjects *
-            100:.1f}%)"
+        f" Train: { len(train_idx)} subjects ({ len(train_idx) / n_subjects * 100:.1f}%)"
     )
     print(
-        f"  Validation: {
-            len(val_idx)} subjects ({
-            len(val_idx) /
-            n_subjects *
-            100:.1f}%)"
+        f" Validation: { len(val_idx)} subjects ({ len(val_idx) / n_subjects * 100:.1f}%)"
     )
     print(f"  Test: {len(test_idx)} subjects ({len(test_idx) / n_subjects * 100:.1f}%)")
 

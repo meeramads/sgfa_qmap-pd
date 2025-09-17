@@ -214,9 +214,7 @@ class NeuroImagingMetrics:
 
                 if len(loadings) != len(position_info):
                     logger.warning(
-                        f"Dimension mismatch: loadings={
-                            len(loadings)}, positions={
-                            len(position_info)}"
+                        f"Dimension mismatch: loadings={ len(loadings)}, positions={ len(position_info)}"
                     )
                     continue
 
@@ -634,10 +632,7 @@ class NeuroImagingCrossValidator:
         if "clinical" in data:
             clinical_data = data["clinical"]
             logger.info(
-                f"Found clinical data with {
-                    len(clinical_data)} subjects and {
-                    len(
-                        clinical_data.columns)} variables"
+                f"Found clinical data with { len(clinical_data)} subjects and { len( clinical_data.columns)} variables"
             )
 
         # Try to load position information for spatial analysis
@@ -656,8 +651,7 @@ class NeuroImagingCrossValidator:
                             position_file, sep="\t", header=None, names=["x", "y", "z"]
                         )
                         logger.info(
-                            f"Loaded position information for {roi}: {
-                                len(position_info)} voxels"
+                            f"Loaded position information for {roi}: { len(position_info)} voxels"
                         )
                         break
             except Exception as e:
@@ -1123,13 +1117,10 @@ class NeuroImagingCrossValidator:
         logger.info(f"Neuroimaging CV completed in {self.results['total_time']:.1f}s")
         logger.info(f"Success rate: {self.results['success_rate']:.1%}")
         logger.info(
-            f"Mean interpretability score: {
-                self.results['mean_cv_score']:.4f} ± {
-                self.results['std_cv_score']:.4f}"
+            f"Mean interpretability score: { self.results['mean_cv_score']:.4f} ± { self.results['std_cv_score']:.4f}"
         )
         logger.info(
-            f"Mean spatial coherence: {
-                self.results['spatial_coherence_scores']['mean']:.4f}"
+            f"Mean spatial coherence: { self.results['spatial_coherence_scores']['mean']:.4f}"
         )
 
         return self.results
@@ -1302,10 +1293,7 @@ class NeuroImagingCrossValidator:
             logger.info("=" * 60)
             logger.info("FINAL SUBTYPE OPTIMIZATION SUMMARY:")
             logger.info(
-                f"   Most frequent optimal clusters: {
-                    most_common[0]} ({
-                    most_common[1]}/{
-                    len(n_subtypes_found)} folds)"
+                f" Most frequent optimal clusters: { most_common[0]} ({ most_common[1]}/{ len(n_subtypes_found)} folds)"
             )
             logger.info(
                 f"   Range of optimal clusters: {min(n_subtypes_found)} - {max(n_subtypes_found)}"
@@ -1496,9 +1484,7 @@ class NeuroImagingCrossValidator:
             f"Nested neuroimaging CV completed in {self.results['total_time']:.1f}s"
         )
         logger.info(
-            f"Mean CV score: {
-                self.results['mean_cv_score']:.4f} ± {
-                self.results['std_cv_score']:.4f}"
+            f"Mean CV score: { self.results['mean_cv_score']:.4f} ± { self.results['std_cv_score']:.4f}"
         )
 
         return self.results
@@ -1531,10 +1517,7 @@ class NeuroImagingCrossValidator:
             # Model performance
             f.write("Model Performance:\n")
             f.write(
-                f"  Mean Interpretability Score: {
-                    self.results.get(
-                        'mean_cv_score',
-                        'N/A'):.4f}\n"
+                f" Mean Interpretability Score: { self.results.get( 'mean_cv_score', 'N/A'):.4f}\n"
             )
             f.write(
                 f"  Standard Deviation: {self.results.get('std_cv_score', 'N/A'):.4f}\n"
@@ -1553,16 +1536,10 @@ class NeuroImagingCrossValidator:
                 stability = self.results["stability_metrics"]
                 f.write("Stability Metrics:\n")
                 f.write(
-                    f"  Loading Stability: {
-                        stability.get(
-                            'loading_stability_mean',
-                            0):.3f}\n"
+                    f" Loading Stability: { stability.get( 'loading_stability_mean', 0):.3f}\n"
                 )
                 f.write(
-                    f"  Clustering Stability: {
-                        stability.get(
-                            'clustering_stability_mean',
-                            0):.3f}\n\n"
+                    f" Clustering Stability: { stability.get( 'clustering_stability_mean', 0):.3f}\n\n"
                 )
 
             # Subtype analysis

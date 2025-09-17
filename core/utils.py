@@ -174,10 +174,7 @@ def check_available_memory():
         used_percent = memory.percent
 
         logging.info(
-            f"Memory status: {
-                used_percent:.1f}% used, {
-                available_gb:.1f}GB/{
-                total_gb:.1f}GB available"
+            f"Memory status: { used_percent:.1f}% used, { available_gb:.1f}GB/{ total_gb:.1f}GB available"
         )
 
         if available_gb < 2:
@@ -187,8 +184,7 @@ def check_available_memory():
             )
         elif available_gb < 4:
             logging.info(
-                f"Memory note: {
-                    available_gb:.1f}GB available. Monitor memory usage during analysis."
+                f"Memory note: { available_gb:.1f}GB available. Monitor memory usage during analysis."
             )
 
         return available_gb
@@ -262,8 +258,7 @@ def estimate_memory_requirements(
     # Warnings for high memory usage
     if estimated_gb > 16:
         logging.warning(
-            f"High memory requirement ({
-                estimated_gb:.1f} GB). Monitor system resources closely."
+            f"High memory requirement ({ estimated_gb:.1f} GB). Monitor system resources closely."
         )
 
     return estimated_gb
@@ -1007,8 +1002,7 @@ def validate_core_parameters(args):
     """Validate core model parameters"""
     if args.K <= 0:
         raise ValueError(
-            f"Invalid number of factors K={
-                args.K}. Must be positive integer (e.g., K=10)."
+            f"Invalid number of factors K={ args.K}. Must be positive integer (e.g., K=10)."
         )
 
     if args.K > 100:
@@ -1028,8 +1022,7 @@ def validate_core_parameters(args):
 
     if args.num_samples < 500:
         logging.warning(
-            f"Small num_samples={
-                args.num_samples} may lead to poor convergence. Consider ≥1000."
+            f"Small num_samples={ args.num_samples} may lead to poor convergence. Consider ≥1000."
         )
 
     if args.num_warmup <= 0:
@@ -1100,8 +1093,7 @@ def validate_cv_parameters(args, cv_available=False, neuroimaging_cv_available=F
     if getattr(args, "cv_type", None) and args.dataset == "synthetic":
         if args.cv_type in ["clinical_stratified", "site_aware"]:
             logging.warning(
-                f"CV type {
-                    args.cv_type} not suitable for synthetic data. Using 'standard'."
+                f"CV type { args.cv_type} not suitable for synthetic data. Using 'standard'."
             )
             args.cv_type = "standard"
 
@@ -1162,9 +1154,7 @@ def log_parameter_summary(args):
 
     if getattr(args, "enable_preprocessing", False):
         logging.info(
-            f"Preprocessing: {
-                args.imputation_strategy} imputation, {
-                args.feature_selection} selection"
+            f"Preprocessing: { args.imputation_strategy} imputation, { args.feature_selection} selection"
         )
         if getattr(args, "enable_spatial_processing", False):
             logging.info("Spatial processing: ENABLED")

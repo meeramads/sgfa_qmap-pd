@@ -606,10 +606,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         try:
             K = hypers.get("K", 10)
             self.logger.debug(
-                f"Running SGFA for reproducibility test: K={K}, n_subjects={
-                    X_list[0].shape[0]}, n_features={
-                    sum(
-                        X.shape[1] for X in X_list)}"
+                f"Running SGFA for reproducibility test: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
             )
 
             # Import the actual SGFA model function
@@ -1427,8 +1424,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                             )
 
                     self.logger.info(
-                        f"✅ Created {
-                            len(plot_files)} comprehensive reproducibility visualizations"
+                        f"✅ Created { len(plot_files)} comprehensive reproducibility visualizations"
                     )
                     self.logger.info(
                         "   → Consensus factor analysis and stability plots generated"
@@ -1656,11 +1652,7 @@ def run_reproducibility(config):
                     }
                     successful_tests += 1
                     logger.info(
-                        f"✅ Seed {seed}: {
-                            metrics.execution_time:.1f}s, LL={
-                            result.get(
-                                'log_likelihood',
-                                0):.2f}"
+                        f"✅ Seed {seed}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                     )
 
                 except Exception as e:
@@ -1704,11 +1696,7 @@ def run_reproducibility(config):
                     }
                     successful_tests += 1
                     logger.info(
-                        f"✅ Noise {noise_level}: {
-                            metrics.execution_time:.1f}s, LL={
-                            result.get(
-                                'log_likelihood',
-                                0):.2f}"
+                        f"✅ Noise {noise_level}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                     )
 
                 except Exception as e:
@@ -1750,11 +1738,7 @@ def run_reproducibility(config):
                     }
                     successful_tests += 1
                     logger.info(
-                        f"✅ Init {init_id}: {
-                            metrics.execution_time:.1f}s, LL={
-                            result.get(
-                                'log_likelihood',
-                                0):.2f}"
+                        f"✅ Init {init_id}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                     )
 
                 except Exception as e:

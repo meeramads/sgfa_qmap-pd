@@ -1746,10 +1746,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
         try:
             K = hypers.get("K", 10)
             self.logger.debug(
-                f"Running SGFA for clinical validation: K={K}, n_subjects={
-                    X_list[0].shape[0]}, n_features={
-                    sum(
-                        X.shape[1] for X in X_list)}"
+                f"Running SGFA for clinical validation: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
             )
 
             # Import the actual SGFA model function
@@ -1960,8 +1957,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
                     except Exception as e:
                         self.logger.warning(
-                            f"Panel validation failed for {k_features} features: {
-                                str(e)}"
+                            f"Panel validation failed for {k_features} features: { str(e)}"
                         )
 
             else:
@@ -1991,8 +1987,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
                     except Exception as e:
                         self.logger.warning(
-                            f"Panel validation failed for {k_features} features: {
-                                str(e)}"
+                            f"Panel validation failed for {k_features} features: { str(e)}"
                         )
 
             results[outcome_name] = outcome_results
@@ -3354,8 +3349,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
                             )
 
                     self.logger.info(
-                        f"✅ Created {
-                            len(plot_files)} comprehensive clinical visualizations"
+                        f"✅ Created { len(plot_files)} comprehensive clinical visualizations"
                     )
 
                     # Additional clinical-specific summary
@@ -3545,9 +3539,7 @@ def run_clinical_validation(config):
                 }
                 successful_tests += 1
                 logger.info(
-                    f"✅ SGFA extraction: {
-                        metrics.execution_time:.1f}s, {
-                        Z_sgfa.shape[1]} factors"
+                    f"✅ SGFA extraction: { metrics.execution_time:.1f}s, { Z_sgfa.shape[1]} factors"
                 )
 
             except Exception as e:
@@ -3622,10 +3614,7 @@ def run_clinical_validation(config):
                 raw_acc = max([r.get("accuracy", 0) for r in raw_results.values()])
 
                 logger.info(
-                    f"✅ Classification comparison - SGFA: {
-                        sgfa_acc:.3f}, PCA: {
-                        pca_acc:.3f}, Raw: {
-                        raw_acc:.3f}"
+                    f"✅ Classification comparison - SGFA: { sgfa_acc:.3f}, PCA: { pca_acc:.3f}, Raw: { raw_acc:.3f}"
                 )
 
             except Exception as e:

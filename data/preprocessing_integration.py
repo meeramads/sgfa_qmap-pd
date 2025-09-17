@@ -212,8 +212,7 @@ def _apply_advanced_preprocessing(
         logger.info(f"✅ Advanced preprocessing completed")
         logger.info(f"   Applied steps: {steps_applied}")
         logger.info(
-            f"   Feature reduction: {total_features_before} → {total_features_after} ({
-                reduction_ratio:.3f} ratio)"
+            f" Feature reduction: {total_features_before} → {total_features_after} ({ reduction_ratio:.3f} ratio)"
         )
 
         return X_processed, preprocessing_info
@@ -276,8 +275,7 @@ def get_optimal_preprocessing_strategy(
         # Strategy selection logic
         if avg_missing_pct > 20:
             optimal_strategy = "aggressive"  # KNN imputation for high missing data
-            reason = f"High missing data ({
-                avg_missing_pct:.1f}%) requires robust imputation"
+            reason = f"High missing data ({ avg_missing_pct:.1f}%) requires robust imputation"
         elif total_features > 5000 and has_imaging_views:
             optimal_strategy = (
                 "aggressive"  # Feature selection needed for high-dimensional imaging

@@ -1048,9 +1048,7 @@ if __name__ == "__main__":
         print(f"\nVisualization summary:")
         print(f"• Factor plots: {len(factor_results['plots_created'])} types created")
         print(
-            f"• Brain visualizations: {
-                brain_results['n_factors']} factors × {
-                brain_results['n_regions']} regions"
+            f"• Brain visualizations: { brain_results['n_factors']} factors × { brain_results['n_regions']} regions"
         )
         print(
             f"• Preprocessing plots: {len(preprocessing_results['plots_created'])} types"

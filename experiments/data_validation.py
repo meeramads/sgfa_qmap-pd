@@ -62,10 +62,7 @@ def _log_preprocessing_summary(preprocessing_info):
     if "feature_reduction" in data_source:
         fr = data_source["feature_reduction"]
         logger.info(
-            f"   Features: {
-                fr['total_before']:,} → {
-                fr['total_after']:,} ({
-                fr['reduction_ratio']:.3f} ratio)"
+            f" Features: { fr['total_before']:,} → { fr['total_after']:,} ({ fr['reduction_ratio']:.3f} ratio)"
         )
 
     # Log steps applied
@@ -80,10 +77,7 @@ def _log_preprocessing_summary(preprocessing_info):
         total_orig_features = sum(shape[1] for shape in original_shapes)
         total_proc_features = sum(shape[1] for shape in processed_shapes)
         logger.info(
-            f"   Data: {
-                len(original_shapes)} views, {
-                total_orig_features:,} → {
-                total_proc_features:,} features"
+            f" Data: { len(original_shapes)} views, { total_orig_features:,} → { total_proc_features:,} features"
         )
 
 
@@ -916,8 +910,7 @@ class DataValidationExperiments(ExperimentFramework):
         # Get strategy names
         strategy_names = list(strategy_data.keys())
         logger.info(
-            f"Comparing {
-                len(strategy_names)} preprocessing strategies: {strategy_names}"
+            f"Comparing { len(strategy_names)} preprocessing strategies: {strategy_names}"
         )
 
         # Compare data dimensions
@@ -926,9 +919,7 @@ class DataValidationExperiments(ExperimentFramework):
             try:
                 if "X_list" not in data:
                     logger.error(
-                        f"Strategy {strategy_name} missing X_list. Keys: {
-                            list(
-                                data.keys())}"
+                        f"Strategy {strategy_name} missing X_list. Keys: { list( data.keys())}"
                     )
                     continue
 
@@ -1021,8 +1012,7 @@ class DataValidationExperiments(ExperimentFramework):
             recommendations["best_strategy"] = best_strategy
 
             recommendations["rationale"] = [
-                f"Strategy '{best_strategy}' achieved the highest overall score ({
-                    scores[best_strategy]:.2f})",
+                f"Strategy '{best_strategy}' achieved the highest overall score ({ scores[best_strategy]:.2f})",
                 "Scoring based on data preservation, missing data handling, and feature quality",
             ]
 
@@ -1340,8 +1330,7 @@ class DataValidationExperiments(ExperimentFramework):
                         )
 
                 logger.info(
-                    f"✅ Created {
-                        len(plot_files)} comprehensive data validation visualizations"
+                    f"✅ Created { len(plot_files)} comprehensive data validation visualizations"
                 )
                 logger.info(
                     "   → Preprocessing quality and optimization plots generated"

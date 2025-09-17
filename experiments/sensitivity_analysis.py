@@ -467,10 +467,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         try:
             K = hypers.get("K", 5)
             self.logger.debug(
-                f"Running SGFA sensitivity test: K={K}, n_subjects={
-                    X_list[0].shape[0]}, n_features={
-                    sum(
-                        X.shape[1] for X in X_list)}"
+                f"Running SGFA sensitivity test: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
             )
 
             # Import the actual SGFA model function
@@ -1256,8 +1253,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                             )
 
                     self.logger.info(
-                        f"✅ Created {
-                            len(plot_files)} comprehensive sensitivity visualizations"
+                        f"✅ Created { len(plot_files)} comprehensive sensitivity visualizations"
                     )
                     self.logger.info(
                         "   → Factor stability and robustness plots generated"
@@ -1443,11 +1439,7 @@ def run_sensitivity_analysis(config):
                     }
                     successful_tests += 1
                     logger.info(
-                        f"✅ K={K}: {
-                            metrics.execution_time:.1f}s, LL={
-                            result.get(
-                                'log_likelihood',
-                                0):.2f}"
+                        f"✅ K={K}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                     )
                 except Exception as e:
                     logger.error(f"❌ K={K} sensitivity test failed: {e}")
@@ -1489,11 +1481,7 @@ def run_sensitivity_analysis(config):
                     }
                     successful_tests += 1
                     logger.info(
-                        f"✅ percW={percW}: {
-                            metrics.execution_time:.1f}s, LL={
-                            result.get(
-                                'log_likelihood',
-                                0):.2f}"
+                        f"✅ percW={percW}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                     )
                 except Exception as e:
                     logger.error(f"❌ percW={percW} sensitivity test failed: {e}")
@@ -1541,11 +1529,7 @@ def run_sensitivity_analysis(config):
                     }
                     successful_tests += 1
                     logger.info(
-                        f"✅ MCMC {label}: {
-                            metrics.execution_time:.1f}s, LL={
-                            result.get(
-                                'log_likelihood',
-                                0):.2f}"
+                        f"✅ MCMC {label}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                     )
                 except Exception as e:
                     logger.error(f"❌ MCMC {label} sensitivity test failed: {e}")

@@ -105,8 +105,7 @@ def validate_data_types(**type_rules):
                     if not isinstance(value, expected_type):
                         raise TypeError(
                             f"Parameter '{param_name}' must be of type {expected_type}, "
-                            f"got {
-                                type(value)}"
+                            f"got { type(value)}"
                         )
 
             return func(*args, **kwargs)
@@ -301,8 +300,7 @@ class ResultValidator:
 
             if X.shape[0] < min_samples:
                 raise ValueError(
-                    f"Data[{i}] must have at least {min_samples} samples, got {
-                        X.shape[0]}"
+                    f"Data[{i}] must have at least {min_samples} samples, got { X.shape[0]}"
                 )
 
             if np.any(np.isnan(X)):
@@ -352,10 +350,8 @@ def validate_config_structure(config: Dict, schema: Dict) -> List[str]:
                 # Type validation
                 if not isinstance(value, expected_type):
                     warnings.append(
-                        f"Config key {current_path} should be {
-                            expected_type.__name__}, "
-                        f"got {
-                            type(value).__name__}"
+                        f"Config key {current_path} should be { expected_type.__name__}, "
+                        f"got { type(value).__name__}"
                     )
             elif callable(expected_type):
                 # Custom validator function

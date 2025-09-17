@@ -110,8 +110,7 @@ class PreprocessingConfig:
 
         if self.n_top_features is not None and self.n_top_features <= 0:
             raise ValueError(
-                f"Invalid n_top_features={
-                    self.n_top_features}. Must be positive integer or None."
+                f"Invalid n_top_features={ self.n_top_features}. Must be positive integer or None."
             )
 
         if not (0.0 <= self.missing_threshold <= 1.0):
@@ -416,10 +415,7 @@ class AdvancedPreprocessor(BasePreprocessor):
 
         if np.any(features_to_drop):
             logging.warning(
-                f"Dropping {
-                    np.sum(features_to_drop)} features with >{
-                    self.missing_threshold *
-                    100}% missing data"
+                f"Dropping { np.sum(features_to_drop)} features with >{ self.missing_threshold * 100}% missing data"
             )
             X = X[:, ~features_to_drop]
 
@@ -497,9 +493,7 @@ class AdvancedPreprocessor(BasePreprocessor):
             self.feature_selectors_[f"{view_name}_variance"] = selector
 
         logging.info(
-            f"Selected {
-                X_selected.shape[1]} features for {view_name} (was {
-                X.shape[1]})"
+            f"Selected { X_selected.shape[1]} features for {view_name} (was { X.shape[1]})"
         )
         return X_selected
 
@@ -524,8 +518,7 @@ class AdvancedPreprocessor(BasePreprocessor):
             self.feature_selectors_[f"{view_name}_ftest"] = selector
 
         logging.info(
-            f"Selected {
-                X_selected.shape[1]} features for {view_name} using statistical selection"
+            f"Selected { X_selected.shape[1]} features for {view_name} using statistical selection"
         )
         return X_selected
 
@@ -540,8 +533,7 @@ class AdvancedPreprocessor(BasePreprocessor):
         self.feature_selectors_[f"{view_name}_mutinfo"] = selector
 
         logging.info(
-            f"Selected {
-                X_selected.shape[1]} features for {view_name} using mutual information"
+            f"Selected { X_selected.shape[1]} features for {view_name} using mutual information"
         )
         return X_selected
 
@@ -1152,9 +1144,7 @@ def summarize_preprocessing_results(metadata: Dict[str, Any]) -> str:
         summary.append("Spatial processing: ENABLED")
         if metadata.get("position_lookups_loaded"):
             summary.append(
-                f"Position data loaded for: {
-                    ', '.join(
-                        metadata['position_lookups_loaded'])}"
+                f"Position data loaded for: { ', '.join( metadata['position_lookups_loaded'])}"
             )
         if metadata.get("harmonization_applied"):
             summary.append("Scanner harmonization: APPLIED")
@@ -1462,9 +1452,7 @@ class PreprocessingInspector:
                     f"Low variance features (< 0.01): {low_var_features}/{X.shape[1]}"
                 )
                 logging.info(
-                    f"Variance range: [{
-                        np.min(variances):.6f}, {
-                        np.max(variances):.2f}]"
+                    f"Variance range: [{ np.min(variances):.6f}, { np.max(variances):.2f}]"
                 )
 
             # Value ranges
@@ -1622,11 +1610,7 @@ class PreprocessingInspector:
                 if "error" not in result:
                     view_result = result["feature_reduction"][view_name]
                     logging.info(
-                        f"{
-                            method:12s}\t{
-                            view_result['original']:8d}\t{
-                            view_result['processed']:8d}\t{
-                            view_result['reduction_ratio']:8.2%}"
+                        f"{ method:12s}\t{ view_result['original']:8d}\t{ view_result['processed']:8d}\t{ view_result['reduction_ratio']:8.2%}"
                     )
                 else:
                     logging.info(f"{method:12s}\tFAILED")

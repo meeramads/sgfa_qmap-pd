@@ -213,8 +213,7 @@ def example_configuration_management():
     # Load configuration example
     loaded_config = PerformanceConfig.load(config_file)
     print(
-        f"Loaded configuration with {
-            loaded_config.memory.max_memory_gb:.1f}GB memory limit"
+        f"Loaded configuration with { loaded_config.memory.max_memory_gb:.1f}GB memory limit"
     )
 
     # Clean up

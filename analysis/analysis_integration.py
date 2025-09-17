@@ -211,10 +211,7 @@ def apply_analysis_framework_to_pipeline(
         )
         logger.info(f"   Cross-validation: {config_summary.get('run_cv', False)}")
         logger.info(
-            f"   Dependencies available: {
-                config_summary.get(
-                    'dependencies',
-                    {}).cv_available if config_summary.get('dependencies') else False}"
+            f" Dependencies available: { config_summary.get( 'dependencies', {}).cv_available if config_summary.get('dependencies') else False}"
         )
 
         return data_manager, model_runner, framework_info
@@ -372,17 +369,10 @@ def integrate_analysis_with_pipeline(
             logger.info(f"   DataManager available: {data_manager is not None}")
             logger.info(f"   ModelRunner available: {model_runner is not None}")
             logger.info(
-                f"   Structured analysis: {
-                    integration_summary.get(
-                        'structured_analysis',
-                        False)}"
+                f" Structured analysis: { integration_summary.get( 'structured_analysis', False)}"
             )
             logger.info(
-                f"   Components: {
-                    ', '.join(
-                        integration_summary.get(
-                            'components_available',
-                            []))}"
+                f" Components: { ', '.join( integration_summary.get( 'components_available', []))}"
             )
         else:
             logger.info("⚠️  Analysis framework unavailable - using direct approach")

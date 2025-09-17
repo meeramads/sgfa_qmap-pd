@@ -376,9 +376,7 @@ def run_model_comparison_analysis(
         logger.info(f"Comparing {len(available_models)} model types:")
         logger.info(f"   Models: {available_models}")
         logger.info(
-            f"   Data: {
-                data_characteristics['n_subjects']} subjects, {
-                data_characteristics['total_features']:,        } features"
+            f" Data: { data_characteristics['n_subjects']} subjects, { data_characteristics['total_features']:, } features"
         )
 
         for model_type in available_models:
@@ -407,8 +405,7 @@ def run_model_comparison_analysis(
 
                     logger.info(f"   ✅ {model_type}: {model_result['model_name']}")
                     logger.info(
-                        f"   Suitability: {
-                            model_result['suitable_for_data']['score']:.2f}"
+                        f" Suitability: { model_result['suitable_for_data']['score']:.2f}"
                     )
                 else:
                     model_result = {
@@ -636,22 +633,13 @@ def integrate_models_with_pipeline(
         if model_instance:
             logger.info("✅ Models framework pipeline integration completed")
             logger.info(
-                f"   Model type: {
-                    integration_summary.get(
-                        'model_type_selected',
-                        'unknown')}"
+                f" Model type: { integration_summary.get( 'model_type_selected', 'unknown')}"
             )
             logger.info(
-                f"   Model factory: {
-                    integration_summary.get(
-                        'model_factory_used',
-                        False)}"
+                f" Model factory: { integration_summary.get( 'model_factory_used', False)}"
             )
             logger.info(
-                f"   Structured management: {
-                    integration_summary.get(
-                        'structured_model_management',
-                        False)}"
+                f" Structured management: { integration_summary.get( 'structured_model_management', False)}"
             )
         else:
             logger.info("⚠️  Models framework unavailable - using direct approach")

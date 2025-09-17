@@ -89,8 +89,7 @@ class MCMCMemoryOptimizer:
                 new_samples = int(optimized_config["num_samples"] * memory_ratio * 0.8)
                 new_samples = max(new_samples, 100)  # Minimum 100 samples
                 logger.info(
-                    f"Reducing samples from {
-                        optimized_config['num_samples']} to {new_samples}"
+                    f"Reducing samples from {optimized_config['num_samples']} to {new_samples}"
                 )
                 optimized_config["num_samples"] = new_samples
 

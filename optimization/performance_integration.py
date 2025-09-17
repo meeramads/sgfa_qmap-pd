@@ -74,13 +74,7 @@ def get_optimal_performance_configuration(
         # Determine optimal strategy
         if memory_intensive and large_dataset:
             strategy = "aggressive_memory_optimization"
-            reason = f"Large dataset ({
-                data_characteristics.get(
-                    'n_subjects',
-                    0)} subjects, {
-                data_characteristics.get(
-                    'total_features',
-                    0)} features) requires aggressive memory optimization"
+            reason = f"Large dataset ({ data_characteristics.get( 'n_subjects', 0)} subjects, { data_characteristics.get( 'total_features', 0)} features) requires aggressive memory optimization"
         elif memory_intensive:
             strategy = "memory_efficient"
             reason = f"Memory-intensive workload requires efficient memory management"
@@ -89,8 +83,7 @@ def get_optimal_performance_configuration(
             reason = f"Heavy MCMC sampling requires MCMC-specific optimizations"
         elif available_memory_gb < 8:
             strategy = "low_memory"
-            reason = f"Limited memory ({
-                available_memory_gb:.1f} GB) requires conservative optimization"
+            reason = f"Limited memory ({ available_memory_gb:.1f} GB) requires conservative optimization"
         else:
             strategy = "balanced"
             reason = f"Standard optimization for balanced performance"
@@ -342,8 +335,7 @@ def apply_performance_optimization_to_pipeline(
                 # Apply memory optimization
                 if perf_config.memory.enable_dtype_optimization:
                     logger.info(
-                        f"   Applying dtype optimization to {
-                            perf_config.memory.target_dtype}"
+                        f" Applying dtype optimization to { perf_config.memory.target_dtype}"
                     )
                     # Convert data types if memory optimization is enabled
                     if perf_config.memory.target_dtype == "float32":
@@ -351,8 +343,7 @@ def apply_performance_optimization_to_pipeline(
                             if X.dtype == np.float64:
                                 X_list[i] = X.astype(np.float32)
                                 logger.info(
-                                    f"   View {i}: {
-                                        X.dtype} → float32 (memory savings: ~50%)"
+                                    f" View {i}: { X.dtype} → float32 (memory savings: ~50%)"
                                 )
 
                 optimized_data_info["dtype_optimization_applied"] = (
@@ -412,9 +403,7 @@ def apply_performance_optimization_to_pipeline(
         logger.info(f"   Strategy: {config_info['strategy']}")
         logger.info(f"   Memory limit: {perf_config.memory.max_memory_gb:.1f} GB")
         logger.info(
-            f"   Features enabled: {
-                list(
-                    optimization_info['performance_features'].keys())}"
+            f" Features enabled: { list( optimization_info['performance_features'].keys())}"
         )
 
         # Wrap performance manager with additional methods
@@ -471,12 +460,10 @@ def _fallback_performance_optimization(
 
         logger.info(f"✅ Fallback performance optimization completed")
         logger.info(
-            f"   Basic optimizations applied: {
-                len(optimizations_applied)} dtype conversions"
+            f" Basic optimizations applied: { len(optimizations_applied)} dtype conversions"
         )
         logger.info(
-            f"   Available memory: {
-                fallback_info['system_info']['available_memory_gb']:.1f} GB"
+            f" Available memory: { fallback_info['system_info']['available_memory_gb']:.1f} GB"
         )
 
         return None, fallback_info
