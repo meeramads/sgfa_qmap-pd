@@ -30,8 +30,10 @@ class SparseGFAModel(BaseGFAModel):
         """
         N = X_list[0].shape[0]  # Number of subjects
         M = self.num_sources  # Number of data sources
-        Dm = jnp.array(self.hypers["Dm"])  # Dimensions per source
-        D = int(Dm.sum())  # Total dimensions
+        # Use static Python ints for dimensions to avoid JAX concretization errors
+        Dm_static = self.hypers["Dm"]  # Keep as Python list
+        Dm = jnp.array(Dm_static)  # JAX array for computation
+        D = sum(Dm_static)  # Static Python int
         K = self.K  # Number of factors
         percW = self.hypers["percW"]
 
@@ -46,10 +48,10 @@ class SparseGFAModel(BaseGFAModel):
         Z = self._sample_latent_factors(N, K)
 
         # Sample loadings W with horseshoe prior
-        W = self._sample_loadings(D, K, Dm, percW, sigma, N)
+        W = self._sample_loadings(D, K, Dm, Dm_static, percW, sigma, N)
 
         # Generate observations for each data source
-        self._generate_observations(X_list, Z, W, Dm, sigma)
+        self._generate_observations(X_list, Z, W, Dm, Dm_static, sigma)
 
     def _sample_latent_factors(self, N: int, K: int) -> jnp.ndarray:
         """Sample latent factors Z with optional regularized horseshoe."""
@@ -89,7 +91,7 @@ class SparseGFAModel(BaseGFAModel):
         return Z
 
     def _sample_loadings(
-        self, D: int, K: int, Dm: jnp.ndarray, percW: float, sigma: jnp.ndarray, N: int
+        self, D: int, K: int, Dm: jnp.ndarray, Dm_static: list, percW: float, sigma: jnp.ndarray, N: int
     ) -> jnp.ndarray:
         """Sample loading matrix W with sparsity-inducing priors."""
         W = numpyro.sample("W", dist.Normal(0, 1), sample_shape=(D, K))
@@ -109,21 +111,22 @@ class SparseGFAModel(BaseGFAModel):
         )
         cW = self.hypers["slab_scale"] * jnp.sqrt(cW_tmp)
 
-        # Calculate expected sparsity per source
-        pW = jnp.round((percW / 100.0) * Dm).astype(int)
-        pW = jnp.clip(pW, 1, Dm - 1)
+        # Calculate expected sparsity per source using static dimensions
+        pW_static = [max(1, min(int((percW / 100.0) * dim), dim - 1)) for dim in Dm_static]
 
         # Apply sparsity to each source
         d = 0
         for m in range(self.num_sources):
-            scaleW = pW[m] / ((Dm[m] - pW[m]) * jnp.sqrt(N))
+            pW_m = pW_static[m]
+            Dm_m = Dm_static[m]
+            scaleW = pW_m / ((Dm_m - pW_m) * jnp.sqrt(N))
             tauW = numpyro.sample(
                 f"tauW{m + 1}",
                 dist.TruncatedCauchy(scale=scaleW * 1 / jnp.sqrt(sigma[0, m])),
             )
 
-            # Extract chunk for this source
-            width = int(Dm[m])
+            # Extract chunk for this source using static width
+            width = Dm_static[m]
             lmbW_chunk = lax.dynamic_slice(lmbW, (d, 0), (width, K))
 
             # Apply regularized horseshoe
@@ -146,15 +149,16 @@ class SparseGFAModel(BaseGFAModel):
         Z: jnp.ndarray,
         W: jnp.ndarray,
         Dm: jnp.ndarray,
+        Dm_static: list,
         sigma: jnp.ndarray,
     ):
         """Generate observations for each data source."""
         d = 0
         for m in range(self.num_sources):
             X_m = jnp.asarray(X_list[m])
-            width = int(Dm[m])
+            width = Dm_static[m]
 
-            # Extract loadings for this source
+            # Extract loadings for this source using static width
             W_chunk = lax.dynamic_slice(W, (d, 0), (width, Z.shape[1]))
 
             # Sample observations

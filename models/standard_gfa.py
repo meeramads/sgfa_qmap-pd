@@ -25,8 +25,10 @@ class StandardGFAModel(BaseGFAModel):
         """
         N = X_list[0].shape[0]
         M = self.num_sources
-        Dm = jnp.array(self.hypers["Dm"])
-        D = int(Dm.sum())
+        # Use static Python ints for dimensions to avoid JAX concretization errors
+        Dm_static = self.hypers["Dm"]  # Keep as Python list
+        Dm = jnp.array(Dm_static)  # JAX array for computation
+        D = sum(Dm_static)  # Static Python int
         K = self.K
 
         # Sample noise parameters
@@ -48,7 +50,7 @@ class StandardGFAModel(BaseGFAModel):
         # Apply ARD to loadings for each source
         d = 0
         for m in range(M):
-            width = int(Dm[m])
+            width = Dm_static[m]  # Use static dimension
 
             # Extract and scale chunk
             W_chunk = lax.dynamic_slice(W, (d, 0), (width, K))
