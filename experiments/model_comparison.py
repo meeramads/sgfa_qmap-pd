@@ -1204,9 +1204,8 @@ def run_model_comparison(config=None, **kwargs):
 
     # Create experiment configuration
     exp_config = ExperimentConfig(
-        name="model_architecture_comparison",
-        description="Compare different SGFA model architectures",
-        parameters={"K": optimal_K, "percW": optimal_percW},
+        experiment_name="model_architecture_comparison",
+        description="Compare different SGFA model architectures"
     )
 
     # Run experiments
