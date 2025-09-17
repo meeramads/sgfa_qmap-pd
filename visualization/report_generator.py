@@ -214,14 +214,8 @@ class ReportGenerator:
 
         content += f"<strong>CV Type:</strong> {self.config.cv_type}<br>"
         content += f"<strong>Number of Folds:</strong> {self.config.cv_folds}<br>"
-        content += f"<strong>Mean Score:</strong> {
-            cv_results.get(
-                'mean_cv_score',
-                'N/A'):.4f}<br>"
-        content += f"<strong>Std Score:</strong> {
-            cv_results.get(
-                'std_cv_score',
-                'N/A'):.4f}<br>"
+        content += f"<strong>Mean Score:</strong> {cv_results.get('mean_cv_score', 'N/A'):.4f}<br>"
+        content += f"<strong>Std Score:</strong> {cv_results.get('std_cv_score', 'N/A'):.4f}<br>"
 
         if "fold_results" in cv_results:
             converged = sum(

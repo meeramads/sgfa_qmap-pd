@@ -147,8 +147,7 @@ class MemoryOptimizer:
                 if np.allclose(array, array.astype(np.float32), rtol=1e-6):
                     target_dtype = np.float32
                     logger.debug(
-                        f"Optimized array from float64 to float32, saved {
-                            array.nbytes * 0.5 / 1024**2:.1f}MB"
+                        f"Optimized array from float64 to float32, saved {array.nbytes * 0.5 / 1024**2:.1f}MB"
                     )
             elif array.dtype in [np.int64, np.int32]:
                 max_val = np.max(np.abs(array))
