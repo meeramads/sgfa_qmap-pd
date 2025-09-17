@@ -31,6 +31,7 @@ from experiments.framework import (
     ExperimentResult,
 )
 from performance import PerformanceProfiler
+from analysis.cross_validation_library import NeuroImagingMetrics
 
 
 class ModelArchitectureComparison(ExperimentFramework):
@@ -41,6 +42,7 @@ class ModelArchitectureComparison(ExperimentFramework):
     ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
+        self.neuroimaging_metrics = NeuroImagingMetrics()
 
         # Model architectures to compare
         self.model_architectures = {
@@ -117,12 +119,24 @@ class ModelArchitectureComparison(ExperimentFramework):
 
                 results[model_name] = model_result
 
-                # Store basic performance metrics
+                # Calculate neuroimaging-specific metrics if model converged
+                if model_result.get("convergence", False):
+                    neuroimaging_evaluation = self._evaluate_neuroimaging_metrics(
+                        X_list, model_result, model_name
+                    )
+                    model_result["neuroimaging_metrics"] = neuroimaging_evaluation
+                else:
+                    model_result["neuroimaging_metrics"] = {"error": "Model did not converge"}
+
+                # Store enhanced performance metrics
                 performance_metrics[model_name] = {
                     "execution_time": model_result.get("execution_time", 0),
                     "peak_memory_gb": model_result.get("peak_memory_gb", 0.0),
                     "convergence": model_result.get("convergence", False),
                     "log_likelihood": model_result.get("log_likelihood", float("-inf")),
+                    "neuroimaging_score": model_result.get("neuroimaging_metrics", {}).get("overall_score", np.nan),
+                    "sparsity_score": model_result.get("neuroimaging_metrics", {}).get("sparsity_score", np.nan),
+                    "reconstruction_quality": model_result.get("neuroimaging_metrics", {}).get("reconstruction_quality", np.nan),
                 }
             else:
                 self.logger.info(f"Skipping model architecture: {model_name}")
@@ -527,6 +541,176 @@ class ModelArchitectureComparison(ExperimentFramework):
 
         return analysis
 
+    def _evaluate_neuroimaging_metrics(
+        self, X_list: List[np.ndarray], model_result: Dict, model_name: str
+    ) -> Dict:
+        """Evaluate neuroimaging-specific metrics for model comparison."""
+        try:
+            self.logger.info(f"Evaluating neuroimaging metrics for {model_name}")
+
+            # Extract model outputs
+            W_list = model_result.get("W_list", [])
+            Z_mean = model_result.get("Z", np.array([]))
+
+            if not W_list or Z_mean.size == 0:
+                return {"error": "Missing model outputs for evaluation"}
+
+            # Prepare data for neuroimaging metrics
+            model_outputs = {
+                "W": W_list,  # List of loading matrices for each view
+                "Z": Z_mean,  # Latent factors
+                "log_likelihood": model_result.get("log_likelihood", np.nan),
+                "convergence": model_result.get("convergence", False),
+                "execution_time": model_result.get("execution_time", 0),
+            }
+
+            # Calculate comprehensive neuroimaging metrics
+            neuroimaging_evaluation = self.neuroimaging_metrics.evaluate_model_comparison(
+                X_data=X_list,
+                model_outputs=model_outputs,
+                model_info={
+                    "model_name": model_name,
+                    "model_type": model_result.get("model_type", "unknown"),
+                    "n_factors": len(W_list[0][0]) if W_list and len(W_list[0]) > 0 else 0,
+                    "n_views": len(X_list),
+                    "n_subjects": X_list[0].shape[0] if X_list else 0,
+                }
+            )
+
+            # Calculate additional model-specific metrics
+            additional_metrics = self._calculate_model_specific_metrics(
+                X_list, W_list, Z_mean, model_name
+            )
+
+            # Combine all metrics
+            combined_metrics = {
+                **neuroimaging_evaluation,
+                **additional_metrics,
+                "evaluation_success": True
+            }
+
+            self.logger.info(
+                f"✅ {model_name} neuroimaging score: "
+                f"{combined_metrics.get('overall_score', 'N/A'):.3f}"
+            )
+
+            return combined_metrics
+
+        except Exception as e:
+            self.logger.warning(f"Failed to evaluate neuroimaging metrics for {model_name}: {str(e)}")
+            return {
+                "error": str(e),
+                "evaluation_success": False,
+                "overall_score": np.nan,
+            }
+
+    def _calculate_model_specific_metrics(
+        self, X_list: List[np.ndarray], W_list: List[np.ndarray], Z: np.ndarray, model_name: str
+    ) -> Dict:
+        """Calculate model-specific evaluation metrics."""
+        try:
+            metrics = {}
+
+            # Reconstruction quality
+            reconstruction_errors = []
+            for i, (X_view, W_view) in enumerate(zip(X_list, W_list)):
+                X_recon = Z @ W_view.T
+                mse = np.mean((X_view - X_recon) ** 2)
+                reconstruction_errors.append(mse)
+
+            metrics["reconstruction_quality"] = {
+                "mean_mse": np.mean(reconstruction_errors),
+                "per_view_mse": reconstruction_errors,
+                "normalized_rmse": np.sqrt(np.mean(reconstruction_errors)) / np.mean([np.std(X) for X in X_list])
+            }
+
+            # Sparsity analysis (for sparse models)
+            if "sparse" in model_name.lower():
+                sparsity_scores = []
+                for W_view in W_list:
+                    # Calculate sparsity as fraction of near-zero elements
+                    threshold = 0.01 * np.std(W_view)
+                    sparsity = np.mean(np.abs(W_view) < threshold)
+                    sparsity_scores.append(sparsity)
+
+                metrics["sparsity_score"] = {
+                    "mean_sparsity": np.mean(sparsity_scores),
+                    "per_view_sparsity": sparsity_scores,
+                    "effective_sparsity": np.mean(sparsity_scores)
+                }
+            else:
+                metrics["sparsity_score"] = {
+                    "mean_sparsity": 0.0,
+                    "per_view_sparsity": [0.0] * len(W_list),
+                    "effective_sparsity": 0.0
+                }
+
+            # Factor interpretability
+            factor_loadings_variance = []
+            for W_view in W_list:
+                # Variance of loadings per factor
+                factor_vars = np.var(W_view, axis=0)
+                factor_loadings_variance.extend(factor_vars)
+
+            metrics["factor_interpretability"] = {
+                "loading_variance_mean": np.mean(factor_loadings_variance),
+                "loading_variance_std": np.std(factor_loadings_variance),
+                "factor_diversity": np.std(factor_loadings_variance) / (np.mean(factor_loadings_variance) + 1e-8)
+            }
+
+            # Cross-view consistency (for multi-view models)
+            if len(W_list) > 1:
+                # Calculate correlation between factor loadings across views
+                cross_view_correlations = []
+                for k in range(min(W.shape[1] for W in W_list)):  # For each factor
+                    view_loadings = [W[:, k] for W in W_list]
+                    # Calculate pairwise correlations
+                    correlations = []
+                    for i in range(len(view_loadings)):
+                        for j in range(i + 1, len(view_loadings)):
+                            corr = np.corrcoef(view_loadings[i], view_loadings[j])[0, 1]
+                            if not np.isnan(corr):
+                                correlations.append(abs(corr))
+                    if correlations:
+                        cross_view_correlations.append(np.mean(correlations))
+
+                metrics["cross_view_consistency"] = {
+                    "mean_correlation": np.mean(cross_view_correlations) if cross_view_correlations else 0.0,
+                    "correlation_std": np.std(cross_view_correlations) if cross_view_correlations else 0.0
+                }
+            else:
+                metrics["cross_view_consistency"] = {
+                    "mean_correlation": 1.0,  # Single view is perfectly consistent with itself
+                    "correlation_std": 0.0
+                }
+
+            # Overall model quality score (composite)
+            recon_score = 1.0 / (1.0 + metrics["reconstruction_quality"]["normalized_rmse"])
+            sparsity_bonus = metrics["sparsity_score"]["effective_sparsity"] * 0.1  # Small bonus for sparsity
+            consistency_score = metrics["cross_view_consistency"]["mean_correlation"]
+            interpretability_score = min(1.0, metrics["factor_interpretability"]["factor_diversity"])
+
+            overall_score = (
+                0.4 * recon_score +
+                0.2 * sparsity_bonus +
+                0.2 * consistency_score +
+                0.2 * interpretability_score
+            )
+
+            metrics["overall_score"] = overall_score
+
+            return metrics
+
+        except Exception as e:
+            self.logger.warning(f"Failed to calculate model-specific metrics: {str(e)}")
+            return {
+                "reconstruction_quality": {"mean_mse": np.inf},
+                "sparsity_score": {"effective_sparsity": 0.0},
+                "factor_interpretability": {"factor_diversity": 0.0},
+                "cross_view_consistency": {"mean_correlation": 0.0},
+                "overall_score": 0.0
+            }
+
     def _plot_model_comparison(self, results: Dict, performance_metrics: Dict) -> Dict:
         """Generate plots for model architecture comparison."""
         plots = {}
@@ -599,10 +783,152 @@ class ModelArchitectureComparison(ExperimentFramework):
             plt.tight_layout()
             plots["model_performance_comparison"] = fig
 
+            # Create neuroimaging metrics comparison plot
+            neuroimaging_plot = self._plot_neuroimaging_metrics_comparison(
+                results, performance_metrics, successful_models
+            )
+            if neuroimaging_plot:
+                plots["neuroimaging_metrics_comparison"] = neuroimaging_plot
+
         except Exception as e:
             self.logger.warning(f"Failed to generate model comparison plots: {e}")
 
         return plots
+
+    def _plot_neuroimaging_metrics_comparison(
+        self, results: Dict, performance_metrics: Dict, successful_models: List[str]
+    ) -> Optional[plt.Figure]:
+        """Generate neuroimaging-specific metrics comparison plot."""
+        try:
+            if not successful_models:
+                return None
+
+            # Check if models have neuroimaging metrics
+            models_with_metrics = [
+                m for m in successful_models
+                if results[m].get("neuroimaging_metrics", {}).get("evaluation_success", False)
+            ]
+
+            if not models_with_metrics:
+                self.logger.info("No models with neuroimaging metrics for comparison")
+                return None
+
+            fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+            fig.suptitle("Neuroimaging-Specific Model Comparison", fontsize=16)
+
+            # Plot 1: Overall neuroimaging scores
+            overall_scores = [
+                performance_metrics[m].get("neuroimaging_score", np.nan)
+                for m in models_with_metrics
+            ]
+            valid_scores = [(m, s) for m, s in zip(models_with_metrics, overall_scores) if not np.isnan(s)]
+
+            if valid_scores:
+                models_valid, scores_valid = zip(*valid_scores)
+                bars = axes[0, 0].bar(models_valid, scores_valid, color='skyblue', alpha=0.8)
+                axes[0, 0].set_title("Overall Neuroimaging Score")
+                axes[0, 0].set_ylabel("Score")
+                axes[0, 0].tick_params(axis="x", rotation=45)
+                axes[0, 0].set_ylim([0, 1])
+
+                # Add value labels on bars
+                for bar, score in zip(bars, scores_valid):
+                    height = bar.get_height()
+                    axes[0, 0].text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                                   f'{score:.3f}', ha='center', va='bottom')
+
+            # Plot 2: Reconstruction quality
+            recon_qualities = []
+            for m in models_with_metrics:
+                recon_quality = results[m].get("neuroimaging_metrics", {}).get(
+                    "reconstruction_quality", {}
+                ).get("normalized_rmse", np.nan)
+                recon_qualities.append(1.0 / (1.0 + recon_quality) if not np.isnan(recon_quality) else np.nan)
+
+            valid_recon = [(m, r) for m, r in zip(models_with_metrics, recon_qualities) if not np.isnan(r)]
+            if valid_recon:
+                models_recon, scores_recon = zip(*valid_recon)
+                axes[0, 1].bar(models_recon, scores_recon, color='lightgreen', alpha=0.8)
+                axes[0, 1].set_title("Reconstruction Quality Score")
+                axes[0, 1].set_ylabel("Quality Score")
+                axes[0, 1].tick_params(axis="x", rotation=45)
+                axes[0, 1].set_ylim([0, 1])
+
+            # Plot 3: Sparsity scores
+            sparsity_scores = [
+                performance_metrics[m].get("sparsity_score", np.nan)
+                for m in models_with_metrics
+            ]
+            valid_sparsity = [(m, s) for m, s in zip(models_with_metrics, sparsity_scores) if not np.isnan(s)]
+
+            if valid_sparsity:
+                models_sparse, scores_sparse = zip(*valid_sparsity)
+                axes[0, 2].bar(models_sparse, scores_sparse, color='orange', alpha=0.8)
+                axes[0, 2].set_title("Sparsity Score")
+                axes[0, 2].set_ylabel("Effective Sparsity")
+                axes[0, 2].tick_params(axis="x", rotation=45)
+
+            # Plot 4: Cross-view consistency
+            consistency_scores = []
+            for m in models_with_metrics:
+                consistency = results[m].get("neuroimaging_metrics", {}).get(
+                    "cross_view_consistency", {}
+                ).get("mean_correlation", np.nan)
+                consistency_scores.append(consistency)
+
+            valid_consistency = [(m, c) for m, c in zip(models_with_metrics, consistency_scores) if not np.isnan(c)]
+            if valid_consistency:
+                models_cons, scores_cons = zip(*valid_consistency)
+                axes[1, 0].bar(models_cons, scores_cons, color='purple', alpha=0.8)
+                axes[1, 0].set_title("Cross-View Consistency")
+                axes[1, 0].set_ylabel("Mean Correlation")
+                axes[1, 0].tick_params(axis="x", rotation=45)
+                axes[1, 0].set_ylim([0, 1])
+
+            # Plot 5: Factor interpretability
+            interpretability_scores = []
+            for m in models_with_metrics:
+                interpretability = results[m].get("neuroimaging_metrics", {}).get(
+                    "factor_interpretability", {}
+                ).get("factor_diversity", np.nan)
+                interpretability_scores.append(min(1.0, interpretability) if not np.isnan(interpretability) else np.nan)
+
+            valid_interp = [(m, i) for m, i in zip(models_with_metrics, interpretability_scores) if not np.isnan(i)]
+            if valid_interp:
+                models_interp, scores_interp = zip(*valid_interp)
+                axes[1, 1].bar(models_interp, scores_interp, color='red', alpha=0.8)
+                axes[1, 1].set_title("Factor Interpretability")
+                axes[1, 1].set_ylabel("Diversity Score")
+                axes[1, 1].tick_params(axis="x", rotation=45)
+
+            # Plot 6: Performance vs Quality scatter
+            performance_times = [
+                performance_metrics[m]["execution_time"] for m in models_with_metrics
+            ]
+            quality_scores = [
+                performance_metrics[m].get("neuroimaging_score", 0) for m in models_with_metrics
+            ]
+
+            scatter = axes[1, 2].scatter(performance_times, quality_scores,
+                                       s=100, alpha=0.7, c=range(len(models_with_metrics)),
+                                       cmap='viridis')
+
+            # Add model labels
+            for i, model in enumerate(models_with_metrics):
+                axes[1, 2].annotate(model, (performance_times[i], quality_scores[i]),
+                                  xytext=(5, 5), textcoords='offset points', fontsize=8)
+
+            axes[1, 2].set_xlabel("Execution Time (seconds)")
+            axes[1, 2].set_ylabel("Neuroimaging Score")
+            axes[1, 2].set_title("Performance vs Quality Trade-off")
+            axes[1, 2].grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            return fig
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create neuroimaging metrics comparison plot: {str(e)}")
+            return None
 
     def _plot_traditional_comparison(
         self, results: Dict, performance_metrics: Dict

@@ -24,13 +24,14 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `qmap_pd.py`: qMAP-PD dataset loader with preprocessing
   - `synthetic.py`: Synthetic multi-view data generator for testing
 
-### Analysis Pipeline  
+### Analysis Pipeline
 
 - **[analysis/](analysis/)**: Core analysis components
   - `data_manager.py`: Data loading and preprocessing management
   - `config_manager.py`: Configuration and hyperparameter management
   - `model_runner.py`: Model training orchestration
   - `cross_validation.py`: Cross-validation framework
+  - `cross_validation_library.py`: Advanced neuroimaging-specific cross-validation with clinical awareness
 
 ### Optimization & Performance
 
@@ -43,14 +44,14 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 
 ### Experimental Validation
 
-- **[experiments/](experiments/)**: Comprehensive experimental framework
+- **[experiments/](experiments/)**: Comprehensive experimental framework with advanced neuroimaging CV
   - `data_validation.py`: Data quality and preprocessing validation
-  - `model_comparison.py`: SGFA vs traditional method comparison
-  - `sgfa_parameter_comparison.py`: SGFA variant comparison and parameter studies
+  - `model_comparison.py`: SGFA vs traditional method comparison with NeuroImagingMetrics
+  - `sgfa_parameter_comparison.py`: SGFA variant comparison and hyperparameter optimization
   - `sensitivity_analysis.py`: Hyperparameter sensitivity testing
   - `reproducibility.py`: Reproducibility and robustness validation
-  - `performance_benchmarks.py`: Scalability and efficiency benchmarking
-  - `clinical_validation.py`: Clinical subtype and biomarker validation
+  - `performance_benchmarks.py`: Scalability benchmarking with ClinicalAwareSplitter
+  - `clinical_validation.py`: Clinical subtype validation with neuroimaging-specific CV
 
 ### Models & Implementation
 
@@ -176,6 +177,52 @@ clinical = ClinicalValidationExperiments(config)
 clinical_results = clinical.run_clinical_validation(X_list, clinical_data)
 ```
 
+### Advanced Neuroimaging Cross-Validation
+
+The framework includes specialized cross-validation designed for neuroimaging data:
+
+```python
+# Clinical-aware cross-validation with neuroimaging-specific metrics
+from experiments.performance_benchmarks import PerformanceBenchmarks
+
+benchmarks = PerformanceBenchmarks(config)
+cv_results = benchmarks.run_clinical_aware_cv_benchmarks(
+    X_base=X_list,
+    hypers={"percW": 25.0},
+    args={"K": 5, "model": "sparseGFA"},
+    clinical_data=clinical_data
+)
+
+# Neuroimaging hyperparameter optimization
+from experiments.sgfa_parameter_comparison import SGFAParameterComparison
+
+sgfa_exp = SGFAParameterComparison(config)
+hyperopt_results = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
+    X_list=X_list,
+    hypers={"percW": 25.0},
+    args={"K": 5},
+    clinical_data=clinical_data
+)
+
+# Enhanced clinical validation with neuroimaging CV
+from experiments.clinical_validation import ClinicalValidationExperiments
+
+clinical_exp = ClinicalValidationExperiments(config)
+neuro_clinical_results = clinical_exp.run_neuroimaging_clinical_validation(
+    X_list=X_list,
+    clinical_data=clinical_data,
+    hypers={"percW": 25.0},
+    args={"K": 5, "model": "sparseGFA"}
+)
+```
+
+#### Advanced CV Features
+
+- **ClinicalAwareSplitter**: Ensures clinical balance across CV folds
+- **NeuroImagingMetrics**: Domain-specific evaluation metrics for neuroimaging
+- **NeuroImagingHyperOptimizer**: Optimized hyperparameter tuning for neuroimaging data
+- **Stratified Clinical Validation**: Preserves clinical groups and demographics across folds
+
 ## Performance Optimization
 
 The project includes a comprehensive performance optimization framework:
@@ -240,19 +287,34 @@ The framework includes comprehensive validation experiments:
 ### Run Experiments
 
 ```bash
-# Run specific experiments directly
+# Run all experiments
+python run_experiments.py --config config.yaml --experiments all
+
+# Run specific experiments
+python run_experiments.py --config config.yaml --experiments data_validation model_comparison
+
+# Run advanced neuroimaging CV experiments
+python run_experiments.py --config config.yaml --experiments clinical_validation neuroimaging_cv_benchmarks neuroimaging_hyperopt
+
+# Available experiment types:
+# - data_validation: Data quality and preprocessing validation
+# - sgfa_parameter_comparison: SGFA parameter optimization
+# - model_comparison: SGFA vs traditional methods with neuroimaging metrics
+# - performance_benchmarks: Scalability and clinical-aware CV benchmarks
+# - sensitivity_analysis: Hyperparameter sensitivity testing
+# - clinical_validation: Enhanced clinical validation with neuroimaging CV
+# - neuroimaging_hyperopt: Neuroimaging-specific hyperparameter optimization
+# - neuroimaging_cv_benchmarks: Clinical-aware cross-validation benchmarks
+
+# Run with custom data directory
+python run_experiments.py --config config.yaml --data-dir /path/to/data
+
+# Run specific experiments directly (programmatic)
 python -c "
 from experiments import DataValidationExperiments, ExperimentConfig
 config = ExperimentConfig(output_dir='./results')
 validator = DataValidationExperiments(config)
 # Add your data and run experiments
-"
-
-# Or use the experiment runner
-python -c "
-from experiments.framework import ExperimentRunner
-runner = ExperimentRunner('./results')
-# Configure and run experiments
 "
 ```
 

@@ -28,6 +28,11 @@ from experiments.framework import (
     ExperimentResult,
 )
 from performance import PerformanceProfiler
+from analysis.cross_validation_library import (
+    ClinicalAwareSplitter,
+    NeuroImagingCVConfig,
+    NeuroImagingMetrics
+)
 
 
 class ClinicalValidationExperiments(ExperimentFramework):
@@ -38,6 +43,25 @@ class ClinicalValidationExperiments(ExperimentFramework):
     ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
+
+        # Initialize neuroimaging-specific cross-validation
+        self.neuroimaging_cv_config = NeuroImagingCVConfig(
+            n_folds=5,
+            test_size=0.2,
+            stratify_by=["diagnosis", "age_group", "site"],
+            preserve_groups=True,
+            ensure_clinical_balance=True,
+            min_samples_per_group=5
+        )
+
+        # Initialize clinical-aware splitter
+        self.clinical_splitter = ClinicalAwareSplitter(
+            config=self.neuroimaging_cv_config,
+            random_state=42
+        )
+
+        # Initialize neuroimaging metrics
+        self.neuroimaging_metrics = NeuroImagingMetrics()
 
         # Clinical validation settings
         self.classification_models = {
@@ -57,6 +81,706 @@ class ClinicalValidationExperiments(ExperimentFramework):
             "npv",
             "ppv",
         ]
+
+    @experiment_handler("neuroimaging_clinical_validation")
+    @validate_data_types(
+        X_list=list, clinical_data=dict, hypers=dict, args=dict
+    )
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        clinical_data=lambda x: isinstance(x, dict) and len(x.get('diagnosis', [])) > 0,
+        hypers=lambda x: isinstance(x, dict),
+    )
+    def run_neuroimaging_clinical_validation(
+        self,
+        X_list: List[np.ndarray],
+        clinical_data: Dict,
+        hypers: Dict,
+        args: Dict,
+        **kwargs
+    ) -> ExperimentResult:
+        """Run comprehensive clinical validation using neuroimaging-specific cross-validation."""
+        self.logger.info("🏥 Starting neuroimaging-specific clinical validation")
+
+        # Validate clinical data structure
+        required_fields = ['diagnosis', 'subject_id']
+        for field in required_fields:
+            if field not in clinical_data:
+                raise ValueError(f"Clinical data missing required field: {field}")
+
+        diagnoses = np.array(clinical_data['diagnosis'])
+        n_subjects = len(diagnoses)
+
+        # Ensure X_list matches clinical data
+        if X_list[0].shape[0] != n_subjects:
+            raise ValueError(f"Data size mismatch: X_list has {X_list[0].shape[0]} subjects, clinical_data has {n_subjects}")
+
+        results = {}
+
+        try:
+            # 1. Train SGFA model using neuroimaging-aware CV
+            self.logger.info("Training SGFA model with neuroimaging-specific CV")
+            sgfa_cv_results = self._train_sgfa_with_neuroimaging_cv(
+                X_list, clinical_data, hypers, args
+            )
+            results["sgfa_cv_results"] = sgfa_cv_results
+
+            # 2. Extract latent factors for clinical prediction
+            if sgfa_cv_results.get("success", False):
+                self.logger.info("Extracting latent factors for clinical validation")
+                factors_cv_results = self._validate_factors_clinical_prediction(
+                    sgfa_cv_results, clinical_data
+                )
+                results["factors_cv_results"] = factors_cv_results
+
+                # 3. Biomarker discovery with neuroimaging metrics
+                self.logger.info("Performing biomarker discovery with neuroimaging metrics")
+                biomarker_results = self._discover_neuroimaging_biomarkers(
+                    sgfa_cv_results, clinical_data
+                )
+                results["biomarker_results"] = biomarker_results
+
+                # 4. Clinical subtype analysis
+                self.logger.info("Analyzing clinical subtypes with neuroimaging factors")
+                subtype_results = self._analyze_clinical_subtypes_neuroimaging(
+                    sgfa_cv_results, clinical_data
+                )
+                results["subtype_results"] = subtype_results
+
+            else:
+                self.logger.warning("SGFA CV training failed, skipping downstream analyses")
+                results["factors_cv_results"] = {"error": "SGFA training failed"}
+                results["biomarker_results"] = {"error": "SGFA training failed"}
+                results["subtype_results"] = {"error": "SGFA training failed"}
+
+            # 5. Overall clinical validation analysis
+            analysis = self._analyze_neuroimaging_clinical_validation(results)
+
+            # 6. Generate comprehensive plots
+            plots = self._plot_neuroimaging_clinical_validation(results, clinical_data)
+
+            return ExperimentResult(
+                experiment_name="neuroimaging_clinical_validation",
+                config=self.config,
+                data=results,
+                analysis=analysis,
+                plots=plots,
+                success=True,
+            )
+
+        except Exception as e:
+            self.logger.error(f"Neuroimaging clinical validation failed: {str(e)}")
+            return ExperimentResult(
+                experiment_name="neuroimaging_clinical_validation",
+                config=self.config,
+                data={"error": str(e)},
+                analysis={},
+                plots={},
+                success=False,
+            )
+
+    def _train_sgfa_with_neuroimaging_cv(
+        self, X_list: List[np.ndarray], clinical_data: Dict, hypers: Dict, args: Dict
+    ) -> Dict:
+        """Train SGFA using neuroimaging-specific cross-validation."""
+        try:
+            # Generate CV splits using clinical-aware splitter
+            splits = list(self.clinical_splitter.split(
+                X=X_list[0],
+                y=clinical_data.get("diagnosis"),
+                groups=clinical_data.get("subject_id"),
+                clinical_data=clinical_data
+            ))
+
+            self.logger.info(f"Generated {len(splits)} neuroimaging-aware CV folds")
+
+            fold_results = []
+
+            for fold_idx, (train_idx, test_idx) in enumerate(splits):
+                self.logger.info(f"Processing fold {fold_idx + 1}/{len(splits)}")
+
+                # Split data
+                X_train = [X[train_idx] for X in X_list]
+                X_test = [X[test_idx] for X in X_list]
+
+                # Train SGFA
+                try:
+                    with self.profiler.profile(f"sgfa_fold_{fold_idx}") as p:
+                        train_result = self._run_sgfa_training(X_train, hypers, args)
+
+                    # Evaluate on test set
+                    if train_result.get("convergence", False):
+                        test_metrics = self._evaluate_sgfa_test_set(
+                            X_test, train_result, test_idx, clinical_data
+                        )
+
+                        # Calculate neuroimaging-specific metrics
+                        neuroimaging_metrics = self.neuroimaging_metrics.calculate_fold_metrics(
+                            train_result=train_result,
+                            test_metrics=test_metrics,
+                            clinical_data={
+                                key: np.array(values)[test_idx] if isinstance(values, (list, np.ndarray)) else values
+                                for key, values in clinical_data.items()
+                            },
+                            fold_info={
+                                "fold_idx": fold_idx,
+                                "train_size": len(train_idx),
+                                "test_size": len(test_idx)
+                            }
+                        )
+
+                        fold_results.append({
+                            "fold_idx": fold_idx,
+                            "train_idx": train_idx,
+                            "test_idx": test_idx,
+                            "train_result": train_result,
+                            "test_metrics": test_metrics,
+                            "neuroimaging_metrics": neuroimaging_metrics,
+                            "performance_metrics": self.profiler.get_current_metrics(),
+                            "success": True
+                        })
+
+                        self.logger.info(
+                            f"✅ Fold {fold_idx + 1}: convergence={train_result.get('convergence', False)}, "
+                            f"neuro_score={neuroimaging_metrics.get('overall_score', 'N/A'):.3f}"
+                        )
+
+                    else:
+                        fold_results.append({
+                            "fold_idx": fold_idx,
+                            "train_idx": train_idx,
+                            "test_idx": test_idx,
+                            "error": "Model did not converge",
+                            "success": False
+                        })
+                        self.logger.warning(f"❌ Fold {fold_idx + 1}: Model did not converge")
+
+                except Exception as e:
+                    fold_results.append({
+                        "fold_idx": fold_idx,
+                        "train_idx": train_idx,
+                        "test_idx": test_idx,
+                        "error": str(e),
+                        "success": False
+                    })
+                    self.logger.warning(f"❌ Fold {fold_idx + 1} failed: {str(e)}")
+
+            # Aggregate results
+            successful_folds = [f for f in fold_results if f.get("success", False)]
+            cv_summary = {
+                "n_folds": len(splits),
+                "successful_folds": len(successful_folds),
+                "success_rate": len(successful_folds) / len(splits) if splits else 0,
+                "fold_results": fold_results
+            }
+
+            if successful_folds:
+                # Aggregate neuroimaging metrics
+                neuro_scores = [f["neuroimaging_metrics"].get("overall_score", 0) for f in successful_folds]
+                cv_summary["mean_neuroimaging_score"] = np.mean(neuro_scores)
+                cv_summary["std_neuroimaging_score"] = np.std(neuro_scores)
+
+                # Aggregate performance metrics
+                exec_times = [f["performance_metrics"].get("execution_time", 0) for f in successful_folds]
+                cv_summary["mean_execution_time"] = np.mean(exec_times)
+
+                cv_summary["success"] = True
+            else:
+                cv_summary["success"] = False
+                cv_summary["error"] = "No successful folds"
+
+            return cv_summary
+
+        except Exception as e:
+            self.logger.error(f"SGFA neuroimaging CV training failed: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    def _run_sgfa_training(self, X_train: List[np.ndarray], hypers: Dict, args: Dict) -> Dict:
+        """Run SGFA training on training data."""
+        import time
+        import jax
+        from numpyro.infer import MCMC, NUTS
+
+        try:
+            # Import SGFA model
+            from core.run_analysis import models
+
+            # Setup MCMC
+            num_warmup = args.get("num_warmup", 200)
+            num_samples = args.get("num_samples", 300)
+            num_chains = args.get("num_chains", 1)
+
+            # Create args object
+            import argparse
+            model_args = argparse.Namespace(
+                model=args.get("model", "sparseGFA"),
+                K=args.get("K", 5),
+                num_sources=len(X_train),
+                reghsZ=args.get("reghsZ", True),
+            )
+
+            # Run MCMC
+            rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
+            kernel = NUTS(models, target_accept_prob=0.8)
+            mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains)
+
+            start_time = time.time()
+            mcmc.run(rng_key, X_train, hypers, model_args, extra_fields=("potential_energy",))
+            execution_time = time.time() - start_time
+
+            # Extract results
+            samples = mcmc.get_samples()
+            potential_energy = samples.get("potential_energy", np.array([]))
+
+            # Calculate log likelihood
+            log_likelihood = -np.mean(potential_energy) if len(potential_energy) > 0 else float("-inf")
+
+            # Extract parameters
+            W_samples = samples["W"]
+            Z_samples = samples["Z"]
+
+            W_mean = np.mean(W_samples, axis=0)
+            Z_mean = np.mean(Z_samples, axis=0)
+
+            # Split W back into views
+            W_list = []
+            start_idx = 0
+            for X in X_train:
+                end_idx = start_idx + X.shape[1]
+                W_list.append(W_mean[start_idx:end_idx, :])
+                start_idx = end_idx
+
+            return {
+                "W": W_list,
+                "Z": Z_mean,
+                "log_likelihood": float(log_likelihood),
+                "convergence": True,  # Assume convergence if no exception
+                "execution_time": execution_time,
+                "samples": samples
+            }
+
+        except Exception as e:
+            self.logger.warning(f"SGFA training failed: {str(e)}")
+            return {
+                "convergence": False,
+                "error": str(e),
+                "execution_time": float("inf")
+            }
+
+    def _evaluate_sgfa_test_set(
+        self, X_test: List[np.ndarray], train_result: Dict, test_idx: np.ndarray, clinical_data: Dict
+    ) -> Dict:
+        """Evaluate SGFA model on test set."""
+        try:
+            W_list = train_result.get("W", [])
+            if not W_list:
+                return {"error": "No trained weights available"}
+
+            # Project test data onto learned factors
+            Z_test_list = []
+            reconstruction_errors = []
+
+            for X_view, W_view in zip(X_test, W_list):
+                # Simple projection
+                Z_test = X_view @ W_view @ np.linalg.pinv(W_view.T @ W_view)
+                Z_test_list.append(Z_test)
+
+                # Reconstruction error
+                X_recon = Z_test @ W_view.T
+                recon_error = np.mean((X_view - X_recon) ** 2)
+                reconstruction_errors.append(recon_error)
+
+            # Average factors across views
+            Z_test_mean = np.mean(Z_test_list, axis=0)
+
+            # Clinical labels for test set
+            test_diagnoses = np.array(clinical_data["diagnosis"])[test_idx]
+
+            return {
+                "Z_test": Z_test_mean,
+                "reconstruction_errors": reconstruction_errors,
+                "mean_reconstruction_error": np.mean(reconstruction_errors),
+                "test_diagnoses": test_diagnoses,
+                "n_test_subjects": len(test_idx)
+            }
+
+        except Exception as e:
+            return {"error": f"Test evaluation failed: {str(e)}"}
+
+    def _validate_factors_clinical_prediction(self, sgfa_cv_results: Dict, clinical_data: Dict) -> Dict:
+        """Validate clinical prediction using SGFA factors with neuroimaging CV."""
+        try:
+            successful_folds = [
+                f for f in sgfa_cv_results.get("fold_results", [])
+                if f.get("success", False)
+            ]
+
+            if not successful_folds:
+                return {"error": "No successful folds for validation"}
+
+            # Aggregate predictions across folds
+            all_predictions = []
+            all_true_labels = []
+
+            for fold in successful_folds:
+                test_metrics = fold.get("test_metrics", {})
+                Z_test = test_metrics.get("Z_test")
+                test_diagnoses = test_metrics.get("test_diagnoses")
+
+                if Z_test is not None and test_diagnoses is not None:
+                    # Use random forest for prediction (could be configurable)
+                    from sklearn.ensemble import RandomForestClassifier
+                    from sklearn.preprocessing import LabelEncoder
+
+                    # Get training data for this fold
+                    train_idx = fold.get("train_idx", [])
+                    train_result = fold.get("train_result", {})
+                    Z_train = train_result.get("Z")
+
+                    if Z_train is not None:
+                        train_diagnoses = np.array(clinical_data["diagnosis"])[train_idx]
+
+                        # Encode labels
+                        le = LabelEncoder()
+                        le.fit(clinical_data["diagnosis"])
+                        train_labels_encoded = le.transform(train_diagnoses)
+                        test_labels_encoded = le.transform(test_diagnoses)
+
+                        # Train classifier
+                        clf = RandomForestClassifier(random_state=42, n_estimators=100)
+                        clf.fit(Z_train, train_labels_encoded)
+
+                        # Predict
+                        predictions = clf.predict(Z_test)
+                        prediction_proba = clf.predict_proba(Z_test)
+
+                        all_predictions.extend(predictions)
+                        all_true_labels.extend(test_labels_encoded)
+
+            if all_predictions:
+                # Calculate performance metrics
+                from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+                from sklearn.metrics import classification_report
+
+                accuracy = accuracy_score(all_true_labels, all_predictions)
+                f1 = f1_score(all_true_labels, all_predictions, average='weighted')
+                precision = precision_score(all_true_labels, all_predictions, average='weighted')
+                recall = recall_score(all_true_labels, all_predictions, average='weighted')
+
+                return {
+                    "accuracy": accuracy,
+                    "f1_score": f1,
+                    "precision": precision,
+                    "recall": recall,
+                    "classification_report": classification_report(all_true_labels, all_predictions),
+                    "n_predictions": len(all_predictions),
+                    "success": True
+                }
+
+            else:
+                return {"error": "No predictions could be made"}
+
+        except Exception as e:
+            return {"error": f"Clinical prediction validation failed: {str(e)}"}
+
+    def _discover_neuroimaging_biomarkers(self, sgfa_cv_results: Dict, clinical_data: Dict) -> Dict:
+        """Discover neuroimaging biomarkers using SGFA factors."""
+        try:
+            successful_folds = [
+                f for f in sgfa_cv_results.get("fold_results", [])
+                if f.get("success", False)
+            ]
+
+            if not successful_folds:
+                return {"error": "No successful folds for biomarker discovery"}
+
+            biomarker_results = {
+                "factor_importance": {},
+                "clinical_associations": {},
+                "discriminative_factors": []
+            }
+
+            # Analyze factor importance across folds
+            factor_importances = []
+            for fold in successful_folds:
+                neuroimaging_metrics = fold.get("neuroimaging_metrics", {})
+                if "factor_importance" in neuroimaging_metrics:
+                    factor_importances.append(neuroimaging_metrics["factor_importance"])
+
+            if factor_importances:
+                # Aggregate factor importance
+                n_factors = len(factor_importances[0]) if factor_importances else 0
+                mean_importance = np.mean(factor_importances, axis=0) if factor_importances else []
+
+                biomarker_results["factor_importance"] = {
+                    "mean_importance": mean_importance.tolist(),
+                    "top_factors": np.argsort(mean_importance)[-3:].tolist() if len(mean_importance) > 0 else []
+                }
+
+            # Identify discriminative factors
+            diagnoses = np.array(clinical_data["diagnosis"])
+            unique_diagnoses = np.unique(diagnoses)
+
+            if len(unique_diagnoses) > 1:
+                # For each factor, test association with diagnosis
+                discriminative_factors = []
+
+                for fold in successful_folds:
+                    train_result = fold.get("train_result", {})
+                    Z_train = train_result.get("Z")
+                    train_idx = fold.get("train_idx", [])
+
+                    if Z_train is not None:
+                        train_diagnoses = diagnoses[train_idx]
+
+                        # Test each factor for discriminative power
+                        for factor_idx in range(Z_train.shape[1]):
+                            factor_values = Z_train[:, factor_idx]
+
+                            # Group by diagnosis
+                            groups = [factor_values[train_diagnoses == diag] for diag in unique_diagnoses]
+                            groups = [g for g in groups if len(g) > 0]  # Remove empty groups
+
+                            if len(groups) > 1:
+                                # ANOVA test
+                                try:
+                                    f_stat, p_value = stats.f_oneway(*groups)
+                                    if p_value < 0.05:  # Significant
+                                        discriminative_factors.append({
+                                            "factor_idx": factor_idx,
+                                            "f_statistic": f_stat,
+                                            "p_value": p_value,
+                                            "fold_idx": fold["fold_idx"]
+                                        })
+                                except:
+                                    pass
+
+                biomarker_results["discriminative_factors"] = discriminative_factors
+
+            biomarker_results["success"] = True
+            return biomarker_results
+
+        except Exception as e:
+            return {"error": f"Biomarker discovery failed: {str(e)}"}
+
+    def _analyze_clinical_subtypes_neuroimaging(self, sgfa_cv_results: Dict, clinical_data: Dict) -> Dict:
+        """Analyze clinical subtypes using neuroimaging factors."""
+        try:
+            successful_folds = [
+                f for f in sgfa_cv_results.get("fold_results", [])
+                if f.get("success", False)
+            ]
+
+            if not successful_folds:
+                return {"error": "No successful folds for subtype analysis"}
+
+            # Combine factors from all folds for subtype analysis
+            all_factors = []
+            all_diagnoses = []
+
+            for fold in successful_folds:
+                train_result = fold.get("train_result", {})
+                Z_train = train_result.get("Z")
+                train_idx = fold.get("train_idx", [])
+
+                if Z_train is not None:
+                    all_factors.append(Z_train)
+                    all_diagnoses.extend(np.array(clinical_data["diagnosis"])[train_idx])
+
+            if all_factors:
+                # Concatenate all factors
+                combined_factors = np.vstack(all_factors)
+                all_diagnoses = np.array(all_diagnoses)
+
+                # Cluster analysis within each diagnosis group
+                from sklearn.cluster import KMeans
+                from sklearn.metrics import silhouette_score
+
+                subtype_results = {}
+
+                unique_diagnoses = np.unique(all_diagnoses)
+                for diagnosis in unique_diagnoses:
+                    diag_mask = all_diagnoses == diagnosis
+                    diag_factors = combined_factors[diag_mask]
+
+                    if len(diag_factors) > 3:  # Need enough samples for clustering
+                        # Try different numbers of clusters
+                        best_k = 2
+                        best_score = -1
+
+                        for k in range(2, min(6, len(diag_factors))):
+                            try:
+                                kmeans = KMeans(n_clusters=k, random_state=42)
+                                cluster_labels = kmeans.fit_predict(diag_factors)
+                                score = silhouette_score(diag_factors, cluster_labels)
+
+                                if score > best_score:
+                                    best_score = score
+                                    best_k = k
+                            except:
+                                pass
+
+                        # Final clustering with best k
+                        if best_score > 0:
+                            kmeans = KMeans(n_clusters=best_k, random_state=42)
+                            cluster_labels = kmeans.fit_predict(diag_factors)
+
+                            subtype_results[diagnosis] = {
+                                "n_subtypes": best_k,
+                                "silhouette_score": best_score,
+                                "cluster_centers": kmeans.cluster_centers_.tolist(),
+                                "n_subjects": len(diag_factors)
+                            }
+
+                return {
+                    "subtype_analysis": subtype_results,
+                    "total_subjects_analyzed": len(combined_factors),
+                    "success": True
+                }
+
+            else:
+                return {"error": "No factors available for subtype analysis"}
+
+        except Exception as e:
+            return {"error": f"Subtype analysis failed: {str(e)}"}
+
+    def _analyze_neuroimaging_clinical_validation(self, results: Dict) -> Dict:
+        """Analyze overall neuroimaging clinical validation results."""
+        try:
+            analysis = {
+                "overall_performance": {},
+                "neuroimaging_contribution": {},
+                "clinical_impact": {},
+                "recommendations": []
+            }
+
+            # Overall SGFA performance
+            sgfa_results = results.get("sgfa_cv_results", {})
+            if sgfa_results.get("success", False):
+                analysis["overall_performance"] = {
+                    "cv_success_rate": sgfa_results.get("success_rate", 0),
+                    "mean_neuroimaging_score": sgfa_results.get("mean_neuroimaging_score", 0),
+                    "mean_execution_time": sgfa_results.get("mean_execution_time", 0),
+                    "n_successful_folds": sgfa_results.get("successful_folds", 0)
+                }
+
+                # Clinical prediction performance
+                factors_results = results.get("factors_cv_results", {})
+                if factors_results.get("success", False):
+                    analysis["clinical_impact"] = {
+                        "prediction_accuracy": factors_results.get("accuracy", 0),
+                        "prediction_f1_score": factors_results.get("f1_score", 0),
+                        "clinical_utility": "high" if factors_results.get("accuracy", 0) > 0.8 else "moderate"
+                    }
+
+                # Biomarker discovery
+                biomarker_results = results.get("biomarker_results", {})
+                if biomarker_results.get("success", False):
+                    n_discriminative = len(biomarker_results.get("discriminative_factors", []))
+                    analysis["neuroimaging_contribution"] = {
+                        "discriminative_factors_found": n_discriminative,
+                        "biomarker_potential": "high" if n_discriminative > 0 else "low"
+                    }
+
+                # Generate recommendations
+                if analysis["overall_performance"]["cv_success_rate"] > 0.8:
+                    analysis["recommendations"].append("SGFA model shows robust performance across CV folds")
+
+                if analysis.get("clinical_impact", {}).get("prediction_accuracy", 0) > 0.75:
+                    analysis["recommendations"].append("Latent factors have strong clinical predictive value")
+
+                if analysis.get("neuroimaging_contribution", {}).get("discriminative_factors_found", 0) > 0:
+                    analysis["recommendations"].append("Potential neuroimaging biomarkers identified")
+
+            analysis["validation_success"] = len(analysis["recommendations"]) > 0
+
+            return analysis
+
+        except Exception as e:
+            return {"error": f"Analysis failed: {str(e)}"}
+
+    def _plot_neuroimaging_clinical_validation(self, results: Dict, clinical_data: Dict) -> Dict:
+        """Generate plots for neuroimaging clinical validation."""
+        plots = {}
+
+        try:
+            sgfa_results = results.get("sgfa_cv_results", {})
+            if not sgfa_results.get("success", False):
+                return plots
+
+            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+            fig.suptitle("Neuroimaging Clinical Validation Results", fontsize=16)
+
+            # Plot 1: CV Performance Across Folds
+            fold_results = sgfa_results.get("fold_results", [])
+            successful_folds = [f for f in fold_results if f.get("success", False)]
+
+            if successful_folds:
+                fold_indices = [f["fold_idx"] for f in successful_folds]
+                neuro_scores = [f["neuroimaging_metrics"].get("overall_score", 0) for f in successful_folds]
+
+                axes[0, 0].plot(fold_indices, neuro_scores, 'o-', markersize=8, linewidth=2)
+                axes[0, 0].set_xlabel("Fold Index")
+                axes[0, 0].set_ylabel("Neuroimaging Score")
+                axes[0, 0].set_title("CV Performance Across Folds")
+                axes[0, 0].grid(True, alpha=0.3)
+                axes[0, 0].set_ylim([0, 1])
+
+            # Plot 2: Clinical Prediction Performance
+            factors_results = results.get("factors_cv_results", {})
+            if factors_results.get("success", False):
+                metrics = ["accuracy", "f1_score", "precision", "recall"]
+                values = [factors_results.get(m, 0) for m in metrics]
+
+                bars = axes[0, 1].bar(metrics, values, color=['blue', 'green', 'orange', 'red'], alpha=0.7)
+                axes[0, 1].set_ylabel("Score")
+                axes[0, 1].set_title("Clinical Prediction Performance")
+                axes[0, 1].set_ylim([0, 1])
+
+                # Add value labels
+                for bar, value in zip(bars, values):
+                    height = bar.get_height()
+                    axes[0, 1].text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                                   f'{value:.3f}', ha='center', va='bottom')
+
+            # Plot 3: Biomarker Discovery
+            biomarker_results = results.get("biomarker_results", {})
+            if biomarker_results.get("success", False):
+                discriminative_factors = biomarker_results.get("discriminative_factors", [])
+
+                if discriminative_factors:
+                    factor_indices = [f["factor_idx"] for f in discriminative_factors]
+                    p_values = [f["p_value"] for f in discriminative_factors]
+
+                    # Plot as -log10(p-value) for better visualization
+                    neg_log_p = [-np.log10(p) for p in p_values]
+
+                    scatter = axes[1, 0].scatter(factor_indices, neg_log_p, s=100, alpha=0.7)
+                    axes[1, 0].axhline(y=-np.log10(0.05), color='red', linestyle='--',
+                                     label='p=0.05 threshold')
+                    axes[1, 0].set_xlabel("Factor Index")
+                    axes[1, 0].set_ylabel("-log10(p-value)")
+                    axes[1, 0].set_title("Discriminative Factors")
+                    axes[1, 0].legend()
+                    axes[1, 0].grid(True, alpha=0.3)
+
+            # Plot 4: Diagnosis Distribution
+            diagnoses = clinical_data.get("diagnosis", [])
+            if diagnoses:
+                unique_diag, counts = np.unique(diagnoses, return_counts=True)
+                colors = plt.cm.Set3(np.linspace(0, 1, len(unique_diag)))
+
+                wedges, texts, autotexts = axes[1, 1].pie(counts, labels=unique_diag, colors=colors,
+                                                         autopct='%1.1f%%', startangle=90)
+                axes[1, 1].set_title("Clinical Diagnosis Distribution")
+
+            plt.tight_layout()
+            plots["neuroimaging_clinical_validation"] = fig
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create neuroimaging clinical validation plots: {str(e)}")
+
+        return plots
 
     @experiment_handler("subtype_classification_validation")
     @validate_data_types(

@@ -13,6 +13,7 @@ from experiments.sensitivity_analysis import run_sensitivity_analysis
 from experiments.performance_benchmarks import run_performance_benchmarks
 from experiments.model_comparison import run_model_comparison
 from experiments.data_validation import run_data_validation
+from experiments.clinical_validation import run_clinical_validation
 from core.config_utils import (
     check_configuration_warnings,
     ensure_directories,
@@ -96,6 +97,9 @@ def main():
             "model_comparison",
             "performance_benchmarks",
             "sensitivity_analysis",
+            "clinical_validation",
+            "neuroimaging_hyperopt",
+            "neuroimaging_cv_benchmarks",
             "all",
         ],
         default=["all"],
@@ -376,6 +380,81 @@ def main():
                 )
 
         results["sensitivity_analysis"] = run_sensitivity_analysis(exp_config)
+
+    if "clinical_validation" in experiments_to_run:
+        logger.info("🏥 6/8 Starting Clinical Validation with Neuroimaging CV...")
+        exp_config = config.copy()
+        if pipeline_context["X_list"] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+            exp_config["_shared_data"] = {
+                "X_list": pipeline_context["X_list"],
+                "preprocessing_info": pipeline_context["preprocessing_info"],
+                "mode": "shared",
+            }
+
+            # Pass optimal SGFA parameters if available
+            if pipeline_context["optimal_sgfa_params"] is not None:
+                exp_config["_optimal_sgfa_params"] = pipeline_context[
+                    "optimal_sgfa_params"
+                ]
+                logger.info(
+                    f"   → Using optimal SGFA params: {
+                        pipeline_context['optimal_sgfa_params']['variant_name']}"
+                )
+
+        results["clinical_validation"] = run_clinical_validation(exp_config)
+
+    if "neuroimaging_hyperopt" in experiments_to_run:
+        logger.info("🔬 7/8 Starting Neuroimaging Hyperparameter Optimization...")
+        exp_config = config.copy()
+        if pipeline_context["X_list"] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+            exp_config["_shared_data"] = {
+                "X_list": pipeline_context["X_list"],
+                "preprocessing_info": pipeline_context["preprocessing_info"],
+                "mode": "shared",
+            }
+
+        # Run neuroimaging hyperparameter optimization from sgfa_parameter_comparison
+        from experiments.sgfa_parameter_comparison import SGFAParameterComparison
+        from experiments.framework import ExperimentConfig
+
+        experiment_config = ExperimentConfig.from_dict(exp_config)
+        sgfa_exp = SGFAParameterComparison(experiment_config)
+
+        # Generate synthetic data if shared data not available
+        if pipeline_context["X_list"] is None:
+            logger.info("   → No shared data available, will use synthetic data")
+
+        results["neuroimaging_hyperopt"] = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
+            X_list=pipeline_context.get("X_list"),
+            hypers=exp_config.get("hypers", {}),
+            args=exp_config.get("args", {})
+        )
+
+    if "neuroimaging_cv_benchmarks" in experiments_to_run:
+        logger.info("📊 8/8 Starting Neuroimaging CV Benchmarks...")
+        exp_config = config.copy()
+        if pipeline_context["X_list"] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+            exp_config["_shared_data"] = {
+                "X_list": pipeline_context["X_list"],
+                "preprocessing_info": pipeline_context["preprocessing_info"],
+                "mode": "shared",
+            }
+
+        # Run clinical-aware CV benchmarks from performance_benchmarks
+        from experiments.performance_benchmarks import PerformanceBenchmarks
+        from experiments.framework import ExperimentConfig
+
+        experiment_config = ExperimentConfig.from_dict(exp_config)
+        perf_exp = PerformanceBenchmarks(experiment_config)
+
+        results["neuroimaging_cv_benchmarks"] = perf_exp.run_clinical_aware_cv_benchmarks(
+            X_base=pipeline_context.get("X_list"),
+            hypers=exp_config.get("hypers", {}),
+            args=exp_config.get("args", {})
+        )
 
     # Summary
     end_time = datetime.now()

@@ -24,6 +24,7 @@ from experiments.framework import (
     ExperimentResult,
 )
 from performance import PerformanceProfiler
+from analysis.cross_validation_library import NeuroImagingHyperOptimizer, NeuroImagingCVConfig
 
 
 class SGFAParameterComparison(ExperimentFramework):
@@ -34,6 +35,20 @@ class SGFAParameterComparison(ExperimentFramework):
     ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
+
+        # Initialize neuroimaging hyperparameter optimizer
+        cv_config = NeuroImagingCVConfig(
+            n_folds=3,  # Reduced for hyperparameter optimization
+            test_size=0.2,
+            stratify_by=["diagnosis"] if hasattr(config, 'clinical_data') else None,
+            preserve_groups=True,
+            ensure_clinical_balance=True
+        )
+        self.hyperopt = NeuroImagingHyperOptimizer(
+            cv_config=cv_config,
+            n_trials=20,  # Manageable number for experiments
+            random_state=42
+        )
 
         # Method configurations
         self.sgfa_variants = {
@@ -303,6 +318,397 @@ class SGFAParameterComparison(ExperimentFramework):
             plots=plots,
             success=True,
         )
+
+    @experiment_handler("neuroimaging_hyperparameter_optimization")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0 and all(isinstance(arr, np.ndarray) for arr in x),
+        hypers=lambda x: isinstance(x, dict),
+    )
+    def run_neuroimaging_hyperparameter_optimization(
+        self,
+        X_list: List[np.ndarray],
+        hypers: Dict,
+        args: Dict,
+        clinical_data: Optional[Dict] = None,
+        **kwargs
+    ) -> ExperimentResult:
+        """Run neuroimaging-specific hyperparameter optimization using NeuroImagingHyperOptimizer."""
+        self.logger.info("🔬 Starting neuroimaging hyperparameter optimization")
+
+        if clinical_data is None:
+            # Generate synthetic clinical data for optimization
+            clinical_data = self._generate_synthetic_clinical_data(X_list[0].shape[0])
+
+        # Define hyperparameter search space specific to SGFA neuroimaging applications
+        search_space = {
+            'K': {
+                'type': 'int',
+                'low': 3,
+                'high': 15,
+                'step': 1,
+                'description': 'Number of latent factors'
+            },
+            'percW': {
+                'type': 'float',
+                'low': 10.0,
+                'high': 50.0,
+                'step': 5.0,
+                'description': 'Sparsity percentage for factor loadings'
+            },
+            'num_samples': {
+                'type': 'categorical',
+                'choices': [200, 300, 500],
+                'description': 'Number of MCMC samples'
+            },
+            'num_warmup': {
+                'type': 'int',
+                'low': 100,
+                'high': 300,
+                'step': 50,
+                'description': 'Number of MCMC warmup steps'
+            }
+        }
+
+        try:
+            self.logger.info(f"Optimizing hyperparameters with {self.hyperopt.n_trials} trials")
+            self.logger.info(f"Search space: {list(search_space.keys())}")
+
+            # Define the objective function for SGFA
+            def sgfa_objective(trial_params: Dict) -> float:
+                """Objective function for SGFA hyperparameter optimization."""
+                try:
+                    # Update hyperparameters with trial parameters
+                    trial_hypers = hypers.copy()
+                    trial_hypers.update({
+                        'percW': trial_params['percW']
+                    })
+
+                    # Update args with trial parameters
+                    trial_args = args.copy()
+                    trial_args.update({
+                        'K': trial_params['K'],
+                        'num_samples': trial_params['num_samples'],
+                        'num_warmup': trial_params['num_warmup'],
+                        'model': 'sparseGFA'  # Focus on sparse GFA
+                    })
+
+                    # Run SGFA with these parameters
+                    result = self._run_sgfa_variant(X_list, trial_hypers, trial_args)
+
+                    if not result.get('convergence', False):
+                        return -1000.0  # Heavy penalty for non-convergence
+
+                    # Calculate composite score based on multiple criteria
+                    log_likelihood = result.get('log_likelihood', float('-inf'))
+                    execution_time = result.get('execution_time', float('inf'))
+
+                    # Normalize scores
+                    ll_score = log_likelihood if log_likelihood != float('-inf') else -1000
+                    time_penalty = min(100, execution_time) / 100.0  # Normalize time to 0-1
+
+                    # Composite score favoring both likelihood and efficiency
+                    composite_score = ll_score - (0.1 * time_penalty)
+
+                    self.logger.debug(
+                        f"Trial K={trial_params['K']}, percW={trial_params['percW']:.1f}: "
+                        f"LL={ll_score:.2f}, Time={execution_time:.1f}s, Score={composite_score:.2f}"
+                    )
+
+                    return composite_score
+
+                except Exception as e:
+                    self.logger.warning(f"Trial failed: {str(e)}")
+                    return -2000.0  # Heavy penalty for failed trials
+
+            # Run hyperparameter optimization
+            optimization_result = self.hyperopt.optimize_hyperparameters(
+                X_data=X_list,
+                clinical_data=clinical_data,
+                search_space=search_space,
+                objective_function=sgfa_objective,
+                study_name="sgfa_neuroimaging_optimization"
+            )
+
+            self.logger.info("✅ Hyperparameter optimization completed")
+
+            # Extract results
+            best_params = optimization_result.get('best_params', {})
+            best_score = optimization_result.get('best_score', float('-inf'))
+            optimization_history = optimization_result.get('optimization_history', [])
+
+            self.logger.info(f"🏆 Best parameters: {best_params}")
+            self.logger.info(f"🏆 Best score: {best_score:.3f}")
+
+            # Run final evaluation with best parameters
+            self.logger.info("Running final evaluation with best parameters")
+            final_hypers = hypers.copy()
+            final_hypers.update({'percW': best_params.get('percW', 25.0)})
+
+            final_args = args.copy()
+            final_args.update({
+                'K': best_params.get('K', 5),
+                'num_samples': best_params.get('num_samples', 300),
+                'num_warmup': best_params.get('num_warmup', 150),
+                'model': 'sparseGFA'
+            })
+
+            final_result = self._run_sgfa_variant(X_list, final_hypers, final_args)
+
+            # Compile comprehensive results
+            results = {
+                'optimization_result': optimization_result,
+                'best_parameters': best_params,
+                'best_score': best_score,
+                'final_evaluation': final_result,
+                'search_space': search_space,
+                'n_trials': self.hyperopt.n_trials,
+                'optimization_history': optimization_history
+            }
+
+            # Analyze optimization results
+            analysis = self._analyze_hyperparameter_optimization(results)
+
+            # Generate optimization plots
+            plots = self._plot_hyperparameter_optimization(results)
+
+            return ExperimentResult(
+                experiment_name="neuroimaging_hyperparameter_optimization",
+                config=self.config,
+                data=results,
+                analysis=analysis,
+                plots=plots,
+                success=True,
+            )
+
+        except Exception as e:
+            self.logger.error(f"Neuroimaging hyperparameter optimization failed: {str(e)}")
+            return ExperimentResult(
+                experiment_name="neuroimaging_hyperparameter_optimization",
+                config=self.config,
+                data={'error': str(e)},
+                analysis={},
+                plots={},
+                success=False,
+            )
+
+    def _generate_synthetic_clinical_data(self, n_subjects: int) -> Dict:
+        """Generate synthetic clinical data for hyperparameter optimization."""
+        np.random.seed(42)  # For reproducibility
+
+        # Generate basic clinical data structure
+        diagnoses = np.random.choice(
+            ["PD", "control"],
+            size=n_subjects,
+            p=[0.7, 0.3]  # 70% PD patients, 30% controls
+        )
+
+        ages = np.random.normal(65, 10, n_subjects)
+        ages = np.clip(ages, 40, 85)  # Reasonable age range
+
+        return {
+            "subject_id": [f"subj_{i:04d}" for i in range(n_subjects)],
+            "diagnosis": diagnoses,
+            "age": ages,
+            "age_group": ["young" if age < 60 else "old" for age in ages],
+        }
+
+    def _analyze_hyperparameter_optimization(self, results: Dict) -> Dict:
+        """Analyze hyperparameter optimization results."""
+        try:
+            optimization_history = results.get('optimization_history', [])
+            best_params = results.get('best_parameters', {})
+            search_space = results.get('search_space', {})
+
+            analysis = {
+                'parameter_importance': {},
+                'convergence_analysis': {},
+                'efficiency_analysis': {},
+                'recommendation': {}
+            }
+
+            if optimization_history:
+                # Analyze parameter importance (correlation with objective)
+                for param_name in search_space.keys():
+                    param_values = [trial.get(param_name) for trial in optimization_history if param_name in trial]
+                    objective_values = [trial.get('objective_value', 0) for trial in optimization_history if param_name in trial]
+
+                    if len(param_values) > 3:  # Need sufficient data points
+                        correlation = np.corrcoef(param_values, objective_values)[0, 1]
+                        analysis['parameter_importance'][param_name] = {
+                            'correlation_with_objective': correlation if not np.isnan(correlation) else 0.0,
+                            'value_range': [min(param_values), max(param_values)],
+                            'best_value': best_params.get(param_name, 'unknown')
+                        }
+
+                # Convergence analysis
+                objective_values = [trial.get('objective_value', float('-inf')) for trial in optimization_history]
+                valid_objectives = [obj for obj in objective_values if obj != float('-inf')]
+
+                if valid_objectives:
+                    # Running best score
+                    running_best = []
+                    current_best = float('-inf')
+                    for obj in objective_values:
+                        if obj > current_best:
+                            current_best = obj
+                        running_best.append(current_best)
+
+                    analysis['convergence_analysis'] = {
+                        'trials_completed': len(optimization_history),
+                        'successful_trials': len(valid_objectives),
+                        'success_rate': len(valid_objectives) / len(optimization_history),
+                        'final_best_score': max(valid_objectives),
+                        'convergence_trend': running_best[-10:] if len(running_best) >= 10 else running_best
+                    }
+
+                # Efficiency analysis
+                execution_times = [trial.get('execution_time', 0) for trial in optimization_history]
+                if execution_times:
+                    analysis['efficiency_analysis'] = {
+                        'mean_trial_time': np.mean(execution_times),
+                        'total_optimization_time': sum(execution_times),
+                        'fastest_trial_time': min(execution_times),
+                        'slowest_trial_time': max(execution_times)
+                    }
+
+            # Generate recommendations
+            analysis['recommendation'] = {
+                'optimal_K': best_params.get('K', 5),
+                'optimal_percW': best_params.get('percW', 25.0),
+                'optimal_num_samples': best_params.get('num_samples', 300),
+                'confidence': 'high' if len(optimization_history) >= 15 else 'medium',
+                'suggested_next_steps': [
+                    f"Use K={best_params.get('K', 5)} factors for this dataset",
+                    f"Set sparsity to {best_params.get('percW', 25.0):.1f}%",
+                    "Consider running longer chains for final analysis"
+                ]
+            }
+
+            return analysis
+
+        except Exception as e:
+            self.logger.warning(f"Failed to analyze hyperparameter optimization: {str(e)}")
+            return {'error': str(e)}
+
+    def _plot_hyperparameter_optimization(self, results: Dict) -> Dict:
+        """Generate plots for hyperparameter optimization results."""
+        plots = {}
+
+        try:
+            optimization_history = results.get('optimization_history', [])
+            best_params = results.get('best_parameters', {})
+
+            if not optimization_history:
+                return plots
+
+            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+            fig.suptitle("Neuroimaging Hyperparameter Optimization Results", fontsize=16)
+
+            # Plot 1: Optimization progress
+            objective_values = [trial.get('objective_value', float('-inf')) for trial in optimization_history]
+            valid_indices = [i for i, obj in enumerate(objective_values) if obj != float('-inf')]
+            valid_objectives = [objective_values[i] for i in valid_indices]
+
+            if valid_objectives:
+                axes[0, 0].plot(valid_indices, valid_objectives, 'o-', alpha=0.7)
+                axes[0, 0].set_xlabel("Trial Number")
+                axes[0, 0].set_ylabel("Objective Score")
+                axes[0, 0].set_title("Optimization Progress")
+                axes[0, 0].grid(True, alpha=0.3)
+
+                # Add best score line
+                best_score = max(valid_objectives)
+                axes[0, 0].axhline(y=best_score, color='red', linestyle='--',
+                                 label=f'Best Score: {best_score:.2f}')
+                axes[0, 0].legend()
+
+            # Plot 2: Parameter vs Objective (K)
+            K_values = [trial.get('K') for trial in optimization_history if 'K' in trial]
+            K_objectives = [trial.get('objective_value') for trial in optimization_history if 'K' in trial]
+
+            if K_values and K_objectives:
+                valid_K_data = [(k, obj) for k, obj in zip(K_values, K_objectives) if obj != float('-inf')]
+                if valid_K_data:
+                    K_vals, K_objs = zip(*valid_K_data)
+                    axes[0, 1].scatter(K_vals, K_objs, alpha=0.7, s=50)
+                    axes[0, 1].set_xlabel("Number of Factors (K)")
+                    axes[0, 1].set_ylabel("Objective Score")
+                    axes[0, 1].set_title("Factors vs Performance")
+                    axes[0, 1].grid(True, alpha=0.3)
+
+                    # Highlight best K
+                    best_K = best_params.get('K')
+                    if best_K is not None:
+                        axes[0, 1].axvline(x=best_K, color='red', linestyle='--',
+                                         label=f'Best K: {best_K}')
+                        axes[0, 1].legend()
+
+            # Plot 3: Parameter vs Objective (percW)
+            percW_values = [trial.get('percW') for trial in optimization_history if 'percW' in trial]
+            percW_objectives = [trial.get('objective_value') for trial in optimization_history if 'percW' in trial]
+
+            if percW_values and percW_objectives:
+                valid_percW_data = [(p, obj) for p, obj in zip(percW_values, percW_objectives) if obj != float('-inf')]
+                if valid_percW_data:
+                    percW_vals, percW_objs = zip(*valid_percW_data)
+                    axes[1, 0].scatter(percW_vals, percW_objs, alpha=0.7, s=50, color='orange')
+                    axes[1, 0].set_xlabel("Sparsity Percentage (percW)")
+                    axes[1, 0].set_ylabel("Objective Score")
+                    axes[1, 0].set_title("Sparsity vs Performance")
+                    axes[1, 0].grid(True, alpha=0.3)
+
+                    # Highlight best percW
+                    best_percW = best_params.get('percW')
+                    if best_percW is not None:
+                        axes[1, 0].axvline(x=best_percW, color='red', linestyle='--',
+                                         label=f'Best percW: {best_percW:.1f}')
+                        axes[1, 0].legend()
+
+            # Plot 4: Parameter correlation heatmap
+            param_names = ['K', 'percW', 'num_samples']
+            param_data = []
+
+            for param in param_names:
+                param_values = [trial.get(param, np.nan) for trial in optimization_history]
+                param_data.append(param_values)
+
+            # Add objective values
+            param_data.append(objective_values)
+            param_names.append('Objective')
+
+            # Calculate correlation matrix
+            valid_data = []
+            for i in range(len(optimization_history)):
+                row_data = [param_data[j][i] for j in range(len(param_names))]
+                if all(not (isinstance(x, float) and np.isnan(x)) and x != float('-inf') for x in row_data):
+                    valid_data.append(row_data)
+
+            if len(valid_data) > 3:  # Need sufficient data
+                corr_matrix = np.corrcoef(np.array(valid_data).T)
+
+                im = axes[1, 1].imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1)
+                axes[1, 1].set_xticks(range(len(param_names)))
+                axes[1, 1].set_yticks(range(len(param_names)))
+                axes[1, 1].set_xticklabels(param_names, rotation=45)
+                axes[1, 1].set_yticklabels(param_names)
+                axes[1, 1].set_title("Parameter Correlation Matrix")
+
+                # Add correlation values
+                for i in range(len(param_names)):
+                    for j in range(len(param_names)):
+                        text = axes[1, 1].text(j, i, f'{corr_matrix[i, j]:.2f}',
+                                             ha="center", va="center", color="black", fontsize=8)
+
+                plt.colorbar(im, ax=axes[1, 1])
+
+            plt.tight_layout()
+            plots["hyperparameter_optimization"] = fig
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create hyperparameter optimization plots: {str(e)}")
+
+        return plots
 
     def _run_sgfa_variant(
         self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
