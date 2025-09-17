@@ -272,24 +272,40 @@ class ModelArchitectureComparison(ExperimentFramework):
             else:
                 # Fallback: estimate log-likelihood from model fit quality
                 self.logger.warning("No potential energy data collected, using convergence fallback")
-                # Calculate a simple reconstruction-based likelihood estimate
+                # Calculate a proper Gaussian log-likelihood estimate from reconstruction error
                 try:
-                    total_mse = 0
-                    total_elements = 0
+                    reconstruction_errors = []
+                    total_samples = 0
                     start_idx = 0
+
                     for X in X_list:
                         end_idx = start_idx + X.shape[1]
                         W_view = W_mean[start_idx:end_idx, :]
                         X_recon = Z_mean @ W_view.T
-                        mse = np.mean((X - X_recon) ** 2)
-                        total_mse += mse * X.size
-                        total_elements += X.size
+
+                        # Calculate residuals
+                        residuals = X - X_recon
+
+                        # Estimate noise variance for this view
+                        noise_var = np.var(residuals)
+                        if noise_var <= 0:
+                            noise_var = 1e-6  # Avoid log(0)
+
+                        # Gaussian log-likelihood for this view
+                        n_obs = X.size
+                        view_ll = -0.5 * n_obs * (np.log(2 * np.pi * noise_var) + 1.0)
+
+                        reconstruction_errors.append(view_ll)
+                        total_samples += n_obs
                         start_idx = end_idx
 
-                    avg_mse = total_mse / total_elements
-                    # Convert MSE to a reasonable log-likelihood estimate
-                    log_likelihood = -0.5 * avg_mse * total_elements
-                    self.logger.info(f"Estimated log-likelihood from reconstruction: {log_likelihood:.3f}")
+                    # Sum log-likelihoods across views
+                    log_likelihood = sum(reconstruction_errors)
+
+                    # Normalize by number of observations for interpretability
+                    normalized_ll = log_likelihood / total_samples
+
+                    self.logger.info(f"Estimated log-likelihood from reconstruction: {log_likelihood:.1f} (normalized: {normalized_ll:.3f})")
                 except Exception as e:
                     self.logger.warning(f"Failed to estimate log-likelihood: {e}")
                     log_likelihood = float("nan")
