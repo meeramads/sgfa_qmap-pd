@@ -1,0 +1,152 @@
+# SGFA qMAP-PD Debug Configuration
+# Minimal configuration optimized for fast testing and debugging
+# Use with: python run_experiments.py --config config_debug.yaml
+
+# =============================================================================
+# MINIMAL DEBUG CONFIGURATION
+# =============================================================================
+
+# Data Configuration - using synthetic data for speed
+data:
+  data_dir: "./qMAP-PD_data"              # Will fallback to synthetic if not found
+  clinical_file: "data_clinical/clinical.tsv"
+  volume_dir: "volume_matrices"
+  imaging_as_single_view: true
+
+# Experiment Configuration - minimal settings
+experiments:
+  base_output_dir: "./debug_results"      # Separate debug output
+  save_intermediate: false                # Skip intermediate saves for speed
+  generate_plots: false                   # Skip plots for speed
+  max_parallel_jobs: 1                    # Single-threaded for easier debugging
+
+# Model Configuration - minimal for fast execution
+model:
+  model_type: "sparse_gfa"
+  K: 3                                    # Very small number of factors
+
+  # MCMC Parameters - minimal for speed
+  num_samples: 50                         # Very few samples
+  num_warmup: 25                          # Minimal warmup
+  num_chains: 1                           # Single chain
+
+  # Sparsity Parameters
+  sparsity_lambda: 0.1
+  group_lambda: 0.1
+
+  # Reproducibility
+  random_seed: 42
+
+# Preprocessing Configuration - minimal processing
+preprocessing:
+  strategy: "minimal"
+  enable_advanced_preprocessing: false
+  enable_spatial_processing: false
+  imputation_strategy: "mean"
+  feature_selection_method: "none"
+  variance_threshold: 0.0
+  missing_threshold: 1.0                  # Don't drop any features
+
+# Cross-Validation Configuration - minimal CV
+cross_validation:
+  n_folds: 2                              # Minimal folds
+  n_repeats: 1                            # Single repeat
+  stratified: true
+  group_aware: false
+  random_seed: 42
+
+# Monitoring Configuration
+monitoring:
+  checkpoint_dir: "./debug_results/checkpoints"
+  log_level: "DEBUG"                      # Verbose logging for debugging
+  save_checkpoints: false                 # Skip checkpoints for speed
+  checkpoint_interval: 50
+
+# System Configuration - conservative settings
+system:
+  use_gpu: false                          # Use CPU for consistent debugging
+  memory_limit_gb: 4.0                    # Conservative memory limit
+  n_cpu_cores: 2                          # Limit CPU usage
+
+# =============================================================================
+# DEBUG EXPERIMENT-SPECIFIC CONFIGURATIONS
+# =============================================================================
+
+# Data Validation Experiment - single strategy
+data_validation:
+  preprocessing_strategies:
+    minimal:
+      enable_advanced_preprocessing: false
+      imputation_strategy: "mean"
+
+# Method Comparison Experiment - minimal comparisons
+method_comparison:
+  models:
+    - name: "sparse_gfa"
+      n_factors: [3]                      # Single factor count
+      sparsity_lambda: [0.1]              # Single sparsity level
+      group_lambda: [0.1]
+
+    - name: "standard_gfa"
+      n_factors: [3]
+
+  cross_validation:
+    n_folds: 2
+    n_repeats: 1
+
+  evaluation_metrics:
+    - "reconstruction_error"
+
+# Sensitivity Analysis Experiment - minimal parameter ranges
+sensitivity_analysis:
+  parameter_ranges:
+    n_factors: [2, 3]                     # Minimal range
+    sparsity_lambda: [0.05, 0.1]          # Two values only
+    learning_rate: [0.01]                 # Single value
+
+  stability_tests:
+    n_random_inits: 2                     # Minimal random inits
+    convergence_threshold: 1e-3           # Relaxed convergence
+
+# Performance Benchmarks Experiment - tiny datasets
+performance_benchmarks:
+  benchmark_configs:
+    tiny_scale:
+      n_subjects: 20                      # Very small
+      n_features_per_view: [50, 30]       # Tiny feature sets
+
+    small_scale:
+      n_subjects: 30
+      n_features_per_view: [100, 80]
+
+  metrics_to_track:
+    - "training_time"
+    - "memory_usage"
+
+# Clinical Validation Experiment - single validation type
+clinical_validation:
+  validation_types:
+    - "subtype_classification"            # Only one type
+
+  classification_metrics:
+    - "accuracy"                          # Only basic metric
+
+  cross_validation:
+    n_folds: 2                            # Minimal folds
+    stratified: true
+
+# Reproducibility Experiment - minimal testing
+reproducibility:
+  test_scenarios:
+    - "identical_seeds"                   # Only test identical seeds
+
+  seed_values: [42, 123]                  # Two seeds only
+  n_repetitions: 1                        # Single repetition
+
+  convergence_metrics:
+    - "factor_correlation"
+
+  tolerance_thresholds:
+    correlation_threshold: 0.8            # Relaxed threshold
+    parameter_relative_error: 0.1         # Relaxed error tolerance
+    reconstruction_error_ratio: 0.05      # Relaxed reconstruction tolerance
