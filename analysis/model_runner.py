@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 class ModelRunner:
     """Handles MCMC model execution."""
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, args, results_dir=None):
+        self.args = args
+        self.results_dir = results_dir
 
     def run_standard_analysis(
         self, X_list: List[np.ndarray], hypers: Dict, data: Dict

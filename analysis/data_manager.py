@@ -12,18 +12,19 @@ logger = logging.getLogger(__name__)
 class DataManager:
     """Manages data loading and preprocessing."""
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, args, hyperparameters_dir=None):
+        self.args = args
+        self.hyperparameters_dir = hyperparameters_dir
         self.preprocessor = None
 
     def load_data(self) -> Dict:
         """Load data based on configuration."""
-        if self.config.dataset == "synthetic":
+        if self.args.dataset == "synthetic":
             return self._load_synthetic_data()
-        elif self.config.dataset == "qmap_pd":
+        elif self.args.dataset == "qmap_pd":
             return self._load_qmap_data()
         else:
-            raise ValueError(f"Unknown dataset: {self.config.dataset}")
+            raise ValueError(f"Unknown dataset: {self.args.dataset}")
 
     def _load_qmap_data(self) -> Dict:
         """Load qMAP-PD dataset with preprocessing."""
@@ -50,7 +51,7 @@ class DataManager:
         from data.synthetic import generate_synthetic_data
 
         return generate_synthetic_data(
-            self.config.num_sources, self.config.K, self.config.percW
+            self.args.num_sources, self.args.K, getattr(self.args, 'percW', 25.0)
         )
 
     def prepare_for_analysis(self, data: Dict) -> Tuple[List[np.ndarray], Dict]:
@@ -65,7 +66,7 @@ class DataManager:
             "nu_global": 1,
             "slab_scale": 2,
             "slab_df": 4,
-            "percW": self.config.percW,
+            "percW": getattr(self.args, 'percW', 25.0),
             "Dm": [X.shape[1] for X in X_list],
         }
 

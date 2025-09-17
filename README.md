@@ -33,6 +33,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `cross_validation.py`: Cross-validation framework ✅ **IMPLEMENTED**
   - `cross_validation_library.py`: Advanced neuroimaging CV 🔧 **FRAMEWORK ONLY - NEEDS DEVELOPMENT**
   - `cv_fallbacks.py`: Reusable fallback utilities for advanced CV features ✅ **IMPLEMENTED**
+  - `experiment_utils.py`: Bridge utilities for experiments to use analysis pipeline ✅ **IMPLEMENTED**
 
 ### Optimization & Performance
 
@@ -249,6 +250,22 @@ X_list = data['X_list']
 
 # Run SGFA analysis
 results = run_sgfa_analysis(X_list, K=5, sparsity_level=0.3)
+```
+
+### Using Analysis Pipeline Components
+
+```python
+from analysis import quick_sgfa_run, create_analysis_components
+
+# Quick SGFA run with minimal setup
+results = quick_sgfa_run(X_list, K=5, percW=25.0)
+
+# Or use the full pipeline components
+data_manager, model_runner = create_analysis_components({
+    'K': 5, 'num_sources': 3, 'dataset': 'synthetic'
+})
+X_list, hypers = data_manager.load_data()
+results = model_runner.run_standard_analysis(X_list, hypers, {'X_list': X_list})
 ```
 
 ### With Performance Optimization
