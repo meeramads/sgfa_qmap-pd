@@ -400,7 +400,7 @@ Key settings to consider:
 - profiling.enable_profiling: For performance monitoring
 
 Load the configuration in your analysis:
-  from performance import PerformanceConfig
+  from optimization import PerformanceConfig
   config = PerformanceConfig.load('{filepath}')
 """
     )

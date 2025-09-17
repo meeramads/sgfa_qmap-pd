@@ -1,4 +1,13 @@
-"""Comprehensive experimental framework for qMAP-PD SGFA analysis."""
+"""Comprehensive experimental framework for qMAP-PD SGFA analysis.
+
+All experiment classes now include automatic performance optimization through the
+@performance_optimized_experiment decorator, providing:
+- Memory optimization and monitoring
+- Data streaming for large datasets
+- MCMC memory optimization
+- Adaptive batch sizing
+- System auto-configuration
+"""
 
 from .clinical_validation import ClinicalValidationExperiments
 from .data_validation import DataValidationExperiments

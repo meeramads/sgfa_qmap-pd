@@ -24,6 +24,7 @@ from experiments.framework import (
     ExperimentFramework,
     ExperimentResult,
 )
+from optimization.experiment_mixins import performance_optimized_experiment
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +137,7 @@ def run_data_validation(config):
         return None
 
 
+@performance_optimized_experiment()
 class DataValidationExperiments(ExperimentFramework):
     """Comprehensive data validation and preprocessing experiments."""
 

@@ -6,7 +6,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 
 - **Multi-view Factor Analysis**: Handles multiple neuroimaging modalities simultaneously
 - **Sparsity & Grouping**: Implements both sparse and group penalties for interpretable results
-- **Performance Optimization**: Memory-efficient processing with automatic system optimization
+- **Computational Optimization**: Memory-efficient processing with automatic system optimization and performance mixins
 - **Comprehensive Testing**: Extensive experimental validation framework
 - **Clinical Validation**: Built-in tools for clinical subtype analysis and biomarker discovery
 
@@ -35,14 +35,15 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `cv_fallbacks.py`: Reusable fallback utilities for advanced CV features ✅ **IMPLEMENTED**
   - `experiment_utils.py`: Bridge utilities for experiments to use analysis pipeline ✅ **IMPLEMENTED**
 
-### Optimization & Performance
+### Computational Optimization
 
-- **[performance/](performance/)**: Performance optimization framework
-  - `memory_optimizer.py`: Memory management and monitoring
-  - `data_streaming.py`: Efficient data loading for large datasets
-  - `mcmc_optimizer.py`: Memory-optimized MCMC sampling
+- **[optimization/](optimization/)**: Computational optimization framework (renamed from `performance/` to avoid confusion with model performance)
+  - `memory_optimizer.py`: Memory management and monitoring with automatic cleanup
+  - `data_streaming.py`: Memory-efficient data loading for large datasets
+  - `mcmc_optimizer.py`: Memory-optimized MCMC sampling with checkpointing
   - `profiler.py`: Performance profiling and benchmarking tools
-  - `config.py`: Performance configuration management
+  - `config.py`: Auto-configuration for different system capabilities
+  - `experiment_mixins.py`: Reusable optimization patterns for experiments ✅ **NEW**
 
 ### Experimental Validation
 
@@ -69,6 +70,46 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 
 - **[visualization/](visualization/)**: Result visualization and diagnostic plots
 - **[tests/](tests/)**: Comprehensive test suite
+
+## 🚀 Automatic Optimization Features
+
+All experiments now include **automatic computational optimization** through the `@performance_optimized_experiment` decorator:
+
+### **Memory Optimization**
+
+- **Automatic array optimization**: Converts float64→float32 when precision allows
+- **Real-time memory monitoring**: Tracks usage with automatic cleanup
+- **Adaptive batch sizing**: Calculates optimal batch sizes based on available memory
+- **Memory pressure handling**: Automatic intervention when memory limits approached
+
+### **Data Streaming**
+
+- **Large dataset support**: Memory-efficient streaming for datasets larger than RAM
+- **Chunked processing**: Automatic data chunking for cross-validation and analysis
+- **Memory-efficient contexts**: Automatic memory management during processing
+
+### **MCMC Optimization**
+
+- **Gradient checkpointing**: Reduces memory usage during MCMC sampling
+- **Adaptive subsampling**: Automatic data subsampling when memory constrained
+- **Batch sampling**: Memory-optimized sampling for large datasets
+
+### **System Auto-Configuration**
+
+- **Hardware detection**: Automatically detects system capabilities (RAM, CPU)
+- **Optimization strategy selection**: Chooses optimal settings based on available resources
+- **Performance monitoring**: Real-time tracking of computational performance
+
+### **Usage**
+
+```python
+# All experiments automatically optimized - no code changes needed!
+from experiments import ClinicalValidationExperiments
+
+config = ExperimentConfig(auto_configure_system=True)  # Enable auto-optimization
+experiment = ClinicalValidationExperiments(config)
+# Memory optimization, streaming, and monitoring happen automatically
+```
 
 ## ⚠️ Development Status & Warnings
 

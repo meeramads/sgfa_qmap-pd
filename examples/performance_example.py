@@ -17,7 +17,7 @@ def example_basic_usage():
     print("BASIC PERFORMANCE OPTIMIZATION EXAMPLE")
     print("=" * 60)
 
-    from performance import PerformanceManager, auto_configure_for_system
+    from optimization import PerformanceManager, auto_configure_for_system
 
     # Auto-configure for current system
     config = auto_configure_for_system()
@@ -53,7 +53,7 @@ def example_data_chunking():
     print("=" * 60)
 
     from data.synthetic import generate_synthetic_data
-    from performance.data_streaming import ChunkedDataLoader
+    from optimization.data_streaming import ChunkedDataLoader
 
     # Generate synthetic data
     synthetic_data = generate_synthetic_data(num_sources=3, K=5)
@@ -89,7 +89,7 @@ def example_memory_optimization():
     print("MEMORY OPTIMIZATION EXAMPLE")
     print("=" * 60)
 
-    from performance.memory_optimizer import MemoryOptimizer, memory_efficient
+    from optimization.memory_optimizer import MemoryOptimizer, memory_efficient
 
     # Create memory optimizer
     optimizer = MemoryOptimizer(max_memory_gb=4.0, enable_profiling=True)
@@ -130,7 +130,7 @@ def example_mcmc_optimization():
     print("=" * 60)
 
     from data.synthetic import generate_synthetic_data
-    from performance.mcmc_optimizer import MCMCMemoryOptimizer
+    from optimization.mcmc_optimizer import MCMCMemoryOptimizer
 
     # Generate test data
     data = generate_synthetic_data(num_sources=2, K=3)
@@ -159,7 +159,7 @@ def example_configuration_management():
     print("CONFIGURATION MANAGEMENT EXAMPLE")
     print("=" * 60)
 
-    from performance.config import PerformanceConfig, create_memory_efficient_config
+    from optimization.config import PerformanceConfig, create_memory_efficient_config
 
     # Create different configuration presets
     configs = {
@@ -227,7 +227,7 @@ def example_benchmarking():
     print("PERFORMANCE BENCHMARKING EXAMPLE")
     print("=" * 60)
 
-    from performance.profiler import ComparisonBenchmark, benchmark_function
+    from optimization.profiler import ComparisonBenchmark, benchmark_function
 
     # Define functions to benchmark
     def numpy_computation():
@@ -271,8 +271,8 @@ def example_integration():
     print("INTEGRATION EXAMPLE")
     print("=" * 60)
 
-    from performance.config import auto_configure_for_system
-    from performance.integration import PerformanceManager, performance_optimized
+    from optimization.config import auto_configure_for_system
+    from optimization.integration import PerformanceManager, performance_optimized
 
     # Auto-configure performance settings
     config = auto_configure_for_system()

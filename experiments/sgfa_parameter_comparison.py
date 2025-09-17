@@ -23,11 +23,13 @@ from experiments.framework import (
     ExperimentFramework,
     ExperimentResult,
 )
-from performance import PerformanceProfiler
+from optimization import PerformanceProfiler
+from optimization.experiment_mixins import performance_optimized_experiment
 from analysis.cross_validation_library import NeuroImagingHyperOptimizer, NeuroImagingCVConfig
 from analysis.cv_fallbacks import HyperoptFallbackHandler
 
 
+@performance_optimized_experiment()
 class SGFAParameterComparison(ExperimentFramework):
     """SGFA parameter comparison experiments for K and percW optimization."""
 
@@ -140,7 +142,7 @@ class SGFAParameterComparison(ExperimentFramework):
         for method_name in traditional_methods:
             self.logger.info(f"Testing traditional method: {method_name}")
 
-            with self.profiler.profile(f"traditional_{method_name}") as p:
+            with self.profiler.profile(f"traditional_{method_name}"):
                 method_result = self._run_traditional_method(
                     X_concat, method_name, n_components, **kwargs
                 )
@@ -326,8 +328,7 @@ class SGFAParameterComparison(ExperimentFramework):
         X_list: List[np.ndarray],
         hypers: Dict,
         args: Dict,
-        clinical_data: Optional[Dict] = None,
-        **kwargs
+        clinical_data: Optional[Dict] = None
     ) -> ExperimentResult:
         """Run neuroimaging-specific hyperparameter optimization using NeuroImagingHyperOptimizer."""
         self.logger.info("🔬 Starting neuroimaging hyperparameter optimization")
@@ -695,8 +696,8 @@ class SGFAParameterComparison(ExperimentFramework):
                 # Add correlation values
                 for i in range(len(param_names)):
                     for j in range(len(param_names)):
-                        text = axes[1, 1].text(j, i, f'{corr_matrix[i, j]:.2f}',
-                                             ha="center", va="center", color="black", fontsize=8)
+                        axes[1, 1].text(j, i, f'{corr_matrix[i, j]:.2f}',
+                                       ha="center", va="center", color="black", fontsize=8)
 
                 plt.colorbar(im, ax=axes[1, 1])
 
@@ -709,7 +710,7 @@ class SGFAParameterComparison(ExperimentFramework):
         return plots
 
     def _run_sgfa_variant(
-        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict
     ) -> Dict:
         """Run SGFA with specific variant configuration."""
         import gc
@@ -894,7 +895,7 @@ class SGFAParameterComparison(ExperimentFramework):
             }
 
     def _run_traditional_method(
-        self, X: np.ndarray, method_name: str, n_components: int, **kwargs
+        self, X: np.ndarray, method_name: str, n_components: int
     ) -> Dict:
         """Run traditional dimensionality reduction method."""
         results = {}
@@ -964,7 +965,7 @@ class SGFAParameterComparison(ExperimentFramework):
 
         return results
 
-    def _run_sgfa_multiview(self, X_list: List[np.ndarray], **kwargs) -> Dict:
+    def _run_sgfa_multiview(self, X_list: List[np.ndarray]) -> Dict:
         """Run SGFA on multi-view data."""
         # Mock SGFA results for multi-view data
         return {
@@ -974,13 +975,13 @@ class SGFAParameterComparison(ExperimentFramework):
             "n_views_used": len(X_list),
         }
 
-    def _run_scalability_test(self, X_list: List[np.ndarray], **kwargs) -> Dict:
+    def _run_scalability_test(self, X_list: List[np.ndarray]) -> Dict:
         """Run scalability test for all methods."""
         results = {}
 
         # SGFA
-        with self.profiler.profile("sgfa_scalability") as p:
-            sgfa_result = self._run_sgfa_multiview(X_list, **kwargs)
+        with self.profiler.profile("sgfa_scalability"):
+            sgfa_result = self._run_sgfa_multiview(X_list)
 
         sgfa_metrics = self.profiler.get_current_metrics()
         results["sgfa"] = {
@@ -994,7 +995,7 @@ class SGFAParameterComparison(ExperimentFramework):
         n_components = min(5, X_concat.shape[1] // 2)
 
         for method in ["pca", "fa"]:
-            with self.profiler.profile(f"{method}_scalability") as p:
+            with self.profiler.profile(f"{method}_scalability"):
                 method_result = self._run_traditional_method(
                     X_concat, method, n_components
                 )
@@ -1497,7 +1498,7 @@ class SGFAParameterComparison(ExperimentFramework):
         # Look through different result structures
         if "sgfa_variants" in results:
             # From variant comparison
-            for variant_name, variant_result in results["sgfa_variants"].items():
+            for _variant_name, variant_result in results["sgfa_variants"].items():
                 if variant_result and variant_result.get("convergence", False):
                     likelihood = variant_result.get("log_likelihood", float("-inf"))
                     if likelihood > best_likelihood:
@@ -1554,7 +1555,7 @@ def run_method_comparison(config):
         from models.models_integration import integrate_models_with_pipeline
 
         logger.info("🧠 Integrating comprehensive models framework...")
-        model_type, model_instance, models_summary = integrate_models_with_pipeline(
+        _model_type, _model_instance, models_summary = integrate_models_with_pipeline(
             config=config
         )
 
@@ -1567,7 +1568,7 @@ def run_method_comparison(config):
         )
 
         # COMPREHENSIVE PERFORMANCE OPTIMIZATION INTEGRATION
-        from performance.performance_integration import (
+        from optimization.performance_integration import (
             integrate_performance_with_pipeline,
         )
 
@@ -1658,7 +1659,7 @@ def run_method_comparison(config):
             # Re-run model selection with data characteristics
             from models.models_integration import integrate_models_with_pipeline
 
-            model_type, model_instance, updated_models_summary = (
+            _model_type, _model_instance, updated_models_summary = (
                 integrate_models_with_pipeline(
                     config=config,
                     X_list=X_list,
@@ -1677,7 +1678,7 @@ def run_method_comparison(config):
         }
 
         # Run the experiment
-        def method_comparison_experiment(config, output_dir, **kwargs):
+        def method_comparison_experiment(config, _output_dir, **_kwargs):
             import numpy as np
 
             logger.info(
@@ -1854,7 +1855,7 @@ def run_method_comparison(config):
                     variant_hypers["percW"] = percW
 
                     # Run SGFA variant
-                    with method_exp.profiler.profile(f"sgfa_{variant_name}") as p:
+                    with method_exp.profiler.profile(f"sgfa_{variant_name}"):
                         variant_result = method_exp._run_sgfa_variant(
                             X_list, variant_hypers, variant_args
                         )
@@ -1887,7 +1888,7 @@ def run_method_comparison(config):
             for method in traditional_methods:
                 logger.info(f"Testing traditional method: {method}")
 
-                with method_exp.profiler.profile(f"traditional_{method}") as p:
+                with method_exp.profiler.profile(f"traditional_{method}"):
                     method_result = method_exp._run_traditional_method(
                         X_concat, method, min(10, X_concat.shape[1] // 2)
                     )

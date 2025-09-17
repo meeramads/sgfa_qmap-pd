@@ -96,7 +96,7 @@ def get_optimal_performance_configuration(
             reason = f"Standard optimization for balanced performance"
 
         # Create performance configuration based on strategy
-        from performance.config import (
+        from optimization.config import (
             DataConfig,
             MCMCConfig,
             MemoryConfig,
@@ -260,7 +260,7 @@ def get_optimal_performance_configuration(
     except Exception as e:
         logger.error(f"Performance configuration failed: {e}")
         # Fallback to default configuration
-        from performance.config import auto_configure_for_system
+        from optimization.config import auto_configure_for_system
 
         fallback_config = auto_configure_for_system()
         fallback_info = {
@@ -307,7 +307,7 @@ def apply_performance_optimization_to_pipeline(
 
         # Initialize performance manager
         try:
-            from performance import PerformanceManager
+            from optimization import PerformanceManager
 
             performance_manager = PerformanceManager(perf_config)
             logger.info("✅ PerformanceManager initialized successfully")

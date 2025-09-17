@@ -23,7 +23,8 @@ from experiments.framework import (
     ExperimentFramework,
     ExperimentResult,
 )
-from performance import PerformanceManager, PerformanceProfiler
+from optimization import PerformanceManager, PerformanceProfiler
+from optimization.experiment_mixins import performance_optimized_experiment
 from analysis.cross_validation_library import (
     ClinicalAwareSplitter,
     NeuroImagingCVConfig,
@@ -32,6 +33,7 @@ from analysis.cross_validation_library import (
 from analysis.cv_fallbacks import CVFallbackHandler, MetricsFallbackHandler
 
 
+@performance_optimized_experiment()
 class PerformanceBenchmarkExperiments(ExperimentFramework):
     """Comprehensive performance benchmarking for SGFA analysis."""
 
@@ -40,6 +42,8 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
     ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
+
+        # Memory optimizers now handled by @performance_optimized_experiment decorator
 
         # Initialize fallback handlers
         self.cv_fallback = CVFallbackHandler(self.logger)
@@ -141,8 +145,11 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         for memory_limit in memory_constraints:
             self.logger.info(f"Testing memory constraint: {memory_limit}GB")
 
-            # Configure memory-constrained environment
+            # Configure memory-constrained environment with MCMC optimization
             memory_config = self._create_memory_config(memory_limit)
+
+            # Configure memory-specific MCMC optimizer using mixin
+            # Note: Base MCMC optimizer available through self.mcmc_optimizer from decorator
 
             constraint_results = []
 
@@ -546,11 +553,16 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             test_args = args.copy()
             test_args["num_chains"] = n_chains
 
+            # Optimize MCMC configuration using mixin method
+            mcmc_config = self.optimize_mcmc_config(X_base, test_args)
+            test_args.update(mcmc_config)
+
             try:
                 with self.system_monitor.monitor():
                     with self.profiler.profile(f"chains_{n_chains}") as p:
-                        result = self._run_sgfa_analysis(
-                            X_base, hypers, test_args, **kwargs
+                        # Use memory-optimized MCMC execution (using mixin method)
+                        result = self.memory_efficient_operation(
+                            self._run_sgfa_analysis, X_base, hypers, test_args, **kwargs
                         )
 
                 # Collect metrics
@@ -776,7 +788,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
 
     def _create_memory_config(self, memory_limit_gb: float):
         """Create memory-constrained configuration."""
-        from performance.config import DataConfig, MemoryConfig, PerformanceConfig
+        from optimization.config import DataConfig, MemoryConfig, PerformanceConfig
 
         return PerformanceConfig(
             memory=MemoryConfig(
@@ -794,7 +806,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
 
     def _create_optimization_config(self, strategy: str):
         """Create optimization configuration for given strategy."""
-        from performance.config import PerformanceConfig
+        from optimization.config import PerformanceConfig
 
         return PerformanceConfig().create_preset(strategy)
 

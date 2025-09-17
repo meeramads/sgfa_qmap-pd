@@ -27,7 +27,8 @@ from experiments.framework import (
     ExperimentFramework,
     ExperimentResult,
 )
-from performance import PerformanceProfiler
+from optimization import PerformanceProfiler
+from optimization.experiment_mixins import performance_optimized_experiment
 from analysis.cross_validation_library import (
     ClinicalAwareSplitter,
     NeuroImagingCVConfig,
@@ -36,6 +37,7 @@ from analysis.cross_validation_library import (
 from analysis.cv_fallbacks import CVFallbackHandler, MetricsFallbackHandler
 
 
+@performance_optimized_experiment()
 class ClinicalValidationExperiments(ExperimentFramework):
     """Comprehensive clinical validation experiments for SGFA qMAP-PD analysis."""
 
@@ -44,6 +46,8 @@ class ClinicalValidationExperiments(ExperimentFramework):
     ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
+
+        # Performance optimization now handled by @performance_optimized_experiment decorator
 
         # Initialize neuroimaging-specific cross-validation
         self.neuroimaging_cv_config = NeuroImagingCVConfig()
@@ -98,85 +102,96 @@ class ClinicalValidationExperiments(ExperimentFramework):
         """Run comprehensive clinical validation using neuroimaging-specific cross-validation."""
         self.logger.info("🏥 Starting neuroimaging-specific clinical validation")
 
-        # Validate clinical data structure
-        required_fields = ['diagnosis', 'subject_id']
-        for field in required_fields:
-            if field not in clinical_data:
-                raise ValueError(f"Clinical data missing required field: {field}")
+        # Memory-optimized processing using consolidated pattern
+        with self.memory_optimized_context():
 
-        diagnoses = np.array(clinical_data['diagnosis'])
-        n_subjects = len(diagnoses)
+            # Optimize arrays using mixin method
+            X_list_optimized, total_memory_saved = self.optimize_arrays_for_memory(X_list)
 
-        # Ensure X_list matches clinical data
-        if X_list[0].shape[0] != n_subjects:
-            raise ValueError(f"Data size mismatch: X_list has {X_list[0].shape[0]} subjects, clinical_data has {n_subjects}")
+            # Validate clinical data structure
+            required_fields = ['diagnosis', 'subject_id']
+            for field in required_fields:
+                if field not in clinical_data:
+                    raise ValueError(f"Clinical data missing required field: {field}")
 
-        results = {}
+            diagnoses = np.array(clinical_data['diagnosis'])
+            n_subjects = len(diagnoses)
 
-        try:
-            # 1. Train SGFA model using neuroimaging-aware CV
-            self.logger.info("Training SGFA model with neuroimaging-specific CV")
-            sgfa_cv_results = self._train_sgfa_with_neuroimaging_cv(
-                X_list, clinical_data, hypers, args
-            )
-            results["sgfa_cv_results"] = sgfa_cv_results
+            # Ensure X_list matches clinical data
+            if X_list_optimized[0].shape[0] != n_subjects:
+                raise ValueError(f"Data size mismatch: X_list has {X_list_optimized[0].shape[0]} subjects, clinical_data has {n_subjects}")
 
-            # 2. Extract latent factors for clinical prediction
-            if sgfa_cv_results.get("success", False):
-                self.logger.info("Extracting latent factors for clinical validation")
-                factors_cv_results = self._validate_factors_clinical_prediction(
-                    sgfa_cv_results, clinical_data
-                )
-                results["factors_cv_results"] = factors_cv_results
-
-                # 3. Biomarker discovery with neuroimaging metrics
-                self.logger.info("Performing biomarker discovery with neuroimaging metrics")
-                biomarker_results = self._discover_neuroimaging_biomarkers(
-                    sgfa_cv_results, clinical_data
-                )
-                results["biomarker_results"] = biomarker_results
-
-                # 4. Clinical subtype analysis
-                self.logger.info("Analyzing clinical subtypes with neuroimaging factors")
-                subtype_results = self._analyze_clinical_subtypes_neuroimaging(
-                    sgfa_cv_results, clinical_data
-                )
-                results["subtype_results"] = subtype_results
-
-            else:
-                self.logger.warning("SGFA CV training failed, skipping downstream analyses")
-                results["factors_cv_results"] = {"error": "SGFA training failed"}
-                results["biomarker_results"] = {"error": "SGFA training failed"}
-                results["subtype_results"] = {"error": "SGFA training failed"}
-
-            # 5. Overall clinical validation analysis
-            analysis = self._analyze_neuroimaging_clinical_validation(results)
-
-            # 6. Generate comprehensive plots
-            plots = self._plot_neuroimaging_clinical_validation(results, clinical_data)
-
-            return ExperimentResult(
-                experiment_name="neuroimaging_clinical_validation",
-                config=self.config,
-                data=results,
-                analysis=analysis,
-                plots=plots,
-                success=True,
+            # Calculate adaptive batch size using mixin method
+            batch_size = self.calculate_adaptive_batch_size(
+                X_list_optimized, operation_type="cv"
             )
 
-        except Exception as e:
-            self.logger.error(f"Neuroimaging clinical validation failed: {str(e)}")
-            return ExperimentResult(
-                experiment_name="neuroimaging_clinical_validation",
-                config=self.config,
-                data={"error": str(e)},
-                analysis={},
-                plots={},
-                success=False,
-            )
+            results = {}
+
+            try:
+                # 1. Train SGFA model using neuroimaging-aware CV
+                self.logger.info("Training SGFA model with neuroimaging-specific CV")
+                sgfa_cv_results = self._train_sgfa_with_neuroimaging_cv(
+                    X_list_optimized, clinical_data, hypers, args, batch_size=batch_size
+                )
+                results["sgfa_cv_results"] = sgfa_cv_results
+
+                # 2. Extract latent factors for clinical prediction
+                if sgfa_cv_results.get("success", False):
+                    self.logger.info("Extracting latent factors for clinical validation")
+                    factors_cv_results = self._validate_factors_clinical_prediction(
+                        sgfa_cv_results, clinical_data
+                    )
+                    results["factors_cv_results"] = factors_cv_results
+
+                    # 3. Biomarker discovery with neuroimaging metrics
+                    self.logger.info("Performing biomarker discovery with neuroimaging metrics")
+                    biomarker_results = self._discover_neuroimaging_biomarkers(
+                        sgfa_cv_results, clinical_data
+                    )
+                    results["biomarker_results"] = biomarker_results
+
+                    # 4. Clinical subtype analysis
+                    self.logger.info("Analyzing clinical subtypes with neuroimaging factors")
+                    subtype_results = self._analyze_clinical_subtypes_neuroimaging(
+                        sgfa_cv_results, clinical_data
+                    )
+                    results["subtype_results"] = subtype_results
+
+                else:
+                    self.logger.warning("SGFA CV training failed, skipping downstream analyses")
+                    results["factors_cv_results"] = {"error": "SGFA training failed"}
+                    results["biomarker_results"] = {"error": "SGFA training failed"}
+                    results["subtype_results"] = {"error": "SGFA training failed"}
+
+                # 5. Overall clinical validation analysis
+                analysis = self._analyze_neuroimaging_clinical_validation(results)
+
+                # 6. Generate comprehensive plots
+                plots = self._plot_neuroimaging_clinical_validation(results, clinical_data)
+
+                return ExperimentResult(
+                    experiment_name="neuroimaging_clinical_validation",
+                    config=self.config,
+                    data=results,
+                    analysis=analysis,
+                    plots=plots,
+                    success=True,
+                )
+
+            except Exception as e:
+                self.logger.error(f"Neuroimaging clinical validation failed: {str(e)}")
+                return ExperimentResult(
+                    experiment_name="neuroimaging_clinical_validation",
+                    config=self.config,
+                    data={"error": str(e)},
+                    analysis={},
+                    plots={},
+                    success=False,
+                )
 
     def _train_sgfa_with_neuroimaging_cv(
-        self, X_list: List[np.ndarray], clinical_data: Dict, hypers: Dict, args: Dict
+        self, X_list: List[np.ndarray], clinical_data: Dict, hypers: Dict, args: Dict, batch_size: int = None
     ) -> Dict:
         """Train SGFA using neuroimaging-specific cross-validation."""
         try:
@@ -198,14 +213,21 @@ class ClinicalValidationExperiments(ExperimentFramework):
             for fold_idx, (train_idx, test_idx) in enumerate(splits):
                 self.logger.info(f"Processing fold {fold_idx + 1}/{len(splits)}")
 
-                # Split data
+                # Memory-efficient data splitting using mixin methods
+                # Split data using memory-efficient indexing
                 X_train = [X[train_idx] for X in X_list]
                 X_test = [X[test_idx] for X in X_list]
 
-                # Train SGFA
+                # Optimize arrays using mixin methods
+                X_train, _ = self.optimize_arrays_for_memory(X_train)
+                X_test, _ = self.optimize_arrays_for_memory(X_test)
+
+                # Train SGFA with memory monitoring using mixin
                 try:
                     with self.profiler.profile(f"sgfa_fold_{fold_idx}") as p:
-                        train_result = self._run_sgfa_training(X_train, hypers, args)
+                        train_result = self.memory_efficient_operation(
+                            self._run_sgfa_training, X_train, hypers, args
+                        )
 
                     # Evaluate on test set
                     if train_result.get("convergence", False):

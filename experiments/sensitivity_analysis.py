@@ -15,9 +15,11 @@ from experiments.framework import (
     ExperimentFramework,
     ExperimentResult,
 )
-from performance import PerformanceProfiler
+from optimization import PerformanceProfiler
+from optimization.experiment_mixins import performance_optimized_experiment
 
 
+@performance_optimized_experiment()
 class SensitivityAnalysisExperiments(ExperimentFramework):
     """Comprehensive sensitivity analysis for SGFA hyperparameters."""
 

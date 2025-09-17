@@ -30,11 +30,13 @@ from experiments.framework import (
     ExperimentFramework,
     ExperimentResult,
 )
-from performance import PerformanceProfiler
+from optimization import PerformanceProfiler
+from optimization.experiment_mixins import performance_optimized_experiment
 from analysis.cross_validation_library import NeuroImagingMetrics
 from analysis.cv_fallbacks import MetricsFallbackHandler
 
 
+@performance_optimized_experiment()
 class ModelArchitectureComparison(ExperimentFramework):
     """Compare different SGFA model architectures (sparseGFA, neuroGFA, standard GFA)."""
 
@@ -44,6 +46,8 @@ class ModelArchitectureComparison(ExperimentFramework):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
         self.neuroimaging_metrics = NeuroImagingMetrics()
+
+        # Performance config now handled by @performance_optimized_experiment decorator
 
         # Initialize fallback handler
         self.metrics_fallback = MetricsFallbackHandler(self.logger)
@@ -331,9 +335,14 @@ class ModelArchitectureComparison(ExperimentFramework):
         results = {}
         performance_metrics = {}
 
-        # Combine all views for traditional methods
+        # Combine all views for traditional methods with adaptive processing
         X_combined = np.hstack(X_list)
         n_components = self.comparison_params["K"]  # Use same K as model comparison
+
+        # Calculate adaptive batch size for traditional methods (using mixin method)
+        batch_size = self.calculate_adaptive_batch_size(
+            [X_combined], operation_type="traditional"
+        )
 
         try:
             for method_name in self.traditional_methods:

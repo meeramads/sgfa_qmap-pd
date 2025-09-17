@@ -12,10 +12,11 @@ import yaml
 
 from core.io_utils import save_csv, save_json, save_numpy, save_plot
 from core.utils import safe_pickle_save
-from performance import (
+from optimization import (
     PerformanceConfig,
     PerformanceManager,
 )
+from optimization.config import auto_configure_for_system
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,8 @@ class ExperimentConfig:
     performance_config: Dict[str, Any] = field(default_factory=dict)
     enable_memory_optimization: bool = True
     enable_profiling: bool = True
+    auto_configure_system: bool = True  # Auto-detect system capabilities
+    max_memory_gb: Optional[float] = None  # Auto-detected if None
 
     # Output configuration
     save_intermediate_results: bool = True
@@ -185,7 +188,17 @@ class ExperimentFramework:
 
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.performance_config = performance_config
+        # Auto-configure performance if enabled
+        if hasattr(self.config, 'auto_configure_system') and self.config.auto_configure_system:
+            if performance_config is None:
+                self.performance_config = auto_configure_for_system()
+                self.logger = logger or logging.getLogger(__name__)
+                self.logger.info(f"Auto-configured system: {self.performance_config.memory.max_memory_gb:.1f}GB memory limit")
+            else:
+                self.performance_config = performance_config
+        else:
+            self.performance_config = performance_config
+
         self.logger = logger or logging.getLogger(__name__)
         self.results_history: List[ExperimentResult] = []
 

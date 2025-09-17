@@ -443,7 +443,7 @@ def main():
                 "mode": "shared",
             }
 
-        # Run clinical-aware CV benchmarks from performance_benchmarks
+        # Run clinical-aware CV benchmarks from optimization_benchmarks
         from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
         from experiments.framework import ExperimentConfig
 
