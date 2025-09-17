@@ -2540,10 +2540,17 @@ def run_performance_benchmarks(config):
         def performance_benchmark_experiment(config, output_dir, **kwargs):
             logger.info("🚀 Running comprehensive performance benchmarks...")
 
-            # Test different benchmark configurations from config
-            benchmark_configs = config.get("performance_benchmarks", {}).get(
-                "benchmark_configs", {}
-            )
+            # Test different benchmark configurations - hardcoded for debug
+            benchmark_configs = {
+                "tiny_scale": {
+                    "n_subjects": 20,
+                    "n_features_per_view": [50, 30]
+                },
+                "small_scale": {
+                    "n_subjects": 30,
+                    "n_features_per_view": [100, 80]
+                }
+            }
 
             results = {}
             total_tests = 0

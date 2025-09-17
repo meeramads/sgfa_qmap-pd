@@ -1,0 +1,58 @@
+{
+  "experiment_id": "performance_benchmarks_20250917_143810",
+  "config": {
+    "experiment_name": "performance_benchmarks",
+    "description": "Performance benchmarking for SGFA on remote workstation",
+    "version": "1.0",
+    "dataset": "qmap_pd",
+    "data_dir": "qMAP-PD_data",
+    "preprocessing_config": {},
+    "K_values": [
+      5,
+      10,
+      15
+    ],
+    "num_sources": 3,
+    "percW_values": [
+      25.0,
+      33.0,
+      50.0
+    ],
+    "num_samples": 2000,
+    "num_chains": 4,
+    "num_warmup": 1000,
+    "num_runs_per_config": 3,
+    "cv_folds": 5,
+    "cv_strategy": "stratified",
+    "cv_target_variable": null,
+    "cv_group_variable": null,
+    "performance_config": {},
+    "enable_memory_optimization": true,
+    "enable_profiling": true,
+    "auto_configure_system": true,
+    "max_memory_gb": null,
+    "save_intermediate_results": true,
+    "save_samples": false,
+    "save_diagnostics": true,
+    "output_formats": [
+      "json",
+      "csv"
+    ],
+    "random_seeds": [
+      42,
+      123,
+      456
+    ]
+  },
+  "start_time": "2025-09-17T14:38:10.304592",
+  "end_time": "2025-09-17T14:38:10.306445",
+  "status": "failed",
+  "error_message": "'ExperimentConfig' object has no attribute 'get'",
+  "model_results": {},
+  "cv_results": {},
+  "performance_metrics": {},
+  "diagnostics": {},
+  "plots": {},
+  "data_summary": {},
+  "convergence_diagnostics": {}
+}
