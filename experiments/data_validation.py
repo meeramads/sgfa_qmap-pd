@@ -82,8 +82,8 @@ def _log_preprocessing_summary(preprocessing_info):
         logger.info(
             f"   Data: {
                 len(original_shapes)} views, {
-                total_orig_features:,        } → {
-                total_proc_features:,            } features"
+                total_orig_features:,} → {
+                total_proc_features:,} features"
         )
 
 
