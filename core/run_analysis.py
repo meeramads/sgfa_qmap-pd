@@ -41,11 +41,7 @@ logging.info("Starting run_analysis.py")
 def models(X_list, hypers, args):
     """Sparse GFA model with optional regularized horseshoe priors."""
     logging.debug(
-        f"Running models with M={
-            args.num_sources}, N={
-            X_list[0].shape[0]}, Dm={
-                list(
-                    hypers['Dm'])}"
+        f"Running models with M={args.num_sources}, N={X_list[0].shape[0]}, Dm={list(hypers['Dm'])}"
     )
 
     N, M = X_list[0].shape[0], args.num_sources
