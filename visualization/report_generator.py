@@ -221,9 +221,7 @@ class ReportGenerator:
             converged = sum(
                 1 for r in cv_results["fold_results"] if r.get("converged", False)
             )
-            content += f"<strong>Converged Folds:</strong> {converged}/{
-                len(
-                    cv_results['fold_results'])}<br>"
+            content += f"<strong>Converged Folds:</strong> {converged}/{len(cv_results['fold_results'])}<br>"
 
         content += (
             f"<strong>Total Time:</strong> {cv_results.get('total_time', 0):.1f}s<br>"

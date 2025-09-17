@@ -80,9 +80,7 @@ class MCMCMemoryOptimizer:
         # Adjust sampling parameters if memory constrained
         if estimated_memory > self.memory_limit_gb:
             logger.warning(
-                f"Estimated memory {
-                    estimated_memory:.2f}GB exceeds limit {
-                    self.memory_limit_gb:.2f}GB"
+                f"Estimated memory {estimated_memory:.2f}GB exceeds limit {self.memory_limit_gb:.2f}GB"
             )
 
             # Reduce number of samples if necessary
