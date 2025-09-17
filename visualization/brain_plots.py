@@ -49,6 +49,107 @@ class BrainVisualizer:
             logger.warning("Factor mapping module not available")
             return False
 
+    def create_plots(self, analysis_results: Dict, data: Dict, plot_dir: Path):
+        """Create brain visualization plots."""
+        logger.info("Creating brain visualization plots")
+
+        # Create brain plots subdirectory
+        brain_plot_dir = plot_dir / "brain"
+        brain_plot_dir.mkdir(exist_ok=True)
+
+        try:
+            # Use existing brain visualization summary method
+            if hasattr(analysis_results, 'get') and analysis_results.get('best_run'):
+                # For analysis results with best_run structure
+                best_run = analysis_results['best_run']
+                results_summary = self.create_brain_visualization_summary(
+                    results_dir=Path("./results")  # Fallback path
+                )
+                logger.info("Brain visualization summary created")
+            else:
+                # For other result structures, create basic brain analysis
+                self._create_basic_brain_plots(analysis_results, data, brain_plot_dir)
+                logger.info("Basic brain analysis plots created")
+
+        except Exception as e:
+            logger.warning(f"Failed to create brain visualizations: {e}")
+            # Create a placeholder to indicate brain visualization was attempted
+            placeholder_file = brain_plot_dir / "brain_visualization_attempted.txt"
+            with open(placeholder_file, 'w') as f:
+                f.write(f"Brain visualization attempted but failed: {e}\n")
+                f.write("This is normal if neuroimaging-specific data is not available.\n")
+
+    def _create_basic_brain_plots(self, analysis_results: Dict, data: Dict, plot_dir: Path):
+        """Create basic brain analysis plots when full neuroimaging data is not available."""
+        try:
+            # Extract model results if available
+            if 'W' in analysis_results and 'Z' in analysis_results:
+                W = analysis_results['W']
+                Z = analysis_results['Z']
+
+                # Create factor loading distribution plot
+                if isinstance(W, list) and len(W) > 0:
+                    self._plot_factor_loading_distribution(W, plot_dir)
+
+                # Create basic spatial analysis plot
+                self._plot_basic_factor_summary(W, Z, plot_dir)
+
+            logger.info("Basic brain plots created successfully")
+
+        except Exception as e:
+            logger.warning(f"Failed to create basic brain plots: {e}")
+            raise
+
+    def _plot_basic_factor_summary(self, W: list, Z: np.ndarray, plot_dir: Path):
+        """Create a basic factor summary plot."""
+        try:
+            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+            fig.suptitle("Factor Analysis Summary", fontsize=16)
+
+            # Plot 1: Factor loadings magnitude across views
+            view_means = [np.mean(np.abs(w)) for w in W]
+            axes[0, 0].bar(range(len(view_means)), view_means)
+            axes[0, 0].set_title("Mean Factor Loading Magnitude by View")
+            axes[0, 0].set_xlabel("View Index")
+            axes[0, 0].set_ylabel("Mean |Loading|")
+
+            # Plot 2: Factor scores distribution
+            if Z.shape[1] > 0:
+                factor_vars = np.var(Z, axis=0)
+                axes[0, 1].bar(range(len(factor_vars)), factor_vars)
+                axes[0, 1].set_title("Factor Score Variance")
+                axes[0, 1].set_xlabel("Factor Index")
+                axes[0, 1].set_ylabel("Variance")
+
+            # Plot 3: View complexity (number of non-zero loadings)
+            view_complexity = []
+            for w in W:
+                threshold = 0.01 * np.std(w)
+                non_zero_ratio = np.mean(np.abs(w) > threshold)
+                view_complexity.append(non_zero_ratio)
+
+            axes[1, 0].bar(range(len(view_complexity)), view_complexity)
+            axes[1, 0].set_title("View Complexity (Non-zero Loading Ratio)")
+            axes[1, 0].set_xlabel("View Index")
+            axes[1, 0].set_ylabel("Non-zero Ratio")
+
+            # Plot 4: Factor correlation heatmap
+            if Z.shape[1] > 1:
+                factor_corr = np.corrcoef(Z.T)
+                im = axes[1, 1].imshow(factor_corr, cmap='coolwarm', vmin=-1, vmax=1)
+                axes[1, 1].set_title("Factor Correlation Matrix")
+                axes[1, 1].set_xlabel("Factor Index")
+                axes[1, 1].set_ylabel("Factor Index")
+                plt.colorbar(im, ax=axes[1, 1])
+
+            plt.tight_layout()
+            save_plot(fig, plot_dir / "factor_summary", formats=["png", "pdf"])
+            plt.close(fig)
+
+        except Exception as e:
+            logger.warning(f"Failed to create factor summary plot: {e}")
+            raise
+
     def create_brain_visualization_summary(
         self, results_dir: str, include_reconstructions: bool = True
     ) -> Dict:

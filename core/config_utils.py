@@ -211,6 +211,21 @@ class ConfigAccessor:
         return self.config.get(key, default)
 
     @property
+    def dataset(self) -> str:
+        """Get dataset name."""
+        return self.config.get("dataset", "qmap_pd")
+
+    @property
+    def K(self) -> int:
+        """Get number of factors."""
+        return self.config.get("K", 5)
+
+    @property
+    def percW(self) -> float:
+        """Get percentage of nonzero loadings."""
+        return self.config.get("percW", 25.0)
+
+    @property
     def data_dir(self) -> Path:
         """Get data directory."""
         return get_data_dir(self.config)
