@@ -27,11 +27,12 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 ### Analysis Pipeline
 
 - **[analysis/](analysis/)**: Core analysis components
-  - `data_manager.py`: Data loading and preprocessing management
-  - `config_manager.py`: Configuration and hyperparameter management
-  - `model_runner.py`: Model training orchestration
-  - `cross_validation.py`: Cross-validation framework
-  - `cross_validation_library.py`: Advanced neuroimaging-specific cross-validation with clinical awareness
+  - `data_manager.py`: Data loading and preprocessing management ✅ **IMPLEMENTED**
+  - `config_manager.py`: Configuration and hyperparameter management ✅ **IMPLEMENTED**
+  - `model_runner.py`: Model training orchestration ✅ **IMPLEMENTED**
+  - `cross_validation.py`: Cross-validation framework ✅ **IMPLEMENTED**
+  - `cross_validation_library.py`: Advanced neuroimaging CV 🔧 **FRAMEWORK ONLY - NEEDS DEVELOPMENT**
+  - `cv_fallbacks.py`: Reusable fallback utilities for advanced CV features ✅ **IMPLEMENTED**
 
 ### Optimization & Performance
 
@@ -45,28 +46,154 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 ### Experimental Validation
 
 - **[experiments/](experiments/)**: Comprehensive experimental framework with advanced neuroimaging CV
-  - `data_validation.py`: Data quality and preprocessing validation
-  - `model_comparison.py`: SGFA vs traditional method comparison with NeuroImagingMetrics
-  - `sgfa_parameter_comparison.py`: SGFA variant comparison and hyperparameter optimization
-  - `sensitivity_analysis.py`: Hyperparameter sensitivity testing
-  - `reproducibility.py`: Reproducibility and robustness validation
-  - `performance_benchmarks.py`: Scalability benchmarking with ClinicalAwareSplitter
-  - `clinical_validation.py`: Clinical subtype validation with neuroimaging-specific CV
+  - `data_validation.py`: Data quality and preprocessing validation ✅ **IMPLEMENTED**
+  - `model_comparison.py`: SGFA vs traditional method comparison ✅ **IMPLEMENTED** + 🔧 **NeuroImagingMetrics NEEDS DEVELOPMENT**
+  - `sgfa_parameter_comparison.py`: SGFA variant comparison ✅ **IMPLEMENTED** + 🔧 **HyperOptimizer NEEDS DEVELOPMENT**
+  - `sensitivity_analysis.py`: Hyperparameter sensitivity testing ✅ **IMPLEMENTED**
+  - `reproducibility.py`: Reproducibility and robustness validation ✅ **IMPLEMENTED**
+  - `performance_benchmarks.py`: Scalability benchmarking ✅ **IMPLEMENTED** + 🔧 **ClinicalAwareSplitter NEEDS DEVELOPMENT**
+  - `clinical_validation.py`: Clinical subtype validation ✅ **IMPLEMENTED** + 🔧 **Advanced CV NEEDS DEVELOPMENT**
 
 ### Models & Implementation
 
 - **[models/](models/)**: Core model implementations
-  - `base.py`: Base model class and shared functionality
-  - `standard_gfa.py`: Standard Group Factor Analysis with ARD priors
-  - `sparse_gfa.py`: Sparse GFA with regularized horseshoe priors
-  - `latent_class_analysis.py`: Patient subtyping and clustering models
-  - `factory.py`: Model factory for instantiation and configuration
-  - `variants/neuroimaging_gfa.py`: Specialized neuroimaging variants (framework in development)
+  - `base.py`: Base model class and shared functionality ✅ **IMPLEMENTED**
+  - `standard_gfa.py`: Standard Group Factor Analysis with ARD priors ⚠️ **HIGH GPU USAGE**
+  - `sparse_gfa.py`: Sparse GFA with regularized horseshoe priors ✅ **IMPLEMENTED**
+  - `latent_class_analysis.py`: Patient subtyping and clustering models ⚠️ **VERY HIGH GPU USAGE**
+  - `factory.py`: Model factory for instantiation and configuration ✅ **IMPLEMENTED**
+  - `variants/neuroimaging_gfa.py`: Specialized neuroimaging variants 🔧 **NEEDS DEVELOPMENT**
 
 ### Visualization & Testing
 
 - **[visualization/](visualization/)**: Result visualization and diagnostic plots
 - **[tests/](tests/)**: Comprehensive test suite
+
+## ⚠️ Development Status & Warnings
+
+### 🔧 **Features Requiring Development**
+
+The following features have **framework infrastructure** in place but require **substantial development work**:
+
+#### **Advanced Cross-Validation (High Priority)**
+- **ClinicalAwareSplitter**: Clinical-aware CV splitting logic
+- **NeuroImagingMetrics**: Domain-specific evaluation metrics
+- **NeuroImagingHyperOptimizer**: Bayesian hyperparameter optimization
+- **Status**: Framework ready, ~600-1000 lines of specialized code needed
+- **Estimated Effort**: 2-4 weeks for experienced ML developer
+
+#### **NeuroGFA Models (Research Priority)**
+- **neuroimaging_gfa.py**: Specialized spatial priors for neuroimaging
+- **Status**: Framework ready, requires deep neuroimaging + Bayesian expertise
+- **Estimated Effort**: 1-3 months for neuroimaging researcher
+
+### ⚠️ **GPU Memory Warnings**
+
+**CAUTION**: The following models have **high computational requirements**:
+
+#### **Standard GFA** (`standard_gfa.py`)
+- **GPU Memory**: High usage (8-16GB+ depending on data size)
+- **Recommendation**: Use sparse_gfa for most applications
+- **Alternative**: Reduce K (number of factors) or data size
+
+#### **Latent Class Analysis** (`latent_class_analysis.py`)
+- **GPU Memory**: Very high usage (16GB+ typical, may exceed most GPU limits)
+- **Recommendation**: Use for small datasets only or powerful GPU clusters
+- **Alternative**: Use clustering post-hoc on sparse_gfa factors
+
+#### **Safe Default**: `sparse_gfa.py`
+- **GPU Memory**: Moderate usage (2-8GB typical)
+- **Recommendation**: Start here for most neuroimaging applications
+- **Performance**: Excellent for PD subtype analysis
+
+### 📋 **Planning Frameworks**
+
+<details>
+<summary><strong>Advanced CV Development Plan</strong></summary>
+
+#### Phase 1: ClinicalAwareSplitter (1-2 weeks)
+```python
+# Core functionality needed:
+class ClinicalAwareSplitter:
+    def split(self, X, y, groups, clinical_data):
+        # 1. Multi-variable stratification logic
+        # 2. Site/scanner awareness
+        # 3. Group preservation (same subject not in train/test)
+        # 4. Minimum sample size constraints
+        # 5. Demographics balance validation
+```
+
+#### Phase 2: NeuroImagingMetrics (1-2 weeks)
+```python
+# Core functionality needed:
+class NeuroImagingMetrics:
+    def calculate_fold_metrics(self, train_result, test_metrics, clinical_data):
+        # 1. Factor interpretability scoring
+        # 2. Cross-view consistency metrics
+        # 3. Clinical association scoring
+        # 4. Spatial coherence measures
+        # 5. Composite scoring logic
+
+    def evaluate_model_comparison(self, X_data, model_outputs, model_info):
+        # 1. Multi-model evaluation framework
+        # 2. Statistical significance testing
+        # 3. Effect size calculations
+```
+
+#### Phase 3: NeuroImagingHyperOptimizer (2-3 weeks)
+```python
+# Core functionality needed:
+class NeuroImagingHyperOptimizer:
+    def optimize_hyperparameters(self, X_data, clinical_data, search_space):
+        # 1. Bayesian optimization setup (optuna/hyperopt)
+        # 2. Clinical-aware objective functions
+        # 3. Multi-objective optimization (accuracy + interpretability)
+        # 4. Parameter importance analysis
+        # 5. Convergence tracking and early stopping
+```
+
+**Dependencies**: sklearn, optuna/hyperopt, scipy.stats
+**Testing Requirements**: Synthetic + real clinical data validation
+
+</details>
+
+<details>
+<summary><strong>NeuroGFA Development Plan</strong></summary>
+
+#### Phase 1: Spatial Prior Framework (3-4 weeks)
+```python
+# Core research needed:
+class NeuroImagingGFA:
+    def __init__(self, spatial_prior_type="ising", anatomical_connectivity=None):
+        # 1. Ising model priors for spatial coherence
+        # 2. Anatomical connectivity integration
+        # 3. Multi-scale spatial modeling
+        # 4. ROI-aware factor allocation
+```
+
+#### Phase 2: Advanced Neuroimaging Features (4-6 weeks)
+```python
+# Advanced functionality:
+- Atlas-based factor initialization
+- Symmetric brain modeling
+- Multi-modal data fusion (structural + functional)
+- Temporal factor evolution modeling
+- Group-level + subject-specific factors
+```
+
+#### Phase 3: Clinical Integration (2-3 weeks)
+```python
+# Clinical neuroimaging integration:
+- Disease progression modeling
+- Biomarker discovery optimization
+- Multi-site harmonization
+- Scanner-invariant factors
+```
+
+**Dependencies**: nibabel, nilearn, advanced Bayesian modeling, neuroimaging expertise
+**Data Requirements**: Multi-modal neuroimaging datasets with anatomical atlases
+
+</details>
 
 ## Installation
 
@@ -179,13 +306,25 @@ clinical_results = clinical.run_clinical_validation(X_list, clinical_data)
 
 ### Advanced Neuroimaging Cross-Validation
 
-The framework includes specialized cross-validation designed for neuroimaging data:
+⚠️ **DEVELOPMENT STATUS**: Basic performance benchmarks work, but specialized neuroimaging cross-validation requires development:
 
 ```python
-# Clinical-aware cross-validation with neuroimaging-specific metrics
-from experiments.performance_benchmarks import PerformanceBenchmarks
+# ✅ THESE WORK - Basic performance benchmarks are fully implemented:
+from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
 
-benchmarks = PerformanceBenchmarks(config)
+benchmarks = PerformanceBenchmarkExperiments(config)
+
+# Scalability benchmarks
+scalability_results = benchmarks.run_scalability_benchmarks(
+    X_base=X_list, hypers={"percW": 25.0}, args={"K": 5, "model": "sparseGFA"}
+)
+
+# Memory benchmarks
+memory_results = benchmarks.run_memory_benchmarks(
+    X_base=X_list, hypers={"percW": 25.0}, args={"K": 5, "model": "sparseGFA"}
+)
+
+# ❌ THIS WILL FAIL - Advanced neuroimaging CV not implemented:
 cv_results = benchmarks.run_clinical_aware_cv_benchmarks(
     X_base=X_list,
     hypers={"percW": 25.0},
@@ -197,6 +336,7 @@ cv_results = benchmarks.run_clinical_aware_cv_benchmarks(
 from experiments.sgfa_parameter_comparison import SGFAParameterComparison
 
 sgfa_exp = SGFAParameterComparison(config)
+# ❌ This will fail - NeuroImagingHyperOptimizer not implemented
 hyperopt_results = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
     X_list=X_list,
     hypers={"percW": 25.0},
@@ -208,6 +348,7 @@ hyperopt_results = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
 from experiments.clinical_validation import ClinicalValidationExperiments
 
 clinical_exp = ClinicalValidationExperiments(config)
+# ❌ This will fail - ClinicalAwareSplitter.split() not implemented
 neuro_clinical_results = clinical_exp.run_neuroimaging_clinical_validation(
     X_list=X_list,
     clinical_data=clinical_data,
@@ -216,12 +357,31 @@ neuro_clinical_results = clinical_exp.run_neuroimaging_clinical_validation(
 )
 ```
 
-#### Advanced CV Features
+#### Advanced CV Features (Framework Only)
 
-- **ClinicalAwareSplitter**: Ensures clinical balance across CV folds
-- **NeuroImagingMetrics**: Domain-specific evaluation metrics for neuroimaging
-- **NeuroImagingHyperOptimizer**: Optimized hyperparameter tuning for neuroimaging data
-- **Stratified Clinical Validation**: Preserves clinical groups and demographics across folds
+- **ClinicalAwareSplitter**: 🔧 Infrastructure exists, needs split() method implementation
+- **NeuroImagingMetrics**: 🔧 Infrastructure exists, needs evaluation metric implementations
+- **NeuroImagingHyperOptimizer**: 🔧 Infrastructure exists, needs optimization logic
+- **Stratified Clinical Validation**: 🔧 Framework ready, needs clinical stratification logic
+
+#### ✅ Working Alternative: Basic Cross-Validation
+
+The experiments automatically fall back to working basic CV when advanced features fail:
+
+```python
+from analysis.cross_validation import CVRunner
+
+# This works - CVRunner automatically falls back to basic CV
+cv_runner = CVRunner(config, results_dir="./results")
+cv_results, cv_obj = cv_runner.run_cv_analysis(
+    X_list=X_list,
+    hypers={"percW": 25.0},
+    data={"K": 5, "model": "sparseGFA"}
+)
+
+# Basic CV uses SparseBayesianGFACrossValidator with sklearn-style splitting
+# but adapted for SGFA models
+```
 
 ## Performance Optimization
 
@@ -294,17 +454,23 @@ python run_experiments.py --config config.yaml --experiments all
 python run_experiments.py --config config.yaml --experiments data_validation model_comparison
 
 # Run advanced neuroimaging CV experiments
+# ⚠️ WARNING: The following advanced experiments require additional development work:
 python run_experiments.py --config config.yaml --experiments clinical_validation neuroimaging_cv_benchmarks neuroimaging_hyperopt
 
 # Available experiment types:
+# ✅ IMPLEMENTED (with backwards compatibility):
 # - data_validation: Data quality and preprocessing validation
-# - sgfa_parameter_comparison: SGFA parameter optimization
-# - model_comparison: SGFA vs traditional methods with neuroimaging metrics
-# - performance_benchmarks: Scalability and clinical-aware CV benchmarks
+# - sgfa_parameter_comparison: SGFA parameter optimization (falls back to basic CV)
+# - model_comparison: SGFA vs traditional methods (falls back to basic CV)
+# - performance_benchmarks: Scalability and memory benchmarks (most features work)
 # - sensitivity_analysis: Hyperparameter sensitivity testing
-# - clinical_validation: Enhanced clinical validation with neuroimaging CV
+# - reproducibility: Reproducibility and robustness validation
+# - clinical_validation: Basic clinical validation (falls back to basic CV)
+#
+# 🔧 ADVANCED FEATURES NEED DEVELOPMENT:
 # - neuroimaging_hyperopt: Neuroimaging-specific hyperparameter optimization
 # - neuroimaging_cv_benchmarks: Clinical-aware cross-validation benchmarks
+# - Advanced neuroimaging CV methods (ClinicalAwareSplitter, NeuroImagingMetrics)
 
 # Run with custom data directory
 python run_experiments.py --config config.yaml --data-dir /path/to/data

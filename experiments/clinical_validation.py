@@ -33,6 +33,7 @@ from analysis.cross_validation_library import (
     NeuroImagingCVConfig,
     NeuroImagingMetrics
 )
+from analysis.cv_fallbacks import CVFallbackHandler, MetricsFallbackHandler
 
 
 class ClinicalValidationExperiments(ExperimentFramework):
@@ -53,6 +54,10 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Initialize neuroimaging metrics
         self.neuroimaging_metrics = NeuroImagingMetrics()
+
+        # Initialize fallback handlers
+        self.cv_fallback = CVFallbackHandler(self.logger)
+        self.metrics_fallback = MetricsFallbackHandler(self.logger)
 
         # Clinical validation settings
         self.classification_models = {
@@ -175,13 +180,16 @@ class ClinicalValidationExperiments(ExperimentFramework):
     ) -> Dict:
         """Train SGFA using neuroimaging-specific cross-validation."""
         try:
-            # Generate CV splits using clinical-aware splitter
-            splits = list(self.clinical_splitter.split(
+            # Generate CV splits with automatic fallback
+            splits = self.cv_fallback.with_cv_split_fallback(
+                advanced_split_func=self.clinical_splitter.split,
                 X=X_list[0],
                 y=clinical_data.get("diagnosis"),
                 groups=clinical_data.get("subject_id"),
-                clinical_data=clinical_data
-            ))
+                clinical_data=clinical_data,
+                cv_folds=self.neuroimaging_cv_config.outer_cv_folds,
+                random_state=42
+            )
 
             self.logger.info(f"Generated {len(splits)} neuroimaging-aware CV folds")
 
@@ -205,19 +213,26 @@ class ClinicalValidationExperiments(ExperimentFramework):
                             X_test, train_result, test_idx, clinical_data
                         )
 
-                        # Calculate neuroimaging-specific metrics
-                        neuroimaging_metrics = self.neuroimaging_metrics.calculate_fold_metrics(
+                        # Calculate neuroimaging-specific metrics with fallback
+                        fold_clinical_data = {
+                            key: np.array(values)[test_idx] if isinstance(values, (list, np.ndarray)) else values
+                            for key, values in clinical_data.items()
+                        }
+                        fold_info = {
+                            "fold_idx": fold_idx,
+                            "train_size": len(train_idx),
+                            "test_size": len(test_idx)
+                        }
+
+                        neuroimaging_metrics = self.metrics_fallback.with_metrics_fallback(
+                            advanced_metrics_func=self.neuroimaging_metrics.calculate_fold_metrics,
+                            fallback_metrics=self.metrics_fallback.create_basic_fold_metrics(
+                                train_result, test_metrics, fold_idx
+                            ),
                             train_result=train_result,
                             test_metrics=test_metrics,
-                            clinical_data={
-                                key: np.array(values)[test_idx] if isinstance(values, (list, np.ndarray)) else values
-                                for key, values in clinical_data.items()
-                            },
-                            fold_info={
-                                "fold_idx": fold_idx,
-                                "train_size": len(train_idx),
-                                "test_size": len(test_idx)
-                            }
+                            clinical_data=fold_clinical_data,
+                            fold_info=fold_info
                         )
 
                         fold_results.append({

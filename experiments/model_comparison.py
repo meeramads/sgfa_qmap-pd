@@ -32,6 +32,7 @@ from experiments.framework import (
 )
 from performance import PerformanceProfiler
 from analysis.cross_validation_library import NeuroImagingMetrics
+from analysis.cv_fallbacks import MetricsFallbackHandler
 
 
 class ModelArchitectureComparison(ExperimentFramework):
@@ -43,6 +44,9 @@ class ModelArchitectureComparison(ExperimentFramework):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
         self.neuroimaging_metrics = NeuroImagingMetrics()
+
+        # Initialize fallback handler
+        self.metrics_fallback = MetricsFallbackHandler(self.logger)
 
         # Model architectures to compare
         self.model_architectures = {
@@ -564,17 +568,23 @@ class ModelArchitectureComparison(ExperimentFramework):
                 "execution_time": model_result.get("execution_time", 0),
             }
 
-            # Calculate comprehensive neuroimaging metrics
-            neuroimaging_evaluation = self.neuroimaging_metrics.evaluate_model_comparison(
+            # Calculate comprehensive neuroimaging metrics with fallback
+            model_info = {
+                "model_name": model_name,
+                "model_type": model_result.get("model_type", "unknown"),
+                "n_factors": len(W_list[0][0]) if W_list and len(W_list[0]) > 0 else 0,
+                "n_views": len(X_list),
+                "n_subjects": X_list[0].shape[0] if X_list else 0,
+            }
+
+            neuroimaging_evaluation = self.metrics_fallback.with_metrics_fallback(
+                advanced_metrics_func=self.neuroimaging_metrics.evaluate_model_comparison,
+                fallback_metrics=self.metrics_fallback.create_basic_model_metrics(
+                    model_result, model_name, W_list
+                ),
                 X_data=X_list,
                 model_outputs=model_outputs,
-                model_info={
-                    "model_name": model_name,
-                    "model_type": model_result.get("model_type", "unknown"),
-                    "n_factors": len(W_list[0][0]) if W_list and len(W_list[0]) > 0 else 0,
-                    "n_views": len(X_list),
-                    "n_subjects": X_list[0].shape[0] if X_list else 0,
-                }
+                model_info=model_info
             )
 
             # Calculate additional model-specific metrics

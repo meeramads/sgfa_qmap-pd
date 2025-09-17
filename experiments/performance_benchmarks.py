@@ -29,6 +29,7 @@ from analysis.cross_validation_library import (
     NeuroImagingCVConfig,
     NeuroImagingMetrics,
 )
+from analysis.cv_fallbacks import CVFallbackHandler, MetricsFallbackHandler
 
 
 class PerformanceBenchmarkExperiments(ExperimentFramework):
@@ -39,6 +40,10 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
     ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
+
+        # Initialize fallback handlers
+        self.cv_fallback = CVFallbackHandler(self.logger)
+        self.metrics_fallback = MetricsFallbackHandler(self.logger)
 
         # Benchmarking configurations
         self.sample_size_ranges = [50, 100, 250, 500, 1000, 2000, 5000]
@@ -1009,14 +1014,17 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         results = {}
 
         try:
-            # Generate cross-validation splits
-            self.logger.info("Generating clinical-aware CV splits")
-            splits = list(splitter.split(
-                X=X_base[0],  # Use first view for split generation
+            # Generate CV splits with automatic fallback
+            self.logger.info("Generating clinical-aware CV splits with fallback")
+            splits = self.cv_fallback.with_cv_split_fallback(
+                advanced_split_func=splitter.split,
+                X=X_base[0],
                 y=clinical_data.get("diagnosis"),
                 groups=clinical_data.get("subject_id"),
-                clinical_data=clinical_data
-            ))
+                clinical_data=clinical_data,
+                cv_folds=cv_config.outer_cv_folds,
+                random_state=42
+            )
 
             self.logger.info(f"Generated {len(splits)} CV folds")
 
@@ -1062,16 +1070,22 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                     performance_metrics = self.profiler.get_current_metrics()
                     system_metrics = self.system_monitor.get_report()
 
-                    # Calculate neuroimaging-specific metrics
-                    neuroimaging_metrics = metrics_calculator.calculate_fold_metrics(
+                    # Calculate neuroimaging-specific metrics with fallback
+                    fold_info = {
+                        "fold_idx": fold_idx,
+                        "train_size": len(train_idx),
+                        "test_size": len(test_idx)
+                    }
+
+                    neuroimaging_metrics = self.metrics_fallback.with_metrics_fallback(
+                        advanced_metrics_func=metrics_calculator.calculate_fold_metrics,
+                        fallback_metrics=self.metrics_fallback.create_basic_fold_metrics(
+                            train_result, test_metrics, fold_idx
+                        ),
                         train_result=train_result,
                         test_metrics=test_metrics,
                         clinical_data=test_clinical,
-                        fold_info={
-                            "fold_idx": fold_idx,
-                            "train_size": len(train_idx),
-                            "test_size": len(test_idx)
-                        }
+                        fold_info=fold_info
                     )
 
                     fold_results.append({

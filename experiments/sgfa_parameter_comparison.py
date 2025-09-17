@@ -25,6 +25,7 @@ from experiments.framework import (
 )
 from performance import PerformanceProfiler
 from analysis.cross_validation_library import NeuroImagingHyperOptimizer, NeuroImagingCVConfig
+from analysis.cv_fallbacks import HyperoptFallbackHandler
 
 
 class SGFAParameterComparison(ExperimentFramework):
@@ -41,6 +42,9 @@ class SGFAParameterComparison(ExperimentFramework):
         cv_config.inner_cv_folds = 3  # Reduced for hyperparameter optimization
 
         self.hyperopt = NeuroImagingHyperOptimizer(config=cv_config)
+
+        # Initialize fallback handler for hyperparameter optimization
+        self.hyperopt_fallback = HyperoptFallbackHandler(self.logger)
 
         # Method configurations
         self.sgfa_variants = {
@@ -413,12 +417,14 @@ class SGFAParameterComparison(ExperimentFramework):
                     self.logger.warning(f"Trial failed: {str(e)}")
                     return -2000.0  # Heavy penalty for failed trials
 
-            # Run hyperparameter optimization
-            optimization_result = self.hyperopt.optimize_hyperparameters(
-                X_data=X_list,
-                clinical_data=clinical_data,
+            # Run hyperparameter optimization with automatic fallback
+            optimization_result = self.hyperopt_fallback.with_hyperopt_fallback(
+                advanced_hyperopt_func=self.hyperopt.optimize_hyperparameters,
                 search_space=search_space,
                 objective_function=sgfa_objective,
+                max_combinations=20,
+                X_data=X_list,
+                clinical_data=clinical_data,
                 study_name="sgfa_neuroimaging_optimization"
             )
 
