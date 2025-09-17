@@ -1364,7 +1364,7 @@ def run_sensitivity_analysis(config):
             logger.info(f"   View {i}: {X.shape}")
 
         # Initialize experiment framework
-        framework = ExperimentFramework(base_output_dir=get_output_dir(config))
+        framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
             experiment_name="sensitivity_analysis",

@@ -2503,7 +2503,7 @@ def run_performance_benchmarks(config):
             logger.info(f"   View {i}: {X.shape}")
 
         # Initialize experiment framework
-        framework = ExperimentFramework(base_output_dir=get_output_dir(config))
+        framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
             experiment_name="performance_benchmarks",

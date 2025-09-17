@@ -1542,7 +1542,7 @@ def run_method_comparison(config):
 
         from experiments.framework import ExperimentConfig, ExperimentFramework
 
-        framework = ExperimentFramework(base_output_dir=config_accessor.output_dir)
+        framework = ExperimentFramework(config_accessor.output_dir)
 
         exp_config = ExperimentConfig(
             experiment_name="remote_workstation_method_comparison",
@@ -1678,7 +1678,7 @@ def run_method_comparison(config):
         }
 
         # Run the experiment
-        def method_comparison_experiment(config, _output_dir, **_kwargs):
+        def method_comparison_experiment(config, output_dir, **kwargs):
             import numpy as np
 
             logger.info(

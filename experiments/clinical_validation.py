@@ -3473,7 +3473,7 @@ def run_clinical_validation(config):
             logger.info("Using mock clinical labels for testing")
 
         # Initialize experiment framework
-        framework = ExperimentFramework(base_output_dir=get_output_dir(config))
+        framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
             experiment_name="clinical_validation",
