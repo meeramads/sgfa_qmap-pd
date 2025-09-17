@@ -79,6 +79,13 @@ data_validation:
       enable_advanced_preprocessing: false
       imputation_strategy: "mean"
 
+    aggressive:
+      enable_advanced_preprocessing: true
+      enable_spatial_processing: true
+      imputation_strategy: "knn"
+      feature_selection_method: "variance"
+      variance_threshold: 0.005
+
 # Method Comparison Experiment - minimal comparisons
 method_comparison:
   models:
