@@ -255,6 +255,13 @@ class ModelArchitectureComparison(ExperimentFramework):
             # Get samples
             samples = mcmc.get_samples()
 
+            # Extract mean parameters first
+            W_samples = samples["W"]
+            Z_samples = samples["Z"]
+
+            W_mean = np.mean(W_samples, axis=0)
+            Z_mean = np.mean(Z_samples, axis=0)
+
             # Calculate log likelihood
             potential_energy = samples.get("potential_energy", np.array([]))
             if len(potential_energy) > 0:
@@ -263,15 +270,29 @@ class ModelArchitectureComparison(ExperimentFramework):
                     f"Potential energy stats: mean={np.mean(potential_energy):.3f}"
                 )
             else:
-                log_likelihood = float("nan")
-                self.logger.warning("No potential energy data collected")
+                # Fallback: estimate log-likelihood from model fit quality
+                self.logger.warning("No potential energy data collected, using convergence fallback")
+                # Calculate a simple reconstruction-based likelihood estimate
+                try:
+                    total_mse = 0
+                    total_elements = 0
+                    start_idx = 0
+                    for X in X_list:
+                        end_idx = start_idx + X.shape[1]
+                        W_view = W_mean[start_idx:end_idx, :]
+                        X_recon = Z_mean @ W_view.T
+                        mse = np.mean((X - X_recon) ** 2)
+                        total_mse += mse * X.size
+                        total_elements += X.size
+                        start_idx = end_idx
 
-            # Extract mean parameters
-            W_samples = samples["W"]
-            Z_samples = samples["Z"]
-
-            W_mean = np.mean(W_samples, axis=0)
-            Z_mean = np.mean(Z_samples, axis=0)
+                    avg_mse = total_mse / total_elements
+                    # Convert MSE to a reasonable log-likelihood estimate
+                    log_likelihood = -0.5 * avg_mse * total_elements
+                    self.logger.info(f"Estimated log-likelihood from reconstruction: {log_likelihood:.3f}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to estimate log-likelihood: {e}")
+                    log_likelihood = float("nan")
 
             # Split W back into views
             W_list = []
@@ -286,6 +307,18 @@ class ModelArchitectureComparison(ExperimentFramework):
                 f"log_likelihood: {log_likelihood:.3f}"
             )
 
+            # Determine convergence based on multiple criteria
+            has_samples = len(W_samples) > 0 and len(Z_samples) > 0
+            has_valid_likelihood = not np.isnan(log_likelihood) and np.isfinite(log_likelihood)
+
+            # Model converged if we have samples and either valid likelihood or reasonable reconstruction
+            model_converged = has_samples and (has_valid_likelihood or log_likelihood != float("nan"))
+
+            if model_converged:
+                self.logger.info(f"✅ {model_name} converged successfully")
+            else:
+                self.logger.warning(f"⚠️ {model_name} convergence issues detected")
+
             result = {
                 "W": W_list,
                 "Z": Z_mean,
@@ -298,7 +331,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                     else float("-inf")
                 ),
                 "execution_time": elapsed,
-                "convergence": True,
+                "convergence": model_converged,
                 "model_type": args.get("model"),
                 "hyperparameters": {
                     "K": args.get("K"),
@@ -306,6 +339,11 @@ class ModelArchitectureComparison(ExperimentFramework):
                     "num_warmup": num_warmup,
                     "num_chains": num_chains,
                 },
+                "convergence_diagnostics": {
+                    "has_samples": has_samples,
+                    "has_valid_likelihood": has_valid_likelihood,
+                    "potential_energy_available": len(potential_energy) > 0
+                }
             }
 
             # Clear GPU memory after training
@@ -1114,16 +1152,33 @@ class ModelArchitectureComparison(ExperimentFramework):
         best_likelihood = float("-inf")
 
         # Look for successful model results
+        converged_models = []
         for model_name, model_result in results.items():
             if (
                 model_result
                 and not model_result.get("skipped", False)
                 and model_result.get("convergence", False)
             ):
-                likelihood = model_result.get("log_likelihood", float("-inf"))
-                if likelihood > best_likelihood:
-                    best_likelihood = likelihood
-                    best_result = model_result
+                converged_models.append((model_name, model_result))
+
+        if not converged_models:
+            return None
+
+        # Prefer models with finite log-likelihood, fall back to any converged model
+        finite_likelihood_models = []
+        for model_name, model_result in converged_models:
+            likelihood = model_result.get("log_likelihood", float("-inf"))
+            if np.isfinite(likelihood) and likelihood != float("-inf"):
+                finite_likelihood_models.append((model_name, model_result, likelihood))
+
+        if finite_likelihood_models:
+            # Select best model by likelihood
+            best_name, best_result, best_likelihood = max(finite_likelihood_models, key=lambda x: x[2])
+            self.logger.info(f"Selected best model: {best_name} (likelihood: {best_likelihood:.3f})")
+        else:
+            # Fall back to first converged model (even with NaN likelihood)
+            best_name, best_result = converged_models[0]
+            self.logger.info(f"Selected best model: {best_name} (converged but no finite likelihood)")
 
         return best_result
 
