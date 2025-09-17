@@ -139,8 +139,7 @@ class ReportGenerator:
         content = "<h2>Data Overview</h2>"
         content += "<div class='metric'>"
         content += f"<strong>Dataset:</strong> {self.config.dataset}<br>"
-        content += f"<strong>Number of Subjects:</strong> {
-            X_list[0].shape[0] if X_list else 'N/A'}<br>"
+        content += f"<strong>Number of Subjects:</strong> {X_list[0].shape[0] if X_list else 'N/A'}<br>"
         content += f"<strong>Number of Views:</strong> {len(view_names)}<br>"
         content += f"<strong>Views:</strong> {', '.join(view_names)}<br>"
 

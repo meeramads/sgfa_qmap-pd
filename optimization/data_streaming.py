@@ -564,11 +564,7 @@ def optimize_chunk_size_for_memory(
 
     logger.debug(
         f"Optimal chunk size: {chunk_size} subjects "
-        f"(memory per chunk: {
-            estimate_chunk_memory_usage(
-                chunk_size,
-                n_features_per_view,
-                dtype):.2f}GB)"
+        f"(memory per chunk: {estimate_chunk_memory_usage(chunk_size, n_features_per_view, dtype):.2f}GB)"
     )
 
     return chunk_size
