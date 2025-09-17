@@ -339,9 +339,7 @@ def load_qmap_pd(
                 cv_results.items(), key=lambda x: x[1]["rmse_mean"]
             ):
                 logging.info(
-                    f"  {combo}: RMSE = {
-                        results['rmse_mean']:.4f} ± {
-                        results['rmse_std']:.4f}"
+                    f"  {combo}: RMSE = {results['rmse_mean']:.4f} ± {results['rmse_std']:.4f}"
                 )
             preprocessing_results["source_validation"] = cv_results
 
