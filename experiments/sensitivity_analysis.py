@@ -1456,6 +1456,12 @@ def run_sensitivity_analysis(config):
                     logger.error(f"❌ K={K} sensitivity test failed: {e}")
                     K_results[f"K{K}"] = {"error": str(e)}
 
+                # Cleanup memory after each iteration
+                import jax
+                import gc
+                jax.clear_caches()
+                gc.collect()
+
                 total_tests += 1
 
             results["K_sensitivity"] = K_results
@@ -1497,6 +1503,12 @@ def run_sensitivity_analysis(config):
                 except Exception as e:
                     logger.error(f"❌ percW={percW} sensitivity test failed: {e}")
                     sparsity_results[f"percW{percW}"] = {"error": str(e)}
+
+                # Cleanup memory after each iteration
+                import jax
+                import gc
+                jax.clear_caches()
+                gc.collect()
 
                 total_tests += 1
 
@@ -1545,6 +1557,12 @@ def run_sensitivity_analysis(config):
                 except Exception as e:
                     logger.error(f"❌ MCMC {label} sensitivity test failed: {e}")
                     mcmc_results[label] = {"error": str(e)}
+
+                # Cleanup memory after each iteration
+                import jax
+                import gc
+                jax.clear_caches()
+                gc.collect()
 
                 total_tests += 1
 
