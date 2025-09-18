@@ -653,7 +653,8 @@ class ModelArchitectureComparison(ExperimentFramework):
             Z_mean = np.mean(Z_samples, axis=0)
 
             # Calculate log likelihood
-            potential_energy = samples.get("potential_energy", np.array([]))
+            extra_fields = mcmc.get_extra_fields()
+            potential_energy = extra_fields.get("potential_energy", np.array([]))
             if len(potential_energy) > 0:
                 log_likelihood = -np.mean(potential_energy)
                 self.logger.debug(

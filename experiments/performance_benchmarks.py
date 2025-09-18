@@ -638,9 +638,10 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             samples = mcmc.get_samples()
 
             # Calculate log likelihood (approximate)
-            potential_energy = samples.get("potential_energy", np.array([0]))
+            extra_fields = mcmc.get_extra_fields()
+            potential_energy = extra_fields.get("potential_energy", np.array([]))
             log_likelihood = (
-                -np.mean(potential_energy) if len(potential_energy) > 0 else 0
+                -np.mean(potential_energy) if len(potential_energy) > 0 else np.nan
             )
 
             # Extract mean parameters
