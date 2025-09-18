@@ -1397,8 +1397,12 @@ def run_sensitivity_analysis(config):
         def sensitivity_analysis_experiment(config, output_dir, **kwargs):
             logger.info("🔬 Running comprehensive sensitivity analysis...")
 
+            # Normalize config input using standard ConfigHelper
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(config)
+
             # Get sensitivity analysis configuration
-            sensitivity_config = config.get("sensitivity_analysis", {})
+            sensitivity_config = config_dict.get("sensitivity_analysis", {})
             parameter_ranges = sensitivity_config.get("parameter_ranges", {})
 
             results = {}

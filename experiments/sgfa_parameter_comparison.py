@@ -1671,6 +1671,10 @@ def run_method_comparison(config):
         def method_comparison_experiment(config, output_dir, **kwargs):
             import numpy as np
 
+            # Normalize config input using standard ConfigHelper
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(config)
+
             logger.info(
                 "Running comprehensive method comparison with actual model training..."
             )
@@ -1744,19 +1748,17 @@ def run_method_comparison(config):
             }
 
             # Test different K values for comparison
-            # Handle both ExperimentConfig object and dict config
-            if hasattr(config, "K_values"):
-                # ExperimentConfig object
-                K_values = config.K_values
-                percW_values = config.percW_values
+            # Get configuration from normalized config dict
+            method_config = config_dict.get("method_comparison", {})
+            models_config = method_config.get("models", [{}])
+
+            # Extract K values and percW values from config
+            if models_config and len(models_config) > 0:
+                K_values = models_config[0].get("n_factors", [5, 10, 15])
             else:
-                # Dictionary config
-                K_values = (
-                    config.get("method_comparison", {})
-                    .get("models", [{}])[0]
-                    .get("n_factors", [5, 10, 15])
-                )
-                percW_values = [25.0, 33.0, 50.0]  # Different sparsity levels
+                K_values = [5, 10, 15]  # Default fallback
+
+            percW_values = [25.0, 33.0, 50.0]  # Different sparsity levels
 
             model_results = {}
             performance_metrics = {}
