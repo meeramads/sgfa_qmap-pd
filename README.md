@@ -54,7 +54,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `sensitivity_analysis.py`: Hyperparameter sensitivity testing ✅ **IMPLEMENTED**
   - `reproducibility.py`: Reproducibility and robustness validation ✅ **IMPLEMENTED**
   - `performance_benchmarks.py`: Scalability benchmarking ✅ **IMPLEMENTED** + 🔧 **ClinicalAwareSplitter NEEDS DEVELOPMENT**
-  - `clinical_validation.py`: Clinical subtype validation ✅ **IMPLEMENTED** + 🔧 **Advanced CV NEEDS DEVELOPMENT**
+  - `clinical_validation.py`: Clinical subtype validation ✅ **IMPLEMENTED** + 🔧 **Clinical-stratified CV AVAILABLE**
 
 ### Models & Implementation
 
@@ -366,12 +366,24 @@ perf_results = benchmarks.run_performance_benchmarks(X_list)
 
 # Run clinical validation (if clinical data available)
 clinical = ClinicalValidationExperiments(config)
+
+# Basic clinical validation (subtype classification)
 clinical_results = clinical.run_clinical_validation(X_list, clinical_data)
+
+# Advanced: Clinical-stratified cross-validation
+# Configure validation types to include clinical-stratified CV
+config_dict = {
+    "clinical_validation": {
+        "validation_types": ["subtype_classification", "clinical_stratified_cv"],
+        "classification_metrics": ["accuracy", "precision", "recall", "f1_score"]
+    }
+}
+clinical_results_advanced = clinical.run_clinical_validation(X_list, clinical_data, config_dict)
 ```
 
 ### Advanced Neuroimaging Cross-Validation
 
-⚠️ **DEVELOPMENT STATUS**: Basic performance benchmarks work, but specialized neuroimaging cross-validation requires development:
+✅ **NEW**: Clinical-stratified CV now available! Basic neuroimaging CV features work, advanced features require development:
 
 ```python
 # ✅ THESE WORK - Basic performance benchmarks are fully implemented:
@@ -409,25 +421,33 @@ hyperopt_results = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
     clinical_data=clinical_data
 )
 
-# Enhanced clinical validation with neuroimaging CV
+# ✅ NEW: Clinical-stratified cross-validation works!
 from experiments.clinical_validation import ClinicalValidationExperiments
 
 clinical_exp = ClinicalValidationExperiments(config)
-# ❌ This will fail - ClinicalAwareSplitter.split() not implemented
-neuro_clinical_results = clinical_exp.run_neuroimaging_clinical_validation(
+
+# Configure for clinical-stratified CV
+config_dict = {
+    "clinical_validation": {
+        "validation_types": ["clinical_stratified_cv"],
+        "cross_validation": {"n_folds": 5, "stratified": True}
+    }
+}
+
+# This works - Clinical-stratified CV with robust neuroimaging scaling
+clinical_stratified_results = clinical_exp.run_clinical_validation(
     X_list=X_list,
     clinical_data=clinical_data,
-    hypers={"percW": 25.0},
-    args={"K": 5, "model": "sparseGFA"}
+    config=config_dict
 )
 ```
 
-#### Advanced CV Features (Framework Only)
+#### Advanced CV Features Status
 
-- **ClinicalAwareSplitter**: 🔧 Infrastructure exists, needs split() method implementation
-- **NeuroImagingMetrics**: 🔧 Infrastructure exists, needs evaluation metric implementations
-- **NeuroImagingHyperOptimizer**: 🔧 Infrastructure exists, needs optimization logic
-- **Stratified Clinical Validation**: 🔧 Framework ready, needs clinical stratification logic
+- **ClinicalAwareSplitter**: ✅ **Basic implementation available** - Clinical stratification with robust neuroimaging scaling
+- **NeuroImagingMetrics**: 🔧 Infrastructure exists, needs specialized neuroimaging evaluation metrics
+- **NeuroImagingHyperOptimizer**: 🔧 Infrastructure exists, needs Bayesian optimization logic
+- **Clinical-Stratified Validation**: ✅ **Available** - Use `validation_types: ["clinical_stratified_cv"]`
 
 #### ✅ Working Alternative: Basic Cross-Validation
 
@@ -504,10 +524,25 @@ The framework includes comprehensive validation experiments:
 
 ### Clinical Validation
 
-- PD subtype classification validation
-- Disease progression prediction
-- Biomarker discovery and validation
-- External cohort generalization testing
+- **PD subtype classification validation** ✅ **IMPLEMENTED**
+- **Clinical-stratified cross-validation** ✅ **AVAILABLE** - CV with proper clinical stratification and robust neuroimaging scaling
+- Disease progression prediction 🔧 **PLACEHOLDER**
+- Biomarker discovery and validation 🔧 **PLACEHOLDER**
+- External cohort generalization testing 🔧 **FUTURE WORK**
+
+#### Clinical-Stratified CV Features
+
+**✅ Currently Available:**
+- CV folds stratified by clinical variables (diagnosis, subtypes, etc.)
+- Robust scaling (median/MAD) optimized for neuroimaging data
+- Enhanced convergence checking and timeout handling
+- Professional error handling with automatic fallbacks
+
+**🔧 Future Development (Advanced Neuroimaging CV):**
+- Neuroimaging-specific priors and spatial structure modeling
+- Scanner/site effect correction and harmonization
+- PD-specific disease progression constraints
+- Brain connectivity and anatomical structure integration
 
 ### Run Experiments
 

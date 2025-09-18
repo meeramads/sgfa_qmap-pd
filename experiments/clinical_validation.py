@@ -3502,12 +3502,24 @@ def run_clinical_validation(config):
                 f"✅ Clinical labels loaded: {len(np.unique(clinical_labels))} unique subtypes"
             )
 
+            # Create clinical data dictionary for CV-aware methods
+            clinical_data = {
+                "diagnosis": clinical_labels,
+                "subject_id": np.arange(n_subjects)  # Mock subject IDs
+            }
+
         except Exception as e:
             logger.warning(f"Clinical data loading failed: {e}")
             # Create mock clinical labels for testing
             n_subjects = X_list[0].shape[0]
             clinical_labels = np.random.randint(0, 3, n_subjects)
             logger.info("Using mock clinical labels for testing")
+
+            # Create clinical data dictionary for CV-aware methods
+            clinical_data = {
+                "diagnosis": clinical_labels,
+                "subject_id": np.arange(n_subjects)  # Mock subject IDs
+            }
 
         # Initialize experiment framework
         framework = ExperimentFramework(get_output_dir(config))
@@ -3648,6 +3660,73 @@ def run_clinical_validation(config):
                         # Placeholder for biomarker discovery validation
                         logger.info("⚠️  Biomarker discovery validation not yet implemented")
                         results[validation_type] = {"status": "not_implemented"}
+
+                    elif validation_type == "clinical_stratified_cv":
+                        # Clinical-stratified cross-validation (using basic SGFA with clinical stratification)
+                        #
+                        # What this provides:
+                        # - CV folds stratified by clinical variables (diagnosis, etc.)
+                        # - Robust scaling (median/MAD) for neuroimaging data
+                        # - Enhanced convergence checking and timeout handling
+                        #
+                        # Current limitations (future work):
+                        # - Uses basic SGFA model (no neuroimaging-specific priors)
+                        # - No spatial coherence modeling or brain connectivity structure
+                        # - No scanner/site effect correction
+                        # - No PD-specific disease modeling constraints
+                        #
+                        logger.info("📊 Running clinical-stratified cross-validation pipeline...")
+                        try:
+                            # Convert clinical_data to DataFrame format expected by CV library
+                            import pandas as pd
+                            clinical_df = pd.DataFrame(clinical_data)
+
+                            # Convert args dict to namespace object expected by CV library
+                            import argparse
+                            args_namespace = argparse.Namespace(**base_args)
+
+                            # Initialize full neuroimaging CV pipeline
+                            from analysis.cross_validation_library import NeuroImagingCrossValidator, NeuroImagingCVConfig, ParkinsonsConfig
+
+                            cv_config_obj = NeuroImagingCVConfig(
+                                outer_cv_folds=cv_config.get("n_folds", 5),
+                                inner_cv_folds=3,  # Reduced for speed
+                                stratified=cv_config.get("stratified", True)
+                            )
+                            pd_config = ParkinsonsConfig()
+
+                            neuroimaging_cv = NeuroImagingCrossValidator(
+                                config=cv_config_obj,
+                                parkinsons_config=pd_config
+                            )
+
+                            # Run clinical-aware CV
+                            with clinical_exp.profiler.profile("clinical_aware_cv") as p:
+                                cv_results = neuroimaging_cv.neuroimaging_cross_validate(
+                                    X_list=X_list,
+                                    args=args_namespace,
+                                    hypers=base_hypers,
+                                    data={"clinical": clinical_df},
+                                    cv_type="clinical_stratified"
+                                )
+
+                            cv_metrics = clinical_exp.profiler.get_current_metrics()
+                            results[validation_type] = {
+                                "cv_results": cv_results,
+                                "performance": {
+                                    "execution_time": cv_metrics.execution_time,
+                                    "peak_memory_gb": cv_metrics.peak_memory_gb,
+                                },
+                                "n_folds": cv_config.get("n_folds", 5),
+                                "cv_type": "clinical_stratified"
+                            }
+
+                            logger.info(f"✅ Clinical-stratified CV completed: {cv_metrics.execution_time:.1f}s")
+                            successful_tests += 1
+
+                        except Exception as e:
+                            logger.error(f"❌ Clinical-stratified CV failed: {e}")
+                            results[validation_type] = {"error": str(e)}
 
                     else:
                         logger.warning(f"⚠️  Unknown validation type: {validation_type}")
