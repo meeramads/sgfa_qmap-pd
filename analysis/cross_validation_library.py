@@ -396,6 +396,47 @@ class ClinicalAwareSplitter:
     def __init__(self, config: NeuroImagingCVConfig):
         self.config = config
 
+    def split(self, X, y=None, groups=None, clinical_data=None, **kwargs):
+        """
+        Sklearn-compatible split method for clinical-aware CV.
+
+        Args:
+            X: Input data array
+            y: Target labels (optional, will extract from clinical_data if None)
+            groups: Group labels (optional, will extract from clinical_data if None)
+            clinical_data: Clinical data dictionary
+            **kwargs: Additional arguments
+
+        Returns:
+            Generator of (train_idx, test_idx) tuples
+        """
+        # Extract labels from clinical_data if not provided
+        if clinical_data:
+            if y is None:
+                y = clinical_data.get("diagnosis")
+            if groups is None:
+                groups = clinical_data.get("subject_id")
+
+        # Default stratification variables
+        stratification_vars = ["diagnosis"] if clinical_data and "diagnosis" in clinical_data else []
+
+        # Create and use appropriate CV splitter
+        if clinical_data and stratification_vars:
+            # Convert to DataFrame if needed
+            import pandas as pd
+            if not isinstance(clinical_data, pd.DataFrame):
+                clinical_df = pd.DataFrame(clinical_data)
+            else:
+                clinical_df = clinical_data
+
+            cv_splitter = self.create_clinical_stratified_cv(clinical_df, stratification_vars)
+            return cv_splitter.split(X, y, groups)
+        else:
+            # Fallback to basic stratified CV
+            from sklearn.model_selection import StratifiedKFold
+            skf = StratifiedKFold(n_splits=self.config.outer_cv_folds, shuffle=True, random_state=42)
+            return skf.split(X, y if y is not None else np.zeros(X.shape[0]))
+
     def create_clinical_stratified_cv(
         self, clinical_data: pd.DataFrame, stratification_vars: List[str]
     ) -> Any:

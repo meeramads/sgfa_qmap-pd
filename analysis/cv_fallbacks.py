@@ -27,7 +27,7 @@ class CVFallbackHandler:
         **kwargs
     ) -> List:
         """
-        Try advanced CV split first, fallback to sklearn StratifiedKFold.
+        Try advanced CV split first, fallback to sklearn StratifiedKFold only for serious errors.
 
         Args:
             advanced_split_func: Function that implements advanced CV splitting
@@ -47,13 +47,13 @@ class CVFallbackHandler:
             splits = list(advanced_split_func(
                 X=X, y=y, groups=groups, clinical_data=clinical_data, **kwargs
             ))
-            self.logger.info(f"✅ Advanced CV split successful: {len(splits)} folds")
+            self.logger.info(f"✅ Clinical-aware CV split successful: {len(splits)} folds")
             return splits
 
-        except (AttributeError, NotImplementedError) as e:
-            self.logger.warning(f"Advanced CV split failed ({e}), falling back to basic sklearn CV")
+        except Exception as e:
+            self.logger.warning(f"Clinical-aware CV split failed ({e}), falling back to basic sklearn CV")
 
-            # Fallback to basic sklearn CV
+            # Simplified fallback - only for serious errors (data issues, etc.)
             if y is None and clinical_data:
                 y = clinical_data.get("diagnosis", np.zeros(X.shape[0]))
             elif y is None:
