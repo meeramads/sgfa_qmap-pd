@@ -99,6 +99,12 @@ class ReproducibilityExperiments(ExperimentFramework):
                     "log_likelihood": result.get("log_likelihood", np.nan),
                 }
 
+            # Cleanup memory after each seed run to prevent accumulation
+            import jax
+            import gc
+            jax.clear_caches()
+            gc.collect()
+
         # Analyze reproducibility
         analysis = self._analyze_seed_reproducibility(results, performance_metrics)
 
@@ -371,6 +377,12 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             result = self._run_sgfa_analysis(X_list, hypers, run_args, **kwargs)
             exact_results.append(result)
+
+            # Cleanup memory after each exact reproducibility run
+            import jax
+            import gc
+            jax.clear_caches()
+            gc.collect()
 
         results["exact_reproducibility"] = exact_results
 
@@ -1684,6 +1696,12 @@ def run_reproducibility(config):
                     except Exception as e:
                         logger.error(f"❌ Seed {seed} test failed: {e}")
                         seed_results[f"seed_{seed}"] = {"error": str(e)}
+
+                    # Cleanup memory after each seed test
+                    import jax
+                    import gc
+                    jax.clear_caches()
+                    gc.collect()
 
                     total_tests += 1
 
