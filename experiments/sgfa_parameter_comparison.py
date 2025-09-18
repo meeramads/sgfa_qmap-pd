@@ -819,21 +819,55 @@ class SGFAParameterComparison(ExperimentFramework):
             )
             elapsed = time.time() - start_time
 
-            # Get samples
+            # Get samples and extra fields
             samples = mcmc.get_samples()
 
+            # Try to get potential energy from extra fields
+            try:
+                extra_fields = mcmc.get_extra_fields()
+                potential_energy = extra_fields.get("potential_energy", np.array([]))
+                if len(potential_energy) == 0:
+                    # Fallback: check if it's in samples
+                    potential_energy = samples.get("potential_energy", np.array([]))
+            except AttributeError:
+                # Older NumPyro version - check samples directly
+                potential_energy = samples.get("potential_energy", np.array([]))
+
             # Calculate log likelihood (approximate)
-            potential_energy = samples.get("potential_energy", np.array([]))
             if len(potential_energy) > 0:
                 log_likelihood = -np.mean(potential_energy)
                 self.logger.debug(
                     f"Potential energy stats: mean={ np.mean(potential_energy):.3f}, std={ np.std(potential_energy):.3f}"
                 )
             else:
-                log_likelihood = float("nan")  # Indicate missing data
-                self.logger.warning(
-                    "No potential energy data collected - log likelihood unavailable"
-                )
+                # Try alternative approaches to get log likelihood
+                log_prob = samples.get("log_prob", np.array([]))
+                if len(log_prob) > 0:
+                    log_likelihood = np.mean(log_prob)
+                    self.logger.debug(f"Using log_prob as log likelihood: {log_likelihood:.3f}")
+                else:
+                    # Calculate approximate log likelihood from samples using data fit
+                    try:
+                        W_samples = samples["W"]
+                        Z_samples = samples["Z"]
+                        # Simple reconstruction error as proxy for likelihood
+                        reconstruction_errors = []
+                        for i in range(min(10, len(W_samples))):  # Sample 10 iterations
+                            W = W_samples[i]
+                            Z = Z_samples[i]
+                            total_error = 0
+                            for j, X in enumerate(X_list):
+                                X_reconstructed = Z @ W[j].T
+                                error = np.mean((X - X_reconstructed) ** 2)
+                                total_error += error
+                            reconstruction_errors.append(total_error)
+                        log_likelihood = -np.mean(reconstruction_errors)  # Negative because lower error = higher likelihood
+                        self.logger.debug(f"Using reconstruction error as log likelihood proxy: {log_likelihood:.3f}")
+                    except Exception as e:
+                        log_likelihood = float("nan")  # Indicate missing data
+                        self.logger.warning(
+                            f"No potential energy or log_prob data collected, reconstruction error calculation failed: {e}"
+                        )
 
             # Extract mean parameters
             W_samples = samples["W"]  # Shape: (num_samples, D, K)

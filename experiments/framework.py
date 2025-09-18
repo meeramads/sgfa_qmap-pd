@@ -292,7 +292,7 @@ class ExperimentFramework:
             )
 
             # Save intermediate results if configured
-            if config.save_intermediate:
+            if config.save_intermediate_results:
                 self._save_intermediate_results(result, exp_dir, experiment_results)
 
             # Get performance metrics

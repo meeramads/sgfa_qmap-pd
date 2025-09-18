@@ -62,9 +62,22 @@ def setup_environment(config):
     # Create output directories using safe access
     ensure_directories(config)
 
-    # Verify GPU availability
+    # Configure JAX based on config settings
     try:
         import jax
+        import os
+
+        # Check if GPU usage is disabled in config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        system_config = config_dict.get("system", {})
+        use_gpu = system_config.get("use_gpu", True)
+
+        if not use_gpu:
+            # Force JAX to use CPU only
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+            jax.config.update("jax_platform_name", "cpu")
+            logger.info(" Forcing CPU-only mode as configured")
 
         devices = jax.devices()
         logger.info(f" Available devices: {devices}")
