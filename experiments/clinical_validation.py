@@ -3504,6 +3504,10 @@ def run_clinical_validation(config):
         def clinical_validation_experiment(config, output_dir, **kwargs):
             logger.info("🏥 Running comprehensive clinical validation...")
 
+            # Normalize config input using standard ConfigHelper
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(config)
+
             results = {}
             total_tests = 0
             successful_tests = 0

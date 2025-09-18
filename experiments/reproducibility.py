@@ -1616,6 +1616,10 @@ def run_reproducibility(config):
         def reproducibility_experiment(config, output_dir, **kwargs):
             logger.info("🔄 Running comprehensive reproducibility tests...")
 
+            # Normalize config input using standard ConfigHelper
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(config)
+
             results = {}
             total_tests = 0
             successful_tests = 0
