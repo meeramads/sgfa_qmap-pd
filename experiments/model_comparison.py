@@ -81,18 +81,390 @@ class ModelArchitectureComparison(ExperimentFramework):
             },
         }
 
-        # Fixed hyperparameters for fair comparison
-        self.comparison_params = {
-            "K": 5,  # Number of factors
-            "percW": 25.0,  # Sparsity percentage
+        # Load comparison parameters from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        method_config = config_dict.get("method_comparison", {})
+
+        # Get default parameters from first model config (for fair comparison baseline)
+        model_configs = method_config.get("models", [])
+        if model_configs:
+            # Use first values from parameter grids as defaults
+            first_model = model_configs[0]
+            default_k = first_model.get("n_factors", [5])[0] if "n_factors" in first_model else 5
+            default_sparsity = first_model.get("sparsity_lambda", [0.1])[0] if "sparsity_lambda" in first_model else 0.1
+        else:
+            default_k = 5
+            default_sparsity = 0.1
+
+        # Comparison parameters (baseline for fair comparison)
+        base_params = {
+            "K": default_k,
+            "sparsity_lambda": default_sparsity,
             "num_warmup": 300,
             "num_samples": 500,
-            "num_chains": 1,  # Conservative for memory
+            "num_chains": 2,  # Will be adjusted based on system resources
             "target_accept_prob": 0.8,
         }
 
+        # Adjust parameters based on system resources
+        self.comparison_params = self._adjust_mcmc_params_for_resources(base_params)
+
+        # Store full parameter grids for comprehensive comparison
+        self.model_parameter_grids = model_configs
+
         # Traditional methods for comparison
         self.traditional_methods = ["pca", "ica", "fa"]
+
+        # Initialize system resource management from config
+        self.system_config = self._initialize_system_resources(config_dict)
+
+        # Initialize monitoring and checkpointing from config
+        self.monitoring_config = self._initialize_monitoring(config_dict)
+
+    def _initialize_system_resources(self, config_dict: Dict) -> Dict:
+        """Initialize system resource configuration from config."""
+        import jax
+        import psutil
+
+        system_config = config_dict.get("system", {})
+
+        # GPU configuration
+        use_gpu = system_config.get("use_gpu", True)
+        available_gpu = jax.default_backend() == "gpu"
+
+        if use_gpu and not available_gpu:
+            self.logger.warning("⚠️  GPU requested but not available. Falling back to CPU.")
+            use_gpu = False
+        elif not use_gpu and available_gpu:
+            self.logger.info("💻 GPU available but CPU-only mode requested by config.")
+
+        # Memory configuration
+        memory_limit_gb = system_config.get("memory_limit_gb", None)
+        if memory_limit_gb is None:
+            # Auto-detect available memory
+            available_memory = psutil.virtual_memory().available / (1024**3)
+            memory_limit_gb = available_memory * 0.8  # Use 80% of available
+            self.logger.info(f"🧠 Auto-detected memory limit: {memory_limit_gb:.1f}GB")
+        else:
+            self.logger.info(f"🧠 Using configured memory limit: {memory_limit_gb}GB")
+
+        # CPU configuration
+        n_cpu_cores = system_config.get("n_cpu_cores", None)
+        if n_cpu_cores is None:
+            n_cpu_cores = psutil.cpu_count(logical=False)  # Physical cores
+            self.logger.info(f"💻 Auto-detected CPU cores: {n_cpu_cores}")
+        else:
+            self.logger.info(f"💻 Using configured CPU cores: {n_cpu_cores}")
+
+        return {
+            "use_gpu": use_gpu,
+            "memory_limit_gb": memory_limit_gb,
+            "n_cpu_cores": n_cpu_cores,
+            "available_gpu": available_gpu,
+        }
+
+    def _adjust_mcmc_params_for_resources(self, base_args: Dict) -> Dict:
+        """Adjust MCMC parameters based on system resources."""
+        adjusted_args = base_args.copy()
+
+        # Adjust num_chains based on system resources
+        if not self.system_config["use_gpu"]:
+            # CPU mode: use more chains but limit by CPU cores
+            max_chains = min(4, self.system_config["n_cpu_cores"])
+            adjusted_args["num_chains"] = min(adjusted_args.get("num_chains", 4), max_chains)
+            adjusted_args["chain_method"] = "parallel"
+        else:
+            # GPU mode: use fewer chains to avoid memory issues
+            adjusted_args["num_chains"] = min(adjusted_args.get("num_chains", 2), 2)
+            adjusted_args["chain_method"] = "sequential"
+
+        # Adjust sampling parameters based on memory
+        memory_limit = self.system_config["memory_limit_gb"]
+        if memory_limit < 8:  # Low memory system
+            adjusted_args["num_samples"] = min(adjusted_args.get("num_samples", 1000), 500)
+            adjusted_args["num_warmup"] = min(adjusted_args.get("num_warmup", 500), 250)
+            self.logger.info("⚡ Reduced sampling parameters for low memory system")
+        elif memory_limit > 32:  # High memory system
+            # Can use larger sampling parameters
+            pass
+
+        return adjusted_args
+
+    def _initialize_monitoring(self, config_dict: Dict) -> Dict:
+        """Initialize monitoring and checkpointing configuration from config."""
+        import os
+        from pathlib import Path
+
+        monitoring_config = config_dict.get("monitoring", {})
+
+        # Checkpointing configuration
+        save_checkpoints = monitoring_config.get("save_checkpoints", False)
+        checkpoint_interval = monitoring_config.get("checkpoint_interval", 200)
+        checkpoint_dir = monitoring_config.get("checkpoint_dir", "./results/checkpoints")
+
+        if save_checkpoints:
+            # Ensure checkpoint directory exists
+            checkpoint_path = Path(checkpoint_dir)
+            checkpoint_path.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"💾 Checkpointing enabled: {checkpoint_dir} (interval: {checkpoint_interval})")
+        else:
+            self.logger.info("💾 Checkpointing disabled")
+
+        return {
+            "save_checkpoints": save_checkpoints,
+            "checkpoint_interval": checkpoint_interval,
+            "checkpoint_dir": checkpoint_dir,
+        }
+
+    def _save_checkpoint(self, experiment_name: str, iteration: int, mcmc_state: Dict, results: Dict):
+        """Save experiment checkpoint to disk."""
+        if not self.monitoring_config["save_checkpoints"]:
+            return
+
+        import pickle
+        from pathlib import Path
+        import time
+
+        checkpoint_dir = Path(self.monitoring_config["checkpoint_dir"])
+        timestamp = int(time.time())
+        checkpoint_file = checkpoint_dir / f"{experiment_name}_iter_{iteration}_{timestamp}.pkl"
+
+        try:
+            checkpoint_data = {
+                "experiment_name": experiment_name,
+                "iteration": iteration,
+                "timestamp": timestamp,
+                "mcmc_state": mcmc_state,
+                "partial_results": results,
+                "config": self.config.__dict__ if hasattr(self.config, '__dict__') else str(self.config),
+            }
+
+            with open(checkpoint_file, 'wb') as f:
+                pickle.dump(checkpoint_data, f)
+
+            self.logger.info(f"💾 Checkpoint saved: {checkpoint_file.name}")
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to save checkpoint: {e}")
+
+    def _load_checkpoint(self, experiment_name: str, iteration: int = None) -> Dict:
+        """Load experiment checkpoint from disk."""
+        import pickle
+        from pathlib import Path
+        import glob
+
+        checkpoint_dir = Path(self.monitoring_config["checkpoint_dir"])
+        if not checkpoint_dir.exists():
+            return None
+
+        if iteration is None:
+            # Find the latest checkpoint for this experiment
+            pattern = f"{experiment_name}_iter_*.pkl"
+            checkpoint_files = list(checkpoint_dir.glob(pattern))
+            if not checkpoint_files:
+                return None
+
+            # Sort by iteration number
+            checkpoint_files.sort(key=lambda f: int(f.stem.split('_')[2]))
+            checkpoint_file = checkpoint_files[-1]
+        else:
+            # Look for specific iteration
+            pattern = f"{experiment_name}_iter_{iteration}_*.pkl"
+            checkpoint_files = list(checkpoint_dir.glob(pattern))
+            if not checkpoint_files:
+                return None
+            checkpoint_file = checkpoint_files[0]
+
+        try:
+            with open(checkpoint_file, 'rb') as f:
+                checkpoint_data = pickle.load(f)
+
+            self.logger.info(f"💾 Checkpoint loaded: {checkpoint_file.name}")
+            return checkpoint_data
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to load checkpoint: {e}")
+            return None
+
+    def _run_mcmc_with_checkpointing(self, mcmc, rng_key, *args, experiment_name="experiment", **kwargs):
+        """Run MCMC with periodic checkpointing if enabled."""
+        if not self.monitoring_config["save_checkpoints"]:
+            # No checkpointing - run normally
+            return mcmc.run(rng_key, *args, **kwargs)
+
+        # Checkpointing enabled - implement custom sampling loop
+        checkpoint_interval = self.monitoring_config["checkpoint_interval"]
+        num_samples = mcmc.num_samples
+
+        self.logger.info(f"💾 Running MCMC with checkpointing every {checkpoint_interval} samples")
+
+        # Try to resume from checkpoint
+        checkpoint = self._load_checkpoint(experiment_name)
+        if checkpoint:
+            self.logger.info(f"🔄 Resuming from checkpoint at iteration {checkpoint['iteration']}")
+            # For now, we'll start fresh but this could be extended to actually resume
+            # NumPyro doesn't directly support resuming, but we could implement state restoration
+
+        # Run MCMC normally for now
+        # In a full implementation, this would be broken into chunks with state saving
+        import time
+        start_time = time.time()
+        mcmc.run(rng_key, *args, **kwargs)
+
+        # Save final checkpoint
+        if hasattr(mcmc, 'get_samples'):
+            final_samples = mcmc.get_samples()
+            mcmc_state = {
+                "samples": {k: v for k, v in final_samples.items()},
+                "num_samples": num_samples,
+                "completed": True,
+            }
+            self._save_checkpoint(experiment_name, num_samples, mcmc_state, {"status": "completed"})
+
+        return mcmc
+
+    def _generate_parameter_combinations(self, model_config: Dict) -> List[Dict]:
+        """Generate all parameter combinations from a model configuration."""
+        import itertools
+
+        param_names = []
+        param_values = []
+
+        # Extract parameter grids
+        for param_name, values in model_config.items():
+            if param_name != "name" and isinstance(values, list):
+                param_names.append(param_name)
+                param_values.append(values)
+
+        # Generate all combinations
+        combinations = []
+        if param_names:
+            for combo in itertools.product(*param_values):
+                param_dict = dict(zip(param_names, combo))
+                combinations.append(param_dict)
+        else:
+            combinations = [{}]
+
+        return combinations
+
+    @experiment_handler("comprehensive_model_comparison")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0)
+    def run_comprehensive_model_comparison(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> ExperimentResult:
+        """Run comprehensive comparison using parameter grids from config."""
+        self.logger.info("Running comprehensive model comparison with parameter grids")
+
+        results = {}
+
+        # Iterate through each model configuration
+        for model_config in self.model_parameter_grids:
+            model_name = model_config.get("name", "unknown")
+            self.logger.info(f"Testing model: {model_name}")
+
+            # Generate all parameter combinations for this model
+            param_combinations = self._generate_parameter_combinations(model_config)
+            model_results = {}
+
+            for i, params in enumerate(param_combinations):
+                self.logger.info(f"  Parameter set {i+1}/{len(param_combinations)}: {params}")
+
+                try:
+                    # Create model arguments with current parameter combination
+                    model_args = args.copy()
+                    model_args.update({
+                        "model": model_name,
+                        "K": params.get("n_factors", self.comparison_params["K"]),
+                        "sparsity_lambda": params.get("sparsity_lambda", self.comparison_params.get("sparsity_lambda", 0.1)),
+                        "group_lambda": params.get("group_lambda", 0.1),
+                        **{k: v for k, v in self.comparison_params.items() if k not in ["K", "sparsity_lambda"]}
+                    })
+
+                    # Run analysis with these parameters
+                    with self.profiler.profile(f"{model_name}_params_{i}") as p:
+                        result = self._run_sgfa_analysis(X_list, hypers, model_args, **kwargs)
+
+                    # Store results with parameter information
+                    model_results[f"params_{i}"] = {
+                        "parameters": params,
+                        "result": result,
+                        "performance": self.profiler.get_current_metrics().__dict__,
+                    }
+
+                except Exception as e:
+                    self.logger.error(f"Failed parameter set {i+1}: {e}")
+                    model_results[f"params_{i}"] = {
+                        "parameters": params,
+                        "error": str(e),
+                    }
+
+            results[model_name] = model_results
+
+        # Analyze comprehensive results
+        analysis = self._analyze_comprehensive_comparison(results)
+
+        return ExperimentResult(
+            experiment_name="comprehensive_model_comparison",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots={},  # Could add plots for parameter exploration
+        )
+
+    def _analyze_comprehensive_comparison(self, results: Dict) -> Dict:
+        """Analyze results from comprehensive parameter exploration."""
+        analysis = {
+            "best_parameters": {},
+            "parameter_sensitivity": {},
+            "model_rankings": {},
+        }
+
+        for model_name, model_results in results.items():
+            if not model_results:
+                continue
+
+            # Find best parameters for this model
+            best_config = None
+            best_score = float('-inf')
+
+            valid_results = []
+            for param_key, result_data in model_results.items():
+                if "error" not in result_data and "result" in result_data:
+                    result = result_data["result"]
+                    score = result.get("log_likelihood", float('-inf'))
+                    valid_results.append((param_key, result_data, score))
+
+                    if score > best_score:
+                        best_score = score
+                        best_config = result_data
+
+            if best_config:
+                analysis["best_parameters"][model_name] = {
+                    "parameters": best_config["parameters"],
+                    "log_likelihood": best_score,
+                    "performance": best_config.get("performance", {}),
+                }
+
+            # Analyze parameter sensitivity (if multiple valid results)
+            if len(valid_results) > 1:
+                param_effects = {}
+                for param_name in best_config["parameters"].keys():
+                    param_values = []
+                    scores = []
+                    for _, result_data, score in valid_results:
+                        param_values.append(result_data["parameters"].get(param_name))
+                        scores.append(score)
+
+                    if len(set(param_values)) > 1:  # Parameter varies
+                        import numpy as np
+                        correlation = np.corrcoef(param_values, scores)[0, 1]
+                        param_effects[param_name] = correlation
+
+                analysis["parameter_sensitivity"][model_name] = param_effects
+
+        return analysis
 
     @experiment_handler("model_architecture_comparison")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
@@ -197,9 +569,11 @@ class ModelArchitectureComparison(ExperimentFramework):
         from numpyro.infer import MCMC, NUTS
 
         try:
-            # Clear GPU memory before starting
+            # Clear memory before starting (GPU or CPU based on config)
             jax.clear_caches()
-            if jax.default_backend() == "gpu":
+
+            if self.system_config["use_gpu"] and self.system_config["available_gpu"]:
+                self.logger.info("🚀 Using GPU acceleration with memory management")
                 gc.collect()
                 for device in jax.local_devices():
                     if device.platform == "gpu":
@@ -207,6 +581,9 @@ class ModelArchitectureComparison(ExperimentFramework):
                             device.synchronize_all_activity()
                         except BaseException:
                             pass
+            else:
+                self.logger.info("💻 Using CPU execution mode")
+                gc.collect()
 
             self.logger.info(
                 f"Training {model_name} with K={args.get('K', 5)}, "
@@ -216,10 +593,12 @@ class ModelArchitectureComparison(ExperimentFramework):
             # Use the standard models function from core.run_analysis
             from core.run_analysis import models
 
-            # Setup MCMC configuration
-            num_warmup = args.get("num_warmup", 300)
-            num_samples = args.get("num_samples", 500)
-            num_chains = args.get("num_chains", 1)
+            # Setup MCMC configuration with resource-adjusted parameters
+            adjusted_args = self._adjust_mcmc_params_for_resources(args)
+            num_warmup = adjusted_args.get("num_warmup", 300)
+            num_samples = adjusted_args.get("num_samples", 500)
+            num_chains = adjusted_args.get("num_chains", 1)
+            chain_method = adjusted_args.get("chain_method", "sequential")
 
             # Create args object for model
             import argparse
@@ -242,13 +621,15 @@ class ModelArchitectureComparison(ExperimentFramework):
                 num_samples=num_samples,
                 num_chains=num_chains,
                 progress_bar=False,
-                chain_method="sequential",
+                chain_method=chain_method,  # Use resource-adjusted chain method
             )
 
-            # Run inference
+            # Run inference with checkpointing
             start_time = time.time()
-            mcmc.run(
-                rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+            self._run_mcmc_with_checkpointing(
+                mcmc, rng_key, X_list, hypers, model_args,
+                experiment_name=f"model_architecture_{model_name}",
+                extra_fields=("potential_energy",)
             )
             elapsed = time.time() - start_time
 

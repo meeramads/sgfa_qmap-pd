@@ -291,6 +291,10 @@ class ExperimentFramework:
                 "convergence_diagnostics", {}
             )
 
+            # Save intermediate results if configured
+            if config.save_intermediate:
+                self._save_intermediate_results(result, exp_dir, experiment_results)
+
             # Get performance metrics
             if perf_manager:
                 result.performance_metrics = perf_manager.generate_performance_report()

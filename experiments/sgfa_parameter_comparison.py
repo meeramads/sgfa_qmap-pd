@@ -39,9 +39,15 @@ class SGFAParameterComparison(ExperimentFramework):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
 
-        # Initialize neuroimaging hyperparameter optimizer
+        # Initialize neuroimaging hyperparameter optimizer from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        cv_settings = config_dict.get("cross_validation", {})
+
         cv_config = NeuroImagingCVConfig()
-        cv_config.inner_cv_folds = 3  # Reduced for hyperparameter optimization
+        # Use reduced folds for hyperparameter optimization (typically n_folds - 2)
+        base_folds = cv_settings.get("n_folds", 5)
+        cv_config.inner_cv_folds = max(2, base_folds - 2)
 
         self.hyperopt = NeuroImagingHyperOptimizer(config=cv_config)
 
@@ -1616,13 +1622,19 @@ def run_method_comparison(config):
             from data.preprocessing_integration import apply_preprocessing_to_pipeline
 
             logger.info(
-                "🔧 Applying advanced neuroimaging preprocessing for method comparison..."
+                "🔧 Applying neuroimaging preprocessing for method comparison..."
             )
+            # Get preprocessing strategy from config
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(config)
+            preprocessing_config = config_dict.get("preprocessing", {})
+            strategy = preprocessing_config.get("strategy", "standard")
+
             X_list, preprocessing_info = apply_preprocessing_to_pipeline(
                 config=config,
                 data_dir=config_accessor.data_dir,
                 auto_select_strategy=False,
-                preferred_strategy="aggressive",  # Use advanced preprocessing for better model comparison
+                preferred_strategy=strategy,  # Use strategy from config
             )
 
         # Apply performance optimization to loaded data

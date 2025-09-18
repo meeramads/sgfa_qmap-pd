@@ -1348,11 +1348,17 @@ def run_sensitivity_analysis(config):
         from experiments.framework import ExperimentConfig, ExperimentFramework
 
         logger.info("🔧 Loading data for sensitivity analysis...")
+        # Get preprocessing strategy from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        preprocessing_config = config_dict.get("preprocessing", {})
+        strategy = preprocessing_config.get("strategy", "standard")
+
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=get_data_dir(config),
             auto_select_strategy=False,
-            preferred_strategy="standard",  # Use standard preprocessing for sensitivity analysis
+            preferred_strategy=strategy,  # Use strategy from config
         )
 
         logger.info(f"✅ Data loaded: {len(X_list)} views for sensitivity analysis")

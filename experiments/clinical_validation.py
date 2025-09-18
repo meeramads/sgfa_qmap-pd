@@ -49,9 +49,13 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Performance optimization now handled by @performance_optimized_experiment decorator
 
-        # Initialize neuroimaging-specific cross-validation
+        # Initialize neuroimaging-specific cross-validation from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        cv_settings = config_dict.get("cross_validation", {})
+
         self.neuroimaging_cv_config = NeuroImagingCVConfig()
-        self.neuroimaging_cv_config.outer_cv_folds = 5
+        self.neuroimaging_cv_config.outer_cv_folds = cv_settings.get("n_folds", 5)
 
         # Initialize clinical-aware splitter
         self.clinical_splitter = ClinicalAwareSplitter(config=self.neuroimaging_cv_config)
@@ -1217,7 +1221,20 @@ class ClinicalValidationExperiments(ExperimentFramework):
         if len(np.unique(labels)) < 2:
             return {"error": "Insufficient label diversity for classification"}
 
-        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        # Get CV settings from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(self.config)
+        cv_settings = config_dict.get("cross_validation", {})
+
+        n_folds = cv_settings.get("n_folds", 5)
+        stratified = cv_settings.get("stratified", True)
+        random_seed = cv_settings.get("random_seed", 42)
+
+        if stratified:
+            cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=random_seed)
+        else:
+            from sklearn.model_selection import KFold
+            cv = KFold(n_splits=n_folds, shuffle=True, random_state=random_seed)
 
         for model_name, model in self.classification_models.items():
             try:
@@ -1918,6 +1935,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
         """Validate different biomarker panels."""
         results = {}
 
+        # Get CV settings from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(self.config)
+        cv_settings = config_dict.get("cross_validation", {})
+        n_folds = cv_settings.get("n_folds", 5)
+
         from sklearn.feature_selection import SelectKBest, f_classif, f_regression
         from sklearn.model_selection import cross_val_score
 
@@ -1945,7 +1968,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
                     try:
                         cv_scores = cross_val_score(
-                            model, Z_selected, outcome_values, cv=5
+                            model, Z_selected, outcome_values, cv=n_folds
                         )
 
                         outcome_results[f"panel_size_{k_features}"] = {
@@ -1975,7 +1998,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
                     try:
                         cv_scores = cross_val_score(
-                            model, Z_selected, outcome_values, cv=5, scoring="r2"
+                            model, Z_selected, outcome_values, cv=n_folds, scoring="r2"
                         )
 
                         outcome_results[f"panel_size_{k_features}"] = {
@@ -3434,11 +3457,21 @@ def run_clinical_validation(config):
         from experiments.framework import ExperimentConfig, ExperimentFramework
 
         logger.info("🔧 Loading data for clinical validation...")
+        # Get preprocessing strategy from config, with clinical validation override
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        preprocessing_config = config_dict.get("preprocessing", {})
+        clinical_config = config_dict.get("clinical_validation", {})
+
+        # Clinical validation can override preprocessing strategy
+        strategy = clinical_config.get("preprocessing_strategy",
+                                     preprocessing_config.get("strategy", "clinical_focused"))
+
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=get_data_dir(config),
             auto_select_strategy=False,
-            preferred_strategy="clinical_focused",  # Use clinical-focused preprocessing
+            preferred_strategy=strategy,  # Use strategy from config
         )
 
         logger.info(f"✅ Data loaded: {len(X_list)} views for clinical validation")
@@ -3508,6 +3541,21 @@ def run_clinical_validation(config):
             from core.config_utils import ConfigHelper
             config_dict = ConfigHelper.to_dict(config)
 
+            # Get clinical validation configuration
+            clinical_config = config_dict.get("clinical_validation", {})
+            validation_types = clinical_config.get("validation_types", ["subtype_classification"])
+            classification_metrics = clinical_config.get("classification_metrics", ["accuracy"])
+
+            # Use global cross-validation config with experiment-specific overrides
+            global_cv_config = config_dict.get("cross_validation", {})
+            experiment_cv_config = clinical_config.get("cross_validation", {})
+            cv_config = {**global_cv_config, **experiment_cv_config}
+            cv_config.setdefault("n_folds", 5)
+            cv_config.setdefault("stratified", True)
+
+            logger.info(f"🏥 Clinical validation types: {validation_types}")
+            logger.info(f"📊 Metrics to evaluate: {classification_metrics}")
+
             results = {}
             total_tests = 0
             successful_tests = 0
@@ -3558,29 +3606,48 @@ def run_clinical_validation(config):
 
             total_tests += 1
 
-            # 2. Test subtype classification
-            logger.info("📊 Testing subtype classification...")
-            try:
-                classification_results = clinical_exp._test_factor_classification(
-                    Z_sgfa, clinical_labels, "sgfa_factors"
-                )
-                results["subtype_classification"] = classification_results
-                successful_tests += 1
+            # 2. Run configured validation types
+            for validation_type in validation_types:
+                logger.info(f"📊 Testing {validation_type}...")
+                try:
+                    if validation_type == "subtype_classification":
+                        classification_results = clinical_exp._test_factor_classification(
+                            Z_sgfa, clinical_labels, "sgfa_factors"
+                        )
+                        results[validation_type] = classification_results
 
-                # Log classification performance
-                best_accuracy = max(
-                    [
-                        model_result.get("accuracy", 0)
-                        for model_result in classification_results.values()
-                    ]
-                )
-                logger.info(f"✅ Best classification accuracy: {best_accuracy:.3f}")
+                        # Log classification performance using configured metrics
+                        for metric in classification_metrics:
+                            if metric in ["accuracy", "precision", "recall", "f1_score"]:
+                                best_score = max(
+                                    [
+                                        model_result.get(metric, 0)
+                                        for model_result in classification_results.values()
+                                    ]
+                                )
+                                logger.info(f"✅ Best {metric}: {best_score:.3f}")
 
-            except Exception as e:
-                logger.error(f"❌ Subtype classification failed: {e}")
-                results["subtype_classification"] = {"error": str(e)}
+                        successful_tests += 1
 
-            total_tests += 1
+                    elif validation_type == "disease_progression":
+                        # Placeholder for disease progression validation
+                        logger.info("⚠️  Disease progression validation not yet implemented")
+                        results[validation_type] = {"status": "not_implemented"}
+
+                    elif validation_type == "biomarker_discovery":
+                        # Placeholder for biomarker discovery validation
+                        logger.info("⚠️  Biomarker discovery validation not yet implemented")
+                        results[validation_type] = {"status": "not_implemented"}
+
+                    else:
+                        logger.warning(f"⚠️  Unknown validation type: {validation_type}")
+                        results[validation_type] = {"error": f"Unknown validation type: {validation_type}"}
+
+                except Exception as e:
+                    logger.error(f"❌ {validation_type} failed: {e}")
+                    results[validation_type] = {"error": str(e)}
+
+                total_tests += 1
 
             # 3. Compare with baseline methods
             logger.info("📊 Comparing with baseline methods...")
@@ -3607,13 +3674,18 @@ def run_clinical_validation(config):
                 }
                 successful_tests += 1
 
-                # Log comparison
-                sgfa_acc = max(
-                    [
-                        r.get("accuracy", 0)
-                        for r in results["subtype_classification"].values()
-                    ]
-                )
+                # Log comparison (use the first successful validation type)
+                sgfa_acc = 0
+                for validation_type in validation_types:
+                    if validation_type in results and isinstance(results[validation_type], dict) and "error" not in results[validation_type]:
+                        sgfa_acc = max(
+                            [
+                                r.get("accuracy", 0)
+                                for r in results[validation_type].values()
+                                if isinstance(r, dict)
+                            ]
+                        )
+                        break
                 pca_acc = max([r.get("accuracy", 0) for r in pca_results.values()])
                 raw_acc = max([r.get("accuracy", 0) for r in raw_results.values()])
 

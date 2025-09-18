@@ -104,12 +104,18 @@ def run_data_validation(config):
         # Advanced data loading and validation with neuroimaging-aware preprocessing
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
 
-        logger.info("🧠 Using advanced neuroimaging preprocessing strategy...")
+        # Get preprocessing strategy from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        preprocessing_config = config_dict.get("preprocessing", {})
+        strategy = preprocessing_config.get("strategy", "standard")
+
+        logger.info(f"🧠 Using {strategy} neuroimaging preprocessing strategy from config...")
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=get_data_dir(config),
-            auto_select_strategy=False,  # Don't auto-select, use our preferred strategy
-            preferred_strategy="aggressive",  # Use the most advanced preprocessing
+            auto_select_strategy=False,  # Don't auto-select, use config strategy
+            preferred_strategy=strategy,  # Use strategy from config
         )
 
         logger.info(f"✅ Data loaded: {len(X_list)} views")

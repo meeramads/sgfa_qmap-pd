@@ -38,9 +38,14 @@ class ReproducibilityExperiments(ExperimentFramework):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
 
-        # Reproducibility settings
-        self.random_seeds = [42, 123, 456, 789, 999, 1234, 5678, 9999]
-        self.perturbation_types = ["gaussian", "uniform", "dropout", "permutation"]
+        # Reproducibility settings from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        repro_config = config_dict.get("reproducibility", {})
+
+        self.random_seeds = repro_config.get("seed_values", [42, 123, 456, 789, 999, 1234, 5678, 9999])
+        perturbation_config = repro_config.get("perturbation", {})
+        self.perturbation_types = perturbation_config.get("types", ["gaussian", "uniform", "dropout", "permutation"])
 
     @experiment_handler("seed_reproducibility_test")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
@@ -1567,11 +1572,17 @@ def run_reproducibility(config):
         from experiments.framework import ExperimentConfig, ExperimentFramework
 
         logger.info("🔧 Loading data for reproducibility testing...")
+        # Get preprocessing strategy from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        preprocessing_config = config_dict.get("preprocessing", {})
+        strategy = preprocessing_config.get("strategy", "standard")
+
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=get_data_dir(config),
             auto_select_strategy=False,
-            preferred_strategy="standard",  # Use standard preprocessing for consistency
+            preferred_strategy=strategy,  # Use strategy from config
         )
 
         logger.info(f"✅ Data loaded: {len(X_list)} views for reproducibility testing")
@@ -1620,138 +1631,150 @@ def run_reproducibility(config):
             from core.config_utils import ConfigHelper
             config_dict = ConfigHelper.to_dict(config)
 
+            # Get reproducibility configuration
+            repro_config = config_dict.get("reproducibility", {})
+            seed_values = repro_config.get("seed_values", [42, 123, 456])
+            test_scenarios = repro_config.get("test_scenarios", ["seed_reproducibility", "data_perturbation", "initialization_robustness"])
+            perturbation_config = repro_config.get("perturbation", {
+                "types": ["gaussian", "uniform", "dropout"],
+                "levels": [0.01, 0.05, 0.1]
+            })
+
             results = {}
             total_tests = 0
             successful_tests = 0
 
-            # 1. Test seed reproducibility
-            logger.info("📊 Testing seed reproducibility...")
-            seeds = [42, 123, 456]  # Reduced set for testing
-            seed_results = {}
+            # 1. Test seed reproducibility (if configured)
+            if "seed_reproducibility" in test_scenarios:
+                logger.info("📊 Testing seed reproducibility...")
+                seeds = seed_values
+                seed_results = {}
 
-            for seed in seeds:
-                try:
-                    # Set seed for reproducibility
-                    np.random.seed(seed)
-                    test_args = base_args.copy()
-                    test_args["random_seed"] = seed
+                for seed in seeds:
+                    try:
+                        # Set seed for reproducibility
+                        np.random.seed(seed)
+                        test_args = base_args.copy()
+                        test_args["random_seed"] = seed
 
-                    with repro_exp.profiler.profile(f"seed_{seed}") as p:
-                        result = repro_exp._run_sgfa_analysis(
-                            X_list, base_hypers, test_args
+                        with repro_exp.profiler.profile(f"seed_{seed}") as p:
+                            result = repro_exp._run_sgfa_analysis(
+                                X_list, base_hypers, test_args
+                            )
+
+                        metrics = repro_exp.profiler.get_current_metrics()
+                        seed_results[f"seed_{seed}"] = {
+                            "seed": seed,
+                            "result": result,
+                            "performance": {
+                                "execution_time": metrics.execution_time,
+                                "peak_memory_gb": metrics.peak_memory_gb,
+                                "convergence": result.get("convergence", False),
+                                "log_likelihood": result.get(
+                                    "log_likelihood", float("-inf")
+                                ),
+                            },
+                        }
+                        successful_tests += 1
+                        logger.info(
+                            f"✅ Seed {seed}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                         )
 
-                    metrics = repro_exp.profiler.get_current_metrics()
-                    seed_results[f"seed_{seed}"] = {
-                        "seed": seed,
-                        "result": result,
-                        "performance": {
-                            "execution_time": metrics.execution_time,
-                            "peak_memory_gb": metrics.peak_memory_gb,
-                            "convergence": result.get("convergence", False),
-                            "log_likelihood": result.get(
-                                "log_likelihood", float("-inf")
-                            ),
-                        },
-                    }
-                    successful_tests += 1
-                    logger.info(
-                        f"✅ Seed {seed}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
-                    )
+                    except Exception as e:
+                        logger.error(f"❌ Seed {seed} test failed: {e}")
+                        seed_results[f"seed_{seed}"] = {"error": str(e)}
 
-                except Exception as e:
-                    logger.error(f"❌ Seed {seed} test failed: {e}")
-                    seed_results[f"seed_{seed}"] = {"error": str(e)}
+                    total_tests += 1
 
-                total_tests += 1
+                results["seed_reproducibility"] = seed_results
 
-            results["seed_reproducibility"] = seed_results
+            # 2. Test data perturbation robustness (if configured)
+            if "data_perturbation" in test_scenarios:
+                logger.info("📊 Testing data perturbation robustness...")
+                noise_levels = perturbation_config.get("levels", [0.01, 0.05])
+                perturbation_results = {}
 
-            # 2. Test data perturbation robustness
-            logger.info("📊 Testing data perturbation robustness...")
-            noise_levels = [0.01, 0.05]  # Small noise levels for testing
-            perturbation_results = {}
+                for noise_level in noise_levels:
+                    try:
+                        # Add Gaussian noise to data
+                        X_noisy = []
+                        for X in X_list:
+                            noise = np.random.normal(0, noise_level * np.std(X), X.shape)
+                            X_noisy.append(X + noise)
 
-            for noise_level in noise_levels:
-                try:
-                    # Add Gaussian noise to data
-                    X_noisy = []
-                    for X in X_list:
-                        noise = np.random.normal(0, noise_level * np.std(X), X.shape)
-                        X_noisy.append(X + noise)
+                        with repro_exp.profiler.profile(f"noise_{noise_level}") as p:
+                            result = repro_exp._run_sgfa_analysis(
+                                X_noisy, base_hypers, base_args
+                            )
 
-                    with repro_exp.profiler.profile(f"noise_{noise_level}") as p:
-                        result = repro_exp._run_sgfa_analysis(
-                            X_noisy, base_hypers, base_args
+                        metrics = repro_exp.profiler.get_current_metrics()
+                        perturbation_results[f"noise_{noise_level}"] = {
+                            "noise_level": noise_level,
+                            "result": result,
+                            "performance": {
+                                "execution_time": metrics.execution_time,
+                                "peak_memory_gb": metrics.peak_memory_gb,
+                                "convergence": result.get("convergence", False),
+                                "log_likelihood": result.get(
+                                    "log_likelihood", float("-inf")
+                                ),
+                            },
+                        }
+                        successful_tests += 1
+                        logger.info(
+                            f"✅ Noise {noise_level}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                         )
 
-                    metrics = repro_exp.profiler.get_current_metrics()
-                    perturbation_results[f"noise_{noise_level}"] = {
-                        "noise_level": noise_level,
-                        "result": result,
-                        "performance": {
-                            "execution_time": metrics.execution_time,
-                            "peak_memory_gb": metrics.peak_memory_gb,
-                            "convergence": result.get("convergence", False),
-                            "log_likelihood": result.get(
-                                "log_likelihood", float("-inf")
-                            ),
-                        },
-                    }
-                    successful_tests += 1
-                    logger.info(
-                        f"✅ Noise {noise_level}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
-                    )
+                    except Exception as e:
+                        logger.error(f"❌ Noise {noise_level} test failed: {e}")
+                        perturbation_results[f"noise_{noise_level}"] = {"error": str(e)}
 
-                except Exception as e:
-                    logger.error(f"❌ Noise {noise_level} test failed: {e}")
-                    perturbation_results[f"noise_{noise_level}"] = {"error": str(e)}
+                    total_tests += 1
 
-                total_tests += 1
+                results["perturbation_robustness"] = perturbation_results
 
-            results["perturbation_robustness"] = perturbation_results
+            # 3. Test initialization robustness (if configured)
+            if "initialization_robustness" in test_scenarios:
+                logger.info("📊 Testing initialization robustness...")
+                init_results = {}
+                n_inits = repro_config.get("n_initializations", 3)  # Test different initializations
 
-            # 3. Test initialization robustness
-            logger.info("📊 Testing initialization robustness...")
-            init_results = {}
-            n_inits = 3  # Test different initializations
+                for init_id in range(n_inits):
+                    try:
+                        # Different random initialization
+                        test_args = base_args.copy()
+                        test_args["random_seed"] = 1000 + init_id
 
-            for init_id in range(n_inits):
-                try:
-                    # Different random initialization
-                    test_args = base_args.copy()
-                    test_args["random_seed"] = 1000 + init_id
+                        with repro_exp.profiler.profile(f"init_{init_id}") as p:
+                            result = repro_exp._run_sgfa_analysis(
+                                X_list, base_hypers, test_args
+                            )
 
-                    with repro_exp.profiler.profile(f"init_{init_id}") as p:
-                        result = repro_exp._run_sgfa_analysis(
-                            X_list, base_hypers, test_args
+                        metrics = repro_exp.profiler.get_current_metrics()
+                        init_results[f"init_{init_id}"] = {
+                            "init_id": init_id,
+                            "result": result,
+                            "performance": {
+                                "execution_time": metrics.execution_time,
+                                "peak_memory_gb": metrics.peak_memory_gb,
+                                "convergence": result.get("convergence", False),
+                                "log_likelihood": result.get(
+                                    "log_likelihood", float("-inf")
+                                ),
+                            },
+                        }
+                        successful_tests += 1
+                        logger.info(
+                            f"✅ Init {init_id}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
                         )
 
-                    metrics = repro_exp.profiler.get_current_metrics()
-                    init_results[f"init_{init_id}"] = {
-                        "init_id": init_id,
-                        "result": result,
-                        "performance": {
-                            "execution_time": metrics.execution_time,
-                            "peak_memory_gb": metrics.peak_memory_gb,
-                            "convergence": result.get("convergence", False),
-                            "log_likelihood": result.get(
-                                "log_likelihood", float("-inf")
-                            ),
-                        },
-                    }
-                    successful_tests += 1
-                    logger.info(
-                        f"✅ Init {init_id}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
-                    )
+                    except Exception as e:
+                        logger.error(f"❌ Init {init_id} test failed: {e}")
+                        init_results[f"init_{init_id}"] = {"error": str(e)}
 
-                except Exception as e:
-                    logger.error(f"❌ Init {init_id} test failed: {e}")
-                    init_results[f"init_{init_id}"] = {"error": str(e)}
+                    total_tests += 1
 
-                total_tests += 1
-
-            results["initialization_robustness"] = init_results
+                results["initialization_robustness"] = init_results
 
             logger.info("🔄 Reproducibility tests completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")

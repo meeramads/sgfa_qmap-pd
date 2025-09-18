@@ -1007,10 +1007,14 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             # Generate synthetic clinical data for benchmarking
             clinical_data = self._generate_synthetic_clinical_data(X_base[0].shape[0])
 
-        # Initialize neuroimaging CV configuration
+        # Initialize neuroimaging CV configuration from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(self.config)
+        cv_settings = config_dict.get("cross_validation", {})
+
         cv_config = NeuroImagingCVConfig()
-        cv_config.outer_cv_folds = 5
-        # Note: Using basic config - may need to extend for clinical awareness
+        cv_config.outer_cv_folds = cv_settings.get("n_folds", 5)
+        # Note: Using config-driven CV settings
 
         # Initialize clinical-aware splitter
         splitter = ClinicalAwareSplitter(config=cv_config)
@@ -2485,11 +2489,17 @@ def run_performance_benchmarks(config):
         from experiments.framework import ExperimentConfig, ExperimentFramework
 
         logger.info("🔧 Loading data for performance benchmarking...")
+        # Get preprocessing strategy from config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        preprocessing_config = config_dict.get("preprocessing", {})
+        strategy = preprocessing_config.get("strategy", "standard")
+
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
             config=config,
             data_dir=get_data_dir(config),
             auto_select_strategy=False,
-            preferred_strategy="standard",  # Use standard preprocessing for benchmarks
+            preferred_strategy=strategy,  # Use strategy from config
         )
 
         logger.info(f"✅ Data loaded: {len(X_list)} views for benchmarking")
@@ -2551,6 +2561,15 @@ def run_performance_benchmarks(config):
                     "n_features_per_view": [100, 80]
                 }
             })
+
+            # Get metrics to track from config
+            metrics_to_track = perf_config.get("metrics_to_track", [
+                "execution_time",
+                "peak_memory_gb",
+                "convergence",
+                "log_likelihood",
+                "throughput"
+            ])
 
             results = {}
             total_tests = 0
@@ -2619,22 +2638,32 @@ def run_performance_benchmarks(config):
                         )
 
                     metrics = benchmark_exp.profiler.get_current_metrics()
+
+                    # Build performance dict based on configured metrics to track
+                    performance = {}
+                    if "execution_time" in metrics_to_track:
+                        performance["execution_time"] = metrics.execution_time
+                    if "peak_memory_gb" in metrics_to_track:
+                        performance["peak_memory_gb"] = metrics.peak_memory_gb
+                    if "convergence" in metrics_to_track:
+                        performance["convergence"] = result.get("convergence", False)
+                    if "log_likelihood" in metrics_to_track:
+                        performance["log_likelihood"] = result.get("log_likelihood", float("-inf"))
+
                     component_results[f"K{K}"] = {
                         "K": K,
                         "result": result,
-                        "performance": {
-                            "execution_time": metrics.execution_time,
-                            "peak_memory_gb": metrics.peak_memory_gb,
-                            "convergence": result.get("convergence", False),
-                            "log_likelihood": result.get(
-                                "log_likelihood", float("-inf")
-                            ),
-                        },
+                        "performance": performance,
                     }
                     successful_tests += 1
-                    logger.info(
-                        f"✅ K={K}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
-                    )
+
+                    # Log only configured metrics
+                    log_parts = [f"✅ K={K}"]
+                    if "execution_time" in metrics_to_track:
+                        log_parts.append(f"{metrics.execution_time:.1f}s")
+                    if "log_likelihood" in metrics_to_track:
+                        log_parts.append(f"LL={result.get('log_likelihood', 0):.2f}")
+                    logger.info(": ".join(log_parts))
                 except Exception as e:
                     logger.error(f"❌ K={K} benchmark failed: {e}")
                     component_results[f"K{K}"] = {"error": str(e)}
