@@ -1,9 +1,19 @@
-# SGFA qMAP-PD Debug Configuration
-# Minimal configuration optimized for fast testing and debugging
-# Use with: python run_experiments.py --config config_debug.yaml
-
 # =============================================================================
-# MINIMAL DEBUG CONFIGURATION
+# SGFA qMAP-PD DEBUG CONFIGURATION - OPTIMIZED FOR FAST TESTING
+#
+# This config provides minimal settings for rapid development and testing:
+# 🚀 SPEED OPTIMIZATIONS:
+#   - 50 MCMC samples (vs 2000 in production)
+#   - 3 factors (vs 10 in production)
+#   - No plots or intermediate saves
+#   - Minimal preprocessing (no feature selection)
+#   - 2 CV folds (vs 10 in production)
+#   - Single metrics only
+#   - CPU-only execution
+#
+# ⏱️  Expected runtime: ~1-2 minutes per experiment (vs 20-30 minutes)
+# 🎯 Use for: debugging, quick tests, CI/CD, development
+# 📝 Usage: python run_experiments.py --config config_debug.yaml
 # =============================================================================
 
 # Data Configuration - using synthetic data for speed
@@ -37,15 +47,15 @@ model:
   # Reproducibility
   random_seed: 42
 
-# Preprocessing Configuration - minimal processing
+# Preprocessing Configuration - MINIMAL FOR FAST TESTING
 preprocessing:
-  strategy: "minimal"
-  enable_advanced_preprocessing: false
-  enable_spatial_processing: false
-  imputation_strategy: "mean"
-  feature_selection_method: "none"
-  variance_threshold: 0.0
-  missing_threshold: 1.0                  # Don't drop any features
+  strategy: "minimal"                     # Fastest preprocessing strategy
+  enable_advanced_preprocessing: false   # Skip advanced features for speed
+  enable_spatial_processing: false       # Skip spatial processing
+  imputation_strategy: "mean"            # Fastest imputation method
+  feature_selection_method: "none"       # Skip feature selection for speed
+  variance_threshold: 0.0                # Don't filter low-variance features
+  missing_threshold: 1.0                 # Don't drop any features (keep all data)
 
 # Cross-Validation Configuration - minimal CV
 cross_validation:
@@ -62,11 +72,11 @@ monitoring:
   save_checkpoints: false                 # Skip checkpoints for speed
   checkpoint_interval: 50
 
-# System Configuration - conservative settings
+# System Configuration - CONSERVATIVE FOR TESTING
 system:
-  use_gpu: false                          # Use CPU for consistent debugging
+  use_gpu: false                          # Use CPU for consistent debugging (no GPU variability)
   memory_limit_gb: 4.0                    # Conservative memory limit
-  n_cpu_cores: 2                          # Limit CPU usage
+  n_cpu_cores: 2                          # Limit CPU usage for reproducible timing
 
 # =============================================================================
 # DEBUG EXPERIMENT-SPECIFIC CONFIGURATIONS
@@ -157,3 +167,26 @@ reproducibility:
     correlation_threshold: 0.8            # Relaxed threshold
     parameter_relative_error: 0.1         # Relaxed error tolerance
     reconstruction_error_ratio: 0.05      # Relaxed reconstruction tolerance
+
+# =============================================================================
+# ALTERNATIVE TEST CONFIGURATIONS
+# To use these, copy and replace sections above, or create separate config files
+# =============================================================================
+
+# ULTRA-FAST CONFIG (for CI/CD or quick smoke tests):
+# model:
+#   K: 2                                  # Only 2 factors
+#   num_samples: 20                       # Only 20 samples
+#   num_warmup: 10                        # Only 10 warmup
+#   num_chains: 1                         # Single chain
+# experiments:
+#   run_experiments: ["data_validation"]  # Only run one experiment
+#
+# MEDIUM SPEED CONFIG (for thorough testing):
+# model:
+#   K: 5                                  # Medium factors
+#   num_samples: 100                      # More samples
+#   num_warmup: 50                        # More warmup
+# preprocessing:
+#   feature_selection_method: "variance"  # Test feature selection
+#   variance_threshold: 0.01              # Test thresholding

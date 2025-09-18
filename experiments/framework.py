@@ -311,12 +311,12 @@ class ExperimentFramework:
                 perf_manager.__exit__(type(e), e, e.__traceback__)
 
         # Save results
-        self._save_experiment_result(result, exp_dir)
+        self._save_experiment_result(result, exp_dir, config)
         self.results_history.append(result)
 
         return result
 
-    def _save_experiment_result(self, result: ExperimentResult, output_dir: Path):
+    def _save_experiment_result(self, result: ExperimentResult, output_dir: Path, config: ExperimentConfig):
         """Save experiment result to files."""
         # Save as JSON
         result_json = output_dir / "result.json"
@@ -332,8 +332,11 @@ class ExperimentFramework:
         # Save factor matrices if available
         self._save_factor_matrices(result, output_dir)
 
-        # Save plots if available
-        self._save_plots(result, output_dir)
+        # Save plots if available and configured
+        if config.generate_plots:
+            self._save_plots(result, output_dir)
+        else:
+            logger.info("📊 Plot generation disabled by config")
 
     def _save_result_summary(self, result: ExperimentResult, filepath: Path):
         """Save a summary of results as CSV."""
@@ -559,6 +562,59 @@ class ExperimentFramework:
                             )
             except Exception as e:
                 print(f"Warning: Could not save parameter {key} from {prefix}: {e}")
+
+    def _save_intermediate_results(self, result: ExperimentResult, output_dir: Path, experiment_results: dict):
+        """Save intermediate experiment results for debugging and analysis."""
+        from pathlib import Path
+        from core.utils import save_json, save_numpy
+        import time
+
+        # Create intermediate results directory
+        intermediate_dir = output_dir / "intermediate"
+        intermediate_dir.mkdir(exist_ok=True)
+
+        logger.info(f"💾 Saving intermediate results to {intermediate_dir}")
+
+        try:
+            # Save experiment metadata
+            metadata = {
+                "experiment_name": result.experiment_name,
+                "timestamp": int(time.time()),
+                "config_summary": {
+                    "num_samples": getattr(result.config, 'num_samples', 'unknown'),
+                    "num_chains": getattr(result.config, 'num_chains', 'unknown'),
+                    "K_values": getattr(result.config, 'K_values', 'unknown'),
+                },
+                "data_shapes": experiment_results.get("data_summary", {}),
+            }
+            save_json(metadata, intermediate_dir / "experiment_metadata.json", indent=2)
+
+            # Save raw experiment results (filtered for serializability)
+            serializable_results = {}
+            for key, value in experiment_results.items():
+                try:
+                    # Test if value is JSON serializable
+                    import json
+                    json.dumps(value, default=str)
+                    serializable_results[key] = value
+                except (TypeError, ValueError):
+                    # Skip non-serializable values but log their type
+                    serializable_results[f"{key}_type"] = str(type(value))
+
+            save_json(serializable_results, intermediate_dir / "raw_results.json", indent=2)
+
+            # Save performance metrics if available
+            if hasattr(result, 'performance_metrics') and result.performance_metrics:
+                save_json(result.performance_metrics, intermediate_dir / "performance_metrics.json", indent=2)
+
+            # Save convergence diagnostics if available
+            if result.convergence_diagnostics:
+                save_json(result.convergence_diagnostics, intermediate_dir / "convergence_diagnostics.json", indent=2)
+
+            logger.info(f"✅ Intermediate results saved successfully")
+
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to save some intermediate results: {e}")
 
     def _save_plots(self, result: ExperimentResult, output_dir: Path):
         """Save plots as PNG and PDF files for easy access and reports."""

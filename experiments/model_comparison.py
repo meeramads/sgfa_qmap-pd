@@ -122,6 +122,12 @@ class ModelArchitectureComparison(ExperimentFramework):
         # Initialize monitoring and checkpointing from config
         self.monitoring_config = self._initialize_monitoring(config_dict)
 
+        # Load evaluation metrics from config
+        method_config = config_dict.get("method_comparison", {})
+        self.evaluation_metrics = method_config.get("evaluation_metrics", [
+            "reconstruction_error", "factor_interpretability", "clinical_correlation"
+        ])
+
     def _initialize_system_resources(self, config_dict: Dict) -> Dict:
         """Initialize system resource configuration from config."""
         import jax

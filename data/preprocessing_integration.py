@@ -31,19 +31,49 @@ def get_advanced_preprocessing_data(
         logger.info(f"Strategy: {preprocessing_strategy}")
         logger.info(f"Data directory: {data_dir}")
 
-        # Get preprocessing configuration
+        # Get preprocessing configuration with global config as fallback
         preprocessing_strategies = config.get("data_validation", {}).get(
             "preprocessing_strategies", {}
         )
         strategy_config = preprocessing_strategies.get(preprocessing_strategy, {})
 
-        if not strategy_config:
-            logger.warning(
-                f"Preprocessing strategy '{preprocessing_strategy}' not found in config, using standard"
-            )
-            strategy_config = preprocessing_strategies.get("standard", {})
+        # Use global preprocessing config as defaults
+        global_preprocessing = config.get("preprocessing", {})
 
-        logger.info(f"Preprocessing configuration: {strategy_config}")
+        # Merge global config with strategy-specific config (strategy takes precedence)
+        merged_config = {**global_preprocessing, **strategy_config}
+
+        if not strategy_config and not global_preprocessing:
+            logger.warning(
+                f"Preprocessing strategy '{preprocessing_strategy}' not found in config, using defaults"
+            )
+            merged_config = {
+                "imputation_strategy": "median",
+                "feature_selection_method": "variance",
+                "variance_threshold": 0.01,
+                "missing_threshold": 0.1,
+                "enable_advanced_preprocessing": True
+            }
+
+        strategy_config = merged_config
+
+        logger.info(f"🔧 Preprocessing configuration: {strategy_config}")
+
+        # Log advanced preprocessing features being used
+        advanced_features = []
+        if strategy_config.get("feature_selection_method") != "none":
+            advanced_features.append(f"feature_selection: {strategy_config.get('feature_selection_method')}")
+        if strategy_config.get("variance_threshold", 0) > 0:
+            advanced_features.append(f"variance_threshold: {strategy_config.get('variance_threshold')}")
+        if strategy_config.get("missing_threshold", 1.0) < 1.0:
+            advanced_features.append(f"missing_threshold: {strategy_config.get('missing_threshold')}")
+        if strategy_config.get("enable_spatial_processing"):
+            advanced_features.append("spatial_processing: enabled")
+
+        if advanced_features:
+            logger.info(f"🚀 Advanced preprocessing features: {', '.join(advanced_features)}")
+        else:
+            logger.info("📝 Using basic preprocessing only")
 
         # Load basic data first
         from data.qmap_pd import load_qmap_pd

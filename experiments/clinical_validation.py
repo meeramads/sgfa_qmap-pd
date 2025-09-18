@@ -74,17 +74,13 @@ class ClinicalValidationExperiments(ExperimentFramework):
             "svm": SVC(random_state=42, probability=True),
         }
 
-        # Clinical metrics to evaluate
-        self.clinical_metrics = [
-            "accuracy",
-            "precision",
-            "recall",
-            "f1_score",
-            "roc_auc",
-            "specificity",
-            "npv",
-            "ppv",
-        ]
+        # Clinical metrics to evaluate (from config)
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        clinical_config = config_dict.get("clinical_validation", {})
+        self.clinical_metrics = clinical_config.get("classification_metrics", [
+            "accuracy", "precision", "recall", "f1_score", "roc_auc"
+        ])
 
     @experiment_handler("neuroimaging_clinical_validation")
     @validate_data_types(
@@ -1260,9 +1256,9 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 y_pred = model.predict(features)
                 y_pred_proba = model.predict_proba(features)
 
-                # Calculate detailed metrics
+                # Calculate detailed metrics using configured metrics
                 detailed_metrics = self._calculate_detailed_metrics(
-                    labels, y_pred, y_pred_proba
+                    labels, y_pred, y_pred_proba, self.clinical_metrics
                 )
 
                 results[model_name] = {
@@ -1278,27 +1274,39 @@ class ClinicalValidationExperiments(ExperimentFramework):
         return results
 
     def _calculate_detailed_metrics(
-        self, y_true: np.ndarray, y_pred: np.ndarray, y_pred_proba: np.ndarray
+        self, y_true: np.ndarray, y_pred: np.ndarray, y_pred_proba: np.ndarray,
+        requested_metrics: list = None
     ) -> Dict:
-        """Calculate detailed classification metrics."""
+        """Calculate detailed classification metrics based on configuration."""
+        if requested_metrics is None:
+            requested_metrics = ["accuracy", "precision", "recall", "f1_score", "roc_auc"]
+
         metrics = {}
 
-        # Basic metrics
-        metrics["accuracy"] = accuracy_score(y_true, y_pred)
-        metrics["precision"] = precision_score(y_true, y_pred, average="macro")
-        metrics["recall"] = recall_score(y_true, y_pred, average="macro")
-        metrics["f1_score"] = f1_score(y_true, y_pred, average="macro")
+        # Calculate only requested metrics
+        if "accuracy" in requested_metrics:
+            metrics["accuracy"] = accuracy_score(y_true, y_pred)
+
+        if "precision" in requested_metrics:
+            metrics["precision"] = precision_score(y_true, y_pred, average="macro", zero_division=0)
+
+        if "recall" in requested_metrics:
+            metrics["recall"] = recall_score(y_true, y_pred, average="macro", zero_division=0)
+
+        if "f1_score" in requested_metrics:
+            metrics["f1_score"] = f1_score(y_true, y_pred, average="macro", zero_division=0)
 
         # ROC AUC (for binary or multiclass)
-        try:
-            if len(np.unique(y_true)) == 2:
-                metrics["roc_auc"] = roc_auc_score(y_true, y_pred_proba[:, 1])
-            else:
-                metrics["roc_auc"] = roc_auc_score(
-                    y_true, y_pred_proba, multi_class="ovr"
-                )
-        except BaseException:
-            metrics["roc_auc"] = np.nan
+        if "roc_auc" in requested_metrics:
+            try:
+                if len(np.unique(y_true)) == 2:
+                    metrics["roc_auc"] = roc_auc_score(y_true, y_pred_proba[:, 1])
+                else:
+                    metrics["roc_auc"] = roc_auc_score(
+                        y_true, y_pred_proba, multi_class="ovr"
+                    )
+            except BaseException:
+                metrics["roc_auc"] = np.nan
 
         # Confusion matrix
         cm = confusion_matrix(y_true, y_pred)
@@ -2204,9 +2212,9 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 y_pred = model.predict(Z_test)
                 y_pred_proba = model.predict_proba(Z_test)
 
-                # Calculate metrics
+                # Calculate metrics using configured metrics
                 cross_cohort_metrics = self._calculate_detailed_metrics(
-                    labels_test, y_pred, y_pred_proba
+                    labels_test, y_pred, y_pred_proba, self.clinical_metrics
                 )
 
                 # Also test within-cohort performance for comparison
@@ -2216,7 +2224,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 y_pred_proba_same = model_same_cohort.predict_proba(Z_test)
 
                 within_cohort_metrics = self._calculate_detailed_metrics(
-                    labels_test, y_pred_same, y_pred_proba_same
+                    labels_test, y_pred_same, y_pred_proba_same, self.clinical_metrics
                 )
 
                 results[model_name] = {
