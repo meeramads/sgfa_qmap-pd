@@ -506,6 +506,9 @@ class ModelArchitectureComparison(ExperimentFramework):
 
                 results[model_name] = model_result
 
+                # Explicit memory cleanup after each model
+                self._cleanup_model_memory()
+
                 # Calculate neuroimaging-specific metrics if model converged
                 if model_result.get("convergence", False):
                     neuroimaging_evaluation = self._evaluate_neuroimaging_metrics(
@@ -796,6 +799,9 @@ class ModelArchitectureComparison(ExperimentFramework):
                 )
 
                 results[method_name] = method_result
+
+                # Explicit memory cleanup after each traditional method
+                self._cleanup_model_memory()
 
                 # Store basic performance metrics
                 performance_metrics[method_name] = {
@@ -1585,6 +1591,32 @@ class ModelArchitectureComparison(ExperimentFramework):
 
         return best_result
 
+    def _cleanup_model_memory(self):
+        """Explicit memory cleanup after each model to prevent accumulation."""
+        try:
+            import gc
+            import jax
+
+            # Clear JAX compilation cache and device memory
+            jax.clear_caches()
+
+            # Force garbage collection
+            gc.collect()
+
+            # Clear JAX device arrays if GPU backend
+            if jax.default_backend() == "gpu":
+                for device in jax.local_devices():
+                    if device.platform == "gpu":
+                        try:
+                            device.synchronize_all_activity()
+                        except Exception:
+                            pass  # Ignore synchronization errors
+
+            self.logger.debug("Memory cleanup completed")
+
+        except Exception as e:
+            self.logger.warning(f"Memory cleanup failed: {e}")
+
     def _create_failure_result(self, experiment_name: str, error_message: str) -> ExperimentResult:
         """Create a failure result for failed experiments."""
         return ExperimentResult(
@@ -1663,7 +1695,11 @@ def run_model_comparison(config=None, **kwargs):
         "slab_df": 4.0,
     }
 
-    args = {"K": optimal_K, "reghsZ": True, "device": "gpu"}
+    # Respect system GPU configuration from config
+    system_config = config_dict.get("system", {})
+    device = "gpu" if system_config.get("use_gpu", True) else "cpu"
+
+    args = {"K": optimal_K, "reghsZ": True, "device": device}
 
     # Create experiment configuration
     exp_config = ExperimentConfig(
