@@ -2534,8 +2534,14 @@ def run_performance_benchmarks(config):
         def performance_benchmark_experiment(config, output_dir, **kwargs):
             logger.info("🚀 Running comprehensive performance benchmarks...")
 
-            # Test different benchmark configurations - hardcoded for debug
-            benchmark_configs = {
+            # Normalize config input using standard ConfigHelper
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(config)
+
+            # Get benchmark configurations from config
+            perf_config = config_dict.get("performance_benchmarks", {})
+            benchmark_configs = perf_config.get("benchmark_configs", {
+                # Fallback defaults if not in config
                 "tiny_scale": {
                     "n_subjects": 20,
                     "n_features_per_view": [50, 30]
@@ -2544,7 +2550,7 @@ def run_performance_benchmarks(config):
                     "n_subjects": 30,
                     "n_features_per_view": [100, 80]
                 }
-            }
+            })
 
             results = {}
             total_tests = 0

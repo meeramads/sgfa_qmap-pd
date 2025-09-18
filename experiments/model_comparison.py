@@ -1222,23 +1222,14 @@ def run_model_comparison(config=None, **kwargs):
     config : dict or str
         Configuration dictionary or path to config file
     """
-    import yaml
-
     from core.config_utils import ConfigAccessor
 
     logger = logging.getLogger(__name__)
     logger.info("🔬 Starting model architecture comparison experiments...")
 
-    # Handle config parameter
-    if isinstance(config, str):
-        # Load configuration from file
-        with open(config, "r") as f:
-            config_dict = yaml.safe_load(f)
-    elif isinstance(config, dict):
-        config_dict = config
-    else:
-        # Default fallback
-        config_dict = {}
+    # Handle config parameter using standard ConfigHelper
+    from core.config_utils import ConfigHelper
+    config_dict = ConfigHelper.to_dict(config)
 
     ConfigAccessor(config_dict)
 
