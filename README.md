@@ -533,12 +533,14 @@ The framework includes comprehensive validation experiments:
 #### Clinical-Stratified CV Features
 
 **Currently Available:**
+
 - CV folds stratified by clinical variables (diagnosis, subtypes, etc.)
 - Robust scaling (median/MAD) optimized for neuroimaging data
 - Enhanced convergence checking and timeout handling
 - Professional error handling with automatic fallbacks
 
 **Future Development (Advanced Neuroimaging CV):**
+
 - Neuroimaging-specific priors and spatial structure modeling
 - Scanner/site effect correction and harmonization
 - PD-specific disease progression constraints
