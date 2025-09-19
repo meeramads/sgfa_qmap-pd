@@ -44,6 +44,14 @@ class ModelArchitectureComparison(ExperimentFramework):
     def __init__(
         self, config: ExperimentConfig, logger: Optional[logging.Logger] = None
     ):
+        # Initialize logger first to avoid AttributeError in _initialize_system_resources
+        self.logger = logger or logging.getLogger(__name__)
+
+        # Initialize system config before calling super() to avoid AttributeError
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(config)
+        self.system_config = self._initialize_system_resources(config_dict)
+
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
         self.neuroimaging_metrics = NeuroImagingMetrics()
@@ -116,8 +124,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         # Traditional methods for comparison
         self.traditional_methods = ["pca", "ica", "fa"]
 
-        # Initialize system resource management from config
-        self.system_config = self._initialize_system_resources(config_dict)
+        # system_config already initialized above before super().__init__
 
         # Initialize monitoring and checkpointing from config
         self.monitoring_config = self._initialize_monitoring(config_dict)
