@@ -30,9 +30,13 @@ class DataManager:
 
     def load_data(self) -> Dict:
         """Load data based on configuration."""
+        logger.info(f"📊 Loading dataset: {self.args.dataset}")
+
         if self.args.dataset == "synthetic":
+            logger.info("🎲 Generating synthetic data for testing")
             return self._load_synthetic_data()
         elif self.args.dataset == "qmap_pd":
+            logger.info(f"🧠 Loading qMAP-PD data from: {self.config.data_dir}")
             return self._load_qmap_data()
         else:
             raise ValueError(f"Unknown dataset: {self.args.dataset}")
