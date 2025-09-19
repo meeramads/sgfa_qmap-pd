@@ -250,20 +250,40 @@ class FactorVisualizer:
         logger.info(f"Saved: {save_path}")
 
     def _find_best_run(self, results: Dict) -> Optional[Dict]:
-        """Find the best run from results."""
-        best_score = -np.inf
-        best_run = None
+        """Find the best run from results (modernized to handle various formats)."""
+        # Handle modern experiment results format
+        if not results:
+            logger.warning("No results provided to visualization")
+            return None
 
-        for run_id, run_data in results.items():
-            if isinstance(run_data, dict) and "robust" in run_data:
-                # Use robust parameters if available
-                if "exp_logdensity" in run_data:
-                    score = run_data["exp_logdensity"]
-                    if score > best_score:
-                        best_score = score
-                        best_run = run_data["robust"]
+        # Check if results is already a direct result (single model case)
+        if "W" in results and "Z" in results:
+            logger.info("Found direct W/Z matrices in results")
+            return results
 
-        return best_run
+        # Check for modern experiment format with model results
+        for key, value in results.items():
+            if isinstance(value, dict):
+                # Look for W and Z matrices directly
+                if "W" in value and "Z" in value:
+                    logger.info(f"Found W/Z matrices in results['{key}']")
+                    return value
+
+                # Look for robust parameters (legacy format)
+                if "robust" in value and isinstance(value["robust"], dict):
+                    robust = value["robust"]
+                    if "W" in robust and "Z" in robust:
+                        logger.info(f"Found W/Z matrices in results['{key}']['robust']")
+                        return robust
+
+                # Look for nested model results
+                for subkey, subvalue in value.items():
+                    if isinstance(subvalue, dict) and "W" in subvalue and "Z" in subvalue:
+                        logger.info(f"Found W/Z matrices in results['{key}']['{subkey}']")
+                        return subvalue
+
+        logger.warning("No W/Z matrices found in any result format")
+        return None
 
     def _calculate_factor_statistics(self, W: np.ndarray, Z: np.ndarray) -> Dict:
         """Calculate various factor statistics."""

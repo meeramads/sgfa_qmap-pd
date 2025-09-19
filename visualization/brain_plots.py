@@ -228,16 +228,46 @@ class BrainVisualizer:
         try:
             from core.utils import get_model_files, safe_pickle_load
 
-            # Find best run
-            best_run = self._find_best_run(results_dir)
-            files = get_model_files(results_dir, best_run)
-            rob_params = safe_pickle_load(files["robust_params"], "Robust parameters")
+            # Try to find factor loadings in modern format (CSV/numpy) first
+            W = None
 
-            if not rob_params or "W" not in rob_params:
+            # Look for modern format files (CSV or numpy)
+            potential_files = [
+                results_dir / "sparseGFA_factor_loadings.csv",
+                results_dir / "sparseGFA_factor_loadings.npy",
+                results_dir / "factor_loadings.csv",
+                results_dir / "factor_loadings.npy"
+            ]
+
+            for file_path in potential_files:
+                if file_path.exists():
+                    try:
+                        if file_path.suffix == '.csv':
+                            import pandas as pd
+                            W = pd.read_csv(file_path).values
+                        else:  # .npy
+                            W = np.load(file_path)
+                        logger.info(f"Loaded factor loadings from modern format: {file_path}")
+                        break
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
+
+            # Fall back to legacy format if modern files not found
+            if W is None:
+                try:
+                    best_run = self._find_best_run(results_dir)
+                    files = get_model_files(results_dir, best_run)
+                    rob_params = safe_pickle_load(files["robust_params"], "Robust parameters")
+
+                    if rob_params and "W" in rob_params:
+                        W = rob_params["W"]
+                        logger.info("Loaded factor loadings from legacy dictionary format")
+                except Exception as e:
+                    logger.warning(f"Failed to load legacy format: {e}")
+
+            if W is None:
                 logger.warning("No factor loadings found for brain mapping")
                 return {}
-
-            W = rob_params["W"]
             n_factors = W.shape[1]
 
             # Create brain maps for top factors
@@ -357,8 +387,22 @@ class BrainVisualizer:
             from core.utils import safe_pickle_load
 
             # Check if preprocessing results contain spatial information
-            prep_path = results_dir / "preprocessing_results.dictionary"
-            preprocessing_results = safe_pickle_load(prep_path, "Preprocessing results")
+            # Try modern JSON format first, then fall back to legacy dictionary
+            prep_json_path = results_dir / "preprocessing_results.json"
+            prep_dict_path = results_dir / "preprocessing_results.dictionary"
+
+            preprocessing_results = None
+            if prep_json_path.exists():
+                try:
+                    with open(prep_json_path, 'r') as f:
+                        import json
+                        preprocessing_results = json.load(f)
+                        logger.info("Loaded preprocessing results from JSON format")
+                except Exception as e:
+                    logger.warning(f"Failed to load JSON preprocessing results: {e}")
+
+            if preprocessing_results is None and prep_dict_path.exists():
+                preprocessing_results = safe_pickle_load(prep_dict_path, "Preprocessing results")
 
             if preprocessing_results and "metadata" in preprocessing_results:
                 metadata = preprocessing_results["metadata"]
