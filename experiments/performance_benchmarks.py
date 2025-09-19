@@ -40,6 +40,9 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
     def __init__(
         self, config: ExperimentConfig, logger: Optional[logging.Logger] = None
     ):
+        # Initialize logger first to avoid AttributeError in fallback handlers
+        self.logger = logger or logging.getLogger(__name__)
+
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
 
