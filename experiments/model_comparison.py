@@ -761,7 +761,11 @@ class ModelArchitectureComparison(ExperimentFramework):
             }
 
             # Clear GPU memory after training
-            del samples, W_samples, Z_samples, mcmc
+            try:
+                del samples, W_samples, Z_samples, mcmc
+            except NameError:
+                # Variables may not be defined if exception occurred earlier
+                pass
             jax.clear_caches()
             gc.collect()
 
