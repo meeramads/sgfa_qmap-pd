@@ -333,7 +333,8 @@ class ExperimentFramework:
         self._save_factor_matrices(result, output_dir)
 
         # Save plots if available and configured
-        if config.generate_plots:
+        generate_plots = getattr(config, 'generate_plots', True)
+        if generate_plots:
             self._save_plots(result, output_dir)
         else:
             logger.info("📊 Plot generation disabled by config")

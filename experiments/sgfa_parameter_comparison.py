@@ -1888,7 +1888,14 @@ def run_method_comparison(config):
             gc.collect()
 
             # Clear large variables (after preparing return data)
-            del data, all_results
+            try:
+                del data, all_results
+            except NameError:
+                # Variables may not exist in all paths
+                try:
+                    del all_results
+                except NameError:
+                    pass
             gc.collect()
             logger.info("✅ Memory cleanup completed")
 
