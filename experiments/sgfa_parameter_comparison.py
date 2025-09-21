@@ -1908,6 +1908,21 @@ def run_method_comparison(config):
             data=data,
         )
 
+        # Immediate memory cleanup after framework completion
+        import gc
+        import jax
+        logger.info("🧹 Post-framework memory cleanup...")
+
+        # Clear large variables
+        try:
+            del data
+        except NameError:
+            pass
+
+        jax.clear_caches()
+        gc.collect()
+        logger.info("✅ Post-framework cleanup completed")
+
         logger.info("Method comparison experiments completed")
         return result
 

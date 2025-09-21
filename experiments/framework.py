@@ -579,7 +579,7 @@ class ExperimentFramework:
         try:
             # Save experiment metadata
             metadata = {
-                "experiment_name": result.experiment_name,
+                "experiment_name": getattr(result, 'experiment_name', getattr(result.config, 'experiment_name', 'unknown')),
                 "timestamp": int(time.time()),
                 "config_summary": {
                     "num_samples": getattr(result.config, 'num_samples', 'unknown'),
