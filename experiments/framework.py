@@ -566,7 +566,7 @@ class ExperimentFramework:
     def _save_intermediate_results(self, result: ExperimentResult, output_dir: Path, experiment_results: dict):
         """Save intermediate experiment results for debugging and analysis."""
         from pathlib import Path
-        from core.utils import save_json, save_numpy
+        from core.io_utils import save_json, save_numpy
         import time
 
         # Create intermediate results directory

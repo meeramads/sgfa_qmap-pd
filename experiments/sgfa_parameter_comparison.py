@@ -1859,25 +1859,40 @@ def run_method_comparison(config):
                 f" Total execution time: { sum( m.get( 'execution_time', 0) for m in performance_metrics.values()):.1f}s"
             )
 
-            return {
+            # Prepare return data before cleanup
+            return_data = {
                 "status": "completed",
                 "model_results": all_results,
                 "performance_metrics": performance_metrics,
                 "models_summary": models_summary,
                 "analysis_summary": analysis_summary,
                 "performance_summary": performance_summary,
-                "data": data,
                 "experiment_config": {
                     "K_values_tested": K_values[:2],
                     "percW_values_tested": percW_values[:2],
                     "traditional_methods_tested": traditional_methods,
                     "data_characteristics": {
-                        "n_subjects": X_list[0].shape[0],
-                        "n_views": len(X_list),
-                        "view_dimensions": [X.shape[1] for X in X_list],
+                        "num_subjects": X_list[0].shape[0],
+                        "num_features_per_view": [X.shape[1] for X in X_list],
+                        "num_views": len(X_list),
                     },
                 },
             }
+
+            # Final memory cleanup before returning results
+            import gc
+            import jax
+
+            logger.info("🧹 Performing final memory cleanup...")
+            jax.clear_caches()
+            gc.collect()
+
+            # Clear large variables (after preparing return data)
+            del data, all_results
+            gc.collect()
+            logger.info("✅ Memory cleanup completed")
+
+            return return_data
 
         # Run experiment using framework
         result = framework.run_experiment(
@@ -1891,4 +1906,12 @@ def run_method_comparison(config):
 
     except Exception as e:
         logger.error(f"Method comparison failed: {e}")
+
+        # Cleanup memory even on failure
+        import gc
+        import jax
+        jax.clear_caches()
+        gc.collect()
+        logger.info("🧹 Memory cleanup on failure completed")
+
         return None
