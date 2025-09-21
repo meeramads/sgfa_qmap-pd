@@ -1,9 +1,11 @@
 """Data validation and preprocessing experiments."""
 
+import gc
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import jax
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -125,6 +127,12 @@ def run_data_validation(config):
         # Log preprocessing summary instead of full details
         _log_preprocessing_summary(preprocessing_info)
         logger.info("✅ Data validation completed successfully")
+
+        # Final memory cleanup
+        jax.clear_caches()
+        gc.collect()
+        logger.info("🧹 Memory cleanup completed")
+
         return {
             "status": "completed",
             "views": len(X_list),
@@ -134,6 +142,12 @@ def run_data_validation(config):
 
     except Exception as e:
         logger.error(f"Data validation failed: {e}")
+
+        # Cleanup memory on failure
+        jax.clear_caches()
+        gc.collect()
+        logger.info("🧹 Memory cleanup on failure completed")
+
         return None
 
 

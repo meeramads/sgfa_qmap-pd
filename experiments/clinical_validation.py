@@ -1,8 +1,10 @@
 """Clinical validation experiments for SGFA qMAP-PD analysis."""
 
+import gc
 import logging
 from typing import Dict, List, Optional
 
+import jax
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
@@ -321,6 +323,11 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         except Exception as e:
             self.logger.error(f"SGFA neuroimaging CV training failed: {str(e)}")
+
+            # Cleanup memory on failure
+            jax.clear_caches()
+            gc.collect()
+
             return {"success": False, "error": str(e)}
 
     def _run_sgfa_training(self, X_train: List[np.ndarray], hypers: Dict, args: Dict) -> Dict:
@@ -3821,8 +3828,20 @@ def run_clinical_validation(config):
         )
 
         logger.info("✅ Clinical validation completed successfully")
+
+        # Final memory cleanup
+        jax.clear_caches()
+        gc.collect()
+        logger.info("🧹 Memory cleanup completed")
+
         return result
 
     except Exception as e:
         logger.error(f"Clinical validation failed: {e}")
+
+        # Cleanup memory on failure
+        jax.clear_caches()
+        gc.collect()
+        logger.info("🧹 Memory cleanup on failure completed")
+
         return None
