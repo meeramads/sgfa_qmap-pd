@@ -185,7 +185,7 @@ class ConfigManager:
 
         # Check if file exists before trying to load (reduces error messages)
         if hp_path.exists():
-            hypers = safe_pickle_load(hp_path, "Hyperparameters")
+            hypers = safe_pickle_load(hp_path, description="Hyperparameters")
         else:
             hypers = None
 
