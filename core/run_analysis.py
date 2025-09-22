@@ -245,7 +245,7 @@ def main(args):
     # Run standard MCMC analysis if requested
     if config.run_standard:
         model_runner = ModelRunner(args, config.standard_res_dir)
-        model_runner.run_standard_analysis(X_list, hypers)
+        model_runner.run_standard_analysis(X_list, hypers, data)
 
         # Create visualizations
         _create_visualizations(args, config.standard_res_dir, data, hypers)
