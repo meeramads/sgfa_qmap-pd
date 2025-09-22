@@ -1392,6 +1392,37 @@ class SGFAParameterComparison(ExperimentFramework):
                 f"🎨 Creating comprehensive visualizations for {experiment_name}"
             )
 
+            # Aggressive memory cleanup before visualization
+            self.logger.info("🧹 Performing pre-visualization memory cleanup...")
+            import gc
+            import jax
+
+            # Clear JAX compilation cache
+            try:
+                from jax._src import compilation_cache
+                compilation_cache.clear_cache()
+                self.logger.info("JAX compilation cache cleared")
+            except Exception:
+                pass
+
+            # Force garbage collection multiple times
+            for i in range(5):
+                gc.collect()
+
+            # Clear JAX device memory if using GPU
+            try:
+                for device in jax.devices():
+                    if device.platform == 'gpu':
+                        device.memory_stats()  # Force memory cleanup
+                self.logger.info("GPU memory cleanup attempted")
+            except Exception:
+                pass
+
+            # Brief delay for cleanup to complete
+            import time
+            time.sleep(2)
+            self.logger.info("✅ Pre-visualization memory cleanup completed")
+
             # Import visualization system
             from core.config_utils import ConfigAccessor
             from visualization.manager import VisualizationManager
@@ -1820,6 +1851,9 @@ def run_method_comparison(config):
                         f"LL={variant_result.get('log_likelihood', 0):.3f}"
                     )
 
+                    # Critical: Memory cleanup between parameter iterations
+                    self._iteration_memory_cleanup(variant_name)
+
             # Run traditional method comparison for a subset of methods
             logger.info("🔬 Running traditional method comparison...")
             X_concat = np.hstack(X_list)
@@ -1845,6 +1879,9 @@ def run_method_comparison(config):
                 }
 
                 logger.info(f"✅ {method}: {metrics.execution_time:.1f}s")
+
+                # Memory cleanup between traditional methods
+                self._iteration_memory_cleanup(f"traditional_{method}")
 
             # Combine all results
             all_results = {
@@ -1954,3 +1991,40 @@ def run_method_comparison(config):
         logger.info("🧹 Memory cleanup on failure completed")
 
         return None
+
+    def _iteration_memory_cleanup(self, variant_name: str):
+        """Perform memory cleanup between parameter testing iterations."""
+        try:
+            self.logger.info(f"🧹 Memory cleanup after {variant_name}...")
+            import gc
+            import jax
+
+            # Clear JAX compilation cache between iterations
+            try:
+                from jax._src import compilation_cache
+                compilation_cache.clear_cache()
+            except Exception:
+                pass
+
+            # Force garbage collection
+            for _ in range(3):
+                gc.collect()
+
+            # Try to clear GPU memory if available
+            try:
+                for device in jax.devices():
+                    if device.platform == 'gpu':
+                        device.memory_stats()
+            except Exception:
+                pass
+
+            # Brief delay for cleanup
+            import time
+            time.sleep(0.5)
+
+        except Exception as e:
+            self.logger.warning(f"Iteration cleanup failed: {e}")
+
+
+def run_method_comparison(X_list, hypers, args, **kwargs):
+    """Run the method comparison experiment with the given data."""

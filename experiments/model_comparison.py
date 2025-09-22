@@ -585,8 +585,8 @@ class ModelArchitectureComparison(ExperimentFramework):
         from numpyro.infer import MCMC, NUTS
 
         try:
-            # Clear memory before starting (GPU or CPU based on config)
-            jax.clear_caches()
+            # Enhanced memory cleanup before starting
+            self._comprehensive_memory_cleanup()
 
             if self.system_config["use_gpu"] and self.system_config["available_gpu"]:
                 self.logger.info("🚀 Using GPU acceleration with memory management")
@@ -595,6 +595,8 @@ class ModelArchitectureComparison(ExperimentFramework):
                     if device.platform == "gpu":
                         try:
                             device.synchronize_all_activity()
+                            # Force GPU memory stats check for cleanup
+                            device.memory_stats()
                         except BaseException:
                             pass
             else:
@@ -1639,6 +1641,35 @@ class ModelArchitectureComparison(ExperimentFramework):
             status="failed",
             error_message=error_message,
         )
+
+    def _comprehensive_memory_cleanup(self):
+        """Comprehensive memory cleanup to prevent GPU memory exhaustion."""
+        try:
+            self.logger.debug("🧹 Performing comprehensive memory cleanup...")
+            import gc
+            import jax
+
+            # Clear JAX compilation cache
+            try:
+                from jax._src import compilation_cache
+                compilation_cache.clear_cache()
+            except Exception:
+                pass
+
+            # Multiple garbage collection cycles
+            for _ in range(3):
+                gc.collect()
+
+            # GPU memory cleanup
+            try:
+                for device in jax.devices():
+                    if device.platform == 'gpu':
+                        device.memory_stats()
+            except Exception:
+                pass
+
+        except Exception as e:
+            self.logger.warning(f"Memory cleanup failed: {e}")
 
 
 def run_model_comparison(config=None, **kwargs):

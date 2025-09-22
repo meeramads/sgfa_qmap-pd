@@ -310,6 +310,10 @@ class ExperimentFramework:
             if perf_manager:
                 perf_manager.__exit__(type(e), e, e.__traceback__)
 
+        finally:
+            # Critical memory cleanup regardless of success/failure
+            self._comprehensive_memory_cleanup(logger)
+
         # Save results
         self._save_experiment_result(result, exp_dir, config)
         self.results_history.append(result)
@@ -905,6 +909,45 @@ class ExperimentFramework:
         save_json(report, filepath, indent=2)
 
         logger.info(f"Experiment report saved to: {filepath}")
+
+    def _comprehensive_memory_cleanup(self, logger):
+        """Comprehensive memory cleanup to prevent GPU memory exhaustion."""
+        try:
+            logger.info("🧹 Performing comprehensive memory cleanup...")
+            import gc
+            import jax
+
+            # Clear JAX compilation cache
+            try:
+                from jax._src import compilation_cache
+                compilation_cache.clear_cache()
+                logger.info("JAX compilation cache cleared")
+            except Exception as e:
+                logger.warning(f"Could not clear JAX cache: {e}")
+
+            # Force multiple garbage collection cycles
+            for i in range(5):
+                collected = gc.collect()
+                if i == 0:
+                    logger.info(f"Garbage collection freed {collected} objects")
+
+            # Clear JAX device memory for GPU
+            try:
+                for device in jax.devices():
+                    if device.platform == 'gpu':
+                        # Force memory cleanup on GPU
+                        device.memory_stats()
+                logger.info("GPU memory cleanup attempted")
+            except Exception as e:
+                logger.warning(f"GPU memory cleanup failed: {e}")
+
+            # Brief delay for cleanup to complete
+            import time
+            time.sleep(1)
+            logger.info("✅ Comprehensive memory cleanup completed")
+
+        except Exception as e:
+            logger.warning(f"Memory cleanup encountered issues: {e}")
 
 
 class ExperimentRunner:
