@@ -9,7 +9,9 @@ import numpyro.distributions as dist
 from jax import lax
 from numpyro.infer import MCMC, NUTS
 
-import core.visualization as visualization
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Analysis modules
 from analysis.config_manager import ConfigManager
@@ -293,10 +295,14 @@ def _create_visualizations(args, results_dir, data, hypers):
                     results_dir / "synthetic_data.dictionary", "Synthetic data"
                 )
                 if true_params:
+                    # Import visualization module locally to avoid circular imports
+                    from core import visualization
                     visualization.synthetic_data(
                         str(results_dir), true_params, args, hypers
                     )
             else:
+                # Import visualization module locally to avoid circular imports
+                from core import visualization
                 visualization.qmap_pd(data, str(results_dir), args, hypers)
     except Exception as e:
         logging.error(f"Visualization failed: {e}")

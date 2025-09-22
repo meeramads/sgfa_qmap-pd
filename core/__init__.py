@@ -13,7 +13,17 @@ These modules are actively used by the experimental framework, remote
 workstation scripts, and all analysis components.
 """
 
-# Core legacy modules
-from . import get_data, run_analysis, utils, visualization
+# Core legacy modules - avoid circular imports
+from . import get_data, utils
 
-__all__ = ["get_data", "run_analysis", "utils", "visualization"]
+# Conditionally import to avoid circular dependencies
+def _get_visualization():
+    from . import visualization
+    return visualization
+
+def _get_run_analysis():
+    from . import run_analysis
+    return run_analysis
+
+# Lazy loading to avoid circular imports
+__all__ = ["get_data", "utils"]
