@@ -292,7 +292,7 @@ def _create_visualizations(args, results_dir, data, hypers):
         with memory_monitoring_context("Visualization"):
             if "synthetic" in args.dataset:
                 true_params = safe_pickle_load(
-                    results_dir / "synthetic_data.dictionary", "Synthetic data"
+                    results_dir / "synthetic_data.dictionary", description="Synthetic data"
                 )
                 if true_params:
                     # Import visualization module locally to avoid circular imports
@@ -342,7 +342,7 @@ def _create_brain_visualizations(args, results_dir, data, dependencies):
 
             # Load factor loadings
             files = get_model_files(results_dir, brun)
-            rob_params = safe_pickle_load(files["robust_params"], "Robust parameters")
+            rob_params = safe_pickle_load(files["robust_params"], description="Robust parameters")
 
             if rob_params and "W" in rob_params:
                 W = rob_params["W"]

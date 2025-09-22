@@ -361,7 +361,7 @@ def find_bestrun(res_dir: str, args: Any, ofile: str = None) -> int:
     for run_id in range(1, args.num_runs + 1):
         files = get_model_files(res_dir, run_id)
         mcmc_samples = safe_pickle_load(
-            files["model_params"], f"MCMC samples run {run_id}"
+            files["model_params"], description=f"MCMC samples run {run_id}"
         )
 
         if mcmc_samples and "exp_logdensity" in mcmc_samples:
@@ -387,7 +387,7 @@ def _load_results(res_dir: str, args: Any):
 
     # Load robust parameters
     files = get_model_files(res_dir, brun)
-    rob_params = safe_pickle_load(files["robust_params"], "Robust parameters")
+    rob_params = safe_pickle_load(files["robust_params"], description="Robust parameters")
 
     return rob_params, brun
 

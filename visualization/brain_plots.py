@@ -257,7 +257,7 @@ class BrainVisualizer:
                 try:
                     best_run = self._find_best_run(results_dir)
                     files = get_model_files(results_dir, best_run)
-                    rob_params = safe_pickle_load(files["robust_params"], "Robust parameters")
+                    rob_params = safe_pickle_load(files["robust_params"], description="Robust parameters")
 
                     if rob_params and "W" in rob_params:
                         W = rob_params["W"]
@@ -402,7 +402,7 @@ class BrainVisualizer:
                     logger.warning(f"Failed to load JSON preprocessing results: {e}")
 
             if preprocessing_results is None and prep_dict_path.exists():
-                preprocessing_results = safe_pickle_load(prep_dict_path, "Preprocessing results")
+                preprocessing_results = safe_pickle_load(prep_dict_path, description="Preprocessing results")
 
             if preprocessing_results and "metadata" in preprocessing_results:
                 metadata = preprocessing_results["metadata"]
