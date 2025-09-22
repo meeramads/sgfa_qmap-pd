@@ -1921,6 +1921,23 @@ def run_method_comparison(config):
 
         jax.clear_caches()
         gc.collect()
+
+        # More aggressive JAX cleanup
+        try:
+            # Clear all JAX compilation cache
+            from jax._src import compilation_cache
+            compilation_cache.clear_cache()
+        except Exception:
+            pass
+
+        # Force multiple garbage collection cycles
+        for _ in range(3):
+            gc.collect()
+
+        # Brief delay to ensure cleanup completes
+        import time
+        time.sleep(1)
+
         logger.info("✅ Post-framework cleanup completed")
 
         logger.info("Method comparison experiments completed")
