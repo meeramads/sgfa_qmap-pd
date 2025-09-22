@@ -52,7 +52,7 @@ class DataManager:
             imaging_as_single_view=not self.config.roi_views,
             enable_advanced_preprocessing=self.config.enable_preprocessing,
             enable_spatial_processing=self.config.enable_spatial_processing,
-            **self.config.preprocessing_params,
+            **getattr(self.config, 'preprocessing_params', {}),
         )
 
         # Log preprocessing results if available
