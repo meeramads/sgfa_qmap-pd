@@ -226,6 +226,9 @@ def main(args):
     config = config_manager.setup_analysis_config()
     hypers = config_manager.setup_hyperparameters()
 
+    # Aggressive memory cleanup before analysis (from experiments)
+    _initial_memory_cleanup()
+
     # Load and prepare data
     data_manager = DataManager(args, config_manager.get_hyperparameters_dir())
     X_list, data, hypers = data_manager.load_and_prepare_data(hypers)
@@ -805,6 +808,55 @@ def run_sgfa_analysis(
         except Exception as e:
             logging.error(f"SGFA analysis failed: {e}")
             return {"status": "failed", "error": str(e)}
+
+
+def _initial_memory_cleanup():
+    """Aggressive initial memory cleanup using experiment techniques."""
+    try:
+        logging.info("🧹 Performing initial aggressive memory cleanup")
+        import gc
+        import jax
+
+        # Clear JAX compilation cache (from experiments)
+        try:
+            from jax._src import compilation_cache
+            compilation_cache.clear_cache()
+            logging.debug("Initial: JAX compilation cache cleared")
+        except Exception:
+            pass
+
+        # Clear all JAX caches
+        try:
+            jax.clear_caches()
+            logging.debug("Initial: JAX caches cleared")
+        except Exception:
+            pass
+
+        # Multiple garbage collection cycles (from experiments)
+        collected_total = 0
+        for i in range(5):
+            collected = gc.collect()
+            collected_total += collected
+        logging.debug(f"Initial: Freed {collected_total} objects via garbage collection")
+
+        # GPU memory cleanup if available
+        try:
+            for device in jax.devices():
+                if device.platform == 'gpu':
+                    device.synchronize_all_activity()
+                    device.memory_stats()
+            logging.debug("Initial: GPU memory synchronized")
+        except Exception:
+            pass
+
+        # Brief delay for cleanup (from experiments)
+        import time
+        time.sleep(1)
+
+        logging.info("✅ Initial aggressive memory cleanup completed")
+
+    except Exception as e:
+        logging.warning(f"Initial memory cleanup failed: {e}")
 
 
 if __name__ == "__main__":
