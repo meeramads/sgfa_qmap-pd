@@ -44,9 +44,14 @@ class ModelRunner:
                 run_results = self._run_single_mcmc(X_list, hypers, run_id)
                 results[run_id] = run_results
 
-                # Process robust parameters if multi-chain
+                # Process robust parameters
                 if self.config.num_chains > 1:
+                    # Multi-chain: extract robust components across chains
                     robust_params = self._extract_robust_parameters(run_results)
+                    results[run_id]["robust"] = robust_params
+                else:
+                    # Single-chain: create robust parameters from the single chain
+                    robust_params = self._create_single_chain_robust_parameters(run_results)
                     results[run_id]["robust"] = robust_params
 
                 # CRITICAL: Save results immediately after each successful run
@@ -293,6 +298,75 @@ class ModelRunner:
 
         except Exception as e:
             logger.warning(f"Pre-run memory cleanup before run {run_id} failed: {e}")
+
+    def _create_single_chain_robust_parameters(self, run_results: dict) -> dict:
+        """Create robust parameters from a single chain by using posterior means."""
+        try:
+            if "samples" not in run_results:
+                logger.warning("No samples found in run results for robust parameter creation")
+                return {"extraction_successful": False, "reason": "no_samples"}
+
+            samples = run_results["samples"]
+
+            # Extract key parameters and compute posterior means
+            robust_params = {}
+
+            # Factor loadings (W) - most important for visualization
+            if "W" in samples:
+                W = samples["W"]
+                if hasattr(W, 'mean'):
+                    robust_params["W"] = W.mean(axis=0)  # Average across MCMC samples
+                else:
+                    robust_params["W"] = W
+                logger.debug(f"Single-chain robust W shape: {robust_params['W'].shape}")
+
+            # Factor scores (Z)
+            if "Z" in samples:
+                Z = samples["Z"]
+                if hasattr(Z, 'mean'):
+                    robust_params["Z"] = Z.mean(axis=0)  # Average across MCMC samples
+                else:
+                    robust_params["Z"] = Z
+                logger.debug(f"Single-chain robust Z shape: {robust_params['Z'].shape}")
+
+            # Additional parameters if available
+            for param_name in ["sigma", "tauZ", "lmbZ", "cZ", "tauW", "lmbW", "cW"]:
+                if param_name in samples:
+                    param_value = samples[param_name]
+                    if hasattr(param_value, 'mean'):
+                        robust_params[param_name] = param_value.mean(axis=0)
+                    else:
+                        robust_params[param_name] = param_value
+
+            # Reconstruction (if needed for visualization)
+            if "W" in robust_params and "Z" in robust_params:
+                # Compute data reconstruction X = Z @ W.T
+                Z_robust = robust_params["Z"]
+                W_robust = robust_params["W"]
+                try:
+                    infX = Z_robust @ W_robust.T
+                    robust_params["infX"] = infX
+                    logger.debug(f"Single-chain reconstruction shape: {infX.shape}")
+                except Exception as e:
+                    logger.warning(f"Could not compute reconstruction: {e}")
+
+            robust_params.update({
+                "extraction_successful": True,
+                "n_robust_components": robust_params["W"].shape[1] if "W" in robust_params else 0,
+                "single_chain": True,
+                "method": "posterior_mean"
+            })
+
+            logger.info(f"✅ Created single-chain robust parameters with {robust_params['n_robust_components']} components")
+            return robust_params
+
+        except Exception as e:
+            logger.error(f"Single-chain robust parameter creation failed: {e}")
+            return {
+                "extraction_successful": False,
+                "reason": f"creation_error: {str(e)}",
+                "single_chain": True
+            }
 
     def _save_run_results(self, run_results: dict, run_id: int, data: dict = None):
         """Save results immediately after each successful run."""
