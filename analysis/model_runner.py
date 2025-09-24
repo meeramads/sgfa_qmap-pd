@@ -21,6 +21,7 @@ class ModelRunner:
             # New pattern: ModelRunner(args, results_dir)
             self.args = config_or_args
             self.results_dir = results_dir
+            self.output_dir = results_dir  # Fix: Add output_dir attribute
             # For backward compatibility
             self.config = config_or_args
         else:
@@ -28,6 +29,7 @@ class ModelRunner:
             self.config = config_or_args
             self.args = config_or_args
             self.results_dir = None
+            self.output_dir = None  # Fix: Add output_dir attribute
 
     def run_standard_analysis(
         self, X_list: List[np.ndarray], hypers: Dict, data: Dict
