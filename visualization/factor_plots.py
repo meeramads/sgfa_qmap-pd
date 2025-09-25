@@ -299,3 +299,223 @@ class FactorVisualizer:
                 np.abs(np.corrcoef(Z.T)[np.triu_indices(Z.shape[1], k=1)])
             ),
         }
+
+    # === MISSING METHODS REQUIRED BY CORE.VISUALIZATION ===
+
+    def plot_factor_loadings(self, W, title="Factor Loadings", save_path=None):
+        """Plot factor loadings matrix as heatmap."""
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        im = ax.imshow(W.T, cmap='RdBu_r', aspect='auto')
+        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_xlabel('Features')
+        ax.set_ylabel('Factors')
+
+        # Add colorbar
+        plt.colorbar(im, ax=ax, label='Loading Value')
+
+        plt.tight_layout()
+
+        if save_path:
+            save_plot(save_path)
+            plt.close()
+            logger.info(f"Saved factor loadings plot: {save_path}")
+        else:
+            plt.show()
+
+    def plot_factor_scores(self, Z, subject_ids=None, title="Factor Scores", save_path=None):
+        """Plot factor scores for subjects."""
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        im = ax.imshow(Z.T, cmap='RdBu_r', aspect='auto')
+        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_xlabel('Subjects')
+        ax.set_ylabel('Factors')
+
+        # Add colorbar
+        plt.colorbar(im, ax=ax, label='Score Value')
+
+        plt.tight_layout()
+
+        if save_path:
+            save_plot(save_path)
+            plt.close()
+            logger.info(f"Saved factor scores plot: {save_path}")
+        else:
+            plt.show()
+
+    def plot_factor_comparison(self, W_true, W_est, Z_true, Z_est, save_path=None):
+        """Compare true vs estimated factors."""
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+
+        # True vs estimated loadings
+        im1 = axes[0, 0].imshow(W_true.T, cmap='RdBu_r', aspect='auto')
+        axes[0, 0].set_title('True Factor Loadings')
+        axes[0, 0].set_xlabel('Features')
+        axes[0, 0].set_ylabel('Factors')
+        plt.colorbar(im1, ax=axes[0, 0])
+
+        im2 = axes[0, 1].imshow(W_est.T, cmap='RdBu_r', aspect='auto')
+        axes[0, 1].set_title('Estimated Factor Loadings')
+        axes[0, 1].set_xlabel('Features')
+        axes[0, 1].set_ylabel('Factors')
+        plt.colorbar(im2, ax=axes[0, 1])
+
+        # True vs estimated scores
+        im3 = axes[1, 0].imshow(Z_true.T, cmap='RdBu_r', aspect='auto')
+        axes[1, 0].set_title('True Factor Scores')
+        axes[1, 0].set_xlabel('Subjects')
+        axes[1, 0].set_ylabel('Factors')
+        plt.colorbar(im3, ax=axes[1, 0])
+
+        im4 = axes[1, 1].imshow(Z_est.T, cmap='RdBu_r', aspect='auto')
+        axes[1, 1].set_title('Estimated Factor Scores')
+        axes[1, 1].set_xlabel('Subjects')
+        axes[1, 1].set_ylabel('Factors')
+        plt.colorbar(im4, ax=axes[1, 1])
+
+        plt.suptitle('Factor Comparison: True vs Estimated', fontsize=16, fontweight='bold')
+        plt.tight_layout()
+
+        if save_path:
+            save_plot(save_path)
+            plt.close()
+            logger.info(f"Saved factor comparison plot: {save_path}")
+        else:
+            plt.show()
+
+    def plot_multiview_loadings(self, W, Dm, view_names, feat_names, topk, save_path=None):
+        """Plot multi-view factor loadings."""
+        n_factors = W.shape[1]
+        n_views = len(Dm)
+
+        fig, axes = plt.subplots(n_factors, n_views, figsize=(4*n_views, 3*n_factors))
+        if n_factors == 1:
+            axes = axes.reshape(1, -1)
+        if n_views == 1:
+            axes = axes.reshape(-1, 1)
+
+        # Split loadings by view
+        view_start = 0
+        for view_idx, view_dim in enumerate(Dm):
+            view_end = view_start + view_dim
+            W_view = W[view_start:view_end, :]
+
+            for factor_idx in range(n_factors):
+                ax = axes[factor_idx, view_idx]
+
+                # Get top k loadings for this factor and view
+                loadings = W_view[:, factor_idx]
+                top_indices = np.argsort(np.abs(loadings))[-topk:]
+                top_loadings = loadings[top_indices]
+
+                # Create feature names for this view
+                if feat_names and view_names[view_idx] in feat_names:
+                    feature_labels = [f"{feat_names[view_names[view_idx]][i]}" for i in top_indices]
+                else:
+                    feature_labels = [f"F{i}" for i in top_indices]
+
+                # Bar plot
+                colors = ['red' if x < 0 else 'blue' for x in top_loadings]
+                bars = ax.barh(range(len(top_loadings)), top_loadings, color=colors, alpha=0.7)
+
+                ax.set_yticks(range(len(feature_labels)))
+                ax.set_yticklabels(feature_labels, fontsize=8)
+                ax.set_xlabel('Loading Value')
+                ax.set_title(f'{view_names[view_idx]}\nFactor {factor_idx+1}', fontsize=10)
+                ax.grid(True, alpha=0.3)
+
+            view_start = view_end
+
+        plt.suptitle(f'Multi-View Factor Loadings (Top {topk} per factor)', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+
+        if save_path:
+            save_plot(save_path)
+            plt.close()
+            logger.info(f"Saved multi-view loadings plot: {save_path}")
+        else:
+            plt.show()
+
+    def plot_factor_summary(self, W, Z, Dm, view_names, save_path=None):
+        """Plot comprehensive factor summary."""
+        n_factors = W.shape[1]
+
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+
+        # 1. Factor loading magnitudes by view
+        view_start = 0
+        view_contributions = []
+        for view_idx, view_dim in enumerate(Dm):
+            view_end = view_start + view_dim
+            W_view = W[view_start:view_end, :]
+            view_contrib = np.mean(np.abs(W_view), axis=0)
+            view_contributions.append(view_contrib)
+            view_start = view_end
+
+        view_contributions = np.array(view_contributions)
+
+        x = np.arange(n_factors)
+        width = 0.8 / len(view_names)
+
+        for i, view_name in enumerate(view_names):
+            axes[0, 0].bar(x + i*width, view_contributions[i], width,
+                          label=view_name, alpha=0.7)
+
+        axes[0, 0].set_xlabel('Factor')
+        axes[0, 0].set_ylabel('Mean |Loading|')
+        axes[0, 0].set_title('Factor Contributions by View')
+        axes[0, 0].set_xticks(x + width * (len(view_names)-1) / 2)
+        axes[0, 0].set_xticklabels([f'F{i+1}' for i in range(n_factors)])
+        axes[0, 0].legend()
+
+        # 2. Factor score distributions
+        for i in range(min(n_factors, 4)):  # Show up to 4 factors
+            axes[0, 1].hist(Z[:, i], bins=20, alpha=0.6, label=f'Factor {i+1}')
+        axes[0, 1].set_xlabel('Score Value')
+        axes[0, 1].set_ylabel('Frequency')
+        axes[0, 1].set_title('Factor Score Distributions')
+        axes[0, 1].legend()
+
+        # 3. Factor correlation matrix
+        if n_factors > 1:
+            factor_corr = np.corrcoef(Z.T)
+            im = axes[1, 0].imshow(factor_corr, cmap='RdBu_r', vmin=-1, vmax=1)
+            axes[1, 0].set_title('Inter-Factor Correlations')
+            axes[1, 0].set_xlabel('Factor')
+            axes[1, 0].set_ylabel('Factor')
+            plt.colorbar(im, ax=axes[1, 0])
+        else:
+            axes[1, 0].text(0.5, 0.5, 'Single Factor\n(No Correlations)',
+                           ha='center', va='center', transform=axes[1, 0].transAxes)
+            axes[1, 0].set_title('Inter-Factor Correlations')
+
+        # 4. Explained variance approximation
+        total_var = np.sum(np.var(Z @ W.T, axis=0))
+        if total_var > 0:
+            factor_vars = []
+            for k in range(n_factors):
+                Z_k = Z[:, k:k+1]
+                W_k = W[:, k:k+1]
+                factor_var = np.sum(np.var(Z_k @ W_k.T, axis=0))
+                factor_vars.append(factor_var / total_var * 100)
+
+            axes[1, 1].bar(range(n_factors), factor_vars, alpha=0.7)
+            axes[1, 1].set_xlabel('Factor')
+            axes[1, 1].set_ylabel('% Variance Explained')
+            axes[1, 1].set_title('Approximate Variance Explained')
+            axes[1, 1].set_xticks(range(n_factors))
+            axes[1, 1].set_xticklabels([f'F{i+1}' for i in range(n_factors)])
+        else:
+            axes[1, 1].text(0.5, 0.5, 'Cannot compute\nvariance explained',
+                           ha='center', va='center', transform=axes[1, 1].transAxes)
+
+        plt.suptitle('Factor Analysis Summary', fontsize=16, fontweight='bold')
+        plt.tight_layout()
+
+        if save_path:
+            save_plot(save_path)
+            plt.close()
+            logger.info(f"Saved factor summary plot: {save_path}")
+        else:
+            plt.show()
