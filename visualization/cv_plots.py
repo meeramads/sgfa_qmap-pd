@@ -37,6 +37,25 @@ class CrossValidationVisualizer:
             }
         )
 
+    def create_plots(self, cv_results: Dict, plot_dir: Path):
+        """
+        Create all CV plots - main interface called by VisualizationManager.
+
+        Parameters:
+        -----------
+        cv_results : dict
+            Cross-validation results dictionary
+        plot_dir : Path
+            Directory path for saving plots
+        """
+        cv_plot_dir = plot_dir / "cv"
+        cv_plot_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info("Creating CV visualizations via VisualizationManager")
+
+        # Delegate to the main plot_cv_results method
+        self.plot_cv_results(cv_results, str(cv_plot_dir), run_name="cross_validation")
+
     def plot_cv_results(
         self, cv_results: Dict, plot_path: str, run_name: str = "cross_validation"
     ):
