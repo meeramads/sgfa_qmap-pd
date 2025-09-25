@@ -7,10 +7,10 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from visualization.brain_plots import BrainPlotter
+from visualization.brain_plots import BrainVisualizer
 
 
-class TestBrainPlotter:
+class TestBrainVisualizer:
     """Test brain plotting functionality."""
 
     @pytest.fixture
@@ -30,11 +30,11 @@ class TestBrainPlotter:
 
     @pytest.fixture
     def plotter(self):
-        """Create BrainPlotter instance."""
-        return BrainPlotter()
+        """Create BrainVisualizer instance."""
+        return BrainVisualizer({})
 
     def test_brain_plotter_initialization(self, plotter):
-        """Test that BrainPlotter initializes correctly."""
+        """Test that BrainVisualizer initializes correctly."""
         assert plotter is not None
 
     def test_plot_brain_factor_loadings(self, plotter, mock_brain_data):

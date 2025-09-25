@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 
 from data import generate_synthetic_data
-from visualization.factor_plots import FactorPlotter
+from visualization.factor_plots import FactorVisualizer
 
 
-class TestFactorPlotter:
+class TestFactorVisualizer:
     """Test factor plotting functionality."""
 
     @pytest.fixture
@@ -39,11 +39,11 @@ class TestFactorPlotter:
 
     @pytest.fixture
     def plotter(self):
-        """Create FactorPlotter instance."""
-        return FactorPlotter()
+        """Create FactorVisualizer instance."""
+        return FactorVisualizer({})
 
     def test_factor_plotter_initialization(self, plotter):
-        """Test that FactorPlotter initializes correctly."""
+        """Test that FactorVisualizer initializes correctly."""
         assert plotter is not None
 
     def test_plot_factor_scores(self, plotter, mock_model_results):

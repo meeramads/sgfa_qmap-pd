@@ -140,7 +140,7 @@ def example_basic_preprocessing():
 
     # Generate test data
     from data import generate_synthetic_data
-    from data.preprocessing import DataPreprocessor
+    from data.preprocessing import NeuroImagingPreprocessor
 
     data = generate_synthetic_data(num_sources=2, K=4, num_subjects=80)
     X_list = data["X_list"]
@@ -150,7 +150,7 @@ def example_basic_preprocessing():
         print(f"  Original view {i}: {X.shape}")
 
     # Create preprocessor with basic settings
-    preprocessor = DataPreprocessor(
+    preprocessor = NeuroImagingPreprocessor(
         standardize=True, handle_missing=True, remove_constant_features=True
     )
 
