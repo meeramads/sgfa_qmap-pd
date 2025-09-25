@@ -401,9 +401,20 @@ class ExperimentFramework:
                     )
 
         # Save main result matrices if available (for single-method experiments)
-        if hasattr(result, "W") or "W" in model_results:
-            W = getattr(result, "W", model_results.get("W"))
-            Z = getattr(result, "Z", model_results.get("Z"))
+        if hasattr(result, "W") or (model_results and "W" in model_results):
+            # Safe attribute retrieval with proper None checks
+            W = None
+            if hasattr(result, "W"):
+                W = result.W
+            elif model_results and "W" in model_results:
+                W = model_results["W"]
+
+            Z = None
+            if hasattr(result, "Z"):
+                Z = result.Z
+            elif model_results and "Z" in model_results:
+                Z = model_results["Z"]
+
             if W is not None or Z is not None:
                 self._save_matrices_for_variant({"W": W, "Z": Z}, matrices_dir, "main")
 

@@ -37,8 +37,18 @@ def experiment_handler(experiment_name: str):
                 return func(self, *args, **kwargs)
             except Exception as e:
                 error_msg = str(e)
-                self.logger.error(f"{experiment_name} failed: {error_msg}")
-                return self._create_failure_result(experiment_name, error_msg)
+                # Safe logger access with fallback
+                logger = getattr(self, 'logger', None)
+                if logger is None:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                logger.error(f"{experiment_name} failed: {error_msg}")
+
+                # Safe failure result creation
+                if hasattr(self, '_create_failure_result') and callable(getattr(self, '_create_failure_result', None)):
+                    return self._create_failure_result(experiment_name, error_msg)
+                else:
+                    return {"success": False, "error": error_msg, "experiment_name": experiment_name}
 
         return wrapper
 

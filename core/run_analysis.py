@@ -267,12 +267,14 @@ def main(args):
 def _save_cv_results(cv_results, cv_object, cv_res_dir, dependencies):
     """Save cross-validation results"""
     try:
-        if dependencies.neuroimaging_cv_available and hasattr(
-            cv_object, "save_neuroimaging_results"
-        ):
+        if (dependencies.neuroimaging_cv_available and
+            hasattr(cv_object, "save_neuroimaging_results") and
+            callable(getattr(cv_object, "save_neuroimaging_results", None))):
             cv_object.save_neuroimaging_results(cv_res_dir, "neuroimaging_cv_analysis")
-        else:
+        elif hasattr(cv_object, "save_results") and callable(getattr(cv_object, "save_results", None)):
             cv_object.save_results(cv_res_dir, "cv_analysis")
+        else:
+            logging.warning("CV object missing required save methods")
 
         logging.info(f"CV results saved to {cv_res_dir}")
 

@@ -21,6 +21,13 @@ class LatentClassAnalysisModel(BaseGFAModel):
 
     def __init__(self, config, hypers: Dict):
         super().__init__(config, hypers)
+
+        # Validate required config attributes
+        required_attrs = ['K', 'num_sources']
+        for attr in required_attrs:
+            if not hasattr(config, attr):
+                raise AttributeError(f"Config missing required attribute: '{attr}'")
+
         self.K = config.K  # Number of latent classes
         self.num_sources = config.num_sources
 

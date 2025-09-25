@@ -364,16 +364,16 @@ class ConfigurationValidator:
         errors = []
 
         # Check if sparse GFA has sparsity parameters
-        if "model" in config_dict:
-            model_config = config_dict["model"]
+        model_config = config_dict.get("model")
+        if model_config:
             if model_config.get("model_type") == "sparse_gfa":
                 if model_config.get("sparsity_lambda") is None:
                     errors.append("sparse_gfa model requires sparsity_lambda parameter")
 
         # Check if advanced preprocessing is enabled for complex experiments
-        if "experiments" in config_dict and "preprocessing" in config_dict:
-            exp_config = config_dict["experiments"]
-            prep_config = config_dict["preprocessing"]
+        exp_config = config_dict.get("experiments")
+        prep_config = config_dict.get("preprocessing")
+        if exp_config and prep_config:
 
             if exp_config.get("generate_plots", True) and not prep_config.get(
                 "enable_advanced_preprocessing", True

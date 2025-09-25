@@ -314,7 +314,7 @@ class ModelRunner:
             # Factor loadings (W) - most important for visualization
             if "W" in samples:
                 W = samples["W"]
-                if hasattr(W, 'mean'):
+                if hasattr(W, 'mean') and callable(getattr(W, 'mean', None)):
                     robust_params["W"] = W.mean(axis=0)  # Average across MCMC samples
                 else:
                     robust_params["W"] = W
@@ -323,7 +323,7 @@ class ModelRunner:
             # Factor scores (Z)
             if "Z" in samples:
                 Z = samples["Z"]
-                if hasattr(Z, 'mean'):
+                if hasattr(Z, 'mean') and callable(getattr(Z, 'mean', None)):
                     robust_params["Z"] = Z.mean(axis=0)  # Average across MCMC samples
                 else:
                     robust_params["Z"] = Z
@@ -333,7 +333,7 @@ class ModelRunner:
             for param_name in ["sigma", "tauZ", "lmbZ", "cZ", "tauW", "lmbW", "cW"]:
                 if param_name in samples:
                     param_value = samples[param_name]
-                    if hasattr(param_value, 'mean'):
+                    if hasattr(param_value, 'mean') and callable(getattr(param_value, 'mean', None)):
                         robust_params[param_name] = param_value.mean(axis=0)
                     else:
                         robust_params[param_name] = param_value
