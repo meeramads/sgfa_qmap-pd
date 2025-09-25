@@ -255,13 +255,28 @@ class BrainVisualizer:
             # Fall back to legacy format if modern files not found
             if W is None:
                 try:
-                    best_run = self._find_best_run(results_dir)
-                    files = get_model_files(results_dir, best_run)
-                    rob_params = safe_pickle_load(files["robust_params"], description="Robust parameters")
-
-                    if rob_params and "W" in rob_params:
-                        W = rob_params["W"]
-                        logger.info("Loaded factor loadings from legacy dictionary format")
+                    # Try all available runs instead of just "best" run
+                    robust_files = list(results_dir.glob("[*]Robust_params.dictionary"))
+                    if robust_files:
+                        # Try to load from any available robust params file
+                        for robust_file in robust_files[:3]:  # Try first 3 files
+                            try:
+                                rob_params = safe_pickle_load(robust_file, description="Robust parameters")
+                                if rob_params and "W" in rob_params:
+                                    W = rob_params["W"]
+                                    logger.info(f"Loaded factor loadings from {robust_file.name}")
+                                    break
+                            except Exception as e:
+                                logger.debug(f"Could not load {robust_file.name}: {e}")
+                                continue
+                    else:
+                        # Fallback to original method
+                        best_run = self._find_best_run(results_dir)
+                        files = get_model_files(results_dir, best_run)
+                        rob_params = safe_pickle_load(files["robust_params"], description="Robust parameters")
+                        if rob_params and "W" in rob_params:
+                            W = rob_params["W"]
+                            logger.info("Loaded factor loadings from legacy dictionary format")
                 except Exception as e:
                     logger.warning(f"Failed to load legacy format: {e}")
 

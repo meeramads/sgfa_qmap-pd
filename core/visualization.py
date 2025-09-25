@@ -174,7 +174,9 @@ def synthetic_data(res_dir: str, true_params: Dict, args: Any, hypers: Dict):
             "best_run": brun,
         }
 
-        report_gen.create_analysis_report(report_data, res_dir, "synthetic_analysis")
+        # Generate HTML report using the correct method
+        plot_dir = Path(res_dir) / "plots"
+        report_gen.generate_html_report(plot_dir, report_data, analysis_results=report_data)
 
         logger.info("Synthetic data visualization completed")
 
@@ -263,7 +265,9 @@ def qmap_pd(data: Dict, res_dir: str, args: Any, hypers: Dict, topk: int = 20):
             "best_run": brun,
         }
 
-        report_gen.create_analysis_report(report_data, res_dir, "qmap_pd_analysis")
+        # Generate HTML report using the correct method
+        plot_dir = Path(res_dir) / "plots"
+        report_gen.generate_html_report(plot_dir, report_data, analysis_results=report_data)
 
         logger.info("qMAP-PD visualization completed")
 
