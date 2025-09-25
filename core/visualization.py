@@ -116,12 +116,24 @@ class VisualizationConfig:
         style: str = "seaborn-v0_8-darkgrid",
         save_formats: List[str] = ["png"],
         color_palette: str = "husl",
+        dataset: str = "qmap_pd",
+        K: int = 5,
+        percW: float = 25.0,
+        cv_type: str = "standard",
+        cv_folds: int = 5,
     ):
         self.dpi = dpi
         self.figure_size = figure_size
         self.style = style
         self.save_formats = save_formats
         self.color_palette = color_palette
+
+        # Analysis configuration attributes required by ReportGenerator
+        self.dataset = dataset
+        self.K = K
+        self.percW = percW
+        self.cv_type = cv_type
+        self.cv_folds = cv_folds
 
 
 @visualization_with_error_handling
@@ -205,7 +217,14 @@ def qmap_pd(data: Dict, res_dir: str, args: Any, hypers: Dict, topk: int = 20):
     """
     logger.info(f"Creating qMAP-PD visualizations in {res_dir}")
 
-    config = VisualizationConfig()
+    # Create config with actual analysis parameters
+    config = VisualizationConfig(
+        dataset="qmap_pd",
+        K=getattr(args, 'K', hypers.get('K', 5)),
+        percW=getattr(args, 'percW', hypers.get('percW', 25.0)),
+        cv_type=getattr(args, 'cv_type', 'standard'),
+        cv_folds=getattr(args, 'cv_folds', 5)
+    )
 
     # Initialize specialized visualizers
     FactorVisualizer(config)
