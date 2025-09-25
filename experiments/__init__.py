@@ -11,7 +11,8 @@ All experiment classes now include automatic performance optimization through th
 
 from .clinical_validation import ClinicalValidationExperiments
 from .data_validation import DataValidationExperiments
-from .framework import ExperimentConfig, ExperimentFramework, ExperimentRunner
+from .framework import ExperimentConfig, ExperimentFramework
+from .runner import ExperimentRunner
 from .model_comparison import ModelArchitectureComparison
 from .performance_benchmarks import PerformanceBenchmarkExperiments
 from .reproducibility import ReproducibilityExperiments
