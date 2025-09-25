@@ -302,11 +302,13 @@ class ModelRunner:
     def _create_single_chain_robust_parameters(self, run_results: dict) -> dict:
         """Create robust parameters from a single chain by using posterior means."""
         try:
-            if "samples" not in run_results:
-                logger.warning("No samples found in run results for robust parameter creation")
-                return {"extraction_successful": False, "reason": "no_samples"}
+            # run_results IS the samples dict (returned directly from _run_single_mcmc)
+            # Check if we have the expected MCMC sample structure
+            if not run_results or not any(key in run_results for key in ["W", "Z", "sigma"]):
+                logger.warning("No MCMC samples found in run results for robust parameter creation")
+                return {"extraction_successful": False, "reason": "no_mcmc_samples"}
 
-            samples = run_results["samples"]
+            samples = run_results
 
             # Extract key parameters and compute posterior means
             robust_params = {}
@@ -388,25 +390,25 @@ class ModelRunner:
                 safe_pickle_save(run_results["robust"], robust_params_file, f"Robust parameters run {run_id}")
 
             # Save factor loadings for immediate access
-            if "samples" in run_results:
-                samples = run_results["samples"]
-                if "W" in samples:
-                    import numpy as np
+            # run_results IS the samples dict (returned directly from _run_single_mcmc)
+            samples = run_results
+            if "W" in samples:
+                import numpy as np
 
-                    # Save factor loadings as numpy array for easy access
-                    W_file = output_dir / f"[{run_id}]Factor_loadings_W.npy"
-                    W = samples["W"]
-                    if hasattr(W, 'mean'):  # If it's MCMC samples, take mean
-                        W = W.mean(axis=0)
-                    np.save(W_file, W)
+                # Save factor loadings as numpy array for easy access
+                W_file = output_dir / f"[{run_id}]Factor_loadings_W.npy"
+                W = samples["W"]
+                if hasattr(W, 'mean'):  # If it's MCMC samples, take mean
+                    W = W.mean(axis=0)
+                np.save(W_file, W)
 
-                if "Z" in samples:
-                    # Save factor scores
-                    Z_file = output_dir / f"[{run_id}]Factor_scores_Z.npy"
-                    Z = samples["Z"]
-                    if hasattr(Z, 'mean'):  # If it's MCMC samples, take mean
-                        Z = Z.mean(axis=0)
-                    np.save(Z_file, Z)
+            if "Z" in samples:
+                # Save factor scores
+                Z_file = output_dir / f"[{run_id}]Factor_scores_Z.npy"
+                Z = samples["Z"]
+                if hasattr(Z, 'mean'):  # If it's MCMC samples, take mean
+                    Z = Z.mean(axis=0)
+                np.save(Z_file, Z)
 
             logger.info(f"💾 Run {run_id} results saved to {output_dir}")
 
