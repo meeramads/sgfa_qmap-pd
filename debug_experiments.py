@@ -171,6 +171,30 @@ def run_sensitivity_analysis_debug():
         raise
 
 
+def run_reproducibility_debug():
+    """Run minimal reproducibility experiment."""
+    logger.info("🔄 Running DEBUG: Reproducibility")
+
+    from experiments.reproducibility import run_reproducibility
+
+    config = load_debug_config()
+    start_time = time.time()
+
+    try:
+        result = run_reproducibility(config)
+        duration = time.time() - start_time
+
+        if result:
+            logger.info(f"✅ Reproducibility test completed in {duration:.2f}s")
+            logger.info(f"   Status: {getattr(result, 'success', 'Unknown')}")
+        else:
+            logger.error("❌ Reproducibility test failed")
+
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(f"❌ Reproducibility test failed after {duration:.2f}s: {e}")
+
+
 def run_clinical_validation_debug():
     """Run minimal clinical validation."""
     logger.info("🏥 Running DEBUG: Clinical Validation")
@@ -206,6 +230,7 @@ def run_all_debug():
         ("model_comparison", run_model_comparison_debug),
         ("performance_benchmarks", run_performance_benchmarks_debug),
         ("sensitivity_analysis", run_sensitivity_analysis_debug),
+        ("reproducibility", run_reproducibility_debug),
         ("clinical_validation", run_clinical_validation_debug),
     ]
 
@@ -257,6 +282,7 @@ def main():
             "model_comparison",
             "performance_benchmarks",
             "sensitivity_analysis",
+            "reproducibility",
             "clinical_validation",
             "all"
         ],
@@ -279,6 +305,7 @@ def main():
         "model_comparison": run_model_comparison_debug,
         "performance_benchmarks": run_performance_benchmarks_debug,
         "sensitivity_analysis": run_sensitivity_analysis_debug,
+        "reproducibility": run_reproducibility_debug,
         "clinical_validation": run_clinical_validation_debug,
         "all": run_all_debug,
     }
