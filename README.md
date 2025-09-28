@@ -48,13 +48,14 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 ### Experimental Validation
 
 - **[experiments/](experiments/)**: Comprehensive experimental framework with advanced neuroimaging CV
-  - `data_validation.py`: Data quality and preprocessing validation **IMPLEMENTED**
-  - `model_comparison.py`: SGFA vs traditional method comparison **IMPLEMENTED** + **NeuroImagingMetrics NEEDS DEVELOPMENT**
-  - `sgfa_parameter_comparison.py`: SGFA variant comparison **IMPLEMENTED** + **HyperOptimizer NEEDS DEVELOPMENT**
-  - `sensitivity_analysis.py`: Hyperparameter sensitivity testing **IMPLEMENTED**
-  - `reproducibility.py`: Reproducibility and robustness validation **IMPLEMENTED**
-  - `performance_benchmarks.py`: Scalability benchmarking **IMPLEMENTED** + **ClinicalAwareSplitter NEEDS DEVELOPMENT**
-  - `clinical_validation.py`: Clinical subtype validation **IMPLEMENTED** + **Clinical-stratified CV AVAILABLE**
+  - `data_validation.py`: Data quality and preprocessing validation **IMPLEMENTED AND TESTED**
+  - `model_comparison.py`: SGFA vs traditional method comparison **IMPLEMENTED AND TESTED** + **NeuroImagingMetrics NEEDS DEVELOPMENT**
+  - `sgfa_parameter_comparison.py`: SGFA variant comparison **IMPLEMENTED AND TESTED** + **HyperOptimizer NEEDS DEVELOPMENT**
+  - `sensitivity_analysis.py`: Hyperparameter sensitivity testing **IMPLEMENTED AND TESTED**
+  - `reproducibility.py`: Reproducibility and robustness validation **IMPLEMENTED AND TESTED**
+  - `performance_benchmarks.py`: Scalability benchmarking **IMPLEMENTED AND TESTED** + **ClinicalAwareSplitter NEEDS DEVELOPMENT**
+  - `clinical_validation.py`: Clinical subtype validation **IMPLEMENTED AND TESTED** + **Clinical-stratified CV AVAILABLE**
+  - `debug_experiments.py`: Lightweight testing framework for rapid validation **IMPLEMENTED**
 
 ### Models & Implementation
 
@@ -68,7 +69,10 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 
 ### Visualization & Testing
 
-- **[visualization/](visualization/)**: Result visualization and diagnostic plots
+- **[visualization/](visualization/)**: Result visualization and diagnostic plots **IMPLEMENTED AND TESTED**
+  - `factor_plots.py`: Factor analysis visualizations with brain mapping
+  - `brain_plots.py`: Neuroimaging-specific brain factor maps
+  - `report_generator.py`: Comprehensive HTML analysis reports
 - **[tests/](tests/)**: Comprehensive test suite
 
 ## Automatic Optimization Features
@@ -276,6 +280,29 @@ pytest --cov=. --cov-report=html
 
 ## Quick Start
 
+### Debug Testing Framework
+
+For rapid validation and development testing, use the debug experiment runner:
+
+```bash
+# Individual debug experiments (reduced MCMC parameters for speed)
+python debug_experiments.py data_validation
+python debug_experiments.py sgfa_parameter_comparison
+python debug_experiments.py model_comparison
+python debug_experiments.py performance_benchmarks
+python debug_experiments.py sensitivity_analysis
+python debug_experiments.py clinical_validation
+python debug_experiments.py reproducibility
+
+# Test all components
+python debug_experiments.py all
+```
+
+**Debug vs Production Parameters:**
+- **Debug**: 50-150 MCMC samples, 3-5 factors, minimal preprocessing
+- **Production**: 1000+ MCMC samples, full factors, comprehensive preprocessing
+- **Runtime**: Varies significantly based on system specifications and data complexity
+
 ### Basic Analysis
 
 ```python
@@ -449,7 +476,7 @@ clinical_stratified_results = clinical_exp.run_clinical_validation(
 - **NeuroImagingHyperOptimizer**: Infrastructure exists, needs Bayesian optimization logic
 - **Clinical-Stratified Validation**: **Available** - Use `validation_types: ["clinical_stratified_cv"]`
 
-#### ✅ Working Alternative: Basic Cross-Validation
+#### Working Alternative: Basic Cross-Validation
 
 The experiments automatically fall back to working basic CV when advanced features fail:
 
@@ -475,8 +502,9 @@ The project includes a comprehensive performance optimization framework:
 ### Memory Management
 
 - **Adaptive memory limits** based on available system resources
-- **Real-time monitoring** with automatic cleanup
+- **Real-time monitoring** with automatic cleanup and GPU memory management
 - **Memory-efficient data structures** and array optimization
+- **Enhanced GPU cleanup** with JAX cache clearing and aggressive garbage collection
 
 ### Data Processing
 
@@ -548,34 +576,45 @@ The framework includes comprehensive validation experiments:
 
 ### Run Experiments
 
+#### Production Experiments
+
 ```bash
-# Run all experiments
+# Run all production experiments (full MCMC parameters)
 python run_experiments.py --config config.yaml --experiments all
 
-# Run specific experiments
+# Run specific production experiments
 python run_experiments.py --config config.yaml --experiments data_validation model_comparison
-
-# Run advanced neuroimaging CV experiments
-# ⚠️ WARNING: The following advanced experiments require additional development work:
-python run_experiments.py --config config.yaml --experiments clinical_validation neuroimaging_cv_benchmarks neuroimaging_hyperopt
-
-# Available experiment types:
-# ✅ IMPLEMENTED (with backwards compatibility):
-# - data_validation: Data quality and preprocessing validation
-# - sgfa_parameter_comparison: SGFA parameter optimization (falls back to basic CV)
-# - model_comparison: SGFA vs traditional methods (falls back to basic CV)
-# - performance_benchmarks: Scalability and memory benchmarks (most features work)
-# - sensitivity_analysis: Hyperparameter sensitivity testing
-# - reproducibility: Reproducibility and robustness validation
-# - clinical_validation: Basic clinical validation (falls back to basic CV)
-#
-# 🔧 ADVANCED FEATURES NEED DEVELOPMENT:
-# - neuroimaging_hyperopt: Neuroimaging-specific hyperparameter optimization
-# - neuroimaging_cv_benchmarks: Clinical-aware cross-validation benchmarks
-# - Advanced neuroimaging CV methods (ClinicalAwareSplitter, NeuroImagingMetrics)
 
 # Run with custom data directory
 python run_experiments.py --config config.yaml --data-dir /path/to/data
+```
+
+#### Debug Experiments
+
+```bash
+# Run all debug experiments (reduced parameters for testing)
+python debug_experiments.py all
+
+# Run specific debug experiments
+python debug_experiments.py sgfa_parameter_comparison
+python debug_experiments.py model_comparison
+```
+
+**Available Experiment Types:**
+
+**FULLY IMPLEMENTED AND TESTED:**
+- `data_validation`: Data quality and preprocessing validation
+- `sgfa_parameter_comparison`: SGFA parameter optimization and method comparison
+- `model_comparison`: SGFA vs traditional methods (PCA, ICA, FA)
+- `performance_benchmarks`: Scalability and memory benchmarks
+- `sensitivity_analysis`: Hyperparameter sensitivity testing
+- `reproducibility`: Reproducibility and robustness validation
+- `clinical_validation`: Clinical subtype validation
+
+**ADVANCED FEATURES NEED DEVELOPMENT:**
+- Neuroimaging-specific hyperparameter optimization
+- Clinical-aware cross-validation benchmarks
+- Advanced neuroimaging CV methods (ClinicalAwareSplitter, NeuroImagingMetrics)
 
 # Run specific experiments directly (programmatic)
 python -c "
@@ -606,6 +645,47 @@ pytest tests/visualization/
 ```
 
 ## Configuration
+
+### Configuration Structure
+
+The project uses YAML configuration files with validated schemas:
+
+```yaml
+# config.yaml - Production configuration
+data:
+  data_dir: "./qMAP-PD_data"
+  clinical_file: "data_clinical/clinical.tsv"
+  volume_dir: "volume_matrices"
+  imaging_as_single_view: true
+
+experiments:
+  base_output_dir: "./results"
+  save_intermediate: true
+  generate_plots: true
+  max_parallel_jobs: 2
+
+model:
+  model_type: "sparse_gfa"
+  K: 5
+  sparsity_lambda: 0.3
+  num_samples: 1000
+  num_chains: 1
+```
+
+```yaml
+# config_debug.yaml - Debug configuration (reduced parameters)
+experiments:
+  base_output_dir: "./debug_results"
+  save_intermediate: false
+  generate_plots: false
+
+model:
+  K: 3
+  num_samples: 50
+  # ... other reduced parameters
+```
+
+**Note:** The `run_experiments` field was removed from the configuration schema for validation compatibility.
 
 ### Basic Configuration
 
