@@ -22,14 +22,6 @@ experiments:
   generate_plots: true                    # OPTIONAL: Generate visualization plots (default: true)
   max_parallel_jobs: 2                   # OPTIONAL: Maximum parallel experiments (1-16, default: 1)
 
-  # Experiments to run (customize as needed)
-  run_experiments:
-    - "data_validation"
-    - "method_comparison"
-    - "sensitivity_analysis"
-    - "performance_benchmarks"
-    - "clinical_validation"
-    - "reproducibility"
 
 # Model Configuration (REQUIRED)
 # Defines model type and core hyperparameters
