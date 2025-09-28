@@ -2026,5 +2026,5 @@ def run_method_comparison(config):
             self.logger.warning(f"Iteration cleanup failed: {e}")
 
 
-def run_method_comparison(X_list, hypers, args, **kwargs):
+def run_method_comparison_analysis(X_list, hypers, args, **kwargs):
     """Run the method comparison experiment with the given data."""
