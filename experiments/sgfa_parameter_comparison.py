@@ -1852,7 +1852,7 @@ def run_method_comparison(config):
                     )
 
                     # Critical: Memory cleanup between parameter iterations
-                    self._iteration_memory_cleanup(variant_name)
+                    _iteration_memory_cleanup_standalone(variant_name, logger)
 
             # Run traditional method comparison for a subset of methods
             logger.info("🔬 Running traditional method comparison...")
@@ -1881,7 +1881,7 @@ def run_method_comparison(config):
                 logger.info(f"✅ {method}: {metrics.execution_time:.1f}s")
 
                 # Memory cleanup between traditional methods
-                self._iteration_memory_cleanup(f"traditional_{method}")
+                _iteration_memory_cleanup_standalone(f"traditional_{method}", logger)
 
             # Combine all results
             all_results = {
@@ -1994,36 +1994,41 @@ def run_method_comparison(config):
 
     def _iteration_memory_cleanup(self, variant_name: str):
         """Perform memory cleanup between parameter testing iterations."""
+        _iteration_memory_cleanup_standalone(variant_name, self.logger)
+
+
+def _iteration_memory_cleanup_standalone(variant_name: str, logger):
+    """Standalone memory cleanup function."""
+    try:
+        logger.info(f"🧹 Memory cleanup after {variant_name}...")
+        import gc
+        import jax
+
+        # Clear JAX compilation cache between iterations
         try:
-            self.logger.info(f"🧹 Memory cleanup after {variant_name}...")
-            import gc
-            import jax
+            from jax._src import compilation_cache
+            compilation_cache.clear_cache()
+        except Exception:
+            pass
 
-            # Clear JAX compilation cache between iterations
-            try:
-                from jax._src import compilation_cache
-                compilation_cache.clear_cache()
-            except Exception:
-                pass
+        # Force garbage collection
+        for _ in range(3):
+            gc.collect()
 
-            # Force garbage collection
-            for _ in range(3):
-                gc.collect()
+        # Try to clear GPU memory if available
+        try:
+            for device in jax.devices():
+                if device.platform == 'gpu':
+                    device.memory_stats()
+        except Exception:
+            pass
 
-            # Try to clear GPU memory if available
-            try:
-                for device in jax.devices():
-                    if device.platform == 'gpu':
-                        device.memory_stats()
-            except Exception:
-                pass
+        # Brief delay for cleanup
+        import time
+        time.sleep(0.5)
 
-            # Brief delay for cleanup
-            import time
-            time.sleep(0.5)
-
-        except Exception as e:
-            self.logger.warning(f"Iteration cleanup failed: {e}")
+    except Exception as e:
+        logger.warning(f"Iteration cleanup failed: {e}")
 
 
 def run_method_comparison_analysis(X_list, hypers, args, **kwargs):
