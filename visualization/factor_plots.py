@@ -143,6 +143,9 @@ class FactorVisualizer:
         self._calculate_factor_statistics(W, Z)
 
         fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+        # Ensure axes is always a 2D array
+        if axes.ndim == 1:
+            axes = axes.reshape(2, 2)
 
         # 1. Loading magnitude per factor
         loading_mags = np.mean(np.abs(W), axis=0)
@@ -347,6 +350,9 @@ class FactorVisualizer:
     def plot_factor_comparison(self, W_true, W_est, Z_true, Z_est, save_path=None):
         """Compare true vs estimated factors."""
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        # Ensure axes is always a 2D array
+        if axes.ndim == 1:
+            axes = axes.reshape(2, 2)
 
         # True vs estimated loadings
         im1 = axes[0, 0].imshow(W_true.T, cmap='RdBu_r', aspect='auto')
@@ -442,6 +448,9 @@ class FactorVisualizer:
         n_factors = W.shape[1]
 
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        # Ensure axes is always a 2D array
+        if axes.ndim == 1:
+            axes = axes.reshape(2, 2)
 
         # 1. Factor loading magnitudes by view
         view_start = 0
