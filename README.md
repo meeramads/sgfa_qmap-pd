@@ -299,6 +299,7 @@ python debug_experiments.py all
 ```
 
 **Debug vs Production Parameters:**
+
 - **Debug**: 50-150 MCMC samples, 3-5 factors, minimal preprocessing
 - **Production**: 1000+ MCMC samples, full factors, comprehensive preprocessing
 - **Runtime**: Varies significantly based on system specifications and data complexity
@@ -603,6 +604,7 @@ python debug_experiments.py model_comparison
 **Available Experiment Types:**
 
 **FULLY IMPLEMENTED AND TESTED:**
+
 - `data_validation`: Data quality and preprocessing validation
 - `sgfa_parameter_comparison`: SGFA parameter optimization and method comparison
 - `model_comparison`: SGFA vs traditional methods (PCA, ICA, FA)
@@ -612,17 +614,18 @@ python debug_experiments.py model_comparison
 - `clinical_validation`: Clinical subtype validation
 
 **ADVANCED FEATURES NEED DEVELOPMENT:**
+
 - Neuroimaging-specific hyperparameter optimization
 - Clinical-aware cross-validation benchmarks
 - Advanced neuroimaging CV methods (ClinicalAwareSplitter, NeuroImagingMetrics)
 
-# Run specific experiments directly (programmatic)
-python -c "
+#### Run specific experiments directly (programmatic)
+
+```python
 from experiments import DataValidationExperiments, ExperimentConfig
 config = ExperimentConfig(output_dir='./results')
 validator = DataValidationExperiments(config)
 # Add your data and run experiments
-"
 ```
 
 ## Testing
