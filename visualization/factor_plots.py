@@ -417,9 +417,55 @@ class FactorVisualizer:
 
                 # Create feature names for this view
                 if feat_names and view_names[view_idx] in feat_names:
-                    feature_labels = [f"{feat_names[view_names[view_idx]][i]}" for i in top_indices]
+                    try:
+                        view_feat_names = feat_names[view_names[view_idx]]
+                        feature_labels = [view_feat_names[i] if i < len(view_feat_names) else f"feature_{i}" for i in top_indices]
+                    except (IndexError, KeyError) as e:
+                        logger.warning(f"Could not use feature names for view {view_names[view_idx]}: {e}")
+                        feature_labels = [f"{view_names[view_idx]}_feature_{i}" for i in top_indices]
                 else:
-                    feature_labels = [f"F{i}" for i in top_indices]
+                    # Create meaningful labels based on view name and feature index
+                    view_name = view_names[view_idx]
+
+                    # For neuroimaging data, create more descriptive labels
+                    if any(region in view_name.lower() for region in ['sn', 'substantia', 'putamen', 'lentiform']):
+                        # Brain region names
+                        brain_region_map = {
+                            'sn': 'SubstantiaNigra',
+                            'substantia': 'SubstantiaNigra',
+                            'putamen': 'Putamen',
+                            'lentiform': 'Lentiform'
+                        }
+                        region_name = next((brain_region_map[k] for k in brain_region_map.keys()
+                                          if k in view_name.lower()), view_name)
+                        feature_labels = [f"{region_name}_voxel_{i}" for i in top_indices]
+                    elif 'clinical' in view_name.lower():
+                        # Load actual clinical variable names
+                        try:
+                            import pandas as pd
+                            from pathlib import Path
+                            # Try multiple possible paths for clinical data
+                            clinical_paths = [
+                                Path("qMAP-PD_data/data_clinical/pd_motor_gfa_data.tsv"),
+                                Path("../qMAP-PD_data/data_clinical/pd_motor_gfa_data.tsv"),
+                                Path("./data_clinical/pd_motor_gfa_data.tsv")
+                            ]
+                            clinical_file = None
+                            for path in clinical_paths:
+                                if path.exists():
+                                    clinical_file = path
+                                    break
+                            if clinical_file:
+                                clinical_df = pd.read_csv(clinical_file, sep="\t")
+                                # Get column names excluding 'sid' ID column
+                                clinical_names = [col for col in clinical_df.columns if col != 'sid']
+                                feature_labels = [clinical_names[i] if i < len(clinical_names) else f"Clinical_var_{i}" for i in top_indices]
+                            else:
+                                feature_labels = [f"Clinical_var_{i}" for i in top_indices]
+                        except Exception:
+                            feature_labels = [f"Clinical_var_{i}" for i in top_indices]
+                    else:
+                        feature_labels = [f"{view_name}_feature_{i}" for i in top_indices]
 
                 # Bar plot
                 colors = ['red' if x < 0 else 'blue' for x in top_loadings]
@@ -473,31 +519,35 @@ class FactorVisualizer:
 
         axes[0, 0].set_xlabel('Factor')
         axes[0, 0].set_ylabel('Mean |Loading|')
-        axes[0, 0].set_title('Factor Contributions by View')
+        axes[0, 0].set_title(f'Factor Contributions by View (K={n_factors})')
         axes[0, 0].set_xticks(x + width * (len(view_names)-1) / 2)
         axes[0, 0].set_xticklabels([f'F{i+1}' for i in range(n_factors)])
         axes[0, 0].legend()
 
         # 2. Factor score distributions
-        for i in range(min(n_factors, 4)):  # Show up to 4 factors
+        for i in range(n_factors):  # Show all factors consistently
             axes[0, 1].hist(Z[:, i], bins=20, alpha=0.6, label=f'Factor {i+1}')
         axes[0, 1].set_xlabel('Score Value')
         axes[0, 1].set_ylabel('Frequency')
-        axes[0, 1].set_title('Factor Score Distributions')
+        axes[0, 1].set_title(f'Factor Score Distributions (K={n_factors})')
         axes[0, 1].legend()
 
         # 3. Factor correlation matrix
         if n_factors > 1:
             factor_corr = np.corrcoef(Z.T)
             im = axes[1, 0].imshow(factor_corr, cmap='RdBu_r', vmin=-1, vmax=1)
-            axes[1, 0].set_title('Inter-Factor Correlations')
+            axes[1, 0].set_title(f'Inter-Factor Correlations (K={n_factors})')
             axes[1, 0].set_xlabel('Factor')
             axes[1, 0].set_ylabel('Factor')
+            axes[1, 0].set_xticks(range(n_factors))
+            axes[1, 0].set_xticklabels([f'F{i+1}' for i in range(n_factors)])
+            axes[1, 0].set_yticks(range(n_factors))
+            axes[1, 0].set_yticklabels([f'F{i+1}' for i in range(n_factors)])
             plt.colorbar(im, ax=axes[1, 0])
         else:
             axes[1, 0].text(0.5, 0.5, 'Single Factor\n(No Correlations)',
                            ha='center', va='center', transform=axes[1, 0].transAxes)
-            axes[1, 0].set_title('Inter-Factor Correlations')
+            axes[1, 0].set_title(f'Inter-Factor Correlations (K={n_factors})')
 
         # 4. Explained variance approximation
         total_var = np.sum(np.var(Z @ W.T, axis=0))
@@ -512,14 +562,15 @@ class FactorVisualizer:
             axes[1, 1].bar(range(n_factors), factor_vars, alpha=0.7)
             axes[1, 1].set_xlabel('Factor')
             axes[1, 1].set_ylabel('% Variance Explained')
-            axes[1, 1].set_title('Approximate Variance Explained')
+            axes[1, 1].set_title(f'Approximate Variance Explained (K={n_factors})')
             axes[1, 1].set_xticks(range(n_factors))
             axes[1, 1].set_xticklabels([f'F{i+1}' for i in range(n_factors)])
         else:
             axes[1, 1].text(0.5, 0.5, 'Cannot compute\nvariance explained',
                            ha='center', va='center', transform=axes[1, 1].transAxes)
+            axes[1, 1].set_title(f'Approximate Variance Explained (K={n_factors})')
 
-        plt.suptitle('Factor Analysis Summary', fontsize=16, fontweight='bold')
+        plt.suptitle(f'Factor Analysis Summary (K={n_factors})', fontsize=16, fontweight='bold')
         plt.tight_layout()
 
         if save_path:

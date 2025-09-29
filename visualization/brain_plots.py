@@ -5,7 +5,7 @@ Brain visualization module for neuroimaging data.
 import json
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -89,7 +89,9 @@ class BrainVisualizer:
 
                 # Create factor loading distribution plot
                 if isinstance(W, list) and len(W) > 0:
-                    self._plot_factor_loading_distribution(W, plot_dir)
+                    # For list-type W (multiple views), create summary plot for first view
+                    feature_info = self._prepare_feature_info_for_plotting()
+                    self._plot_factor_loading_distribution(W[0][:, 0], 0, plot_dir, feature_info)
 
                 # Create basic spatial analysis plot
                 self._plot_basic_factor_summary(W, Z, plot_dir)
@@ -295,8 +297,10 @@ class BrainVisualizer:
                     factor_loadings = W[:, factor_idx]
 
                     # Create statistical summary plot
+                    # Prepare feature information for interpretable plots
+                    feature_info = self._prepare_feature_info_for_plotting()
                     self._plot_factor_loading_distribution(
-                        factor_loadings, factor_idx, plot_dir
+                        factor_loadings, factor_idx, plot_dir, feature_info
                     )
 
                     factor_maps[f"factor_{factor_idx + 1}"] = {
@@ -315,6 +319,9 @@ class BrainVisualizer:
                     continue
 
             logger.info(f"Created brain maps for {len(factor_maps)} factors")
+
+            logger.info(f"Created brain maps for {len(factor_maps)} factors")
+
             return factor_maps
 
         except Exception as e:
@@ -322,9 +329,17 @@ class BrainVisualizer:
             return {}
 
     def _plot_factor_loading_distribution(
-        self, loadings: np.ndarray, factor_idx: int, plot_dir: Path
+        self, loadings: np.ndarray, factor_idx: int, plot_dir: Path,
+        feature_info: Dict = None
     ):
-        """Plot distribution of factor loadings."""
+        """Plot distribution of factor loadings with interpretable feature information.
+
+        Args:
+            loadings: Factor loading values
+            factor_idx: Index of the factor
+            plot_dir: Directory to save plots
+            feature_info: Dictionary containing view_names, Dm, and feature_names for interpretation
+        """
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         fig.suptitle(
             f"Factor {factor_idx + 1} Loading Analysis", fontsize=16, fontweight="bold"
@@ -347,9 +362,12 @@ class BrainVisualizer:
         axes[0, 1].set_xlabel("|Loading Value|")
         axes[0, 1].set_ylabel("Frequency")
 
-        # Top loadings
+        # Top loadings with interpretable feature information
         top_indices = np.argsort(np.abs(loadings))[-20:]
         top_loadings = loadings[top_indices]
+
+        # Generate meaningful feature labels
+        feature_labels = self._generate_feature_labels(top_indices, feature_info)
 
         axes[1, 0].barh(
             range(len(top_loadings)),
@@ -357,29 +375,49 @@ class BrainVisualizer:
             color=["red" if x < 0 else "blue" for x in top_loadings],
             alpha=0.7,
         )
-        axes[1, 0].set_title("Top 20 Loadings")
+        axes[1, 0].set_title("Top 20 Loadings by Feature")
         axes[1, 0].set_xlabel("Loading Value")
-        axes[1, 0].set_ylabel("Feature Rank")
+        axes[1, 0].set_ylabel("Features")
 
-        # Cumulative explained variance proxy
-        sorted_abs_loadings = np.sort(np.abs(loadings))[::-1]
-        cumulative_loadings = np.cumsum(sorted_abs_loadings**2)
-        cumulative_loadings = cumulative_loadings / cumulative_loadings[-1]
+        # Set meaningful y-tick labels
+        axes[1, 0].set_yticks(range(len(feature_labels)))
+        axes[1, 0].set_yticklabels(feature_labels, fontsize=8)
 
-        axes[1, 1].plot(
-            range(1, len(cumulative_loadings) + 1),
-            cumulative_loadings,
-            "b-",
-            linewidth=2,
-        )
-        axes[1, 1].axhline(
-            y=0.8, color="red", linestyle="--", alpha=0.7, label="80% threshold"
-        )
-        axes[1, 1].set_title("Cumulative Loading Contribution")
-        axes[1, 1].set_xlabel("Feature Index (sorted by loading magnitude)")
-        axes[1, 1].set_ylabel("Cumulative Proportion")
-        axes[1, 1].legend()
-        axes[1, 1].grid(True, alpha=0.3)
+        # Add grid for better readability
+        axes[1, 0].grid(True, alpha=0.3, axis='x')
+
+        # Loading contribution by brain region/view (more interpretable than cumulative)
+        if feature_info and feature_info.get("view_names") and feature_info.get("Dm"):
+            view_names = feature_info["view_names"]
+            Dm = feature_info["Dm"]
+
+            # Calculate mean absolute loading for each view
+            view_contributions = []
+            view_labels = []
+            cumulative_start = 0
+
+            for view_name, view_dim in zip(view_names, Dm):
+                if cumulative_start + view_dim <= len(loadings):
+                    view_loadings = loadings[cumulative_start:cumulative_start + view_dim]
+                    mean_abs_loading = np.mean(np.abs(view_loadings))
+                    view_contributions.append(mean_abs_loading)
+                    view_labels.append(view_name)
+                    cumulative_start += view_dim
+
+            if view_contributions:
+                colors = ['lightcoral' if 'clinical' in label.lower() else 'skyblue' for label in view_labels]
+                axes[1, 1].bar(view_labels, view_contributions, color=colors, alpha=0.7)
+                axes[1, 1].set_title("Mean |Loading| by Brain Region")
+                axes[1, 1].set_xlabel("Brain Region / View")
+                axes[1, 1].set_ylabel("Mean |Loading|")
+                axes[1, 1].tick_params(axis='x', rotation=45)
+                axes[1, 1].grid(True, alpha=0.3, axis='y')
+            else:
+                # Fallback to cumulative plot
+                self._plot_cumulative_loadings(axes[1, 1], loadings)
+        else:
+            # Fallback to cumulative plot
+            self._plot_cumulative_loadings(axes[1, 1], loadings)
 
         plt.tight_layout()
         plt.savefig(
@@ -388,6 +426,170 @@ class BrainVisualizer:
             bbox_inches="tight",
         )
         plt.close()
+
+    def _plot_cumulative_loadings(self, ax, loadings: np.ndarray):
+        """Plot cumulative loading contribution as fallback."""
+        sorted_abs_loadings = np.sort(np.abs(loadings))[::-1]
+        cumulative_loadings = np.cumsum(sorted_abs_loadings**2)
+        cumulative_loadings = cumulative_loadings / cumulative_loadings[-1]
+
+        ax.plot(
+            range(1, len(cumulative_loadings) + 1),
+            cumulative_loadings,
+            "b-",
+            linewidth=2,
+        )
+        ax.axhline(
+            y=0.8, color="red", linestyle="--", alpha=0.7, label="80% threshold"
+        )
+        ax.set_title("Cumulative Loading Contribution")
+        ax.set_xlabel("Feature Index (sorted by loading magnitude)")
+        ax.set_ylabel("Cumulative Proportion")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+    def _generate_feature_labels(self, feature_indices: np.ndarray, feature_info: Dict = None) -> List[str]:
+        """Generate meaningful labels for features based on their indices and available metadata.
+
+        Args:
+            feature_indices: Array of feature indices to label
+            feature_info: Dictionary containing view_names, Dm, and feature_names
+
+        Returns:
+            List of meaningful feature labels
+        """
+        if not feature_info:
+            return [f"Feature_{i}" for i in feature_indices]
+
+        view_names = feature_info.get("view_names", [])
+        Dm = feature_info.get("Dm", [])
+        feature_names = feature_info.get("feature_names", {})
+
+        if not view_names or not Dm:
+            return [f"Feature_{i}" for i in feature_indices]
+
+        labels = []
+        for idx in feature_indices:
+            label = self._get_feature_label_for_index(idx, view_names, Dm, feature_names)
+            labels.append(label)
+
+        return labels
+
+    def _get_feature_label_for_index(self, global_idx: int, view_names: List[str],
+                                   Dm: List[int], feature_names: Dict) -> str:
+        """Get a meaningful label for a specific feature index.
+
+        Args:
+            global_idx: Global feature index across all views
+            view_names: List of view names
+            Dm: List of dimensions for each view
+            feature_names: Dictionary mapping view names to feature name lists
+
+        Returns:
+            Meaningful feature label
+        """
+        # Find which view this feature belongs to
+        cumulative_start = 0
+        for view_idx, (view_name, view_dim) in enumerate(zip(view_names, Dm)):
+            if cumulative_start <= global_idx < cumulative_start + view_dim:
+                local_idx = global_idx - cumulative_start
+
+                # Use actual feature names if available
+                if view_name in feature_names and local_idx < len(feature_names[view_name]):
+                    actual_name = feature_names[view_name][local_idx]
+                    return f"{actual_name} ({view_name})"
+
+                # Generate meaningful names based on view type
+                if 'clinical' in view_name.lower():
+                    # Load clinical variable names
+                    try:
+                        import pandas as pd
+                        from pathlib import Path
+                        clinical_paths = [
+                            Path("qMAP-PD_data/data_clinical/pd_motor_gfa_data.tsv"),
+                            Path("../qMAP-PD_data/data_clinical/pd_motor_gfa_data.tsv"),
+                            Path("./data_clinical/pd_motor_gfa_data.tsv")
+                        ]
+                        for path in clinical_paths:
+                            if path.exists():
+                                clinical_df = pd.read_csv(path, sep="\t")
+                                clinical_names = [col for col in clinical_df.columns if col != 'sid']
+                                if local_idx < len(clinical_names):
+                                    return f"{clinical_names[local_idx]} (clinical)"
+                                break
+                    except Exception:
+                        pass
+                    return f"Clinical_var_{local_idx}"
+
+                elif any(region in view_name.lower() for region in ['sn', 'substantia', 'putamen', 'lentiform']):
+                    # Brain region voxels
+                    region_map = {
+                        'sn': 'SubstantiaNigra', 'substantia': 'SubstantiaNigra',
+                        'putamen': 'Putamen', 'lentiform': 'Lentiform'
+                    }
+                    region_name = next((region_map[k] for k in region_map.keys()
+                                      if k in view_name.lower()), view_name)
+                    return f"{region_name}_voxel_{local_idx}"
+
+                else:
+                    # Generic view feature
+                    return f"{view_name}_feature_{local_idx}"
+
+            cumulative_start += view_dim
+
+        # Fallback if index is out of bounds
+        return f"Feature_{global_idx}"
+
+
+    def _prepare_feature_info_for_plotting(self) -> Dict:
+        """Prepare feature information for interpretable plotting.
+
+        Returns:
+            Dictionary containing view names, dimensions, and feature names
+        """
+        try:
+            # Load position files to get brain region dimensions
+            from pathlib import Path
+            import pandas as pd
+
+            data_dir = Path("qMAP-PD_data")
+            position_files = {
+                "sn": data_dir / "position_lookup" / "position_sn_voxels.tsv",
+                "putamen": data_dir / "position_lookup" / "position_putamen_voxels.tsv",
+                "lentiform": data_dir / "position_lookup" / "position_lentiform_voxels.tsv"
+            }
+
+            view_names = []
+            Dm = []
+            feature_names = {}
+
+            # Load brain region dimensions
+            for region_name, pos_file in position_files.items():
+                if pos_file.exists():
+                    positions = pd.read_csv(pos_file, sep="\t", header=None).values.flatten()
+                    view_names.append(region_name)
+                    Dm.append(len(positions))
+                    # Generate voxel names (could be enhanced with actual coordinates)
+                    feature_names[region_name] = [f"{region_name}_voxel_{i}" for i in range(len(positions))]
+
+            # Load clinical variable names
+            clinical_file = data_dir / "data_clinical" / "pd_motor_gfa_data.tsv"
+            if clinical_file.exists():
+                clinical_df = pd.read_csv(clinical_file, sep="\t")
+                clinical_names = [col for col in clinical_df.columns if col != 'sid']
+                view_names.append("clinical")
+                Dm.append(len(clinical_names))
+                feature_names["clinical"] = clinical_names
+
+            return {
+                "view_names": view_names,
+                "Dm": Dm,
+                "feature_names": feature_names
+            }
+
+        except Exception as e:
+            logger.warning(f"Could not prepare feature info for plotting: {e}")
+            return {}
 
     def _analyze_spatial_coherence(self, results_dir: Path, plot_dir: Path) -> Dict:
         """Analyze spatial coherence of factors."""

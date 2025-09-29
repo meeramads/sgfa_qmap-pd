@@ -395,23 +395,152 @@ class ModelRunner:
             if "W" in samples:
                 import numpy as np
 
-                # Save factor loadings as numpy array for easy access
-                W_file = output_dir / f"[{run_id}]Factor_loadings_W.npy"
+                # Extract factor loadings
                 W = samples["W"]
                 if hasattr(W, 'mean'):  # If it's MCMC samples, take mean
                     W = W.mean(axis=0)
-                np.save(W_file, W)
+
+                # Save factor loadings as CSV file for easy access
+                W_csv_file = output_dir / f"[{run_id}]Factor_loadings_W.csv"
+                import pandas as pd
+                W_df = pd.DataFrame(W, columns=[f"Factor_{i+1}" for i in range(W.shape[1])])
+                W_df.index.name = "Feature_Index"
+                W_df.to_csv(W_csv_file, index=True)
+                logger.info(f"Saved factor loadings CSV: {W_csv_file}")
+
+                # Save weight vectors in concatenated volume-matrix format (like original data)
+                self._save_concatenated_weight_vectors(W, output_dir, run_id)
 
             if "Z" in samples:
-                # Save factor scores
-                Z_file = output_dir / f"[{run_id}]Factor_scores_Z.npy"
+                # Extract factor scores
                 Z = samples["Z"]
                 if hasattr(Z, 'mean'):  # If it's MCMC samples, take mean
                     Z = Z.mean(axis=0)
-                np.save(Z_file, Z)
+
+                # Save factor scores as CSV file for easy access
+                Z_csv_file = output_dir / f"[{run_id}]Factor_scores_Z.csv"
+                Z_df = pd.DataFrame(Z, columns=[f"Factor_{i+1}" for i in range(Z.shape[1])])
+                Z_df.index.name = "Subject_Index"
+                Z_df.to_csv(Z_csv_file, index=True)
+                logger.info(f"Saved factor scores CSV: {Z_csv_file}")
 
             logger.info(f"💾 Run {run_id} results saved to {output_dir}")
 
         except Exception as e:
             logger.error(f"Failed to save run {run_id} results: {e}")
             # Don't fail the entire run just because saving failed
+
+    def _save_concatenated_weight_vectors(self, W: np.ndarray, output_dir: Path, run_id: int):
+        """Save weight vectors in concatenated format similar to original volume matrices.
+
+        This creates separate files for each brain region (like volume_sn_voxels.tsv)
+        with weights organized as: rows = factors, columns = voxels within that region.
+        """
+        try:
+            import numpy as np
+            import pandas as pd
+            from pathlib import Path
+
+            logger.info(f"💾 Saving concatenated weight vectors for run {run_id}...")
+
+            # Load position files to determine voxel counts for each region
+            data_dir = Path("qMAP-PD_data")
+            position_files = {
+                "sn": data_dir / "position_lookup" / "position_sn_voxels.tsv",
+                "putamen": data_dir / "position_lookup" / "position_putamen_voxels.tsv",
+                "lentiform": data_dir / "position_lookup" / "position_lentiform_voxels.tsv"
+            }
+
+            # Get dimensions for each region
+            region_dims = {}
+            feature_start = 0
+
+            for region_name, pos_file in position_files.items():
+                if pos_file.exists():
+                    positions = pd.read_csv(pos_file, sep="\t", header=None).values.flatten()
+                    region_dim = len(positions)
+                    region_dims[region_name] = {
+                        "start": feature_start,
+                        "end": feature_start + region_dim,
+                        "dim": region_dim
+                    }
+                    feature_start += region_dim
+                    logger.debug(f"Region {region_name}: {region_dim} voxels (features {region_dims[region_name]['start']}-{region_dims[region_name]['end']-1})")
+                else:
+                    logger.warning(f"Position file not found: {pos_file}")
+
+            # Extract and save weight vectors for each brain region
+            for region_name, dims in region_dims.items():
+                # Extract weights for this region: W[start:end, :] -> (region_voxels, n_factors)
+                region_weights = W[dims["start"]:dims["end"], :]
+
+                # Transpose to match volume matrix format: (n_factors, region_voxels)
+                # This makes each row a factor and each column a voxel (like subjects x voxels in original)
+                region_weights_transposed = region_weights.T
+
+                # Save as TSV file similar to volume_sn_voxels.tsv format
+                weight_file = output_dir / f"[{run_id}]weights_{region_name}_voxels.tsv"
+                np.savetxt(weight_file, region_weights_transposed, delimiter='\t', fmt='%.6f')
+
+                logger.info(f"✅ Saved {region_name} weights: {weight_file} ({region_weights_transposed.shape[0]} factors × {region_weights_transposed.shape[1]} voxels)")
+
+            # Also save clinical weights separately
+            clinical_file = data_dir / "data_clinical" / "pd_motor_gfa_data.tsv"
+            if clinical_file.exists():
+                clinical_df = pd.read_csv(clinical_file, sep="\t")
+                clinical_features = clinical_df.shape[1] - 1  # Minus ID column
+
+                if feature_start + clinical_features <= W.shape[0]:
+                    # Extract clinical weights
+                    clinical_weights = W[feature_start:feature_start + clinical_features, :]
+                    clinical_weights_transposed = clinical_weights.T  # (n_factors, n_clinical_vars)
+
+                    # Save clinical weights with variable names as column headers
+                    clinical_names = [col for col in clinical_df.columns if col != 'sid']
+                    clinical_weight_file = output_dir / f"[{run_id}]weights_clinical_variables.tsv"
+
+                    # Create DataFrame with proper column names
+                    clinical_df_weights = pd.DataFrame(
+                        clinical_weights_transposed,
+                        columns=clinical_names,
+                        index=[f"Factor_{i+1}" for i in range(clinical_weights_transposed.shape[0])]
+                    )
+                    clinical_df_weights.to_csv(clinical_weight_file, sep='\t', float_format='%.6f')
+
+                    logger.info(f"✅ Saved clinical weights: {clinical_weight_file} ({clinical_weights_transposed.shape[0]} factors × {len(clinical_names)} variables)")
+                else:
+                    logger.warning(f"Weight matrix too small for expected clinical features: {W.shape[0]} < {feature_start + clinical_features}")
+
+            # Create a summary file explaining the format
+            summary_file = output_dir / f"[{run_id}]weight_vectors_README.txt"
+            with open(summary_file, 'w') as f:
+                f.write(f"Weight Vector Storage Format (Run {run_id})\n")
+                f.write("=" * 50 + "\n\n")
+                f.write("This directory contains factor loadings (weight vectors) stored in a format\n")
+                f.write("similar to the original volume matrices for easy reconstruction:\n\n")
+
+                f.write("Brain Region Files:\n")
+                for region_name, dims in region_dims.items():
+                    f.write(f"  [{run_id}]weights_{region_name}_voxels.tsv\n")
+                    f.write(f"    - Format: {W.shape[1]} factors × {dims['dim']} voxels\n")
+                    f.write(f"    - Each row = one factor's weights for {region_name} voxels\n")
+                    f.write(f"    - Each column = one voxel's weights across all factors\n")
+                    f.write(f"    - Voxel positions defined in: position_{region_name}_voxels.tsv\n\n")
+
+                f.write("Clinical Variables File:\n")
+                f.write(f"  [{run_id}]weights_clinical_variables.tsv\n")
+                f.write(f"    - Format: {W.shape[1]} factors × {clinical_features if 'clinical_features' in locals() else 'N'} clinical variables\n")
+                f.write(f"    - Each row = one factor's weights for clinical variables\n")
+                f.write(f"    - Column names = actual clinical variable names (age, sex, etc.)\n\n")
+
+                f.write("Usage:\n")
+                f.write("  - Use position files to map voxel weights back to 3D brain coordinates\n")
+                f.write("  - Combine with original volume matrix structure for brain reconstruction\n")
+                f.write("  - Clinical weights show factor relationships to demographic/clinical measures\n")
+
+            logger.info(f"✅ Saved weight vector summary: {summary_file}")
+            logger.info(f"💾 Concatenated weight vector storage completed for run {run_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to save concatenated weight vectors for run {run_id}: {e}")
+            # Don't fail the entire run just because this additional saving failed

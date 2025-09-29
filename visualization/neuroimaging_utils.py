@@ -597,6 +597,7 @@ class FactorToMRIMapper:
 
             # Convert 1-based MATLAB indices to 0-based Python indices
             positions_python = positions.astype(int) - 1
+            logger.debug(f"Converting 1-based MATLAB indices to 0-based for {roi_name} (min: {np.min(positions_python)}, max: {np.max(positions_python)})")
 
             # Bounds check
             flat_n = np.prod(ref_data.shape)
@@ -610,7 +611,9 @@ class FactorToMRIMapper:
                 weights = weights[valid_indices]
 
             # Convert linear indices to 3D coordinates
-            coords = np.unravel_index(positions_python, ref_data.shape)
+            # Use 'F' (Fortran/MATLAB) order to match MATLAB indexing convention
+            coords = np.unravel_index(positions_python, ref_data.shape, order='F')
+            logger.debug(f"Mapping {len(coords[0])} voxels for {roi_name}, shape: {ref_data.shape}")
 
             # Assign weights to voxel positions
             output_img[coords] = weights.astype(np.float32)
