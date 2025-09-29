@@ -152,7 +152,7 @@ class FactorVisualizer:
         axes[0, 0].bar(range(len(loading_mags)), loading_mags)
         axes[0, 0].set_xlabel("Factor")
         axes[0, 0].set_ylabel("Mean |Loading|")
-        axes[0, 0].set_title("Factor Loading Magnitudes")
+        axes[0, 0].set_title("Factor Loading Magnitude Distributions")
         axes[0, 0].set_xticks(range(len(loading_mags)))
         axes[0, 0].set_xticklabels([f"F{i + 1}" for i in range(len(loading_mags))])
 
@@ -161,14 +161,14 @@ class FactorVisualizer:
         axes[0, 1].bar(range(len(score_vars)), score_vars)
         axes[0, 1].set_xlabel("Factor")
         axes[0, 1].set_ylabel("Variance")
-        axes[0, 1].set_title("Factor Score Variance")
+        axes[0, 1].set_title("Inter-Subject Factor Score Variance")
         axes[0, 1].set_xticks(range(len(score_vars)))
         axes[0, 1].set_xticklabels([f"F{i + 1}" for i in range(len(score_vars))])
 
         # 3. Factor correlation matrix
         factor_corr = np.corrcoef(Z.T)
         im = axes[1, 0].imshow(factor_corr, cmap="RdBu_r", vmin=-1, vmax=1)
-        axes[1, 0].set_title("Factor Correlation Matrix")
+        axes[1, 0].set_title("Inter-Factor Correlation Matrix")
         axes[1, 0].set_xlabel("Factor")
         axes[1, 0].set_ylabel("Factor")
         plt.colorbar(im, ax=axes[1, 0])
@@ -185,7 +185,7 @@ class FactorVisualizer:
         axes[1, 1].bar(range(len(factor_vars)), factor_vars)
         axes[1, 1].set_xlabel("Factor")
         axes[1, 1].set_ylabel("% Variance Explained")
-        axes[1, 1].set_title("Approximate Variance Explained")
+        axes[1, 1].set_title("Data Variance Explained by Factor")
         axes[1, 1].set_xticks(range(len(factor_vars)))
         axes[1, 1].set_xticklabels([f"F{i + 1}" for i in range(len(factor_vars))])
 
@@ -235,8 +235,8 @@ class FactorVisualizer:
             )
             bottom += view_contributions[m, :]
 
-        ax.set_xlabel("Factor")
-        ax.set_ylabel("Mean |Loading|")
+        ax.set_xlabel("Latent Factor")
+        ax.set_ylabel("Mean Absolute Loading")
         ax.set_title(
             "View Contributions to Each Factor", fontsize=14, fontweight="bold"
         )
@@ -357,27 +357,27 @@ class FactorVisualizer:
         # True vs estimated loadings
         im1 = axes[0, 0].imshow(W_true.T, cmap='RdBu_r', aspect='auto')
         axes[0, 0].set_title('True Factor Loadings')
-        axes[0, 0].set_xlabel('Features')
-        axes[0, 0].set_ylabel('Factors')
+        axes[0, 0].set_xlabel('Feature Index')
+        axes[0, 0].set_ylabel('Latent Factor (F1-FK)')
         plt.colorbar(im1, ax=axes[0, 0])
 
         im2 = axes[0, 1].imshow(W_est.T, cmap='RdBu_r', aspect='auto')
         axes[0, 1].set_title('Estimated Factor Loadings')
-        axes[0, 1].set_xlabel('Features')
-        axes[0, 1].set_ylabel('Factors')
+        axes[0, 1].set_xlabel('Feature Index')
+        axes[0, 1].set_ylabel('Latent Factor (F1-FK)')
         plt.colorbar(im2, ax=axes[0, 1])
 
         # True vs estimated scores
         im3 = axes[1, 0].imshow(Z_true.T, cmap='RdBu_r', aspect='auto')
         axes[1, 0].set_title('True Factor Scores')
-        axes[1, 0].set_xlabel('Subjects')
-        axes[1, 0].set_ylabel('Factors')
+        axes[1, 0].set_xlabel('Subject ID')
+        axes[1, 0].set_ylabel('Latent Factor (F1-FK)')
         plt.colorbar(im3, ax=axes[1, 0])
 
         im4 = axes[1, 1].imshow(Z_est.T, cmap='RdBu_r', aspect='auto')
         axes[1, 1].set_title('Estimated Factor Scores')
-        axes[1, 1].set_xlabel('Subjects')
-        axes[1, 1].set_ylabel('Factors')
+        axes[1, 1].set_xlabel('Subject ID')
+        axes[1, 1].set_ylabel('Latent Factor (F1-FK)')
         plt.colorbar(im4, ax=axes[1, 1])
 
         plt.suptitle('Factor Comparison: True vs Estimated', fontsize=16, fontweight='bold')
@@ -517,8 +517,8 @@ class FactorVisualizer:
             axes[0, 0].bar(x + i*width, view_contributions[i], width,
                           label=view_name, alpha=0.7)
 
-        axes[0, 0].set_xlabel('Factor')
-        axes[0, 0].set_ylabel('Mean |Loading|')
+        axes[0, 0].set_xlabel('Latent Factor')
+        axes[0, 0].set_ylabel('Mean Absolute Loading')
         axes[0, 0].set_title(f'Factor Contributions by View (K={n_factors})')
         axes[0, 0].set_xticks(x + width * (len(view_names)-1) / 2)
         axes[0, 0].set_xticklabels([f'F{i+1}' for i in range(n_factors)])
@@ -527,8 +527,8 @@ class FactorVisualizer:
         # 2. Factor score distributions
         for i in range(n_factors):  # Show all factors consistently
             axes[0, 1].hist(Z[:, i], bins=20, alpha=0.6, label=f'Factor {i+1}')
-        axes[0, 1].set_xlabel('Score Value')
-        axes[0, 1].set_ylabel('Frequency')
+        axes[0, 1].set_xlabel('Factor Score Value')
+        axes[0, 1].set_ylabel('Subject Frequency')
         axes[0, 1].set_title(f'Factor Score Distributions (K={n_factors})')
         axes[0, 1].legend()
 
@@ -537,8 +537,8 @@ class FactorVisualizer:
             factor_corr = np.corrcoef(Z.T)
             im = axes[1, 0].imshow(factor_corr, cmap='RdBu_r', vmin=-1, vmax=1)
             axes[1, 0].set_title(f'Inter-Factor Correlations (K={n_factors})')
-            axes[1, 0].set_xlabel('Factor')
-            axes[1, 0].set_ylabel('Factor')
+            axes[1, 0].set_xlabel('Latent Factor')
+            axes[1, 0].set_ylabel('Latent Factor')
             axes[1, 0].set_xticks(range(n_factors))
             axes[1, 0].set_xticklabels([f'F{i+1}' for i in range(n_factors)])
             axes[1, 0].set_yticks(range(n_factors))
@@ -560,8 +560,8 @@ class FactorVisualizer:
                 factor_vars.append(factor_var / total_var * 100)
 
             axes[1, 1].bar(range(n_factors), factor_vars, alpha=0.7)
-            axes[1, 1].set_xlabel('Factor')
-            axes[1, 1].set_ylabel('% Variance Explained')
+            axes[1, 1].set_xlabel('Latent Factor')
+            axes[1, 1].set_ylabel('% Data Variance Explained')
             axes[1, 1].set_title(f'Approximate Variance Explained (K={n_factors})')
             axes[1, 1].set_xticks(range(n_factors))
             axes[1, 1].set_xticklabels([f'F{i+1}' for i in range(n_factors)])

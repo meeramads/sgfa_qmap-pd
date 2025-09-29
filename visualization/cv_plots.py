@@ -116,9 +116,9 @@ class CrossValidationVisualizer:
 
             # Box plot of fold scores
             axes[0, 0].boxplot(fold_scores, patch_artist=True)
-            axes[0, 0].set_title("Performance Across Folds")
-            axes[0, 0].set_ylabel("Score")
-            axes[0, 0].set_xlabel("Folds")
+            axes[0, 0].set_title("Cross-Validation Performance Distribution")
+            axes[0, 0].set_ylabel("Validation Score")
+            axes[0, 0].set_xlabel("CV Fold Number")
 
             # Performance trend
             axes[0, 1].plot(
@@ -143,9 +143,9 @@ class CrossValidationVisualizer:
                 color="red",
                 label=f"±1 SD: {np.std(fold_scores):.4f}",
             )
-            axes[0, 1].set_title("Performance Trend Across Folds")
-            axes[0, 1].set_xlabel("Fold Number")
-            axes[0, 1].set_ylabel("Score")
+            axes[0, 1].set_title("Cross-Validation Performance Stability")
+            axes[0, 1].set_xlabel("CV Fold Number")
+            axes[0, 1].set_ylabel("Validation Score")
             axes[0, 1].legend()
             axes[0, 1].grid(True, alpha=0.3)
 
@@ -155,9 +155,9 @@ class CrossValidationVisualizer:
             axes[1, 0].bar(
                 range(len(complexity)), complexity, alpha=0.7, color="skyblue"
             )
-            axes[1, 0].set_title("Model Complexity per Fold")
-            axes[1, 0].set_xlabel("Fold Number")
-            axes[1, 0].set_ylabel("Effective Number of Parameters")
+            axes[1, 0].set_title("Model Complexity Across CV Folds")
+            axes[1, 0].set_xlabel("CV Fold Number")
+            axes[1, 0].set_ylabel("Model Complexity (Parameters)")
 
         # Training vs validation performance
         if "train_scores" in cv_results and "val_scores" in cv_results:
@@ -168,9 +168,9 @@ class CrossValidationVisualizer:
             axes[1, 1].plot(
                 folds, cv_results["val_scores"], "ro-", label="Validation", linewidth=2
             )
-            axes[1, 1].set_title("Training vs Validation Performance")
-            axes[1, 1].set_xlabel("Fold Number")
-            axes[1, 1].set_ylabel("Score")
+            axes[1, 1].set_title("Training vs Validation Score Comparison")
+            axes[1, 1].set_xlabel("CV Fold Number")
+            axes[1, 1].set_ylabel("Performance Score")
             axes[1, 1].legend()
             axes[1, 1].grid(True, alpha=0.3)
 
@@ -211,8 +211,8 @@ class CrossValidationVisualizer:
         )
 
         plt.title("Factor Stability Across CV Folds", fontsize=14, fontweight="bold")
-        plt.xlabel("CV Fold")
-        plt.ylabel("Factor Index")
+        plt.xlabel("Cross-Validation Fold")
+        plt.ylabel("Latent Factor (F1-FK)")
         plt.tight_layout()
         save_plot(plot_path / "factor_stability_heatmap.png")
 
@@ -234,8 +234,8 @@ class CrossValidationVisualizer:
             importance = list(hp_results["param_importance"].values())
 
             axes[0, 0].barh(params, importance, alpha=0.7, color="lightcoral")
-            axes[0, 0].set_title("Parameter Importance")
-            axes[0, 0].set_xlabel("Importance Score")
+            axes[0, 0].set_title("Hyperparameter Importance Ranking")
+            axes[0, 0].set_xlabel("Hyperparameter Importance")
 
         # Best parameters visualization
         if "best_params" in hp_results:
@@ -244,17 +244,17 @@ class CrossValidationVisualizer:
             param_values = list(best_params.values())
 
             axes[0, 1].bar(param_names, param_values, alpha=0.7, color="lightgreen")
-            axes[0, 1].set_title("Best Parameters")
-            axes[0, 1].set_ylabel("Parameter Value")
+            axes[0, 1].set_title("Optimal Hyperparameter Values")
+            axes[0, 1].set_ylabel("Optimal Parameter Value")
             axes[0, 1].tick_params(axis="x", rotation=45)
 
         # Optimization convergence
         if "convergence_history" in hp_results:
             history = hp_results["convergence_history"]
             axes[1, 0].plot(history, "b-", linewidth=2)
-            axes[1, 0].set_title("Optimization Convergence")
-            axes[1, 0].set_xlabel("Iteration")
-            axes[1, 0].set_ylabel("Best Score")
+            axes[1, 0].set_title("Hyperparameter Optimization Convergence")
+            axes[1, 0].set_xlabel("Optimization Iteration")
+            axes[1, 0].set_ylabel("Best Validation Score")
             axes[1, 0].grid(True, alpha=0.3)
 
         # Parameter correlation matrix if available

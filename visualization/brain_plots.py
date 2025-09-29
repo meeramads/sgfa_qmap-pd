@@ -350,17 +350,17 @@ class BrainVisualizer:
             loadings, bins=50, alpha=0.7, color="skyblue", edgecolor="black"
         )
         axes[0, 0].axvline(x=0, color="red", linestyle="--", alpha=0.7)
-        axes[0, 0].set_title("Loading Distribution")
-        axes[0, 0].set_xlabel("Loading Value")
-        axes[0, 0].set_ylabel("Frequency")
+        axes[0, 0].set_title(f"Factor {factor_idx + 1} Loading Distribution")
+        axes[0, 0].set_xlabel("Factor Loading Value")
+        axes[0, 0].set_ylabel("Feature Count")
 
         # Absolute loadings
         axes[0, 1].hist(
             np.abs(loadings), bins=50, alpha=0.7, color="lightcoral", edgecolor="black"
         )
-        axes[0, 1].set_title("Absolute Loading Distribution")
-        axes[0, 1].set_xlabel("|Loading Value|")
-        axes[0, 1].set_ylabel("Frequency")
+        axes[0, 1].set_title(f"Factor {factor_idx + 1} Absolute Loading Distribution")
+        axes[0, 1].set_xlabel("Absolute Factor Loading")
+        axes[0, 1].set_ylabel("Feature Count")
 
         # Top loadings with interpretable feature information
         top_indices = np.argsort(np.abs(loadings))[-20:]
@@ -375,9 +375,9 @@ class BrainVisualizer:
             color=["red" if x < 0 else "blue" for x in top_loadings],
             alpha=0.7,
         )
-        axes[1, 0].set_title("Top 20 Loadings by Feature")
-        axes[1, 0].set_xlabel("Loading Value")
-        axes[1, 0].set_ylabel("Features")
+        axes[1, 0].set_title(f"Factor {factor_idx + 1}: Top 20 Feature Loadings")
+        axes[1, 0].set_xlabel("Factor Loading Value")
+        axes[1, 0].set_ylabel("Brain Region Features")
 
         # Set meaningful y-tick labels
         axes[1, 0].set_yticks(range(len(feature_labels)))
@@ -407,9 +407,9 @@ class BrainVisualizer:
             if view_contributions:
                 colors = ['lightcoral' if 'clinical' in label.lower() else 'skyblue' for label in view_labels]
                 axes[1, 1].bar(view_labels, view_contributions, color=colors, alpha=0.7)
-                axes[1, 1].set_title("Mean |Loading| by Brain Region")
-                axes[1, 1].set_xlabel("Brain Region / View")
-                axes[1, 1].set_ylabel("Mean |Loading|")
+                axes[1, 1].set_title(f"Factor {factor_idx + 1}: Mean Loading by Brain Region")
+                axes[1, 1].set_xlabel("Brain Region / Data View")
+                axes[1, 1].set_ylabel("Mean Absolute Loading")
                 axes[1, 1].tick_params(axis='x', rotation=45)
                 axes[1, 1].grid(True, alpha=0.3, axis='y')
             else:
@@ -444,7 +444,7 @@ class BrainVisualizer:
         )
         ax.set_title("Cumulative Loading Contribution")
         ax.set_xlabel("Feature Index (sorted by loading magnitude)")
-        ax.set_ylabel("Cumulative Proportion")
+        ax.set_ylabel("Cumulative Loading Contribution")
         ax.legend()
         ax.grid(True, alpha=0.3)
 
