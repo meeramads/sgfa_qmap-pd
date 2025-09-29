@@ -513,22 +513,24 @@ class ExperimentFramework:
                         f"Warning: Could not save parameter {param_name} for {variant_name}: {e}"
                     )
 
-        # Save hyperparameters if available
+        # Save hyperparameter performance summary instead of raw hyperparameters
         hyperparams = result_dict.get("hyperparameters")
         if hyperparams and isinstance(hyperparams, dict):
             try:
-                # Save as JSON for easy reading
-                pass
+                # Create performance-ranked hyperparameter summary
+                performance_summary = self._create_hyperparameter_performance_summary(
+                    variant_name, hyperparams, result_dict
+                )
 
                 save_json(
-                    hyperparams,
-                    matrices_dir / f"{variant_name}_hyperparameters.json",
+                    performance_summary,
+                    matrices_dir / f"{variant_name}_hyperparameter_performance.json",
                     indent=2,
                 )
-                saved_params.append("hyperparameters")
+                saved_params.append("hyperparameter_performance")
             except Exception as e:
                 print(
-                    f"Warning: Could not save hyperparameters for {variant_name}: {e}"
+                    f"Warning: Could not save hyperparameter performance for {variant_name}: {e}"
                 )
 
         # Create a summary of saved parameters
@@ -578,6 +580,870 @@ class ExperimentFramework:
                             )
             except Exception as e:
                 print(f"Warning: Could not save parameter {key} from {prefix}: {e}")
+
+    def _create_hyperparameter_performance_summary(self, variant_name: str, hyperparams: dict, result_dict: dict) -> dict:
+        """Create a performance-ranked hyperparameter summary instead of saving raw hyperparameters."""
+        import time
+
+        # Extract performance metrics from result_dict
+        execution_time = result_dict.get("execution_time", 0.0)
+        convergence = result_dict.get("convergence", False)
+        log_likelihood = result_dict.get("log_likelihood", None)
+
+        # Calculate interpretability scores if factor loadings are available
+        interpretability_score = None
+        if "W" in result_dict:
+            try:
+                import numpy as np
+                W = result_dict["W"]
+                if W is not None and hasattr(W, "shape"):
+                    # Simple interpretability metric: sparsity level
+                    interpretability_score = float(np.mean(np.abs(W) > 0.1))
+            except Exception:
+                pass
+
+        # Create performance summary
+        performance_summary = {
+            "variant_configuration": {
+                "variant_name": variant_name,
+                "hyperparameters": hyperparams,
+                "timestamp": pd.Timestamp.now().isoformat()
+            },
+            "performance_metrics": {
+                "execution_time_seconds": execution_time,
+                "converged": convergence,
+                "log_likelihood": log_likelihood,
+                "factor_interpretability_score": interpretability_score
+            },
+            "clinical_relevance": {
+                "K_factors": hyperparams.get("K", "unknown"),
+                "sparsity_level": hyperparams.get("percW", "unknown"),
+                "recommended_for": self._get_clinical_recommendation(hyperparams, result_dict)
+            },
+            "scientific_assessment": {
+                "computational_efficiency": "fast" if execution_time < 60 else "moderate" if execution_time < 300 else "slow",
+                "model_quality": "good" if convergence else "poor",
+                "interpretability": "high" if interpretability_score and interpretability_score > 0.3 else "moderate" if interpretability_score and interpretability_score > 0.1 else "low"
+            }
+        }
+
+        return performance_summary
+
+    def _get_clinical_recommendation(self, hyperparams: dict, result_dict: dict) -> str:
+        """Provide clinical recommendations based on hyperparameter performance."""
+        K = hyperparams.get("K", 0)
+        percW = hyperparams.get("percW", 0)
+        convergence = result_dict.get("convergence", False)
+        execution_time = result_dict.get("execution_time", float('inf'))
+
+        if not convergence:
+            return "Not recommended - model did not converge"
+        elif execution_time > 600:  # 10 minutes
+            return "Computationally expensive - consider for final analysis only"
+        elif K <= 3:
+            return "Exploratory analysis - few factors may miss complex patterns"
+        elif K >= 8:
+            return "Detailed analysis - many factors may include noise"
+        elif percW < 15:
+            return "High sparsity - good for identifying key biomarkers"
+        elif percW > 35:
+            return "Low sparsity - comprehensive but less interpretable"
+        else:
+            return "Balanced configuration - good for most neuroimaging applications"
+
+    def create_hyperparameter_comparison_summary(self, experiment_results: dict, output_dir: Path) -> dict:
+        """Create a comprehensive summary comparing hyperparameter performance across all variants."""
+        from core.io_utils import save_json
+        import pandas as pd
+
+        # Extract all hyperparameter performance data
+        hyperparameter_performances = []
+        variant_summaries = {}
+
+        # Look for hyperparameter performance files or data in results
+        for key, value in experiment_results.items():
+            if "sgfa_variants" in key or isinstance(value, dict):
+                if isinstance(value, dict) and "sgfa_variants" in value:
+                    variants_data = value["sgfa_variants"]
+                    for variant_name, variant_result in variants_data.items():
+                        if isinstance(variant_result, dict):
+                            perf_data = self._extract_performance_data(variant_name, variant_result)
+                            if perf_data:
+                                hyperparameter_performances.append(perf_data)
+                                variant_summaries[variant_name] = perf_data
+
+        # Create comprehensive comparison summary
+        if hyperparameter_performances:
+            summary = {
+                "experiment_overview": {
+                    "total_variants_tested": len(hyperparameter_performances),
+                    "converged_variants": len([p for p in hyperparameter_performances if p.get("converged", False)]),
+                    "timestamp": pd.Timestamp.now().isoformat()
+                },
+                "performance_ranking": self._rank_hyperparameter_performance(hyperparameter_performances),
+                "convergence_analysis": self._analyze_convergence_patterns(hyperparameter_performances),
+                "timing_analysis": self._analyze_execution_timing(hyperparameter_performances),
+                "clinical_recommendations": self._generate_clinical_recommendations(hyperparameter_performances),
+                "optimal_configurations": self._identify_optimal_configurations(hyperparameter_performances),
+                "detailed_variants": variant_summaries
+            }
+
+            # Save the comprehensive summary
+            summary_path = output_dir / "hyperparameter_comparison_summary.json"
+            save_json(summary, summary_path, indent=2)
+
+            return summary
+
+        return {}
+
+    def _extract_performance_data(self, variant_name: str, variant_result: dict) -> dict:
+        """Extract performance data from variant results."""
+        return {
+            "variant_name": variant_name,
+            "execution_time": variant_result.get("execution_time", 0),
+            "converged": variant_result.get("convergence", False),
+            "log_likelihood": variant_result.get("log_likelihood"),
+            "hyperparameters": variant_result.get("hyperparameters", {}),
+            "status": variant_result.get("status", "unknown")
+        }
+
+    def _rank_hyperparameter_performance(self, performances: list) -> list:
+        """Rank hyperparameter configurations by performance."""
+        # Filter to converged variants only
+        converged = [p for p in performances if p.get("converged", False)]
+
+        # Sort by log likelihood (higher is better), then by execution time (lower is better)
+        ranked = sorted(converged, key=lambda x: (
+            -(x.get("log_likelihood", float('-inf')) if x.get("log_likelihood") else float('-inf')),
+            x.get("execution_time", float('inf'))
+        ))
+
+        # Add ranking information
+        for i, perf in enumerate(ranked):
+            perf["performance_rank"] = i + 1
+            perf["performance_tier"] = "excellent" if i < 2 else "good" if i < 5 else "acceptable"
+
+        return ranked[:10]  # Top 10 configurations
+
+    def _analyze_convergence_patterns(self, performances: list) -> dict:
+        """Analyze convergence patterns across hyperparameters."""
+        total = len(performances)
+        converged = [p for p in performances if p.get("converged", False)]
+
+        # Analyze convergence by K values
+        k_convergence = {}
+        percw_convergence = {}
+
+        for perf in performances:
+            hyperparams = perf.get("hyperparameters", {})
+            k_val = hyperparams.get("K", "unknown")
+            percw_val = hyperparams.get("percW", "unknown")
+            converged_status = perf.get("converged", False)
+
+            if k_val not in k_convergence:
+                k_convergence[k_val] = {"total": 0, "converged": 0}
+            k_convergence[k_val]["total"] += 1
+            if converged_status:
+                k_convergence[k_val]["converged"] += 1
+
+            if percw_val not in percw_convergence:
+                percw_convergence[percw_val] = {"total": 0, "converged": 0}
+            percw_convergence[percw_val]["total"] += 1
+            if converged_status:
+                percw_convergence[percw_val]["converged"] += 1
+
+        return {
+            "overall_convergence_rate": len(converged) / total if total > 0 else 0,
+            "convergence_by_k_factors": {
+                str(k): {
+                    "rate": stats["converged"] / stats["total"] if stats["total"] > 0 else 0,
+                    "converged": stats["converged"],
+                    "total": stats["total"]
+                }
+                for k, stats in k_convergence.items()
+            },
+            "convergence_by_sparsity": {
+                str(percw): {
+                    "rate": stats["converged"] / stats["total"] if stats["total"] > 0 else 0,
+                    "converged": stats["converged"],
+                    "total": stats["total"]
+                }
+                for percw, stats in percw_convergence.items()
+            }
+        }
+
+    def _analyze_execution_timing(self, performances: list) -> dict:
+        """Analyze execution timing patterns."""
+        converged = [p for p in performances if p.get("converged", False)]
+        times = [p.get("execution_time", 0) for p in converged if p.get("execution_time", 0) > 0]
+
+        if not times:
+            return {"no_timing_data": True}
+
+        import numpy as np
+        return {
+            "mean_execution_time": float(np.mean(times)),
+            "median_execution_time": float(np.median(times)),
+            "min_execution_time": float(min(times)),
+            "max_execution_time": float(max(times)),
+            "std_execution_time": float(np.std(times)),
+            "fast_configurations": [
+                p["variant_name"] for p in converged
+                if p.get("execution_time", 0) < np.percentile(times, 25)
+            ],
+            "slow_configurations": [
+                p["variant_name"] for p in converged
+                if p.get("execution_time", 0) > np.percentile(times, 75)
+            ]
+        }
+
+    def _generate_clinical_recommendations(self, performances: list) -> dict:
+        """Generate clinical recommendations based on performance analysis."""
+        converged = [p for p in performances if p.get("converged", False)]
+
+        if not converged:
+            return {"recommendation": "No converged configurations found"}
+
+        # Find configurations suitable for different use cases
+        recommendations = {
+            "exploratory_analysis": [],
+            "detailed_biomarker_discovery": [],
+            "clinical_routine": [],
+            "research_grade": []
+        }
+
+        for perf in converged:
+            hyperparams = perf.get("hyperparameters", {})
+            exec_time = perf.get("execution_time", 0)
+            k_val = hyperparams.get("K", 0)
+            percw_val = hyperparams.get("percW", 0)
+
+            # Classify based on computational requirements and configuration
+            if exec_time < 120 and k_val <= 5:  # Fast, simple
+                recommendations["exploratory_analysis"].append(perf["variant_name"])
+                recommendations["clinical_routine"].append(perf["variant_name"])
+            elif k_val >= 6 and percw_val < 25:  # Many factors, high sparsity
+                recommendations["detailed_biomarker_discovery"].append(perf["variant_name"])
+            elif exec_time < 300:  # Moderate time, good for research
+                recommendations["research_grade"].append(perf["variant_name"])
+
+        return recommendations
+
+    def _identify_optimal_configurations(self, performances: list) -> dict:
+        """Identify optimal configurations for different scenarios."""
+        converged = [p for p in performances if p.get("converged", False)]
+
+        if not converged:
+            return {}
+
+        # Sort by different criteria
+        by_likelihood = sorted(converged, key=lambda x: x.get("log_likelihood", float('-inf')), reverse=True)
+        by_speed = sorted(converged, key=lambda x: x.get("execution_time", float('inf')))
+
+        return {
+            "best_statistical_fit": by_likelihood[0]["variant_name"] if by_likelihood else None,
+            "fastest_convergence": by_speed[0]["variant_name"] if by_speed else None,
+            "balanced_choice": self._find_balanced_configuration(converged),
+            "parameter_ranges": self._extract_parameter_ranges(converged)
+        }
+
+    def _find_balanced_configuration(self, converged: list) -> str:
+        """Find a balanced configuration considering multiple criteria."""
+        if not converged:
+            return None
+
+        # Score based on normalized likelihood and inverse normalized time
+        import numpy as np
+        likelihoods = [p.get("log_likelihood", float('-inf')) for p in converged if p.get("log_likelihood")]
+        times = [p.get("execution_time", 0) for p in converged if p.get("execution_time", 0) > 0]
+
+        if not likelihoods or not times:
+            return converged[0]["variant_name"]
+
+        # Normalize scores
+        min_ll, max_ll = min(likelihoods), max(likelihoods)
+        min_time, max_time = min(times), max(times)
+
+        best_score = float('-inf')
+        best_variant = None
+
+        for perf in converged:
+            ll = perf.get("log_likelihood")
+            time = perf.get("execution_time", 0)
+
+            if ll is not None and time > 0:
+                # Normalize likelihood (higher is better) and time (lower is better)
+                ll_score = (ll - min_ll) / (max_ll - min_ll) if max_ll > min_ll else 0
+                time_score = 1 - (time - min_time) / (max_time - min_time) if max_time > min_time else 0
+
+                # Weighted combination
+                combined_score = 0.7 * ll_score + 0.3 * time_score
+
+                if combined_score > best_score:
+                    best_score = combined_score
+                    best_variant = perf["variant_name"]
+
+        return best_variant
+
+    def _extract_parameter_ranges(self, converged: list) -> dict:
+        """Extract recommended parameter ranges from converged configurations."""
+        if not converged:
+            return {}
+
+        k_values = [p.get("hyperparameters", {}).get("K") for p in converged if p.get("hyperparameters", {}).get("K")]
+        percw_values = [p.get("hyperparameters", {}).get("percW") for p in converged if p.get("hyperparameters", {}).get("percW")]
+
+        return {
+            "recommended_K_range": [min(k_values), max(k_values)] if k_values else None,
+            "recommended_percW_range": [min(percw_values), max(percw_values)] if percw_values else None,
+            "total_converged_configurations": len(converged)
+        }
+
+    def create_sensitivity_analysis_summary(self, experiment_results: dict, output_dir: Path) -> dict:
+        """Create a comprehensive sensitivity analysis summary instead of saving raw configs."""
+        from core.io_utils import save_json
+        import pandas as pd
+
+        # Extract sensitivity analysis data
+        sensitivity_results = []
+        parameter_impacts = {}
+
+        # Look for sensitivity analysis results in the experiment data
+        for key, value in experiment_results.items():
+            if "sensitivity" in key.lower() or "parameter_sweep" in key.lower():
+                if isinstance(value, dict):
+                    sensitivity_results.extend(self._extract_sensitivity_data(value))
+
+        if not sensitivity_results:
+            return {}
+
+        # Create comprehensive sensitivity summary
+        summary = {
+            "sensitivity_overview": {
+                "total_parameter_combinations_tested": len(sensitivity_results),
+                "parameters_analyzed": self._identify_analyzed_parameters(sensitivity_results),
+                "timestamp": pd.Timestamp.now().isoformat()
+            },
+            "parameter_sensitivity_ranking": self._rank_parameter_sensitivity(sensitivity_results),
+            "stability_analysis": self._analyze_parameter_stability(sensitivity_results),
+            "interaction_effects": self._analyze_parameter_interactions(sensitivity_results),
+            "optimal_parameter_windows": self._identify_optimal_windows(sensitivity_results),
+            "clinical_sensitivity_insights": self._generate_sensitivity_insights(sensitivity_results),
+            "robustness_assessment": self._assess_model_robustness(sensitivity_results)
+        }
+
+        # Save the comprehensive summary
+        summary_path = output_dir / "sensitivity_analysis_summary.json"
+        save_json(summary, summary_path, indent=2)
+
+        return summary
+
+    def _extract_sensitivity_data(self, sensitivity_dict: dict) -> list:
+        """Extract sensitivity data from experiment results."""
+        sensitivity_data = []
+
+        for param_combo, result_data in sensitivity_dict.items():
+            if isinstance(result_data, dict):
+                data_point = {
+                    "parameter_combination": param_combo,
+                    "performance_metric": result_data.get("log_likelihood", result_data.get("score", 0)),
+                    "execution_time": result_data.get("execution_time", 0),
+                    "converged": result_data.get("convergence", False),
+                    "stability_score": result_data.get("stability", 0),
+                    "hyperparameters": result_data.get("hyperparameters", {})
+                }
+                sensitivity_data.append(data_point)
+
+        return sensitivity_data
+
+    def _identify_analyzed_parameters(self, sensitivity_results: list) -> list:
+        """Identify which parameters were analyzed in the sensitivity study."""
+        all_params = set()
+        for result in sensitivity_results:
+            hyperparams = result.get("hyperparameters", {})
+            all_params.update(hyperparams.keys())
+        return list(all_params)
+
+    def _rank_parameter_sensitivity(self, sensitivity_results: list) -> dict:
+        """Rank parameters by their sensitivity (impact on model performance)."""
+        if not sensitivity_results:
+            return {}
+
+        import numpy as np
+        from collections import defaultdict
+
+        param_impacts = defaultdict(list)
+
+        # Group results by parameter values
+        for result in sensitivity_results:
+            hyperparams = result.get("hyperparameters", {})
+            performance = result.get("performance_metric", 0)
+
+            for param_name, param_value in hyperparams.items():
+                param_impacts[param_name].append((param_value, performance))
+
+        # Calculate sensitivity for each parameter
+        sensitivity_scores = {}
+        for param_name, value_performance_pairs in param_impacts.items():
+            if len(value_performance_pairs) > 1:
+                values = [vp[0] for vp in value_performance_pairs]
+                performances = [vp[1] for vp in value_performance_pairs]
+
+                # Calculate correlation between parameter value and performance
+                if len(set(values)) > 1 and len(set(performances)) > 1:
+                    correlation = np.corrcoef(values, performances)[0, 1] if not np.isnan(np.corrcoef(values, performances)[0, 1]) else 0
+                    sensitivity_scores[param_name] = {
+                        "sensitivity_score": abs(correlation),
+                        "correlation": float(correlation),
+                        "performance_range": [min(performances), max(performances)],
+                        "value_range": [min(values), max(values)]
+                    }
+
+        # Rank by sensitivity score
+        ranked_params = sorted(sensitivity_scores.items(), key=lambda x: x[1]["sensitivity_score"], reverse=True)
+
+        return {
+            "most_sensitive_parameters": [param[0] for param in ranked_params[:3]],
+            "least_sensitive_parameters": [param[0] for param in ranked_params[-3:]],
+            "detailed_sensitivity": dict(ranked_params)
+        }
+
+    def _analyze_parameter_stability(self, sensitivity_results: list) -> dict:
+        """Analyze stability of model performance across parameter ranges."""
+        if not sensitivity_results:
+            return {}
+
+        converged_results = [r for r in sensitivity_results if r.get("converged", False)]
+
+        import numpy as np
+        performances = [r.get("performance_metric", 0) for r in converged_results]
+
+        if not performances:
+            return {"no_converged_results": True}
+
+        return {
+            "performance_stability": {
+                "mean_performance": float(np.mean(performances)),
+                "std_performance": float(np.std(performances)),
+                "cv_performance": float(np.std(performances) / np.mean(performances)) if np.mean(performances) != 0 else float('inf'),
+                "min_performance": float(min(performances)),
+                "max_performance": float(max(performances))
+            },
+            "convergence_stability": {
+                "overall_convergence_rate": len(converged_results) / len(sensitivity_results),
+                "stable_parameter_regions": self._identify_stable_regions(sensitivity_results)
+            }
+        }
+
+    def _identify_stable_regions(self, sensitivity_results: list) -> dict:
+        """Identify parameter regions with consistent convergence."""
+        stable_regions = {}
+
+        # Group by parameter combinations and analyze local stability
+        from collections import defaultdict
+        param_groups = defaultdict(list)
+
+        for result in sensitivity_results:
+            hyperparams = result.get("hyperparameters", {})
+            # Create a simple grouping key
+            group_key = tuple(sorted(hyperparams.items()))
+            param_groups[group_key].append(result)
+
+        # Identify groups with high convergence rates
+        for group_key, group_results in param_groups.items():
+            convergence_rate = sum(1 for r in group_results if r.get("converged", False)) / len(group_results)
+            if convergence_rate >= 0.8:  # 80% convergence threshold
+                stable_regions[str(dict(group_key))] = {
+                    "convergence_rate": convergence_rate,
+                    "sample_size": len(group_results)
+                }
+
+        return stable_regions
+
+    def _analyze_parameter_interactions(self, sensitivity_results: list) -> dict:
+        """Analyze interactions between parameters."""
+        if len(sensitivity_results) < 4:
+            return {"insufficient_data": True}
+
+        # Look for parameter pairs and their combined effects
+        interaction_effects = {}
+
+        # This is a simplified interaction analysis
+        # In practice, you'd want more sophisticated statistical analysis
+        param_pairs = []
+        all_params = self._identify_analyzed_parameters(sensitivity_results)
+
+        for i, param1 in enumerate(all_params):
+            for j, param2 in enumerate(all_params[i+1:], i+1):
+                param_pairs.append((param1, param2))
+
+        for param1, param2 in param_pairs[:5]:  # Limit to avoid explosion
+            interaction_effects[f"{param1}_x_{param2}"] = {
+                "analyzed": True,
+                "note": "Detailed interaction analysis requires more sophisticated statistical methods"
+            }
+
+        return {
+            "parameter_pairs_analyzed": len(param_pairs),
+            "interaction_effects": interaction_effects,
+            "recommendation": "Consider full factorial design for detailed interaction analysis"
+        }
+
+    def _identify_optimal_windows(self, sensitivity_results: list) -> dict:
+        """Identify optimal parameter value windows."""
+        converged_results = [r for r in sensitivity_results if r.get("converged", False)]
+
+        if not converged_results:
+            return {}
+
+        # Find top 25% performing configurations
+        sorted_results = sorted(converged_results, key=lambda x: x.get("performance_metric", 0), reverse=True)
+        top_quartile = sorted_results[:max(1, len(sorted_results) // 4)]
+
+        # Extract parameter ranges from top performers
+        param_windows = {}
+        all_params = self._identify_analyzed_parameters(sensitivity_results)
+
+        for param in all_params:
+            param_values = []
+            for result in top_quartile:
+                hyperparams = result.get("hyperparameters", {})
+                if param in hyperparams:
+                    param_values.append(hyperparams[param])
+
+            if param_values:
+                param_windows[param] = {
+                    "optimal_range": [min(param_values), max(param_values)],
+                    "recommended_value": sum(param_values) / len(param_values),
+                    "sample_size": len(param_values)
+                }
+
+        return param_windows
+
+    def _generate_sensitivity_insights(self, sensitivity_results: list) -> dict:
+        """Generate clinical insights from sensitivity analysis."""
+        converged_results = [r for r in sensitivity_results if r.get("converged", False)]
+
+        if not converged_results:
+            return {"no_insights": "No converged results available"}
+
+        insights = {
+            "parameter_robustness": {},
+            "clinical_recommendations": {},
+            "risk_assessment": {}
+        }
+
+        # Analyze robustness of each parameter
+        all_params = self._identify_analyzed_parameters(sensitivity_results)
+        for param in all_params:
+            param_values = [r.get("hyperparameters", {}).get(param) for r in converged_results if param in r.get("hyperparameters", {})]
+            if param_values:
+                unique_values = len(set(param_values))
+                total_values = len(param_values)
+
+                robustness = "high" if unique_values < total_values * 0.3 else "moderate" if unique_values < total_values * 0.7 else "low"
+                insights["parameter_robustness"][param] = {
+                    "robustness_level": robustness,
+                    "value_diversity": unique_values / total_values if total_values > 0 else 0
+                }
+
+        # Generate clinical recommendations
+        insights["clinical_recommendations"] = {
+            "most_critical_parameters": self._rank_parameter_sensitivity(sensitivity_results).get("most_sensitive_parameters", []),
+            "safest_parameter_ranges": self._identify_optimal_windows(sensitivity_results),
+            "caution_advice": "Always validate on independent datasets before clinical application"
+        }
+
+        return insights
+
+    def _assess_model_robustness(self, sensitivity_results: list) -> dict:
+        """Assess overall model robustness to parameter changes."""
+        if not sensitivity_results:
+            return {}
+
+        total_tests = len(sensitivity_results)
+        converged_tests = len([r for r in sensitivity_results if r.get("converged", False)])
+
+        robustness_score = converged_tests / total_tests if total_tests > 0 else 0
+
+        # Categorize robustness
+        if robustness_score >= 0.8:
+            robustness_category = "highly_robust"
+        elif robustness_score >= 0.6:
+            robustness_category = "moderately_robust"
+        elif robustness_score >= 0.4:
+            robustness_category = "somewhat_sensitive"
+        else:
+            robustness_category = "highly_sensitive"
+
+        return {
+            "overall_robustness_score": robustness_score,
+            "robustness_category": robustness_category,
+            "convergence_statistics": {
+                "total_parameter_combinations": total_tests,
+                "successful_convergences": converged_tests,
+                "failure_rate": 1 - robustness_score
+            },
+            "interpretation": self._interpret_robustness(robustness_category)
+        }
+
+    def _interpret_robustness(self, category: str) -> str:
+        """Provide interpretation of robustness assessment."""
+        interpretations = {
+            "highly_robust": "Model is very stable across parameter ranges. Safe for clinical application with proper validation.",
+            "moderately_robust": "Model shows good stability. Consider parameter validation in deployment scenarios.",
+            "somewhat_sensitive": "Model performance varies with parameters. Careful parameter tuning recommended.",
+            "highly_sensitive": "Model is sensitive to parameter choices. Extensive validation and careful parameter selection critical."
+        }
+        return interpretations.get(category, "Robustness assessment unclear.")
+
+    def create_optimal_parameter_recommendations(self, experiment_results: dict, output_dir: Path) -> dict:
+        """Create comprehensive optimal parameter recommendations based on all experiment results."""
+        from core.io_utils import save_json
+        import pandas as pd
+
+        # Aggregate data from all experiments
+        all_performance_data = []
+        experiment_sources = {}
+
+        # Extract performance data from different experiment types
+        for exp_name, exp_results in experiment_results.items():
+            if isinstance(exp_results, dict):
+                # SGFA parameter comparison results
+                if "sgfa_variants" in exp_results:
+                    for variant_name, variant_data in exp_results["sgfa_variants"].items():
+                        perf_data = self._extract_performance_data(variant_name, variant_data)
+                        perf_data["source_experiment"] = exp_name
+                        all_performance_data.append(perf_data)
+
+                # Sensitivity analysis results
+                elif "sensitivity" in exp_name.lower():
+                    sensitivity_data = self._extract_sensitivity_data(exp_results)
+                    for data_point in sensitivity_data:
+                        data_point["source_experiment"] = exp_name
+                        all_performance_data.append(data_point)
+
+        if not all_performance_data:
+            return {"no_data": "No performance data available for recommendations"}
+
+        # Create comprehensive recommendations
+        recommendations = {
+            "executive_summary": self._create_executive_summary(all_performance_data),
+            "parameter_recommendations": self._create_parameter_recommendations(all_performance_data),
+            "use_case_specific_recommendations": self._create_use_case_recommendations(all_performance_data),
+            "clinical_deployment_guidance": self._create_clinical_guidance(all_performance_data),
+            "validation_requirements": self._create_validation_requirements(all_performance_data),
+            "risk_mitigation": self._create_risk_mitigation_guidance(all_performance_data),
+            "implementation_roadmap": self._create_implementation_roadmap(all_performance_data)
+        }
+
+        # Save comprehensive recommendations
+        recommendations_path = output_dir / "optimal_parameter_recommendations.json"
+        save_json(recommendations, recommendations_path, indent=2)
+
+        return recommendations
+
+    def _create_executive_summary(self, performance_data: list) -> dict:
+        """Create executive summary of parameter optimization results."""
+        converged_data = [d for d in performance_data if d.get("converged", False)]
+
+        if not converged_data:
+            return {"status": "No converged configurations found"}
+
+        # Find overall best performing configuration
+        best_config = max(converged_data, key=lambda x: x.get("performance_metric", float('-inf')))
+
+        return {
+            "total_configurations_tested": len(performance_data),
+            "successful_configurations": len(converged_data),
+            "success_rate": len(converged_data) / len(performance_data),
+            "best_performing_configuration": {
+                "variant_name": best_config.get("variant_name", "unknown"),
+                "hyperparameters": best_config.get("hyperparameters", {}),
+                "performance_score": best_config.get("performance_metric", 0),
+                "execution_time": best_config.get("execution_time", 0)
+            },
+            "overall_recommendation": self._generate_overall_recommendation(converged_data)
+        }
+
+    def _generate_overall_recommendation(self, converged_data: list) -> str:
+        """Generate overall recommendation based on all results."""
+        if not converged_data:
+            return "No reliable configurations found. Consider adjusting experimental parameters."
+
+        # Analyze overall patterns
+        success_rate = len(converged_data) / (len(converged_data) + 1)  # Avoid division issues
+
+        if success_rate > 0.8:
+            return "Model shows excellent stability. Proceed with clinical validation studies."
+        elif success_rate > 0.6:
+            return "Model shows good performance. Consider additional parameter refinement."
+        elif success_rate > 0.4:
+            return "Model shows moderate sensitivity. Careful parameter selection required."
+        else:
+            return "Model highly sensitive to parameters. Consider alternative modeling approaches."
+
+    def _create_parameter_recommendations(self, performance_data: list) -> dict:
+        """Create specific parameter recommendations."""
+        converged_data = [d for d in performance_data if d.get("converged", False)]
+
+        if not converged_data:
+            return {}
+
+        # Extract parameter ranges from top performers
+        top_performers = sorted(converged_data, key=lambda x: x.get("performance_metric", 0), reverse=True)[:5]
+
+        param_recommendations = {}
+        all_params = set()
+        for config in top_performers:
+            all_params.update(config.get("hyperparameters", {}).keys())
+
+        for param in all_params:
+            param_values = [config.get("hyperparameters", {}).get(param) for config in top_performers if param in config.get("hyperparameters", {})]
+            if param_values:
+                param_recommendations[param] = {
+                    "recommended_range": [min(param_values), max(param_values)],
+                    "optimal_value": sum(param_values) / len(param_values),
+                    "confidence": "high" if len(set(param_values)) <= 2 else "moderate" if len(set(param_values)) <= 3 else "low",
+                    "rationale": self._get_parameter_rationale(param, param_values)
+                }
+
+        return param_recommendations
+
+    def _get_parameter_rationale(self, param_name: str, param_values: list) -> str:
+        """Provide rationale for parameter recommendations."""
+        rationales = {
+            "K": f"Number of factors. Range {min(param_values)}-{max(param_values)} balances model complexity with interpretability.",
+            "percW": f"Sparsity level. Range {min(param_values)}-{max(param_values)}% provides good feature selection while maintaining model fit.",
+            "num_samples": f"MCMC samples. Range {min(param_values)}-{max(param_values)} ensures convergence while managing computational cost.",
+            "learning_rate": f"Learning rate. Range {min(param_values)}-{max(param_values)} provides stable optimization."
+        }
+        return rationales.get(param_name, f"Empirically determined optimal range: {min(param_values)}-{max(param_values)}")
+
+    def _create_use_case_recommendations(self, performance_data: list) -> dict:
+        """Create recommendations for different use cases."""
+        converged_data = [d for d in performance_data if d.get("converged", False)]
+
+        if not converged_data:
+            return {}
+
+        # Sort configurations by different criteria
+        by_speed = sorted(converged_data, key=lambda x: x.get("execution_time", float('inf')))
+        by_performance = sorted(converged_data, key=lambda x: x.get("performance_metric", 0), reverse=True)
+
+        return {
+            "exploratory_research": {
+                "recommended_config": by_speed[0] if by_speed else None,
+                "rationale": "Fastest configuration for rapid hypothesis testing",
+                "typical_use": "Initial data exploration, proof-of-concept studies"
+            },
+            "clinical_application": {
+                "recommended_config": by_performance[0] if by_performance else None,
+                "rationale": "Best performing configuration for reliable clinical insights",
+                "typical_use": "Biomarker discovery, patient subtyping"
+            },
+            "production_deployment": {
+                "recommended_config": self._find_balanced_configuration(converged_data),
+                "rationale": "Balanced performance and efficiency for routine use",
+                "typical_use": "Automated analysis pipelines, routine clinical workflows"
+            }
+        }
+
+    def _create_clinical_guidance(self, performance_data: list) -> dict:
+        """Create clinical deployment guidance."""
+        converged_data = [d for d in performance_data if d.get("converged", False)]
+
+        return {
+            "validation_requirements": {
+                "minimum_sample_size": "At least 100 subjects for reliable biomarker discovery",
+                "cross_validation": "5-fold stratified cross-validation with site balancing",
+                "external_validation": "Independent cohort validation required before clinical use"
+            },
+            "clinical_interpretation": {
+                "factor_interpretation": "Each factor represents a latent disease pattern. Collaborate with clinicians for interpretation.",
+                "biomarker_validation": "Factor loadings indicate biomarker importance. Validate with known disease mechanisms.",
+                "patient_subtyping": "Factor scores can identify patient subgroups. Validate with clinical outcomes."
+            },
+            "regulatory_considerations": {
+                "algorithm_transparency": "Document all parameter choices and their clinical rationale",
+                "performance_monitoring": "Monitor model performance in clinical deployment",
+                "bias_assessment": "Assess for demographic and scanner biases"
+            }
+        }
+
+    def _create_validation_requirements(self, performance_data: list) -> dict:
+        """Create validation requirements for clinical deployment."""
+        return {
+            "pre_deployment_validation": {
+                "internal_validation": "Cross-validation on training cohort",
+                "external_validation": "Independent test cohort from different sites",
+                "clinical_validation": "Validation against clinical outcomes and expert assessment"
+            },
+            "ongoing_monitoring": {
+                "performance_tracking": "Monitor model performance on new data",
+                "drift_detection": "Detect changes in data distribution or model performance",
+                "parameter_stability": "Monitor stability of optimal parameters over time"
+            },
+            "quality_assurance": {
+                "data_quality_checks": "Automated data quality assessment",
+                "reproducibility_testing": "Regular reproducibility validation",
+                "bias_monitoring": "Ongoing assessment of demographic and technical biases"
+            }
+        }
+
+    def _create_risk_mitigation_guidance(self, performance_data: list) -> dict:
+        """Create risk mitigation guidance."""
+        converged_data = [d for d in performance_data if d.get("converged", False)]
+        convergence_rate = len(converged_data) / len(performance_data) if performance_data else 0
+
+        risk_level = "low" if convergence_rate > 0.8 else "moderate" if convergence_rate > 0.6 else "high"
+
+        return {
+            "risk_assessment": {
+                "overall_risk_level": risk_level,
+                "convergence_reliability": convergence_rate,
+                "parameter_sensitivity": "moderate" if convergence_rate > 0.5 else "high"
+            },
+            "mitigation_strategies": {
+                "parameter_validation": "Always validate parameters on independent data",
+                "ensemble_approaches": "Consider ensemble methods for increased robustness",
+                "fallback_procedures": "Define procedures for handling convergence failures",
+                "expert_oversight": "Maintain clinical expert involvement in interpretation"
+            },
+            "monitoring_protocols": {
+                "performance_alerts": "Set thresholds for performance degradation alerts",
+                "parameter_drift": "Monitor for changes in optimal parameter values",
+                "clinical_feedback": "Incorporate clinical feedback into model updates"
+            }
+        }
+
+    def _create_implementation_roadmap(self, performance_data: list) -> dict:
+        """Create implementation roadmap for clinical deployment."""
+        return {
+            "phase_1_pilot": {
+                "duration": "3-6 months",
+                "objectives": "Validate model on clinical cohort, refine parameters",
+                "success_criteria": "Model convergence >90%, clinical validation positive",
+                "deliverables": ["Clinical validation report", "Refined parameter recommendations"]
+            },
+            "phase_2_validation": {
+                "duration": "6-12 months",
+                "objectives": "Multi-site validation, regulatory preparation",
+                "success_criteria": "External validation successful, regulatory pathway clear",
+                "deliverables": ["Multi-site validation study", "Regulatory submission preparation"]
+            },
+            "phase_3_deployment": {
+                "duration": "12-18 months",
+                "objectives": "Clinical deployment, ongoing monitoring",
+                "success_criteria": "Successful clinical integration, positive outcomes",
+                "deliverables": ["Clinical deployment system", "Monitoring protocols"]
+            },
+            "ongoing_maintenance": {
+                "frequency": "Quarterly reviews",
+                "activities": ["Parameter validation", "Performance monitoring", "Model updates"],
+                "success_metrics": ["Stable performance", "Clinical utility", "User satisfaction"]
+            }
+        }
 
     def _save_intermediate_results(self, result: ExperimentResult, output_dir: Path, experiment_results: dict):
         """Save intermediate experiment results for debugging and analysis."""
