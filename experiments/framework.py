@@ -466,12 +466,20 @@ class ExperimentFramework:
                 if hasattr(Z, "shape"):
                     # Save factor scores
                     save_numpy(Z, matrices_dir / f"{variant_name}_factor_scores.npy")
-                    # Create DataFrame with meaningful column names
+
+                    # Log shape for debugging
+                    logger.info(f"Saving {variant_name} factor scores Z shape: {Z.shape}")
+
+                    # Create DataFrame with meaningful column names and subject IDs
                     factor_cols = [f"Factor_{i + 1}" for i in range(Z.shape[1])]
+                    Z_df = pd.DataFrame(Z, columns=factor_cols)
+                    Z_df.index = [f"Subject_{i+1}" for i in range(Z.shape[0])]
+                    Z_df.index.name = "Subject_ID"
+
                     save_csv(
-                        pd.DataFrame(Z, columns=factor_cols),
+                        Z_df,
                         matrices_dir / f"{variant_name}_factor_scores.csv",
-                        index=False,
+                        index=True,
                     )
             except Exception as e:
                 print(f"Warning: Could not save Z matrix for {variant_name}: {e}")

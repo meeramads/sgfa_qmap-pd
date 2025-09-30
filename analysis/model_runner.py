@@ -420,10 +420,16 @@ class ModelRunner:
 
                 # Save factor scores as CSV file for easy access
                 Z_csv_file = output_dir / f"[{run_id}]Factor_scores_Z.csv"
+
+                # Log the shape for debugging
+                logger.info(f"Factor scores Z shape: {Z.shape} (should be {data.get('n_subjects', 'unknown')} subjects x {Z.shape[1]} factors)")
+
+                # Create DataFrame with proper subject IDs
                 Z_df = pd.DataFrame(Z, columns=[f"Factor_{i+1}" for i in range(Z.shape[1])])
-                Z_df.index.name = "Subject_Index"
+                Z_df.index = [f"Subject_{i+1}" for i in range(Z.shape[0])]  # Start from Subject_1, not 0
+                Z_df.index.name = "Subject_ID"
                 Z_df.to_csv(Z_csv_file, index=True)
-                logger.info(f"Saved factor scores CSV: {Z_csv_file}")
+                logger.info(f"Saved factor scores CSV: {Z_csv_file} ({Z.shape[0]} subjects, {Z.shape[1]} factors)")
 
             logger.info(f"💾 Run {run_id} results saved to {output_dir}")
 

@@ -62,6 +62,24 @@ class FactorVisualizer:
         self._plot_factor_heatmap(W, Z, plot_dir / "factors")
         self._plot_view_contributions(W, data, plot_dir / "factors")
 
+        # Create enhanced visualizations with proper labeling
+        logger.info("Creating enhanced factor loading distribution plots")
+        self.plot_enhanced_factor_loading_distributions(
+            W, data, save_path=str(plot_dir / "factors" / "enhanced_loading_distributions.png")
+        )
+
+        # Create region-wise analysis for brain data
+        logger.info("Creating region-wise factor analysis")
+        self.plot_region_wise_factor_analysis(
+            W, data, save_path=str(plot_dir / "factors" / "region_wise_analysis.png")
+        )
+
+        # Create interpretable brain loading visualizations
+        logger.info("Creating interpretable brain loading visualizations")
+        self.plot_interpretable_brain_loadings(
+            W, data, save_path=str(plot_dir / "factors" / "brain_loadings.png")
+        )
+
     def _plot_factor_loadings(self, W: np.ndarray, data: Dict, save_dir: Path):
         """Plot factor loadings for each view."""
         view_names = data.get("view_names", [])
@@ -577,5 +595,718 @@ class FactorVisualizer:
             save_plot(save_path)
             plt.close()
             logger.info(f"Saved factor summary plot: {save_path}")
+        else:
+            plt.show()
+
+    def plot_enhanced_factor_loading_distributions(self, W: np.ndarray, data: Dict, save_path: str = None):
+        """Create enhanced factor loading distribution plots with proper labeling."""
+        view_names = data.get("view_names", [f"View_{i+1}" for i in range(len(data.get("X_list", [])))])
+        feature_names = data.get("feature_names", {})
+        Dm = [X.shape[1] for X in data.get("X_list", [])]
+
+        if W is None or W.size == 0:
+            logger.warning("No factor loadings available for distribution plotting")
+            return
+
+        n_factors = W.shape[1]
+        n_views = len(view_names)
+
+        # Create comprehensive figure with multiple subplots
+        fig = plt.figure(figsize=(16, 12))
+
+        # 1. Overall loading distribution
+        ax1 = plt.subplot(3, 3, 1)
+        plt.hist(W.flatten(), bins=50, alpha=0.7, color='skyblue', edgecolor='black')
+        plt.title('Overall Factor Loading Distribution', fontweight='bold')
+        plt.xlabel('Loading Value')
+        plt.ylabel('Frequency')
+        plt.axvline(0, color='red', linestyle='--', alpha=0.7, label='Zero')
+        plt.legend()
+
+        # 2. Absolute loading distribution
+        ax2 = plt.subplot(3, 3, 2)
+        abs_loadings = np.abs(W)
+        plt.hist(abs_loadings.flatten(), bins=50, alpha=0.7, color='lightcoral', edgecolor='black')
+        plt.title('Absolute Factor Loading Distribution', fontweight='bold')
+        plt.xlabel('|Loading Value|')
+        plt.ylabel('Frequency')
+
+        # Add sparsity information
+        sparsity_threshold = 0.1
+        sparse_percent = np.mean(abs_loadings < sparsity_threshold) * 100
+        plt.axvline(sparsity_threshold, color='orange', linestyle='--', alpha=0.7,
+                   label=f'Threshold (0.1)\n{sparse_percent:.1f}% below')
+        plt.legend()
+
+        # 3. Loading distribution by factor
+        ax3 = plt.subplot(3, 3, 3)
+        factor_colors = plt.cm.tab10(np.linspace(0, 1, n_factors))
+        for k in range(n_factors):
+            plt.hist(W[:, k], bins=30, alpha=0.6, label=f'Factor {k+1}',
+                    color=factor_colors[k], edgecolor='black', linewidth=0.5)
+        plt.title('Loading Distribution by Factor', fontweight='bold')
+        plt.xlabel('Loading Value')
+        plt.ylabel('Frequency')
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # 4. Loading distribution by view
+        ax4 = plt.subplot(3, 3, 4)
+        d = 0
+        view_colors = plt.cm.Set3(np.linspace(0, 1, n_views))
+        for m, (view_name, dim) in enumerate(zip(view_names, Dm)):
+            W_view = W[d:d+dim, :]
+            plt.hist(W_view.flatten(), bins=30, alpha=0.6, label=view_name,
+                    color=view_colors[m], edgecolor='black', linewidth=0.5)
+            d += dim
+        plt.title('Loading Distribution by View', fontweight='bold')
+        plt.xlabel('Loading Value')
+        plt.ylabel('Frequency')
+        plt.legend()
+
+        # 5. Sparsity analysis by factor
+        ax5 = plt.subplot(3, 3, 5)
+        sparsity_levels = []
+        for k in range(n_factors):
+            sparsity = np.mean(np.abs(W[:, k]) < sparsity_threshold) * 100
+            sparsity_levels.append(sparsity)
+
+        bars = plt.bar(range(n_factors), sparsity_levels, color=factor_colors, alpha=0.7, edgecolor='black')
+        plt.title(f'Sparsity by Factor\n(% loadings < {sparsity_threshold})', fontweight='bold')
+        plt.xlabel('Factor')
+        plt.ylabel('Sparsity (%)')
+        plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
+
+        # Add value labels on bars
+        for i, (bar, val) in enumerate(zip(bars, sparsity_levels)):
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.1f}%', ha='center', va='bottom', fontweight='bold')
+
+        # 6. Maximum absolute loading by factor
+        ax6 = plt.subplot(3, 3, 6)
+        max_loadings = np.max(np.abs(W), axis=0)
+        bars = plt.bar(range(n_factors), max_loadings, color=factor_colors, alpha=0.7, edgecolor='black')
+        plt.title('Maximum |Loading| by Factor', fontweight='bold')
+        plt.xlabel('Factor')
+        plt.ylabel('Max |Loading|')
+        plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
+
+        # Add value labels on bars
+        for i, (bar, val) in enumerate(zip(bars, max_loadings)):
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                    f'{val:.3f}', ha='center', va='bottom', fontweight='bold')
+
+        # 7. Loading variance by view
+        ax7 = plt.subplot(3, 3, 7)
+        d = 0
+        view_variances = []
+        for m, (view_name, dim) in enumerate(zip(view_names, Dm)):
+            W_view = W[d:d+dim, :]
+            view_var = np.var(W_view.flatten())
+            view_variances.append(view_var)
+            d += dim
+
+        bars = plt.bar(range(n_views), view_variances, color=view_colors, alpha=0.7, edgecolor='black')
+        plt.title('Loading Variance by View', fontweight='bold')
+        plt.xlabel('View')
+        plt.ylabel('Loading Variance')
+        plt.xticks(range(n_views), [name[:10] + '...' if len(name) > 10 else name for name in view_names], rotation=45)
+
+        # 8. Cross-factor loading correlation
+        ax8 = plt.subplot(3, 3, 8)
+        if n_factors > 1:
+            loading_corr = np.corrcoef(W.T)
+            im = plt.imshow(loading_corr, cmap='RdBu_r', vmin=-1, vmax=1)
+            plt.title('Inter-Factor Loading Correlations', fontweight='bold')
+            plt.xlabel('Factor')
+            plt.ylabel('Factor')
+
+            # Add correlation values as text
+            for i in range(n_factors):
+                for j in range(n_factors):
+                    plt.text(j, i, f'{loading_corr[i, j]:.2f}',
+                            ha='center', va='center',
+                            color='white' if abs(loading_corr[i, j]) > 0.5 else 'black',
+                            fontweight='bold')
+
+            plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
+            plt.yticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
+            plt.colorbar(im, shrink=0.8)
+        else:
+            plt.text(0.5, 0.5, 'Single Factor\nNo Correlations',
+                    ha='center', va='center', transform=ax8.transAxes,
+                    fontsize=12, fontweight='bold')
+            plt.title('Inter-Factor Loading Correlations', fontweight='bold')
+
+        # 9. Summary statistics table
+        ax9 = plt.subplot(3, 3, 9)
+        ax9.axis('off')
+
+        # Calculate summary statistics
+        stats_data = [
+            ['Statistic', 'Value'],
+            ['Mean |Loading|', f'{np.mean(np.abs(W)):.4f}'],
+            ['Std |Loading|', f'{np.std(np.abs(W)):.4f}'],
+            ['Max |Loading|', f'{np.max(np.abs(W)):.4f}'],
+            ['Min |Loading|', f'{np.min(np.abs(W)):.4f}'],
+            ['Overall Sparsity', f'{np.mean(np.abs(W) < 0.1)*100:.1f}%'],
+            ['# Factors', f'{n_factors}'],
+            ['# Features', f'{W.shape[0]}'],
+            ['# Views', f'{n_views}']
+        ]
+
+        table = ax9.table(cellText=stats_data, cellLoc='center', loc='center',
+                         colWidths=[0.5, 0.3])
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1, 2)
+
+        # Style the header row
+        for i in range(len(stats_data[0])):
+            table[(0, i)].set_facecolor('#4CAF50')
+            table[(0, i)].set_text_props(weight='bold', color='white')
+
+        plt.suptitle('Enhanced Factor Loading Analysis', fontsize=16, fontweight='bold', y=0.95)
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+        if save_path:
+            save_plot(save_path)
+            plt.close()
+            logger.info(f"Saved enhanced factor loading distribution plot: {save_path}")
+        else:
+            plt.show()
+
+    def plot_interpretable_brain_loadings(self, W: np.ndarray, data: Dict, save_path: str = None):
+        """Create interpretable brain loading visualizations with anatomical context."""
+        view_names = data.get("view_names", [])
+        atlas_info = data.get("atlas_info", {})
+        region_names = data.get("region_names", {})
+
+        if W is None or W.size == 0:
+            logger.warning("No factor loadings available for brain visualization")
+            return
+
+        # Find brain/neuroimaging views - specifically look for your region names
+        brain_regions = ['lentiform', 'sn', 'putamen', 'caudate', 'thalamus', 'hippocampus',
+                        'amygdala', 'cortical', 'subcortical', 'frontal', 'parietal', 'temporal',
+                        'occipital', 'cerebellum', 'brainstem', 'roi', 'region']
+
+        brain_views = []
+        for i, view_name in enumerate(view_names):
+            # Check if view name contains any brain region keywords
+            if any(region in view_name.lower() for region in brain_regions):
+                brain_views.append((i, view_name))
+
+        if not brain_views:
+            logger.warning("No brain/neuroimaging views identified for brain loading visualization")
+            logger.info(f"Available view names: {view_names}")
+            logger.info("Consider updating brain region keywords if your regions aren't recognized")
+            return
+
+        n_factors = W.shape[1]
+        Dm = [X.shape[1] for X in data.get("X_list", [])]
+
+        # Create figure for each brain view
+        for view_idx, view_name in brain_views:
+            # Extract loadings for this view
+            d = sum(Dm[:view_idx])
+            dim = Dm[view_idx]
+            W_brain = W[d:d+dim, :]
+
+            fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+            fig.suptitle(f'Brain Factor Loadings: {view_name}', fontsize=16, fontweight='bold')
+
+            # 1. Heatmap of all factor loadings
+            ax = axes[0, 0]
+            im = ax.imshow(W_brain.T, aspect='auto', cmap='RdBu_r',
+                          vmin=-np.max(np.abs(W_brain)), vmax=np.max(np.abs(W_brain)))
+            ax.set_title('Factor Loading Heatmap', fontweight='bold')
+            ax.set_xlabel('Brain Regions/Features')
+            ax.set_ylabel('Factors')
+            ax.set_yticks(range(n_factors))
+            ax.set_yticklabels([f'Factor {i+1}' for i in range(n_factors)])
+            plt.colorbar(im, ax=ax, shrink=0.8, label='Loading Strength')
+
+            # 2. Top loadings per factor
+            ax = axes[0, 1]
+            n_top = min(10, dim)  # Show top 10 or all if fewer
+
+            factor_colors = plt.cm.tab10(np.linspace(0, 1, n_factors))
+            bar_width = 0.8 / n_factors
+
+            for k in range(n_factors):
+                # Get top absolute loadings for this factor
+                abs_loadings = np.abs(W_brain[:, k])
+                top_indices = np.argsort(abs_loadings)[-n_top:][::-1]
+                top_values = W_brain[top_indices, k]
+
+                x_pos = np.arange(n_top) + k * bar_width
+                bars = ax.bar(x_pos, top_values, bar_width,
+                             label=f'Factor {k+1}', color=factor_colors[k], alpha=0.7)
+
+                # Add region names if available
+                if view_name in region_names:
+                    regions = region_names[view_name]
+                    if len(regions) >= max(top_indices) + 1:
+                        ax.set_xticks(np.arange(n_top) + bar_width * (n_factors-1) / 2)
+                        ax.set_xticklabels([regions[i][:8] + '...' if len(regions[i]) > 8 else regions[i]
+                                          for i in top_indices], rotation=45, ha='right')
+
+            ax.set_title(f'Top {n_top} Loadings per Factor', fontweight='bold')
+            ax.set_ylabel('Loading Strength')
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            ax.axhline(0, color='black', linestyle='-', alpha=0.3)
+
+            # 3. Loading magnitude distribution
+            ax = axes[0, 2]
+            for k in range(n_factors):
+                ax.hist(np.abs(W_brain[:, k]), bins=20, alpha=0.6,
+                       label=f'Factor {k+1}', color=factor_colors[k])
+            ax.set_title('Loading Magnitude Distribution', fontweight='bold')
+            ax.set_xlabel('|Loading|')
+            ax.set_ylabel('Number of Regions')
+            ax.legend()
+
+            # 4. Spatial coherence (if region info available)
+            ax = axes[1, 0]
+            if view_name in atlas_info and 'adjacency_matrix' in atlas_info[view_name]:
+                # Calculate spatial coherence for each factor
+                adj_matrix = atlas_info[view_name]['adjacency_matrix']
+                coherence_scores = []
+
+                for k in range(n_factors):
+                    loadings = W_brain[:, k]
+                    # Calculate spatial autocorrelation (Moran's I)
+                    coherence = self._calculate_spatial_coherence(loadings, adj_matrix)
+                    coherence_scores.append(coherence)
+
+                bars = ax.bar(range(n_factors), coherence_scores, color=factor_colors, alpha=0.7)
+                ax.set_title('Spatial Coherence by Factor', fontweight='bold')
+                ax.set_xlabel('Factor')
+                ax.set_ylabel('Spatial Coherence')
+                ax.set_xticks(range(n_factors))
+                ax.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+
+                # Add interpretation guide
+                ax.axhline(0, color='black', linestyle='--', alpha=0.5, label='Random')
+                ax.legend()
+            else:
+                ax.text(0.5, 0.5, 'No spatial information\navailable',
+                       ha='center', va='center', transform=ax.transAxes,
+                       fontsize=12, fontweight='bold')
+                ax.set_title('Spatial Coherence by Factor', fontweight='bold')
+
+            # 5. Factor interpretability scores
+            ax = axes[1, 1]
+            interpretability_scores = []
+            for k in range(n_factors):
+                # Calculate interpretability as combination of sparsity and magnitude
+                abs_loadings = np.abs(W_brain[:, k])
+                sparsity = np.mean(abs_loadings < 0.1)  # Fraction of small loadings
+                max_loading = np.max(abs_loadings)
+                # Interpretability increases with sparsity and strong peak loadings
+                interpretability = sparsity * max_loading
+                interpretability_scores.append(interpretability)
+
+            bars = ax.bar(range(n_factors), interpretability_scores, color=factor_colors, alpha=0.7)
+            ax.set_title('Factor Interpretability Scores', fontweight='bold')
+            ax.set_xlabel('Factor')
+            ax.set_ylabel('Interpretability')
+            ax.set_xticks(range(n_factors))
+            ax.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+
+            # Add value labels
+            for i, (bar, score) in enumerate(zip(bars, interpretability_scores)):
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
+                       f'{score:.3f}', ha='center', va='bottom', fontweight='bold')
+
+            # 6. Clinical relevance indicators
+            ax = axes[1, 2]
+            ax.axis('off')
+
+            # Create summary table for this view
+            summary_data = [
+                ['Metric', 'Value'],
+                ['Brain Regions', f'{dim}'],
+                ['Avg |Loading|', f'{np.mean(np.abs(W_brain)):.4f}'],
+                ['Max |Loading|', f'{np.max(np.abs(W_brain)):.4f}'],
+                ['Sparsity %', f'{np.mean(np.abs(W_brain) < 0.1)*100:.1f}%'],
+                ['Most Interpretable', f'Factor {np.argmax(interpretability_scores)+1}'],
+                ['Strongest Factor', f'Factor {np.argmax(np.max(np.abs(W_brain), axis=0))+1}']
+            ]
+
+            table = ax.table(cellText=summary_data, cellLoc='center', loc='center',
+                           colWidths=[0.6, 0.4])
+            table.auto_set_font_size(False)
+            table.set_fontsize(11)
+            table.scale(1, 2.5)
+
+            # Style the header row
+            for i in range(len(summary_data[0])):
+                table[(0, i)].set_facecolor('#2196F3')
+                table[(0, i)].set_text_props(weight='bold', color='white')
+
+            plt.tight_layout()
+
+            if save_path:
+                brain_save_path = save_path.replace('.png', f'_{view_name.replace(" ", "_")}_brain.png')
+                save_plot(brain_save_path)
+                plt.close()
+                logger.info(f"Saved brain loading plot: {brain_save_path}")
+            else:
+                plt.show()
+
+    def _calculate_spatial_coherence(self, loadings: np.ndarray, adjacency_matrix: np.ndarray) -> float:
+        """Calculate spatial coherence (Moran's I) for factor loadings."""
+        try:
+            n = len(loadings)
+            if adjacency_matrix.shape != (n, n):
+                return 0.0
+
+            # Calculate Moran's I
+            W = adjacency_matrix
+            W_sum = np.sum(W)
+
+            if W_sum == 0:
+                return 0.0
+
+            mean_loading = np.mean(loadings)
+            num = 0
+            den = 0
+
+            for i in range(n):
+                for j in range(n):
+                    if i != j:
+                        num += W[i, j] * (loadings[i] - mean_loading) * (loadings[j] - mean_loading)
+                den += (loadings[i] - mean_loading) ** 2
+
+            if den == 0:
+                return 0.0
+
+            moran_i = (n / W_sum) * (num / den)
+            return moran_i
+
+        except Exception as e:
+            logger.warning(f"Could not calculate spatial coherence: {e}")
+            return 0.0
+
+    def plot_region_wise_factor_analysis(self, W: np.ndarray, data: Dict, save_path: str = None):
+        """Create comprehensive region-wise factor analysis for brain data organized as separate views."""
+        view_names = data.get("view_names", [])
+        Dm = [X.shape[1] for X in data.get("X_list", [])]
+
+        if W is None or W.size == 0:
+            logger.warning("No factor loadings available for region-wise analysis")
+            return
+
+        # Identify all brain region views
+        brain_regions = ['lentiform', 'sn', 'putamen', 'caudate', 'thalamus', 'hippocampus',
+                        'amygdala', 'cortical', 'subcortical', 'frontal', 'parietal', 'temporal',
+                        'occipital', 'cerebellum', 'brainstem', 'roi', 'region']
+
+        brain_views = []
+        for i, view_name in enumerate(view_names):
+            if any(region in view_name.lower() for region in brain_regions):
+                brain_views.append((i, view_name))
+
+        if not brain_views:
+            logger.warning("No brain regions found for region-wise analysis")
+            return
+
+        logger.info(f"Found {len(brain_views)} brain regions: {[name for _, name in brain_views]}")
+
+        n_factors = W.shape[1]
+        n_regions = len(brain_views)
+
+        # Create comprehensive region-wise visualization
+        fig = plt.figure(figsize=(20, 16))
+
+        # 1. Factor loading heatmap across all brain regions
+        ax1 = plt.subplot(3, 4, 1)
+
+        # Extract all brain region loadings
+        brain_loadings = []
+        region_names = []
+        region_boundaries = [0]
+
+        for view_idx, view_name in brain_views:
+            d = sum(Dm[:view_idx])
+            dim = Dm[view_idx]
+            W_region = W[d:d+dim, :]
+            brain_loadings.append(W_region)
+            region_names.append(view_name)
+            region_boundaries.append(region_boundaries[-1] + dim)
+
+        # Concatenate all brain loadings
+        W_all_brain = np.vstack(brain_loadings)
+
+        im = ax1.imshow(W_all_brain.T, aspect='auto', cmap='RdBu_r',
+                       vmin=-np.max(np.abs(W_all_brain)), vmax=np.max(np.abs(W_all_brain)))
+        ax1.set_title('Factor Loadings Across All Brain Regions', fontweight='bold')
+        ax1.set_xlabel('Brain Features (by Region)')
+        ax1.set_ylabel('Factors')
+        ax1.set_yticks(range(n_factors))
+        ax1.set_yticklabels([f'F{i+1}' for i in range(n_factors)])
+
+        # Add vertical lines to separate regions
+        for boundary in region_boundaries[1:-1]:
+            ax1.axvline(boundary - 0.5, color='white', linewidth=2, alpha=0.8)
+
+        # Add region labels
+        region_centers = [(region_boundaries[i] + region_boundaries[i+1]) / 2
+                         for i in range(len(region_boundaries)-1)]
+        ax1.set_xticks(region_centers)
+        ax1.set_xticklabels([name[:8] + '...' if len(name) > 8 else name
+                            for name in region_names], rotation=45, ha='right')
+
+        plt.colorbar(im, ax=ax1, shrink=0.6, label='Loading Strength')
+
+        # 2. Average absolute loading by region and factor
+        ax2 = plt.subplot(3, 4, 2)
+
+        region_factor_loadings = np.zeros((n_regions, n_factors))
+        for i, (view_idx, view_name) in enumerate(brain_views):
+            d = sum(Dm[:view_idx])
+            dim = Dm[view_idx]
+            W_region = W[d:d+dim, :]
+            region_factor_loadings[i, :] = np.mean(np.abs(W_region), axis=0)
+
+        im2 = ax2.imshow(region_factor_loadings, aspect='auto', cmap='viridis')
+        ax2.set_title('Average |Loading| by Region & Factor', fontweight='bold')
+        ax2.set_xlabel('Factors')
+        ax2.set_ylabel('Brain Regions')
+        ax2.set_xticks(range(n_factors))
+        ax2.set_xticklabels([f'F{i+1}' for i in range(n_factors)])
+        ax2.set_yticks(range(n_regions))
+        ax2.set_yticklabels([name[:12] + '...' if len(name) > 12 else name
+                            for _, name in brain_views])
+
+        # Add values to heatmap
+        for i in range(n_regions):
+            for j in range(n_factors):
+                ax2.text(j, i, f'{region_factor_loadings[i, j]:.3f}',
+                        ha='center', va='center',
+                        color='white' if region_factor_loadings[i, j] > np.max(region_factor_loadings)/2 else 'black',
+                        fontweight='bold', fontsize=8)
+
+        plt.colorbar(im2, ax=ax2, shrink=0.6, label='Avg |Loading|')
+
+        # 3. Region-wise factor contributions (stacked bar)
+        ax3 = plt.subplot(3, 4, 3)
+
+        factor_colors = plt.cm.tab10(np.linspace(0, 1, n_factors))
+        bottom = np.zeros(n_regions)
+
+        for k in range(n_factors):
+            values = region_factor_loadings[:, k]
+            ax3.bar(range(n_regions), values, bottom=bottom,
+                   label=f'Factor {k+1}', color=factor_colors[k], alpha=0.8)
+            bottom += values
+
+        ax3.set_title('Factor Contributions by Region', fontweight='bold')
+        ax3.set_xlabel('Brain Regions')
+        ax3.set_ylabel('Cumulative |Loading|')
+        ax3.set_xticks(range(n_regions))
+        ax3.set_xticklabels([name[:8] + '...' if len(name) > 8 else name
+                            for _, name in brain_views], rotation=45, ha='right')
+        ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # 4. Regional sparsity analysis
+        ax4 = plt.subplot(3, 4, 4)
+
+        sparsity_threshold = 0.1
+        region_sparsity = []
+
+        for view_idx, view_name in brain_views:
+            d = sum(Dm[:view_idx])
+            dim = Dm[view_idx]
+            W_region = W[d:d+dim, :]
+            sparsity = np.mean(np.abs(W_region) < sparsity_threshold) * 100
+            region_sparsity.append(sparsity)
+
+        bars = ax4.bar(range(n_regions), region_sparsity, alpha=0.7,
+                      color=plt.cm.viridis(np.linspace(0, 1, n_regions)))
+        ax4.set_title(f'Sparsity by Region\n(% loadings < {sparsity_threshold})', fontweight='bold')
+        ax4.set_xlabel('Brain Regions')
+        ax4.set_ylabel('Sparsity (%)')
+        ax4.set_xticks(range(n_regions))
+        ax4.set_xticklabels([name[:8] + '...' if len(name) > 8 else name
+                            for _, name in brain_views], rotation=45, ha='right')
+
+        # Add value labels
+        for i, (bar, val) in enumerate(zip(bars, region_sparsity)):
+            ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.1f}%', ha='center', va='bottom', fontweight='bold', fontsize=8)
+
+        # 5. Factor-wise regional distribution
+        ax5 = plt.subplot(3, 4, 5)
+
+        # Show which regions contribute most to each factor
+        max_contrib_regions = []
+        for k in range(n_factors):
+            max_region_idx = np.argmax(region_factor_loadings[:, k])
+            max_contrib_regions.append(brain_views[max_region_idx][1])
+
+        factor_positions = np.arange(n_factors)
+        max_values = [np.max(region_factor_loadings[:, k]) for k in range(n_factors)]
+
+        bars = ax5.bar(factor_positions, max_values, color=factor_colors, alpha=0.7)
+        ax5.set_title('Peak Regional Contribution by Factor', fontweight='bold')
+        ax5.set_xlabel('Factors')
+        ax5.set_ylabel('Max Regional |Loading|')
+        ax5.set_xticks(factor_positions)
+        ax5.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+
+        # Add region labels on bars
+        for i, (bar, region) in enumerate(zip(bars, max_contrib_regions)):
+            ax5.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
+                    region[:8] + '...' if len(region) > 8 else region,
+                    ha='center', va='bottom', fontweight='bold', fontsize=8, rotation=45)
+
+        # 6. Cross-regional correlation matrix
+        ax6 = plt.subplot(3, 4, 6)
+
+        if n_regions > 1:
+            region_corr = np.corrcoef(region_factor_loadings)
+            im3 = ax6.imshow(region_corr, cmap='RdBu_r', vmin=-1, vmax=1)
+            ax6.set_title('Inter-Regional Loading Correlations', fontweight='bold')
+            ax6.set_xlabel('Brain Regions')
+            ax6.set_ylabel('Brain Regions')
+            ax6.set_xticks(range(n_regions))
+            ax6.set_xticklabels([name[:8] + '...' if len(name) > 8 else name
+                                for _, name in brain_views], rotation=45, ha='right')
+            ax6.set_yticks(range(n_regions))
+            ax6.set_yticklabels([name[:8] + '...' if len(name) > 8 else name
+                                for _, name in brain_views])
+
+            # Add correlation values
+            for i in range(n_regions):
+                for j in range(n_regions):
+                    ax6.text(j, i, f'{region_corr[i, j]:.2f}',
+                            ha='center', va='center',
+                            color='white' if abs(region_corr[i, j]) > 0.5 else 'black',
+                            fontweight='bold', fontsize=8)
+
+            plt.colorbar(im3, ax=ax6, shrink=0.6, label='Correlation')
+        else:
+            ax6.text(0.5, 0.5, 'Single Region\nNo Correlations',
+                    ha='center', va='center', transform=ax6.transAxes,
+                    fontsize=12, fontweight='bold')
+            ax6.set_title('Inter-Regional Loading Correlations', fontweight='bold')
+
+        # 7. Regional factor variance explained
+        ax7 = plt.subplot(3, 4, 7)
+
+        region_variance = []
+        for view_idx, view_name in brain_views:
+            d = sum(Dm[:view_idx])
+            dim = Dm[view_idx]
+            W_region = W[d:d+dim, :]
+            variance = np.var(W_region, axis=0)  # Variance per factor
+            region_variance.append(variance)
+
+        # Create stacked bar chart of variance by factor and region
+        bottom = np.zeros(n_factors)
+        for i, (view_idx, view_name) in enumerate(brain_views):
+            ax7.bar(range(n_factors), region_variance[i], bottom=bottom,
+                   label=view_name[:10] + '...' if len(view_name) > 10 else view_name,
+                   alpha=0.7)
+            bottom += region_variance[i]
+
+        ax7.set_title('Loading Variance by Factor & Region', fontweight='bold')
+        ax7.set_xlabel('Factors')
+        ax7.set_ylabel('Cumulative Variance')
+        ax7.set_xticks(range(n_factors))
+        ax7.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+        ax7.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
+
+        # 8. Regional interpretability scores
+        ax8 = plt.subplot(3, 4, 8)
+
+        region_interpretability = []
+        for view_idx, view_name in brain_views:
+            d = sum(Dm[:view_idx])
+            dim = Dm[view_idx]
+            W_region = W[d:d+dim, :]
+
+            # Calculate interpretability as sparsity * peak loading
+            sparsity = np.mean(np.abs(W_region) < 0.1)
+            max_loading = np.max(np.abs(W_region))
+            interpretability = sparsity * max_loading
+            region_interpretability.append(interpretability)
+
+        bars = ax8.bar(range(n_regions), region_interpretability,
+                      color=plt.cm.plasma(np.linspace(0, 1, n_regions)), alpha=0.7)
+        ax8.set_title('Regional Interpretability Scores', fontweight='bold')
+        ax8.set_xlabel('Brain Regions')
+        ax8.set_ylabel('Interpretability')
+        ax8.set_xticks(range(n_regions))
+        ax8.set_xticklabels([name[:8] + '...' if len(name) > 8 else name
+                            for _, name in brain_views], rotation=45, ha='right')
+
+        # Add value labels
+        for i, (bar, score) in enumerate(zip(bars, region_interpretability)):
+            ax8.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
+                    f'{score:.3f}', ha='center', va='bottom', fontweight='bold', fontsize=8)
+
+        # 9. Summary statistics table
+        ax9 = plt.subplot(3, 4, 9)
+        ax9.axis('off')
+
+        # Calculate summary statistics
+        most_active_region = brain_views[np.argmax([np.mean(np.abs(W[sum(Dm[:i]):sum(Dm[:i])+Dm[i], :]))
+                                                   for i, _ in enumerate(brain_views)
+                                                   for view_idx, _ in [brain_views[i]] if i < len(Dm)])][1]
+        most_sparse_region = brain_views[np.argmax(region_sparsity)][1]
+        most_interpretable_region = brain_views[np.argmax(region_interpretability)][1]
+
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Brain Regions', f'{n_regions}'],
+            ['Total Brain Features', f'{sum([Dm[i] for i, _ in brain_views])}'],
+            ['Most Active Region', most_active_region[:15] + '...' if len(most_active_region) > 15 else most_active_region],
+            ['Most Sparse Region', most_sparse_region[:15] + '...' if len(most_sparse_region) > 15 else most_sparse_region],
+            ['Most Interpretable', most_interpretable_region[:15] + '...' if len(most_interpretable_region) > 15 else most_interpretable_region],
+            ['Avg Regional Sparsity', f'{np.mean(region_sparsity):.1f}%'],
+            ['Cross-Regional Corr', f'{np.mean(np.abs(region_corr[np.triu_indices(n_regions, k=1)])):.3f}' if n_regions > 1 else 'N/A']
+        ]
+
+        table = ax9.table(cellText=summary_data, cellLoc='center', loc='center',
+                         colWidths=[0.6, 0.4])
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 2)
+
+        # Style the header row
+        for i in range(len(summary_data[0])):
+            table[(0, i)].set_facecolor('#FF9800')
+            table[(0, i)].set_text_props(weight='bold', color='white')
+
+        # 10-12. Individual region highlights (top 3 most interesting)
+        top_regions_indices = np.argsort(region_interpretability)[-3:][::-1]
+
+        for plot_idx, region_rank in enumerate(top_regions_indices):
+            ax = plt.subplot(3, 4, 10 + plot_idx)
+            view_idx, view_name = brain_views[region_rank]
+            d = sum(Dm[:view_idx])
+            dim = Dm[view_idx]
+            W_region = W[d:d+dim, :]
+
+            # Create mini heatmap for this region
+            im = ax.imshow(W_region.T, aspect='auto', cmap='RdBu_r',
+                          vmin=-np.max(np.abs(W_region)), vmax=np.max(np.abs(W_region)))
+            ax.set_title(f'{view_name}\n(Rank #{plot_idx+1} Interpretability)', fontweight='bold', fontsize=10)
+            ax.set_xlabel('Features')
+            ax.set_ylabel('Factors')
+            ax.set_yticks(range(n_factors))
+            ax.set_yticklabels([f'F{i+1}' for i in range(n_factors)])
+
+        plt.suptitle('Comprehensive Region-Wise Factor Analysis', fontsize=18, fontweight='bold', y=0.98)
+        plt.tight_layout(rect=[0, 0.02, 1, 0.96])
+
+        if save_path:
+            region_save_path = save_path.replace('.png', '_region_wise_analysis.png')
+            save_plot(region_save_path)
+            plt.close()
+            logger.info(f"Saved region-wise factor analysis: {region_save_path}")
         else:
             plt.show()
