@@ -18,7 +18,7 @@ def test_data_alignment():
     logger.info("🔍 Testing brain mapping data alignment...")
 
     # Load your latest results
-    results_dir = Path("../results/qmap_pd/sparseGFA_K5_1chs_pW25_s1000_reghsZ")
+    results_dir = Path("../../results/qmap_pd/sparseGFA_K5_1chs_pW25_s1000_reghsZ")
 
     # Check if results exist
     if not results_dir.exists():
@@ -43,7 +43,7 @@ def test_data_alignment():
             return False
 
     # Load position files
-    data_dir = Path("qMAP-PD_data")
+    data_dir = Path("../../qMAP-PD_data")
     position_files = {
         "sn": data_dir / "position_sn_voxels.tsv",
         "putamen": data_dir / "position_putamen_voxels.tsv",
@@ -109,7 +109,7 @@ def test_position_file_format():
 
     logger.info("🔍 Testing position file format...")
 
-    data_dir = Path("qMAP-PD_data")
+    data_dir = Path("../../qMAP-PD_data")
     pos_file = data_dir / "position_sn_voxels.tsv"
 
     if pos_file.exists():
