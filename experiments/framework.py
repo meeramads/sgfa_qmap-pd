@@ -326,9 +326,10 @@ class ExperimentFramework:
         result_json = output_dir / "result.json"
         save_json(result.to_dict(), result_json, indent=2)
 
-        # Save as pickle for complete object
-        result_pkl = output_dir / "result.pkl"
-        safe_pickle_save(result, result_pkl, "Experiment result")
+        # Save as pickle for complete object (disabled to prevent large files)
+        # result_pkl = output_dir / "result.pkl"
+        # safe_pickle_save(result, result_pkl, "Experiment result")
+        logger.info("Pickle saving disabled to prevent large files - using JSON and CSV instead")
 
         # Save summary CSV
         self._save_result_summary(result, output_dir / "summary.csv")
