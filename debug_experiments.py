@@ -348,6 +348,9 @@ def run_model_comparison_debug():
             import argparse
             args = argparse.Namespace()
             args.model = "sparseGFA"
+            args.num_sources = len(X_list)  # This is required by the models function
+            args.K = 3  # This is also required by the models function
+            args.reghsZ = False  # Required for regularized horseshoe option
 
             N, K = n_subjects, 3
             Dm = [X.shape[1] for X in X_list]
@@ -361,7 +364,7 @@ def run_model_comparison_debug():
             rng_key = jax.random.PRNGKey(42)
             kernel = NUTS(models, target_accept_prob=0.8)
             mcmc = MCMC(kernel, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc.run(rng_key, X_list, K, hypers)
+            mcmc.run(rng_key, X_list, hypers, args)
 
             samples = mcmc.get_samples()
             sgfa_result = {"converged": True, "samples": samples}

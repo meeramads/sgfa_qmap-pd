@@ -1,18 +1,18 @@
 {
   "status": "completed_with_issues",
-  "duration_seconds": 14.623533725738525,
+  "duration_seconds": 51.841094732284546,
   "issues": [
-    "SGFA crashed: models() takes 3 positional arguments but 4 were given",
+    "SGFA crashed: 'Namespace' object has no attribute 'reghsZ'",
     "Model factory integration failed: integrate_models_with_pipeline() got an unexpected keyword argument 'computational_resources'"
   ],
   "methods_results": {
     "SGFA": {
       "success": false,
-      "error": "models() takes 3 positional arguments but 4 were given"
+      "error": "'Namespace' object has no attribute 'reghsZ'"
     },
     "PCA": {
       "success": true,
-      "explained_variance": 0.48786391052961964,
+      "explained_variance": 0.48786391053179345,
       "has_components": true,
       "has_transform": true
     },
