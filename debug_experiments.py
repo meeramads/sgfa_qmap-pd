@@ -219,7 +219,9 @@ def run_sgfa_parameter_comparison_debug():
             'Dm': Dm,
             'a_sigma': 1.0,
             'b_sigma': 1.0,
-            'percW': 25.0  # Sparsity percentage
+            'percW': 25.0,  # Sparsity percentage
+            'slab_df': 4.0,  # Slab degrees of freedom
+            'slab_scale': 1.0  # Slab scale parameter
         }
 
         # Create minimal args object
