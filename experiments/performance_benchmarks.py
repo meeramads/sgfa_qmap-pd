@@ -600,7 +600,27 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                 f"Running SGFA benchmark: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
             )
 
-            # Import the actual SGFA model function
+            # Use model factory for consistent model management
+            from models.models_integration import integrate_models_with_pipeline
+
+            # Setup data characteristics for optimal model selection
+            data_characteristics = {
+                "total_features": sum(X.shape[1] for X in X_list),
+                "n_views": len(X_list),
+                "n_subjects": X_list[0].shape[0],
+                "has_imaging_data": True
+            }
+
+            # Get optimal model configuration via factory
+            model_type, model_instance, models_summary = integrate_models_with_pipeline(
+                config={"model": {"type": "sparseGFA"}},
+                X_list=X_list,
+                data_characteristics=data_characteristics
+            )
+
+            self.logger.info(f"🏭 Performance benchmark using model: {model_type}")
+
+            # Import the actual SGFA model function for execution
             from core.run_analysis import models
 
             # Setup MCMC configuration for benchmarking (reduced for speed)

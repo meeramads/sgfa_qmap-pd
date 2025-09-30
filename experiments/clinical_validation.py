@@ -337,7 +337,27 @@ class ClinicalValidationExperiments(ExperimentFramework):
         from numpyro.infer import MCMC, NUTS
 
         try:
-            # Import SGFA model
+            # Use model factory for consistent model management
+            from models.models_integration import integrate_models_with_pipeline
+
+            # Setup data characteristics for optimal model selection
+            data_characteristics = {
+                "total_features": sum(X.shape[1] for X in X_list),
+                "n_views": len(X_list),
+                "n_subjects": X_list[0].shape[0],
+                "has_imaging_data": True
+            }
+
+            # Get optimal model configuration via factory
+            model_type, model_instance, models_summary = integrate_models_with_pipeline(
+                config={"model": {"type": args.get("model", "sparseGFA")}},
+                X_list=X_list,
+                data_characteristics=data_characteristics
+            )
+
+            self.logger.info(f"🏭 Clinical validation using model: {model_type}")
+
+            # Import SGFA model for execution
             from core.run_analysis import models
 
             # Setup MCMC
@@ -1782,7 +1802,23 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 f"Running SGFA for clinical validation: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
             )
 
-            # Import the actual SGFA model function
+            # Use model factory for consistent model management (if not already done)
+            if 'models_summary' not in locals():
+                from models.models_integration import integrate_models_with_pipeline
+                data_characteristics = {
+                    "total_features": sum(X.shape[1] for X in X_list),
+                    "n_views": len(X_list),
+                    "n_subjects": X_list[0].shape[0],
+                    "has_imaging_data": True
+                }
+                model_type, model_instance, models_summary = integrate_models_with_pipeline(
+                    config={"model": {"type": "sparseGFA"}},
+                    X_list=X_list,
+                    data_characteristics=data_characteristics
+                )
+                self.logger.info(f"🏭 Model factory configured: {model_type}")
+
+            # Import the actual SGFA model function for execution
             from core.run_analysis import models
 
             # Setup MCMC configuration for clinical validation
