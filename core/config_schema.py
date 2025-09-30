@@ -68,6 +68,7 @@ class ExperimentsConfig:
     base_output_dir: str
     save_intermediate: bool = True
     generate_plots: bool = True
+    enable_spatial_analysis: bool = True
     max_parallel_jobs: int = 1
 
     def validate(self) -> List[str]:
