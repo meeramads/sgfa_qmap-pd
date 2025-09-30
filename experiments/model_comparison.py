@@ -1,8 +1,15 @@
 """Model architecture comparison experiments for qMAP-PD analysis.
 
 This module compares different model architectures including:
-- Implemented: sparseGFA vs traditional methods (PCA, ICA, FA)
+- Implemented: sparseGFA vs traditional methods (PCA, ICA, FA, KMeans, CCA)
 - Future work: standardGFA, neuroGFA, LCA (documented but not run due to computational constraints)
+
+Traditional methods cover different analysis approaches:
+- PCA: Linear dimensionality reduction
+- ICA: Independent component analysis
+- FA: Factor analysis with noise modeling
+- KMeans: Clustering-based analysis
+- CCA: Multi-view canonical correlation analysis
 
 For optimizing hyperparameters within sparseGFA, see experiments/sgfa_parameter_comparison.py.
 """
@@ -16,6 +23,8 @@ from typing import Dict, List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.decomposition import PCA, FactorAnalysis, FastICA
+from sklearn.cluster import KMeans
+from sklearn.cross_decomposition import CCA
 
 # Safe configuration access
 from core.experiment_utils import (
@@ -122,7 +131,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.model_parameter_grids = model_configs
 
         # Traditional methods for comparison
-        self.traditional_methods = ["pca", "ica", "fa"]
+        self.traditional_methods = ["pca", "ica", "fa", "kmeans", "cca"]
 
         # system_config already initialized above before super().__init__
 
@@ -912,6 +921,49 @@ class ModelArchitectureComparison(ExperimentFramework):
                     "W": W,
                     "mixing_matrix": method.mixing_,
                     "method": "ica",
+                }
+
+            elif method_name == "kmeans":
+                method = KMeans(n_clusters=n_components, random_state=42, n_init=10)
+                labels = method.fit_predict(X)
+
+                # For KMeans, we create factor-like representations
+                Z = np.eye(n_components)[labels]  # One-hot encoding of cluster assignments
+                W = method.cluster_centers_.T  # Cluster centers as "loadings"
+
+                results = {
+                    "Z": Z,
+                    "W": W,
+                    "labels": labels,
+                    "cluster_centers": method.cluster_centers_,
+                    "inertia": method.inertia_,
+                    "method": "kmeans",
+                }
+
+            elif method_name == "cca":
+                # For CCA, split data in half (or use view structure if available)
+                n_features_1 = X.shape[1] // 2
+                X1 = X[:, :n_features_1]
+                X2 = X[:, n_features_1:]
+
+                # Ensure we don't exceed feature dimensions
+                max_components = min(n_components, min(X1.shape[1], X2.shape[1]))
+
+                method = CCA(n_components=max_components)
+                Z1, Z2 = method.fit_transform(X1, X2)
+
+                # Combine canonical variables for factor-like representation
+                Z = np.hstack([Z1, Z2])
+                W = np.vstack([method.x_weights_, method.y_weights_])  # Combined weights
+
+                results = {
+                    "Z": Z,
+                    "W": W,
+                    "Z1": Z1,
+                    "Z2": Z2,
+                    "x_weights": method.x_weights_,
+                    "y_weights": method.y_weights_,
+                    "method": "cca",
                 }
 
             elapsed = time.time() - start_time
