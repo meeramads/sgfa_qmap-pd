@@ -169,7 +169,13 @@ def main():
         # Create single timestamped directory for all experiments
         run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = get_output_dir(config)
-        unified_dir = output_dir / f"complete_run_{run_timestamp}"
+        # Create directory name based on what's actually running
+        if len(args.experiments) == 1:
+            unified_dir = output_dir / f"{args.experiments[0]}_run_{run_timestamp}"
+        elif len(args.experiments) < 5:
+            unified_dir = output_dir / f"{'_'.join(args.experiments)}_run_{run_timestamp}"
+        else:
+            unified_dir = output_dir / f"complete_run_{run_timestamp}"
         unified_dir.mkdir(parents=True, exist_ok=True)
 
         # Update config to use unified directory
