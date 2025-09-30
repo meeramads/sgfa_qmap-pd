@@ -73,10 +73,44 @@ def run_data_validation_debug():
             elif X_list is None:
                 logger.error("Data loading returned None")
                 raise ValueError("Data loading failed: returned None")
+            elif isinstance(X_list, dict):
+                # Handle dictionary return (likely from preprocessing integration)
+                logger.info(f"Data loading returned dict with keys: {list(X_list.keys())}")
+
+                # Try to extract X_list from common dictionary keys
+                if 'X_list' in X_list:
+                    actual_X_list = X_list['X_list']
+                    logger.info(f"Extracted X_list from dict: {type(actual_X_list)}")
+                elif 'data' in X_list:
+                    actual_X_list = X_list['data']
+                    logger.info(f"Extracted data from dict: {type(actual_X_list)}")
+                elif 'views' in X_list:
+                    actual_X_list = X_list['views']
+                    logger.info(f"Extracted views from dict: {type(actual_X_list)}")
+                else:
+                    # Look for any list/array-like values
+                    potential_data = None
+                    for key, value in X_list.items():
+                        if isinstance(value, (list, tuple)) and len(value) > 0:
+                            if hasattr(value[0], 'shape'):  # Looks like array data
+                                potential_data = value
+                                logger.info(f"Found potential data in key '{key}': {type(value)}")
+                                break
+
+                    if potential_data is not None:
+                        actual_X_list = potential_data
+                    else:
+                        logger.error(f"Could not find data arrays in dict keys: {list(X_list.keys())}")
+                        raise ValueError(f"Dict contains no recognizable data arrays")
+
+                # Replace X_list with the extracted data
+                X_list = actual_X_list
+
             elif not isinstance(X_list, (list, tuple)):
                 logger.error(f"Data loading returned unexpected type: {type(X_list)}")
-                raise ValueError(f"Expected list/tuple, got {type(X_list)}")
-            elif len(X_list) == 0:
+                raise ValueError(f"Expected list/tuple/dict, got {type(X_list)}")
+
+            if len(X_list) == 0:
                 logger.error("Data loading returned empty list")
                 raise ValueError("Data loading failed: empty list")
 
