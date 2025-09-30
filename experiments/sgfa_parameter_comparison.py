@@ -10,9 +10,8 @@ from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.cross_decomposition import CCA
-from sklearn.decomposition import PCA, FactorAnalysis
+# KMeans and CCA imports removed - not needed for SGFA-focused experiment
+# sklearn imports removed - traditional methods moved to model_comparison.py
 
 # Safe configuration access
 from core.config_utils import ConfigAccessor, safe_get
@@ -126,67 +125,8 @@ class SGFAParameterComparison(ExperimentFramework):
             success=True,
         )
 
-    @experiment_handler("traditional_method_comparison")
-    @validate_data_types(X_list=list, sgfa_results=(dict, type(None)))
-    @validate_parameters(
-        X_list=lambda x: len(x) > 0 and all(isinstance(arr, np.ndarray) for arr in x)
-    )
-    def run_traditional_method_comparison(
-        self, X_list: List[np.ndarray], sgfa_results: Dict = None, **kwargs
-    ) -> ExperimentResult:
-        """Compare SGFA with traditional dimensionality reduction methods."""
-        self.logger.info("Running traditional method comparison")
-
-        results = {}
-        performance_metrics = {}
-
-        # Concatenate multi-view data for traditional methods
-        X_concat = np.hstack(X_list) if len(X_list) > 1 else X_list[0]
-        X_concat.shape[0]
-
-        # Determine number of components
-        n_components = kwargs.get("n_components", min(10, X_concat.shape[1] // 2))
-
-        traditional_methods = ["pca", "fa", "cca", "kmeans", "ica"]
-        for method_name in traditional_methods:
-            self.logger.info(f"Testing traditional method: {method_name}")
-
-            with self.profiler.profile(f"traditional_{method_name}"):
-                method_result = self._run_traditional_method(
-                    X_concat, method_name, n_components, **kwargs
-                )
-                results[method_name] = method_result
-
-            # Store performance metrics
-            metrics = self.profiler.get_current_metrics()
-            performance_metrics[method_name] = {
-                "execution_time": metrics.execution_time,
-                "peak_memory_gb": metrics.peak_memory_gb,
-            }
-
-        # Include SGFA results if provided
-        if sgfa_results:
-            results["sgfa"] = sgfa_results
-            performance_metrics["sgfa"] = {
-                "execution_time": sgfa_results.get("execution_time", 0),
-                "peak_memory_gb": sgfa_results.get("peak_memory_gb", 0),
-            }
-
-        # Analyze method comparison
-        analysis = self._analyze_traditional_comparison(results, X_list)
-
-        # Generate plots
-        plots = self._plot_traditional_comparison(results, performance_metrics)
-
-        return ExperimentResult(
-            experiment_name="traditional_method_comparison",
-            config=self.config,
-            data=results,
-            analysis=analysis,
-            plots=plots,
-            performance_metrics=performance_metrics,
-            success=True,
-        )
+    # Traditional method comparison removed - available in model_comparison.py
+    # This experiment focuses purely on SGFA hyperparameter optimization
 
     @experiment_handler("multiview_capability_assessment")
     @validate_data_types(X_list=list)
@@ -892,76 +832,7 @@ class SGFAParameterComparison(ExperimentFramework):
                 "log_likelihood": float("-inf"),
             }
 
-    def _run_traditional_method(
-        self, X: np.ndarray, method_name: str, n_components: int
-    ) -> Dict:
-        """Run traditional dimensionality reduction method."""
-        results = {}
-
-        try:
-            if method_name == "pca":
-                model = PCA(n_components=n_components)
-                Z = model.fit_transform(X)
-                results = {
-                    "components": model.components_,
-                    "explained_variance_ratio": model.explained_variance_ratio_,
-                    "Z": Z,
-                    "model": model,
-                }
-
-            elif method_name == "fa":
-                model = FactorAnalysis(n_components=n_components)
-                Z = model.fit_transform(X)
-                results = {
-                    "components": model.components_,
-                    "Z": Z,
-                    "loglik": model.score(X),
-                    "model": model,
-                }
-
-            elif method_name == "cca":
-                # For CCA, split data in half
-                n_features_1 = X.shape[1] // 2
-                X1 = X[:, :n_features_1]
-                X2 = X[:, n_features_1:]
-
-                model = CCA(
-                    n_components=min(n_components, min(X1.shape[1], X2.shape[1]))
-                )
-                Z1, Z2 = model.fit_transform(X1, X2)
-
-                results = {
-                    "Z1": Z1,
-                    "Z2": Z2,
-                    "x_weights": model.x_weights_,
-                    "y_weights": model.y_weights_,
-                    "model": model,
-                }
-
-            elif method_name == "kmeans":
-                model = KMeans(n_clusters=n_components, random_state=42)
-                labels = model.fit_predict(X)
-
-                results = {
-                    "labels": labels,
-                    "centers": model.cluster_centers_,
-                    "inertia": model.inertia_,
-                    "model": model,
-                }
-
-            elif method_name == "ica":
-                from sklearn.decomposition import FastICA
-
-                model = FastICA(n_components=n_components, random_state=42)
-                Z = model.fit_transform(X)
-
-                results = {"components": model.components_, "Z": Z, "model": model}
-
-        except Exception as e:
-            self.logger.warning(f"Method {method_name} failed: {str(e)}")
-            results = {"error": str(e)}
-
-        return results
+    # _run_traditional_method removed - available in model_comparison.py
 
     def _run_sgfa_multiview(self, X_list: List[np.ndarray]) -> Dict:
         """Run SGFA on multi-view data."""
@@ -1065,42 +936,7 @@ class SGFAParameterComparison(ExperimentFramework):
 
         return analysis
 
-    def _analyze_traditional_comparison(
-        self, results: Dict, X_list: List[np.ndarray]
-    ) -> Dict:
-        """Analyze traditional method comparison results."""
-        analysis = {
-            "method_summary": {},
-            "multi_view_handling": {},
-            "dimensionality_reduction_quality": {},
-            "computational_efficiency": {},
-        }
-
-        # Method summary
-        for method_name, result in results.items():
-            if "error" in result:
-                analysis["method_summary"][method_name] = {
-                    "status": "failed",
-                    "error": result["error"],
-                }
-                continue
-
-            analysis["method_summary"][method_name] = {
-                "status": "success",
-                "output_dimensions": self._get_output_dimensions(result, method_name),
-            }
-
-        # Multi-view handling assessment
-        sum(X.shape[1] for X in X_list)
-        for method_name, result in results.items():
-            if method_name == "sgfa":
-                analysis["multi_view_handling"][method_name] = "native_support"
-            elif method_name == "cca":
-                analysis["multi_view_handling"][method_name] = "pairwise_only"
-            else:
-                analysis["multi_view_handling"][method_name] = "concatenation_required"
-
-        return analysis
+    # _analyze_traditional_comparison removed - available in model_comparison.py
 
     def _analyze_multiview_capabilities(self, results: Dict) -> Dict:
         """Analyze multi-view capabilities of different methods."""
@@ -1156,18 +992,7 @@ class SGFAParameterComparison(ExperimentFramework):
 
         return analysis
 
-    def _get_output_dimensions(self, result: Dict, method_name: str) -> int:
-        """Get output dimensions for a method result."""
-        if method_name == "sgfa":
-            return result["Z"].shape[1] if "Z" in result else 0
-        elif "Z" in result:
-            return result["Z"].shape[1]
-        elif "Z1" in result and "Z2" in result:  # CCA
-            return result["Z1"].shape[1]
-        elif "labels" in result:  # K-means
-            return len(np.unique(result["labels"]))
-        else:
-            return 0
+    # _get_output_dimensions removed - was only used for traditional method comparison
 
     def _plot_sgfa_comparison(self, results: Dict, performance_metrics: Dict) -> Dict:
         """Generate plots for SGFA variant comparison."""
@@ -1218,42 +1043,7 @@ class SGFAParameterComparison(ExperimentFramework):
 
         return plots
 
-    def _plot_traditional_comparison(
-        self, results: Dict, performance_metrics: Dict
-    ) -> Dict:
-        """Generate plots for traditional method comparison."""
-        plots = {}
-
-        try:
-            # Method performance comparison
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            fig.suptitle("Traditional Method Comparison", fontsize=16)
-
-            methods = list(performance_metrics.keys())
-
-            # Execution time comparison
-            times = [performance_metrics[m]["execution_time"] for m in methods]
-            axes[0].bar(methods, times)
-            axes[0].set_title("Execution Time by Method")
-            axes[0].set_ylabel("Time (seconds)")
-            axes[0].tick_params(axis="x", rotation=45)
-
-            # Memory usage comparison
-            memory = [performance_metrics[m]["peak_memory_gb"] for m in methods]
-            axes[1].bar(methods, memory)
-            axes[1].set_title("Peak Memory Usage by Method")
-            axes[1].set_ylabel("Memory (GB)")
-            axes[1].tick_params(axis="x", rotation=45)
-
-            plt.tight_layout()
-            plots["traditional_method_comparison"] = fig
-
-        except Exception as e:
-            self.logger.warning(
-                f"Failed to create traditional comparison plots: {str(e)}"
-            )
-
-        return plots
+    # _plot_traditional_comparison removed - available in model_comparison.py
 
     def _plot_multiview_comparison(self, results: Dict) -> Dict:
         """Generate plots for multi-view comparison."""
@@ -1854,44 +1644,17 @@ def run_method_comparison(config):
                     # Critical: Memory cleanup between parameter iterations
                     _iteration_memory_cleanup_standalone(variant_name, logger)
 
-            # Run traditional method comparison for a subset of methods
-            logger.info("🔬 Running traditional method comparison...")
-            X_concat = np.hstack(X_list)
+            # Traditional method comparison removed - available in model_comparison.py
+            # This experiment focuses purely on SGFA hyperparameter optimization
 
-            traditional_methods = ["pca", "fa"]  # Reduced set for faster testing
-            traditional_results = {}
-
-            for method in traditional_methods:
-                logger.info(f"Testing traditional method: {method}")
-
-                with method_exp.profiler.profile(f"traditional_{method}"):
-                    method_result = method_exp._run_traditional_method(
-                        X_concat, method, min(10, X_concat.shape[1] // 2)
-                    )
-
-                traditional_results[method] = method_result
-
-                # Store performance metrics
-                metrics = method_exp.profiler.get_current_metrics()
-                performance_metrics[method] = {
-                    "execution_time": metrics.execution_time,
-                    "peak_memory_gb": metrics.peak_memory_gb,
-                }
-
-                logger.info(f"✅ {method}: {metrics.execution_time:.1f}s")
-
-                # Memory cleanup between traditional methods
-                _iteration_memory_cleanup_standalone(f"traditional_{method}", logger)
-
-            # Combine all results
+            # Results contain only SGFA variants
             all_results = {
                 "sgfa_variants": model_results,
-                "traditional_methods": traditional_results,
             }
 
             logger.info("🔬 SGFA parameter comparison experiments completed!")
             logger.info(f"   SGFA parameter variants tested: {len(model_results)}")
-            logger.info(f"   Traditional methods tested: {len(traditional_results)}")
+            logger.info("   Focus: Pure SGFA hyperparameter optimization")
             logger.info(
                 f" Total execution time: { sum( m.get( 'execution_time', 0) for m in performance_metrics.values()):.1f}s"
             )
