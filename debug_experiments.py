@@ -60,7 +60,52 @@ def run_data_validation_debug():
 
         logger.info("Loading qMAP-PD data...")
         data_dir = get_data_dir(config)
-        X_list = load_qmap_pd(data_dir)
+
+        # Try to load data and handle various return types
+        try:
+            X_list = load_qmap_pd(data_dir)
+            logger.info(f"Data loading returned: {type(X_list)}")
+
+            # Handle different return types
+            if isinstance(X_list, str):
+                logger.error(f"Data loading returned error message: {X_list}")
+                raise ValueError(f"Data loading failed: {X_list}")
+            elif X_list is None:
+                logger.error("Data loading returned None")
+                raise ValueError("Data loading failed: returned None")
+            elif not isinstance(X_list, (list, tuple)):
+                logger.error(f"Data loading returned unexpected type: {type(X_list)}")
+                raise ValueError(f"Expected list/tuple, got {type(X_list)}")
+            elif len(X_list) == 0:
+                logger.error("Data loading returned empty list")
+                raise ValueError("Data loading failed: empty list")
+
+            # Validate each array in the list
+            for i, X in enumerate(X_list):
+                if not hasattr(X, 'shape'):
+                    logger.error(f"View {i} is not a numpy array: {type(X)}")
+                    raise ValueError(f"View {i} is not a numpy array: {type(X)}")
+                logger.info(f"View {i} shape: {X.shape}")
+
+        except Exception as e:
+            logger.error(f"Data loading failed: {e}")
+            # Create error result instead of crashing
+            debug_dir = Path("debug_results/data_validation")
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+            duration = time.time() - start_time
+            error_result = {
+                "status": "failed",
+                "duration_seconds": duration,
+                "error": str(e),
+                "data_loading_failed": True
+            }
+
+            import json
+            with open(debug_dir / "summary.json", "w") as f:
+                json.dump(error_result, f, indent=2, default=str)
+
+            raise
 
         # Create simple debug output
         debug_dir = Path("debug_results/data_validation")
@@ -72,7 +117,7 @@ def run_data_validation_debug():
             "status": "completed",
             "duration_seconds": duration,
             "views": len(X_list),
-            "shapes": [X.shape for X in X_list],
+            "shapes": [list(X.shape) for X in X_list],  # Convert to list for JSON serialization
             "total_features": sum(X.shape[1] for X in X_list),
             "total_subjects": X_list[0].shape[0] if X_list else 0
         }
