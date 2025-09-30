@@ -186,15 +186,27 @@ def main():
         logger.info(f"🗂️  Using unified results directory: {unified_dir}")
         logger.info(f"   All experiments will save to: {unified_dir.name}")
 
-        # Create organized subdirectories in unified folder
-        (unified_dir / "01_data_validation").mkdir(exist_ok=True)
-        (unified_dir / "02_sgfa_parameter_comparison").mkdir(exist_ok=True)
-        (unified_dir / "03_model_comparison").mkdir(exist_ok=True)
-        (unified_dir / "04_performance_benchmarks").mkdir(exist_ok=True)
-        (unified_dir / "05_sensitivity_analysis").mkdir(exist_ok=True)
-        (unified_dir / "plots").mkdir(exist_ok=True)
-        (unified_dir / "brain_maps").mkdir(exist_ok=True)
-        (unified_dir / "summaries").mkdir(exist_ok=True)
+        # Create organized subdirectories only for experiments that will actually run
+        experiment_dir_mapping = {
+            "data_validation": "01_data_validation",
+            "sgfa_parameter_comparison": "02_sgfa_parameter_comparison",
+            "model_comparison": "03_model_comparison",
+            "performance_benchmarks": "04_performance_benchmarks",
+            "sensitivity_analysis": "05_sensitivity_analysis",
+            "clinical_validation": "06_clinical_validation"
+        }
+
+        # Only create directories for experiments that are actually being run
+        for experiment in args.experiments:
+            if experiment in experiment_dir_mapping:
+                (unified_dir / experiment_dir_mapping[experiment]).mkdir(exist_ok=True)
+                logger.info(f"Created directory for: {experiment}")
+
+        # Always create common directories if any experiment is running
+        if args.experiments:
+            (unified_dir / "plots").mkdir(exist_ok=True)
+            (unified_dir / "brain_maps").mkdir(exist_ok=True)
+            (unified_dir / "summaries").mkdir(exist_ok=True)
 
     # Setup environment
     setup_environment(config)
@@ -576,22 +588,27 @@ def main():
 
             f.write(f"## Results Structure\\n\\n")
             f.write(f"```\\n")
-            f.write(
-                f"01_data_validation/     - Data quality and preprocessing analysis\\n"
-            )
-            f.write(
-                f"02_sgfa_parameter_comparison/   - SGFA hyperparameter optimization\\n"
-            )
-            f.write(f"03_model_comparison/   - Model architecture comparison\\n")
-            f.write(
-                f"04_performance_benchmarks/ - Scalability and performance tests\\n"
-            )
-            f.write(f"05_sensitivity_analysis/ - Parameter sensitivity studies\\n")
-            f.write(f"plots/                  - All visualization outputs\\n")
-            f.write(
-                f"brain_maps/            - Factor loadings mapped to brain space\\n"
-            )
-            f.write(f"summaries/             - Detailed summaries and reports\\n")
+
+            # Only document directories for experiments that were actually run
+            experiment_descriptions = {
+                "data_validation": "01_data_validation/     - Data quality and preprocessing analysis",
+                "sgfa_parameter_comparison": "02_sgfa_parameter_comparison/   - SGFA hyperparameter optimization",
+                "model_comparison": "03_model_comparison/   - Model architecture comparison",
+                "performance_benchmarks": "04_performance_benchmarks/ - Scalability and performance tests",
+                "sensitivity_analysis": "05_sensitivity_analysis/ - Parameter sensitivity studies",
+                "clinical_validation": "06_clinical_validation/ - Clinical validation studies"
+            }
+
+            for experiment in experiments_to_run:
+                if experiment in experiment_descriptions:
+                    f.write(f"{experiment_descriptions[experiment]}\\n")
+
+            # Always document common directories if any experiments ran
+            if experiments_to_run:
+                f.write(f"plots/                  - All visualization outputs\\n")
+                f.write(f"brain_maps/            - Factor loadings mapped to brain space\\n")
+                f.write(f"summaries/             - Detailed summaries and reports\\n")
+
             f.write(f"```\\n\\n")
 
             # Add experiment-specific details
