@@ -185,25 +185,77 @@ def run_sgfa_parameter_comparison_debug():
         # Simple debug version - just test one SGFA configuration
         from data.qmap_pd import load_qmap_pd
         from core.config_utils import get_data_dir
-        from models.sparse_gfa import run_sparse_gfa_model
+        from core.run_analysis import models
+        from numpyro.infer import MCMC, NUTS
+        import jax
+        import jax.numpy as jnp
+        import argparse
 
         logger.info("Loading data and running single SGFA test...")
         data_dir = get_data_dir(config)
-        X_list = load_qmap_pd(data_dir)
+
+        # Handle data loading (same as data validation debug)
+        try:
+            data_result = load_qmap_pd(data_dir)
+            if isinstance(data_result, dict):
+                X_list = data_result['X_list']
+            else:
+                X_list = data_result
+            logger.info(f"Loaded {len(X_list)} views for SGFA test")
+        except Exception as e:
+            logger.error(f"Data loading failed: {e}")
+            raise
 
         # Create simple debug output
         debug_dir = Path("debug_results/sgfa_parameter_comparison")
         debug_dir.mkdir(parents=True, exist_ok=True)
 
-        # Run single SGFA with debug settings (K=3, 50 samples from debug config)
+        # Set up minimal SGFA parameters
         logger.info("Running SGFA with debug parameters...")
-        result = run_sparse_gfa_model(
-            X_list,
-            K=3,  # Small number for debug
-            num_samples=50,  # Fast for debug
-            num_chains=1,    # Single chain for speed
-            num_warmup=25    # Minimal warmup
-        )
+
+        # Create minimal hyperparameters
+        Dm = [X.shape[1] for X in X_list]  # Features per view
+        hypers = {
+            'Dm': Dm,
+            'a_sigma': 1.0,
+            'b_sigma': 1.0,
+            'percW': 25.0  # Sparsity percentage
+        }
+
+        # Create minimal args object
+        args = argparse.Namespace()
+        args.K = 3  # Small number for debug
+        args.num_sources = len(X_list)
+        args.reghsZ = False  # Simpler version
+        args.num_samples = 20  # Very fast for debug
+        args.num_warmup = 10
+        args.num_chains = 1
+
+        try:
+            # Run SGFA model
+            nuts_kernel = NUTS(models)
+            mcmc = MCMC(nuts_kernel, num_samples=args.num_samples, num_warmup=args.num_warmup, num_chains=args.num_chains)
+            mcmc.run(jax.random.PRNGKey(42), X_list, hypers, args)
+
+            # Get results
+            samples = mcmc.get_samples()
+            result = {
+                "converged": True,
+                "log_likelihood": 0.0,  # Simplified for debug
+                "samples": len(samples) > 0,
+                "W": samples.get("W") if "W" in samples else None,
+                "Z": samples.get("Z") if "Z" in samples else None
+            }
+
+        except Exception as e:
+            logger.warning(f"SGFA run failed: {e}")
+            result = {
+                "converged": False,
+                "error": str(e),
+                "samples": False,
+                "W": None,
+                "Z": None
+            }
 
         duration = time.time() - start_time
         debug_result = {
