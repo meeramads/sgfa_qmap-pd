@@ -117,11 +117,52 @@ class ExperimentResult:
         self.end_time = datetime.now()
         self.status = "completed"
 
+        # Calculate and log runtime
+        if self.start_time:
+            runtime = self.end_time - self.start_time
+            runtime_seconds = runtime.total_seconds()
+            runtime_str = self._format_runtime(runtime_seconds)
+
+            logger.info(f"🏁 EXPERIMENT COMPLETED: {self.experiment_id}")
+            logger.info(f"⏱️  TOTAL RUNTIME: {runtime_str}")
+            logger.info(f"🕐 Started: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.info(f"🕑 Finished: {self.end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+            # Store runtime in performance metrics
+            self.performance_metrics['total_runtime_seconds'] = runtime_seconds
+            self.performance_metrics['total_runtime_formatted'] = runtime_str
+
+    def _format_runtime(self, seconds: float) -> str:
+        """Format runtime in human-readable format."""
+        if seconds < 60:
+            return f"{seconds:.1f} seconds"
+        elif seconds < 3600:
+            minutes = seconds / 60
+            return f"{minutes:.1f} minutes ({seconds:.0f}s)"
+        else:
+            hours = seconds / 3600
+            minutes = (seconds % 3600) / 60
+            return f"{hours:.1f} hours ({minutes:.0f}m {seconds % 60:.0f}s)"
+
     def mark_failed(self, error_message: str):
         """Mark experiment as failed."""
         self.end_time = datetime.now()
         self.status = "failed"
         self.error_message = error_message
+
+        # Calculate and log runtime even for failed experiments
+        if self.start_time:
+            runtime = self.end_time - self.start_time
+            runtime_seconds = runtime.total_seconds()
+            runtime_str = self._format_runtime(runtime_seconds)
+
+            logger.error(f"❌ EXPERIMENT FAILED: {self.experiment_id}")
+            logger.error(f"⏱️  RUNTIME BEFORE FAILURE: {runtime_str}")
+            logger.error(f"💥 Error: {error_message}")
+
+            # Store runtime in performance metrics
+            self.performance_metrics['total_runtime_seconds'] = runtime_seconds
+            self.performance_metrics['total_runtime_formatted'] = runtime_str
 
     def get_duration(self) -> Optional[float]:
         """Get experiment duration in seconds."""
@@ -351,6 +392,9 @@ class ExperimentFramework:
             "experiment_name": result.config.experiment_name,
             "status": result.status,
             "duration_seconds": result.get_duration(),
+            "duration_formatted": result.performance_metrics.get('total_runtime_formatted', 'N/A'),
+            "start_time": result.start_time.strftime('%Y-%m-%d %H:%M:%S') if result.start_time else 'N/A',
+            "end_time": result.end_time.strftime('%Y-%m-%d %H:%M:%S') if result.end_time else 'N/A',
             "num_samples": result.config.num_samples,
             "num_chains": result.config.num_chains,
             "K_values": str(result.config.K_values),
