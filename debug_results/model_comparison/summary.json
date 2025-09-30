@@ -1,0 +1,56 @@
+{
+  "status": "completed_with_issues",
+  "duration_seconds": 14.623533725738525,
+  "issues": [
+    "SGFA crashed: models() takes 3 positional arguments but 4 were given",
+    "Model factory integration failed: integrate_models_with_pipeline() got an unexpected keyword argument 'computational_resources'"
+  ],
+  "methods_results": {
+    "SGFA": {
+      "success": false,
+      "error": "models() takes 3 positional arguments but 4 were given"
+    },
+    "PCA": {
+      "success": true,
+      "explained_variance": 0.48786391052961964,
+      "has_components": true,
+      "has_transform": true
+    },
+    "ICA": {
+      "success": true,
+      "explained_variance": null,
+      "has_components": true,
+      "has_transform": true
+    },
+    "FA": {
+      "success": true,
+      "explained_variance": null,
+      "has_components": true,
+      "has_transform": true
+    },
+    "KMeans": {
+      "success": true,
+      "explained_variance": null,
+      "has_components": false,
+      "has_transform": true
+    },
+    "CCA": {
+      "success": true,
+      "n_components": 3,
+      "has_transform": true
+    },
+    "model_factory": {
+      "success": false,
+      "error": "integrate_models_with_pipeline() got an unexpected keyword argument 'computational_resources'"
+    }
+  },
+  "summary": {
+    "successful_methods": 5,
+    "total_methods": 7,
+    "success_rate": 0.7142857142857143,
+    "data_shape": [
+      86,
+      30456
+    ]
+  }
+}
