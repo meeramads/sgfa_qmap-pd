@@ -117,7 +117,7 @@ def load_csv(filepath: Union[str, Path], **kwargs) -> pd.DataFrame:
 
 
 def save_numpy(
-    data: np.ndarray, filepath: Union[str, Path], compressed: bool = True
+    data: np.ndarray, filepath: Union[str, Path], compressed: bool = True, max_size_mb: int = 500
 ) -> None:
     """
     Save numpy array to file.
@@ -130,9 +130,17 @@ def save_numpy(
         Output file path
     compressed : bool, optional
         Whether to use compressed format (.npz vs .npy)
+    max_size_mb : int, optional
+        Maximum file size in MB before warning (default: 500)
     """
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    # Check array size before saving
+    array_size_mb = data.nbytes / (1024 * 1024)
+    if array_size_mb > max_size_mb:
+        logger.warning(f"Large array detected: {array_size_mb:.1f}MB > {max_size_mb}MB limit for {filepath}")
+        logger.warning("Consider using chunked processing or reducing data size")
 
     try:
         if compressed:

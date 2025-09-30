@@ -436,11 +436,11 @@ class ExperimentFramework:
                     for view_idx, W_view in enumerate(W):
                         if hasattr(W_view, "shape"):
                             # Save as numpy
-                            save_numpy(
-                                W_view,
-                                matrices_dir
-                                / f"{variant_name}_factor_loadings_view{view_idx}.npy",
-                            )
+                            # save_numpy(
+                            #     W_view,
+                            #     matrices_dir
+                            #     / f"{variant_name}_factor_loadings_view{view_idx}.npy",
+                            # )
                             # Save as CSV for readability
                             save_csv(
                                 pd.DataFrame(W_view),
@@ -451,9 +451,9 @@ class ExperimentFramework:
                 else:
                     # Single matrix case
                     if hasattr(W, "shape"):
-                        save_numpy(
-                            W, matrices_dir / f"{variant_name}_factor_loadings.npy"
-                        )
+                        # save_numpy(
+                        #     W, matrices_dir / f"{variant_name}_factor_loadings.npy"
+                        # )
                         save_csv(
                             pd.DataFrame(W),
                             matrices_dir / f"{variant_name}_factor_loadings.csv",
@@ -466,7 +466,7 @@ class ExperimentFramework:
             try:
                 if hasattr(Z, "shape"):
                     # Save factor scores
-                    save_numpy(Z, matrices_dir / f"{variant_name}_factor_scores.npy")
+                    # save_numpy(Z, matrices_dir / f"{variant_name}_factor_scores.npy")
 
                     # Log shape for debugging
                     logger.info(f"Saving {variant_name} factor scores Z shape: {Z.shape}")
