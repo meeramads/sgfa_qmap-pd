@@ -99,10 +99,35 @@ data_validation:
       feature_selection_method: "variance"
       variance_threshold: 0.01
 
+    statistical:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "statistical"
+      n_top_features: 500
+
+    mutual_info:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "mutual_info"
+      n_top_features: 500
+
+    combined:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "combined"
+      n_top_features: 500
+      variance_threshold: 0.01
+
+    optimized:
+      enable_advanced_preprocessing: true
+      optimize_preprocessing: true
+      cross_validate_sources: true
+
     clinical_focused:
       enable_advanced_preprocessing: true
       imputation_strategy: "median"
-      feature_selection_method: "variance"
+      feature_selection_method: "statistical"
+      n_top_features: 300
       variance_threshold: 0.005           # More stringent for clinical applications
 
 # Method Comparison Experiment

@@ -187,7 +187,7 @@ class PreprocessingConfig:
             errors.append(f"imputation_strategy must be one of {valid_imputation}")
 
         # Check feature selection
-        valid_selection = ["variance", "correlation", "mutual_info", "none"]
+        valid_selection = ["variance", "correlation", "mutual_info", "statistical", "combined", "none"]
         if self.feature_selection_method not in valid_selection:
             errors.append(f"feature_selection_method must be one of {valid_selection}")
 

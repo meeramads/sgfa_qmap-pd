@@ -891,6 +891,8 @@ class DataValidationExperiments(ExperimentFramework):
 
         return pd.DataFrame(comparisons)
 
+    @experiment_handler("preprocessing_comparison")
+    @validate_data_types(X_list=(list, type(None)))
     def run_preprocessing_comparison(
         self, X_list: List[np.ndarray] = None, **kwargs
     ) -> ExperimentResult:
@@ -909,15 +911,157 @@ class DataValidationExperiments(ExperimentFramework):
         """
         logger.info("Running preprocessing strategy comparison")
 
-        # For now, return a simple result - full implementation would be too long
-        return ExperimentResult(
-            experiment_name="preprocessing_comparison",
-            config=self.config,
-            data={"placeholder": "Full preprocessing comparison implementation needed"},
-            analysis={"note": "Placeholder for preprocessing strategy comparison"},
-            plots={},
-            success=True,
-        )
+        try:
+            from data.preprocessing_integration import apply_preprocessing_to_pipeline
+            from core.config_utils import ConfigHelper, ConfigAccessor
+
+            # Get strategy configurations from config
+            config_dict = ConfigHelper.to_dict(self.config)
+            strategies_config = config_dict.get("data_validation", {}).get("preprocessing_strategies", {})
+
+            if not strategies_config:
+                logger.warning("No preprocessing strategies found in config")
+                strategies_config = {
+                    "minimal": {"enable_advanced_preprocessing": False},
+                    "standard": {"enable_advanced_preprocessing": True, "feature_selection_method": "variance"},
+                    "statistical": {"enable_advanced_preprocessing": True, "feature_selection_method": "statistical"},
+                    "mutual_info": {"enable_advanced_preprocessing": True, "feature_selection_method": "mutual_info"},
+                    "combined": {"enable_advanced_preprocessing": True, "feature_selection_method": "combined"}
+                }
+
+            logger.info(f"Comparing {len(strategies_config)} preprocessing strategies: {list(strategies_config.keys())}")
+
+            strategy_results = {}
+            strategy_data = {}
+
+            # Test each preprocessing strategy
+            for strategy_name, strategy_params in strategies_config.items():
+                logger.info(f"🧠 Testing preprocessing strategy: {strategy_name}")
+
+                try:
+                    # Create a temporary config with this strategy
+                    temp_config_dict = config_dict.copy()
+                    temp_config_dict["preprocessing"] = strategy_params
+                    temp_config = ConfigAccessor(temp_config_dict)
+
+                    # Apply preprocessing with this strategy
+                    X_list_strategy, preprocessing_info = apply_preprocessing_to_pipeline(
+                        config=temp_config,
+                        data_dir=get_data_dir(config_dict),
+                        auto_select_strategy=False,
+                        preferred_strategy=strategy_params.get("strategy", strategy_name)
+                    )
+
+                    # Store the data and preprocessing info
+                    strategy_data[strategy_name] = {
+                        "X_list": X_list_strategy,
+                        "preprocessing_info": preprocessing_info
+                    }
+
+                    # Analyze this strategy's results
+                    strategy_results[strategy_name] = {
+                        "data_structure": {
+                            "n_subjects": X_list_strategy[0].shape[0] if X_list_strategy else 0,
+                            "n_views": len(X_list_strategy),
+                            "features_per_view": [X.shape[1] for X in X_list_strategy],
+                            "total_features": sum(X.shape[1] for X in X_list_strategy)
+                        },
+                        "quality_metrics": self._assess_strategy_quality(X_list_strategy),
+                        "preprocessing_info": preprocessing_info
+                    }
+
+                    logger.info(f"✅ Strategy {strategy_name}: {strategy_results[strategy_name]['data_structure']['total_features']} total features")
+
+                except Exception as e:
+                    logger.error(f"❌ Strategy {strategy_name} failed: {e}")
+                    strategy_results[strategy_name] = {"error": str(e)}
+                    continue
+
+            # Compare strategies
+            comparison_analysis = self._compare_preprocessing_strategies(strategy_data)
+            recommendations = self._generate_preprocessing_recommendations(strategy_results)
+
+            # Generate comparison plots
+            plots = {}
+            try:
+                self._plot_strategy_comparison(strategy_data, Path("/tmp"))
+                plots["strategy_comparison"] = "preprocessing_strategy_comparison.png"
+            except Exception as e:
+                logger.warning(f"Could not generate comparison plots: {e}")
+
+            return ExperimentResult(
+                experiment_name="preprocessing_comparison",
+                config=self.config,
+                data={
+                    "strategy_results": strategy_results,
+                    "strategy_comparison": comparison_analysis,
+                    "tested_strategies": list(strategies_config.keys())
+                },
+                analysis={
+                    "comparison_summary": comparison_analysis,
+                    "recommendations": recommendations,
+                    "best_strategy": recommendations.get("best_strategy"),
+                    "strategies_tested": len(strategy_results)
+                },
+                plots=plots,
+                success=True,
+            )
+
+        except Exception as e:
+            logger.error(f"Preprocessing comparison failed: {e}")
+            return ExperimentResult(
+                experiment_name="preprocessing_comparison",
+                config=self.config,
+                data={"error": str(e)},
+                analysis={"error": str(e)},
+                plots={},
+                success=False,
+            )
+
+    def _assess_strategy_quality(self, X_list: List[np.ndarray]) -> Dict[str, Any]:
+        """Assess quality metrics for a specific preprocessing strategy."""
+        quality = {}
+
+        try:
+            for view_idx, X in enumerate(X_list):
+                view_name = f"view_{view_idx}"
+
+                # Missing data analysis
+                missing_ratio = np.isnan(X).mean()
+
+                # Feature variance analysis
+                feature_variances = np.nanvar(X, axis=0)
+                low_variance_features = np.sum(feature_variances < 1e-8)
+
+                # Outlier detection (simple Z-score based)
+                z_scores = np.abs((X - np.nanmean(X, axis=0)) / np.nanstd(X, axis=0))
+                outlier_ratio = np.mean(z_scores > 3)
+
+                # Condition number (numerical stability)
+                valid_mask = ~np.isnan(X).any(axis=0)
+                if np.sum(valid_mask) > 1:
+                    X_valid = X[:, valid_mask]
+                    try:
+                        condition_number = float(np.linalg.cond(X_valid.T @ X_valid))
+                    except:
+                        condition_number = np.inf
+                else:
+                    condition_number = np.inf
+
+                quality[view_name] = {
+                    "missing_data_ratio": float(missing_ratio),
+                    "low_variance_features": int(low_variance_features),
+                    "low_variance_ratio": float(low_variance_features / X.shape[1]),
+                    "outlier_ratio": float(outlier_ratio),
+                    "condition_number": condition_number,
+                    "mean_variance": float(np.nanmean(feature_variances)),
+                    "n_features": X.shape[1]
+                }
+
+        except Exception as e:
+            logger.warning(f"Error assessing strategy quality: {e}")
+
+        return quality
 
     def _compare_preprocessing_strategies(self, strategy_data: Dict) -> Dict[str, Any]:
         """Compare different preprocessing strategies."""
