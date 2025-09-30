@@ -126,16 +126,16 @@ def main():
         help="Save all results in a single timestamped folder (default: True)",
     )
     parser.add_argument(
-        "--shared-data",
+        "--no-shared-data",
         action="store_true",
-        default=True,
-        help="Use shared data pipeline for efficiency (default: True)",
+        default=False,
+        help="Disable shared data pipeline (default: shared data enabled)",
     )
     parser.add_argument(
         "--independent-mode",
         action="store_true",
         default=False,
-        help="Force independent data loading for troubleshooting (overrides --shared-data)",
+        help="Force independent data loading for troubleshooting (overrides shared data mode)",
     )
 
     args = parser.parse_args()
@@ -218,7 +218,7 @@ def main():
         ]
 
     # Determine execution mode
-    use_shared_data = args.shared_data and not args.independent_mode
+    use_shared_data = not args.no_shared_data and not args.independent_mode
     if args.independent_mode:
         logger.info(
             "🔧 Using INDEPENDENT MODE - each experiment loads its own data (for troubleshooting)"
