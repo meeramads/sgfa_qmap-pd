@@ -230,6 +230,7 @@ def run_sgfa_parameter_comparison_debug():
         args.num_samples = 20  # Very fast for debug
         args.num_warmup = 10
         args.num_chains = 1
+        args.model = "sparseGFA"  # Required by models function
 
         try:
             # Run SGFA model
