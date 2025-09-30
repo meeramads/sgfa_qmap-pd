@@ -269,10 +269,21 @@ class ExperimentFramework:
 
     def create_experiment_dir(self, experiment_name: str) -> Path:
         """Create directory for specific experiment."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        exp_dir = self.base_output_dir / f"{experiment_name}_{timestamp}"
-        exp_dir.mkdir(parents=True, exist_ok=True)
-        return exp_dir
+        # Check if we're in debug mode by looking at the base output directory
+        is_debug_mode = "debug" in str(self.base_output_dir).lower()
+
+        if is_debug_mode:
+            # Debug mode: simple directory structure
+            exp_dir = self.base_output_dir / experiment_name
+            exp_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"🐛 Debug mode: Using simple directory structure: {exp_dir}")
+            return exp_dir
+        else:
+            # Production mode: timestamped directories
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            exp_dir = self.base_output_dir / f"{experiment_name}_{timestamp}"
+            exp_dir.mkdir(parents=True, exist_ok=True)
+            return exp_dir
 
     def run_experiment(
         self, config: ExperimentConfig, experiment_function: Callable, **kwargs
