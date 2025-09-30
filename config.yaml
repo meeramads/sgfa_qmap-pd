@@ -20,6 +20,7 @@ experiments:
   base_output_dir: "./results"            # REQUIRED: Output directory for all results
   save_intermediate: true                 # OPTIONAL: Save intermediate results (default: true)
   generate_plots: true                    # OPTIONAL: Generate visualization plots (default: true)
+  enable_spatial_analysis: false         # OPTIONAL: Enable spatial analysis (requires MRI reference, default: true)
   max_parallel_jobs: 2                   # OPTIONAL: Maximum parallel experiments (1-16, default: 1)
 
 

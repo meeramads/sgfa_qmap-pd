@@ -110,18 +110,28 @@ class BrainVisualizer:
 
             # Plot 1: Factor loadings magnitude across views
             view_means = [np.mean(np.abs(w)) for w in W]
-            axes[0, 0].bar(range(len(view_means)), view_means)
-            axes[0, 0].set_title("Mean Factor Loading Magnitude by View")
-            axes[0, 0].set_xlabel("View Index")
-            axes[0, 0].set_ylabel("Mean |Loading|")
+            bars1 = axes[0, 0].bar(range(len(view_means)), view_means, alpha=0.7, color='skyblue', edgecolor='black')
+            axes[0, 0].set_title("Average Loading Strength by Brain Region", fontweight='bold')
+            axes[0, 0].set_xlabel("Brain Region Index\n(Each bar = one brain region)")
+            axes[0, 0].set_ylabel("Average |Loading| Strength")
+
+            # Add value labels
+            for i, (bar, value) in enumerate(zip(bars1, view_means)):
+                axes[0, 0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
+                               f'{value:.3f}', ha='center', va='bottom', fontsize=8, fontweight='bold')
 
             # Plot 2: Factor scores distribution
             if Z.shape[1] > 0:
                 factor_vars = np.var(Z, axis=0)
-                axes[0, 1].bar(range(len(factor_vars)), factor_vars)
-                axes[0, 1].set_title("Factor Score Variance")
-                axes[0, 1].set_xlabel("Factor Index")
-                axes[0, 1].set_ylabel("Variance")
+                bars2 = axes[0, 1].bar(range(len(factor_vars)), factor_vars, alpha=0.7, color='lightcoral', edgecolor='black')
+                axes[0, 1].set_title("Factor Variability Across Subjects", fontweight='bold')
+                axes[0, 1].set_xlabel("Factor Number\n(Each bar = one latent factor)")
+                axes[0, 1].set_ylabel("Variance Across Subjects")
+
+                # Add value labels
+                for i, (bar, value) in enumerate(zip(bars2, factor_vars)):
+                    axes[0, 1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
+                                   f'{value:.3f}', ha='center', va='bottom', fontsize=8, fontweight='bold')
 
             # Plot 3: View complexity (number of non-zero loadings)
             view_complexity = []
@@ -130,10 +140,20 @@ class BrainVisualizer:
                 non_zero_ratio = np.mean(np.abs(w) > threshold)
                 view_complexity.append(non_zero_ratio)
 
-            axes[1, 0].bar(range(len(view_complexity)), view_complexity)
-            axes[1, 0].set_title("View Complexity (Non-zero Loading Ratio)")
-            axes[1, 0].set_xlabel("View Index")
-            axes[1, 0].set_ylabel("Non-zero Ratio")
+            bars3 = axes[1, 0].bar(range(len(view_complexity)), view_complexity, alpha=0.7, color='lightgreen', edgecolor='black')
+            axes[1, 0].set_title("Brain Region Activity Level", fontweight='bold')
+            axes[1, 0].set_xlabel("Brain Region Index\n(Each bar = one brain region)")
+            axes[1, 0].set_ylabel("Fraction of Active Features")
+
+            # Add value labels
+            for i, (bar, value) in enumerate(zip(bars3, view_complexity)):
+                axes[1, 0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                               f'{value:.2f}', ha='center', va='bottom', fontsize=8, fontweight='bold')
+
+            # Add explanatory text
+            axes[1, 0].text(0.02, 0.98, 'Higher bars = more features\nare actively involved',
+                           transform=axes[1, 0].transAxes, fontsize=9, va='top', ha='left',
+                           bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow', alpha=0.7))
 
             # Plot 4: Factor correlation heatmap
             if Z.shape[1] > 1:
@@ -369,19 +389,34 @@ class BrainVisualizer:
         # Generate meaningful feature labels
         feature_labels = self._generate_feature_labels(top_indices, feature_info)
 
-        axes[1, 0].barh(
+        # Create horizontal bar plot with clear color coding and explanations
+        colors = ["red" if x < 0 else "blue" for x in top_loadings]
+        bars = axes[1, 0].barh(
             range(len(top_loadings)),
             top_loadings,
-            color=["red" if x < 0 else "blue" for x in top_loadings],
+            color=colors,
             alpha=0.7,
         )
-        axes[1, 0].set_title(f"Factor {factor_idx + 1}: Top 20 Feature Loadings")
-        axes[1, 0].set_xlabel("Factor Loading Value")
-        axes[1, 0].set_ylabel("Brain Region Features")
+
+        axes[1, 0].set_title(f"Factor {factor_idx + 1}: Top 20 Most Important Brain Features", fontweight='bold')
+        axes[1, 0].set_xlabel("Factor Loading Strength\n(Blue = Positive influence, Red = Negative influence)")
+        axes[1, 0].set_ylabel("Brain Region Features (ordered by importance)")
 
         # Set meaningful y-tick labels
         axes[1, 0].set_yticks(range(len(feature_labels)))
         axes[1, 0].set_yticklabels(feature_labels, fontsize=8)
+
+        # Add value labels on bars
+        for i, (bar, value) in enumerate(zip(bars, top_loadings)):
+            axes[1, 0].text(value + 0.01 * np.sign(value), bar.get_y() + bar.get_height()/2,
+                           f'{value:.3f}', va='center', ha='left' if value > 0 else 'right',
+                           fontsize=7, fontweight='bold')
+
+        # Add legend explaining colors
+        axes[1, 0].axvline(0, color='black', linestyle='-', alpha=0.5)
+        axes[1, 0].text(0.02, 0.98, 'Each bar = one brain feature\nBlue = positively associated\nRed = negatively associated',
+                       transform=axes[1, 0].transAxes, fontsize=9, va='top', ha='left',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7))
 
         # Add grid for better readability
         axes[1, 0].grid(True, alpha=0.3, axis='x')
@@ -406,12 +441,22 @@ class BrainVisualizer:
 
             if view_contributions:
                 colors = ['lightcoral' if 'clinical' in label.lower() else 'skyblue' for label in view_labels]
-                axes[1, 1].bar(view_labels, view_contributions, color=colors, alpha=0.7)
-                axes[1, 1].set_title(f"Factor {factor_idx + 1}: Mean Loading by Brain Region")
-                axes[1, 1].set_xlabel("Brain Region / Data View")
-                axes[1, 1].set_ylabel("Mean Absolute Loading")
+                bars = axes[1, 1].bar(view_labels, view_contributions, color=colors, alpha=0.7, edgecolor='black')
+                axes[1, 1].set_title(f"Factor {factor_idx + 1}: Average Importance by Brain Region", fontweight='bold')
+                axes[1, 1].set_xlabel("Brain Region\n(Each bar = one brain region)")
+                axes[1, 1].set_ylabel("Average Loading Strength")
                 axes[1, 1].tick_params(axis='x', rotation=45)
                 axes[1, 1].grid(True, alpha=0.3, axis='y')
+
+                # Add value labels on bars
+                for bar, value in zip(bars, view_contributions):
+                    axes[1, 1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
+                                   f'{value:.3f}', ha='center', va='bottom', fontsize=8, fontweight='bold')
+
+                # Add explanatory text
+                axes[1, 1].text(0.02, 0.98, 'Higher bars = more important\nfor this factor',
+                               transform=axes[1, 1].transAxes, fontsize=9, va='top', ha='left',
+                               bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgreen', alpha=0.7))
             else:
                 # Fallback to cumulative plot
                 self._plot_cumulative_loadings(axes[1, 1], loadings)

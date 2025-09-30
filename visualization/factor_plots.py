@@ -19,6 +19,7 @@ class FactorVisualizer:
 
     def __init__(self, config):
         self.config = config
+        self.enable_spatial_analysis = getattr(config, 'enable_spatial_analysis', True)
         self.setup_style()
 
     def setup_style(self):
@@ -68,17 +69,29 @@ class FactorVisualizer:
             W, data, save_path=str(plot_dir / "factors" / "enhanced_loading_distributions.png")
         )
 
-        # Create region-wise analysis for brain data
-        logger.info("Creating region-wise factor analysis")
-        self.plot_region_wise_factor_analysis(
-            W, data, save_path=str(plot_dir / "factors" / "region_wise_analysis.png")
-        )
+        # Create region-wise analysis for brain data (if brain regions detected)
+        brain_regions = ['lentiform', 'sn', 'putamen', 'caudate', 'thalamus', 'hippocampus',
+                        'amygdala', 'cortical', 'subcortical', 'frontal', 'parietal', 'temporal',
+                        'occipital', 'cerebellum', 'brainstem', 'roi', 'region']
+        view_names = data.get("view_names", [])
 
-        # Create interpretable brain loading visualizations
-        logger.info("Creating interpretable brain loading visualizations")
-        self.plot_interpretable_brain_loadings(
-            W, data, save_path=str(plot_dir / "factors" / "brain_loadings.png")
-        )
+        has_brain_data = any(any(region in view_name.lower() for region in brain_regions)
+                            for view_name in view_names)
+
+        if has_brain_data:
+            logger.info("Creating region-wise factor analysis")
+            self.plot_region_wise_factor_analysis(
+                W, data, save_path=str(plot_dir / "factors" / "region_wise_analysis.png")
+            )
+
+            # Create brain-specific visualizations in brain folder
+            brain_plot_dir = plot_dir / "brain_analysis"
+            brain_plot_dir.mkdir(exist_ok=True)
+
+            logger.info("Creating interpretable brain loading visualizations")
+            self.plot_interpretable_brain_loadings(
+                W, data, save_path=str(brain_plot_dir / "brain_factor_loadings.png")
+            )
 
     def _plot_factor_loadings(self, W: np.ndarray, data: Dict, save_dir: Path):
         """Plot factor loadings for each view."""
@@ -866,23 +879,23 @@ class FactorVisualizer:
             ax.set_ylabel('Number of Regions')
             ax.legend()
 
-            # 4. Spatial coherence (if region info available)
+            # 4. Factor loading variability (replacing spatial coherence when no spatial info)
             ax = axes[1, 0]
-            if view_name in atlas_info and 'adjacency_matrix' in atlas_info[view_name]:
-                # Calculate spatial coherence for each factor
+            if (self.enable_spatial_analysis and
+                view_name in atlas_info and 'adjacency_matrix' in atlas_info[view_name]):
+                # Calculate spatial coherence for each factor (requires MRI reference)
                 adj_matrix = atlas_info[view_name]['adjacency_matrix']
                 coherence_scores = []
 
                 for k in range(n_factors):
                     loadings = W_brain[:, k]
-                    # Calculate spatial autocorrelation (Moran's I)
                     coherence = self._calculate_spatial_coherence(loadings, adj_matrix)
                     coherence_scores.append(coherence)
 
                 bars = ax.bar(range(n_factors), coherence_scores, color=factor_colors, alpha=0.7)
                 ax.set_title('Spatial Coherence by Factor', fontweight='bold')
                 ax.set_xlabel('Factor')
-                ax.set_ylabel('Spatial Coherence')
+                ax.set_ylabel('Spatial Coherence (Moran\'s I)')
                 ax.set_xticks(range(n_factors))
                 ax.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
 
@@ -890,10 +903,32 @@ class FactorVisualizer:
                 ax.axhline(0, color='black', linestyle='--', alpha=0.5, label='Random')
                 ax.legend()
             else:
-                ax.text(0.5, 0.5, 'No spatial information\navailable',
-                       ha='center', va='center', transform=ax.transAxes,
-                       fontsize=12, fontweight='bold')
-                ax.set_title('Spatial Coherence by Factor', fontweight='bold')
+                # Alternative analysis: Factor loading variability (doesn't require spatial info)
+                logger.info(f"No spatial information available for {view_name}. Using loading variability analysis instead.")
+
+                variability_scores = []
+                for k in range(n_factors):
+                    loadings = W_brain[:, k]
+                    # Use coefficient of variation as variability measure
+                    cv = np.std(loadings) / (np.abs(np.mean(loadings)) + 1e-8)
+                    variability_scores.append(cv)
+
+                bars = ax.bar(range(n_factors), variability_scores, color=factor_colors, alpha=0.7)
+                ax.set_title('Factor Loading Variability', fontweight='bold')
+                ax.set_xlabel('Factor')
+                ax.set_ylabel('Coefficient of Variation')
+                ax.set_xticks(range(n_factors))
+                ax.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+
+                # Add value labels
+                for i, (bar, score) in enumerate(zip(bars, variability_scores)):
+                    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                           f'{score:.2f}', ha='center', va='bottom', fontweight='bold', fontsize=8)
+
+                # Add explanatory text
+                ax.text(0.02, 0.98, 'Note: Spatial analysis requires\nMRI reference image',
+                       transform=ax.transAxes, fontsize=8, va='top', ha='left',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7))
 
             # 5. Factor interpretability scores
             ax = axes[1, 1]

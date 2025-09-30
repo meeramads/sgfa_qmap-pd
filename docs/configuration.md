@@ -449,4 +449,39 @@ experiments:
   shared_preprocessing: true # Use same preprocessing for all experiments
 ```
 
+## Output Folder Structure
+
+The pipeline creates an organized output structure to separate different types of analysis:
+
+```text
+results/
+├── complete_run_YYYYMMDD_HHMMSS/
+│   ├── plots/
+│   │   ├── factors/                           # General factor analysis plots
+│   │   │   ├── enhanced_loading_distributions.png  # Comprehensive loading analysis
+│   │   │   ├── region_wise_analysis.png            # Multi-region comparison
+│   │   │   ├── factor_loadings.png                 # Basic loading heatmaps
+│   │   │   └── factor_scores.png                   # Factor score distributions
+│   │   ├── brain_analysis/                    # Brain-specific visualizations
+│   │   │   ├── brain_factor_loadings.png           # Interpretable brain plots
+│   │   │   ├── [region_name]_brain.png             # Individual region analysis
+│   │   │   └── spatial_coherence.png               # Spatial analysis (if enabled)
+│   │   └── convergence/                       # Model convergence diagnostics
+│   ├── summaries/
+│   │   ├── hyperparameter_comparison_summary.json  # Performance-ranked parameters
+│   │   ├── sensitivity_analysis_summary.json       # Parameter sensitivity analysis
+│   │   └── optimal_parameter_recommendations.json  # Clinical deployment guidance
+│   └── matrices/
+│       ├── [variant]_factor_scores.csv             # Factor scores (subjects × factors)
+│       ├── [variant]_factor_loadings.csv           # Factor loadings (features × factors)
+│       └── [variant]_hyperparameter_performance.json  # Enhanced hyperparameter analysis
+```
+
+### Folder Organization Changes
+
+- **General analyses** → `plots/factors/` (applies to all data types)
+- **Brain-specific analyses** → `plots/brain_analysis/` (requires brain regions)
+- **Enhanced summaries** → `summaries/` (scientifically interpretable results)
+- **Raw matrices** → `matrices/` (numerical results with proper labeling)
+
 This documentation provides complete guidance for configuring the SGFA qMAP-PD analysis pipeline. For additional help, consult the code documentation or example configurations in the `examples/` directory.
