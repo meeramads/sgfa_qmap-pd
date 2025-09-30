@@ -49,7 +49,7 @@ class DependencyStatus:
 class ConfigManager:
     """Manages configuration and dependencies for analysis"""
 
-    def __init__(self, args, results_base: str = "../results"):
+    def __init__(self, args, results_base: str = "./results"):
         self.args = args
         self.results_base = Path(results_base)
         self.config = AnalysisConfig()
