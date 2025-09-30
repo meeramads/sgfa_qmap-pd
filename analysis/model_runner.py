@@ -381,14 +381,16 @@ class ModelRunner:
             output_dir = Path(self.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            # Save model parameters
-            model_params_file = output_dir / f"[{run_id}]Model_params.dictionary"
-            safe_pickle_save(run_results, model_params_file, f"Model parameters run {run_id}")
+            # Save model parameters (disabled to prevent disk quota issues)
+            # model_params_file = output_dir / f"[{run_id}]Model_params.dictionary"
+            # safe_pickle_save(run_results, model_params_file, f"Model parameters run {run_id}")
 
-            # Save robust parameters if they exist
-            if "robust" in run_results:
-                robust_params_file = output_dir / f"[{run_id}]Robust_params.dictionary"
-                safe_pickle_save(run_results["robust"], robust_params_file, f"Robust parameters run {run_id}")
+            # Save robust parameters if they exist (disabled to prevent disk quota issues)
+            # if "robust" in run_results:
+            #     robust_params_file = output_dir / f"[{run_id}]Robust_params.dictionary"
+            #     safe_pickle_save(run_results["robust"], robust_params_file, f"Robust parameters run {run_id}")
+
+            logger.info(f"Dictionary file saving disabled to prevent disk quota issues for run {run_id}")
 
             # Save factor loadings for immediate access
             # run_results IS the samples dict (returned directly from _run_single_mcmc)
