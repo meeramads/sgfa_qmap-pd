@@ -1307,50 +1307,6 @@ class ClinicalValidationExperiments(ExperimentFramework):
             success=True,
         )
 
-    def _run_sgfa_analysis(
-        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
-    ) -> Dict:
-        """Run SGFA analysis for clinical validation."""
-        # This would call your actual SGFA implementation
-        # For validation testing, we simulate realistic clinical results
-
-        K = hypers.get("K", 5)
-        n_subjects = X_list[0].shape[0]
-
-        # Simulate factors with some clinical relevance
-        np.random.seed(42)  # For reproducibility in validation
-
-        # Create factors with different clinical interpretations
-        Z = np.random.randn(n_subjects, K)
-
-        # Add some structure that might relate to clinical outcomes
-        # Factor 1: Motor symptoms
-        Z[:, 0] += np.random.beta(2, 5, n_subjects) * 2 - 1
-
-        # Factor 2: Cognitive symptoms
-        Z[:, 1] += np.random.gamma(2, 1, n_subjects) - 2
-
-        # Factor 3: Mixed presentation
-        if K > 2:
-            Z[:, 2] = 0.5 * Z[:, 0] + 0.3 * Z[:, 1] + np.random.randn(n_subjects) * 0.5
-
-        # Simulate loading matrices
-        W = [np.random.randn(X.shape[1], K) for X in X_list]
-
-        # Add sparsity to loadings
-        for w in W:
-            sparsity_mask = np.random.random(w.shape) < 0.7
-            w[sparsity_mask] = 0
-
-        return {
-            "W": W,
-            "Z": Z,
-            "log_likelihood": -1000 + np.random.randn() * 50,
-            "convergence": True,
-            "n_iterations": np.random.randint(100, 300),
-            "hyperparameters": hypers.copy(),
-        }
-
     def _test_factor_classification(
         self, features: np.ndarray, labels: np.ndarray, feature_type: str
     ) -> Dict:
