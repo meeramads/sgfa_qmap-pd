@@ -6,11 +6,8 @@ Runs the complete experimental framework optimized for university GPU resources.
 This modular version imports experiments from separate modules for better organization.
 """
 
-from experiments.sgfa_parameter_comparison import (
-    run_method_comparison as run_sgfa_parameter_comparison,
-)
+from experiments.sgfa_parameter_comparison import run_sgfa_parameter_comparison
 from experiments.sensitivity_analysis import run_sensitivity_analysis
-from experiments.performance_benchmarks import run_performance_benchmarks
 from experiments.model_comparison import run_model_comparison
 from experiments.data_validation import run_data_validation
 from experiments.clinical_validation import run_clinical_validation
@@ -108,7 +105,6 @@ def main():
             "data_validation",
             "sgfa_parameter_comparison",
             "model_comparison",
-            "performance_benchmarks",
             "sensitivity_analysis",
             "clinical_validation",
             "neuroimaging_hyperopt",
@@ -191,9 +187,8 @@ def main():
             "data_validation": "01_data_validation",
             "sgfa_parameter_comparison": "02_sgfa_parameter_comparison",
             "model_comparison": "03_model_comparison",
-            "performance_benchmarks": "04_performance_benchmarks",
-            "sensitivity_analysis": "05_sensitivity_analysis",
-            "clinical_validation": "06_clinical_validation"
+            "sensitivity_analysis": "04_sensitivity_analysis",
+            "clinical_validation": "05_clinical_validation"
         }
 
         # Only create directories for experiments that are actually being run
@@ -225,7 +220,6 @@ def main():
             "data_validation",
             "sgfa_parameter_comparison",
             "model_comparison",
-            "performance_benchmarks",
             "sensitivity_analysis",
         ]
 
@@ -364,30 +358,9 @@ def main():
 
         results["model_comparison"] = run_model_comparison(exp_config)
 
-    if "performance_benchmarks" in experiments_to_run:
-        logger.info("⚡ 4/6 Starting Performance Benchmark Experiment...")
-        exp_config = config.copy()
-        if pipeline_context["X_list"] is not None and use_shared_data:
-            logger.info("   → Using shared data from previous experiments")
-            exp_config["_shared_data"] = {
-                "X_list": pipeline_context["X_list"],
-                "preprocessing_info": pipeline_context["preprocessing_info"],
-                "mode": "shared",
-            }
-
-            # Pass optimal SGFA parameters if available
-            if pipeline_context["optimal_sgfa_params"] is not None:
-                exp_config["_optimal_sgfa_params"] = pipeline_context[
-                    "optimal_sgfa_params"
-                ]
-                logger.info(
-                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
-                )
-
-        results["performance_benchmarks"] = run_performance_benchmarks(exp_config)
 
     if "sensitivity_analysis" in experiments_to_run:
-        logger.info("📊 5/6 Starting Sensitivity Analysis Experiment...")
+        logger.info("📊 4/5 Starting Sensitivity Analysis Experiment...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -469,14 +442,15 @@ def main():
                 "mode": "shared",
             }
 
-        # Run clinical-aware CV benchmarks from optimization_benchmarks
-        from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
+        # Run clinical-aware CV benchmarks from clinical_validation (functionality moved)
+        from experiments.clinical_validation import ClinicalValidationExperiments
         from experiments.framework import ExperimentConfig
 
         experiment_config = ExperimentConfig.from_dict(exp_config)
-        perf_exp = PerformanceBenchmarkExperiments(experiment_config)
+        clinical_exp = ClinicalValidationExperiments(experiment_config)
 
-        results["neuroimaging_cv_benchmarks"] = perf_exp.run_clinical_aware_cv_benchmarks(
+        # Use integrated SGFA + clinical validation instead of separate CV benchmarks
+        results["neuroimaging_cv_benchmarks"] = clinical_exp.run_sgfa_clinical_validation(
             X_base=pipeline_context.get("X_list"),
             hypers=exp_config.get("hypers", {}),
             args=exp_config.get("args", {})
@@ -594,9 +568,8 @@ def main():
                 "data_validation": "01_data_validation/     - Data quality and preprocessing analysis",
                 "sgfa_parameter_comparison": "02_sgfa_parameter_comparison/   - SGFA hyperparameter optimization",
                 "model_comparison": "03_model_comparison/   - Model architecture comparison",
-                "performance_benchmarks": "04_performance_benchmarks/ - Scalability and performance tests",
-                "sensitivity_analysis": "05_sensitivity_analysis/ - Parameter sensitivity studies",
-                "clinical_validation": "06_clinical_validation/ - Clinical validation studies"
+                "sensitivity_analysis": "04_sensitivity_analysis/ - Parameter sensitivity studies",
+                "clinical_validation": "05_clinical_validation/ - Clinical validation studies"
             }
 
             for experiment in experiments_to_run:

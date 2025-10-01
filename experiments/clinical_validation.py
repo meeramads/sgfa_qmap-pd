@@ -2,21 +2,28 @@
 
 import gc
 import logging
+import time
+from datetime import datetime
 from typing import Dict, List, Optional
 
 import jax
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from scipy import stats
+from scipy.stats import f_oneway
+from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
+    calinski_harabasz_score,
     confusion_matrix,
     f1_score,
     precision_score,
     recall_score,
     roc_auc_score,
+    silhouette_score,
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.svm import SVC
@@ -3854,6 +3861,329 @@ class ClinicalValidationExperiments(ExperimentFramework):
             "score": overall_score,
             "grade": "Excellent" if overall_score >= 3.5 else "Good" if overall_score >= 2.5 else "Moderate" if overall_score >= 1.5 else "Poor",
             "components_evaluated": len(grades)
+        }
+
+        return analysis
+
+    @experiment_handler("integrated_sgfa_clinical_optimization")
+    @validate_data_types(
+        X_list=list,
+        clinical_data=dict,
+        hypers=dict,
+        args=dict,
+    )
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        clinical_data=lambda x: x is not None,
+        hypers=lambda x: isinstance(x, dict),
+        args=lambda x: isinstance(x, dict),
+    )
+    def run_integrated_sgfa_clinical_optimization(
+        self,
+        X_list: List[np.ndarray],
+        clinical_data: Dict,
+        hypers: Dict,
+        args: Dict,
+        **kwargs,
+    ) -> ExperimentResult:
+        """Run integrated SGFA performance + PD subtype discovery optimization.
+
+        This method measures both computational performance (SGFA metrics) and
+        clinical research utility (PD subtype discovery quality) simultaneously
+        to find optimal K values for clinical validation.
+
+        Parameters
+        ----------
+        X_list : List[np.ndarray]
+            Multi-modal neuroimaging data
+        clinical_data : Dict
+            Clinical measures for validation
+        hypers : Dict
+            SGFA hyperparameters
+        args : Dict
+            Analysis arguments
+        **kwargs
+            Additional arguments
+
+        Returns
+        -------
+        ExperimentResult
+            Integrated performance and subtype discovery results
+        """
+        self.logger.info("Running integrated SGFA performance + PD subtype discovery optimization")
+
+        results = {}
+
+        # Test multiple K values to assess performance-discovery trade-offs
+        K_test_values = [3, 5, 8, 10]  # Unified K values across experiments
+        integrated_results = {}
+
+        for K in K_test_values:
+            self.logger.info(f"Testing K={K} factors for clinical optimization")
+
+            try:
+                with self.profiler.profile(f"clinical_optimization_K{K}") as p:
+                    # === LAYER 1: SGFA PERFORMANCE METRICS ===
+                    sgfa_start = time.time()
+
+                    # Update hyperparameters for this K
+                    test_hypers = hypers.copy()
+                    test_hypers["K"] = K
+                    test_args = args.copy()
+                    test_args["K"] = K
+
+                    # Run SGFA with performance monitoring
+                    sgfa_result = self._run_sgfa_training(X_list, test_hypers, test_args)
+
+                    if "error" in sgfa_result:
+                        integrated_results[f"K{K}"] = {"error": sgfa_result["error"]}
+                        continue
+
+                    sgfa_time = time.time() - sgfa_start
+                    Z_sgfa = sgfa_result["Z"]  # Factor scores [n_subjects x n_factors]
+
+                    # === LAYER 2: PD SUBTYPE DISCOVERY METRICS ===
+                    subtype_start = time.time()
+
+                    # Test clustering with different numbers of subtypes
+                    best_silhouette = -1
+                    best_k = 2
+                    clustering_attempts = {}
+
+                    for n_clusters in range(2, min(7, Z_sgfa.shape[0]//5)):  # Ensure enough samples
+                        try:
+                            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+                            cluster_labels = kmeans.fit_predict(Z_sgfa)
+                            sil_score = silhouette_score(Z_sgfa, cluster_labels)
+                            cal_score = calinski_harabasz_score(Z_sgfa, cluster_labels)
+
+                            clustering_attempts[n_clusters] = {
+                                "silhouette_score": sil_score,
+                                "calinski_score": cal_score,
+                                "inertia": kmeans.inertia_
+                            }
+
+                            if sil_score > best_silhouette:
+                                best_silhouette = sil_score
+                                best_k = n_clusters
+
+                        except Exception as e:
+                            clustering_attempts[n_clusters] = {"error": str(e)}
+
+                    subtype_discovery_time = time.time() - subtype_start
+
+                    # === LAYER 3: CLINICAL TRANSLATION METRICS ===
+                    clinical_start = time.time()
+                    clinical_separation_score = 0
+                    significant_measures = 0
+                    total_measures = 0
+
+                    if clinical_data and best_silhouette > 0:
+                        # Use best clustering for clinical validation
+                        kmeans = KMeans(n_clusters=best_k, random_state=42, n_init=10)
+                        subtype_labels = kmeans.fit_predict(Z_sgfa)
+
+                        # Convert clinical data to DataFrame if needed
+                        if isinstance(clinical_data, dict) and 'clinical' in clinical_data:
+                            clinical_df = clinical_data['clinical']
+                        else:
+                            clinical_df = pd.DataFrame(clinical_data)
+
+                        # Align data sizes
+                        n_imaging = len(subtype_labels)
+                        n_clinical = len(clinical_df)
+                        clinical_aligned = clinical_df.iloc[:n_imaging] if n_clinical > n_imaging else clinical_df
+
+                        # Test clinical separation
+                        clinical_measures = ['age'] + [col for col in clinical_aligned.columns
+                                                     if any(keyword in col.lower() for keyword in
+                                                           ['updrs', 'motor', 'duration', 'stage'])]
+
+                        for measure in clinical_measures[:5]:  # Test top 5 measures
+                            if measure in clinical_aligned.columns:
+                                total_measures += 1
+                                try:
+                                    groups = [clinical_aligned[measure][subtype_labels == i].dropna()
+                                            for i in range(best_k)]
+                                    if all(len(g) >= 3 for g in groups):  # Need minimum samples
+                                        f_stat, p_val = f_oneway(*groups)
+                                        if p_val < 0.05:
+                                            significant_measures += 1
+                                except Exception as e:
+                                    self.logger.debug(f"Clinical validation failed for {measure}: {e}")
+
+                        clinical_separation_score = significant_measures / total_measures if total_measures > 0 else 0
+
+                    clinical_validation_time = time.time() - clinical_start
+
+                    # === LAYER 4: PERFORMANCE-DISCOVERY TRADE-OFF ANALYSIS ===
+                    metrics = p.get_current_metrics()
+
+                    integrated_results[f"K{K}"] = {
+                        # SGFA Performance Layer
+                        "sgfa_time_seconds": sgfa_time,
+                        "sgfa_memory_mb": metrics.peak_memory_gb * 1024,
+                        "sgfa_convergence_rate": sgfa_result.get("convergence_rate", 0),
+                        "factor_extraction_time": sgfa_result.get("factor_extraction_time", 0),
+
+                        # PD Subtype Discovery Layer
+                        "subtype_discovery_time_seconds": subtype_discovery_time,
+                        "optimal_subtypes_detected": best_k,
+                        "best_silhouette_score": best_silhouette,
+                        "clustering_quality_grade": "Excellent" if best_silhouette > 0.7 else
+                                                  "Good" if best_silhouette > 0.5 else
+                                                  "Moderate" if best_silhouette > 0.3 else "Poor",
+                        "clustering_attempts": clustering_attempts,
+
+                        # Clinical Translation Layer
+                        "clinical_validation_time_seconds": clinical_validation_time,
+                        "clinical_separation_score": clinical_separation_score,
+                        "significant_clinical_measures": significant_measures,
+                        "total_clinical_measures": total_measures,
+                        "clinical_validation_grade": "Strong" if clinical_separation_score > 0.5 else
+                                                   "Moderate" if clinical_separation_score > 0.3 else "Weak",
+
+                        # Integrated Clinical-Performance Metrics
+                        "clinical_quality_per_second": best_silhouette / sgfa_time if sgfa_time > 0 else 0,
+                        "clinical_efficiency": clinical_separation_score / clinical_validation_time if clinical_validation_time > 0 else 0,
+                        "total_time_seconds": sgfa_time + subtype_discovery_time + clinical_validation_time,
+
+                        # Overall Clinical Assessment
+                        "integrated_clinical_score": (best_silhouette + clinical_separation_score) / 2,
+                        "clinical_performance_efficiency": best_silhouette / (sgfa_time/60) if sgfa_time > 0 else 0  # Quality per minute
+                    }
+
+            except Exception as e:
+                self.logger.error(f"Clinical optimization K={K} failed: {e}")
+                integrated_results[f"K{K}"] = {"error": str(e)}
+
+        results["clinical_optimization"] = integrated_results
+
+        # === CLINICAL TRADE-OFF ANALYSIS ACROSS K VALUES ===
+        successful_runs = {k: v for k, v in integrated_results.items() if "error" not in v}
+
+        if len(successful_runs) > 1:
+            # Clinical Quality vs Performance trade-offs
+            speeds = [(k, v["sgfa_time_seconds"]) for k, v in successful_runs.items()]
+            clinical_qualities = [(k, v["best_silhouette_score"]) for k, v in successful_runs.items()]
+            clinical_validations = [(k, v["clinical_separation_score"]) for k, v in successful_runs.items()]
+
+            if speeds and clinical_qualities:
+                fastest_k = min(speeds, key=lambda x: x[1])[0]
+                highest_clinical_quality_k = max(clinical_qualities, key=lambda x: x[1])[0]
+                best_clinical_validation_k = max(clinical_validations, key=lambda x: x[1])[0]
+
+                results["clinical_trade_off_analysis"] = {
+                    "fastest_model": fastest_k,
+                    "fastest_time": min(speeds, key=lambda x: x[1])[1],
+                    "highest_clinical_quality_model": highest_clinical_quality_k,
+                    "highest_clinical_quality_score": max(clinical_qualities, key=lambda x: x[1])[1],
+                    "best_clinical_validation_model": best_clinical_validation_k,
+                    "best_clinical_validation_score": max(clinical_validations, key=lambda x: x[1])[1],
+                    "speed_quality_tradeoff": fastest_k != highest_clinical_quality_k,
+                    "speed_validation_tradeoff": fastest_k != best_clinical_validation_k,
+                    "quality_validation_alignment": highest_clinical_quality_k == best_clinical_validation_k
+                }
+
+        # Comprehensive clinical analysis
+        analysis = self._analyze_integrated_clinical_optimization(results)
+
+        # Generate plots using PDSubtypeVisualizer
+        visualizer = PDSubtypeVisualizer(self.config)
+        plot_dir = get_output_dir(self.config) / "clinical_optimization_plots"
+        plot_dir.mkdir(exist_ok=True)
+
+        # Pass only the clinical_optimization data to the visualizer
+        optimization_results = results.get("clinical_optimization", {})
+        if optimization_results:
+            plots = visualizer.create_performance_subtype_plots(optimization_results, plot_dir)
+        else:
+            self.logger.warning("No clinical optimization results available for plotting")
+            plots = {}
+
+        return ExperimentResult(
+            experiment_id="integrated_sgfa_clinical_optimization",
+            config=self.config,
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            status="completed",
+            model_results=results,
+            diagnostics=analysis,
+            plots=plots,
+        )
+
+    def _analyze_integrated_clinical_optimization(self, results: Dict) -> Dict:
+        """Analyze integrated SGFA + PD subtype discovery clinical optimization results."""
+        analysis = {
+            "performance_summary": {},
+            "clinical_discovery_summary": {},
+            "clinical_validation_summary": {},
+            "clinical_trade_off_insights": {},
+            "clinical_recommendations": {}
+        }
+
+        optimization_results = results.get("clinical_optimization", {})
+        successful_runs = {k: v for k, v in optimization_results.items() if "error" not in v}
+
+        if not successful_runs:
+            analysis["error"] = "No successful clinical optimization runs"
+            return analysis
+
+        # Performance summary
+        sgfa_times = [v["sgfa_time_seconds"] for v in successful_runs.values()]
+        memory_usage = [v["sgfa_memory_mb"] for v in successful_runs.values()]
+
+        analysis["performance_summary"] = {
+            "avg_sgfa_time": np.mean(sgfa_times),
+            "min_sgfa_time": np.min(sgfa_times),
+            "max_sgfa_time": np.max(sgfa_times),
+            "avg_memory_usage_mb": np.mean(memory_usage),
+            "performance_scalability": "Good" if np.max(sgfa_times) / np.min(sgfa_times) < 3 else "Poor"
+        }
+
+        # Clinical discovery summary
+        silhouette_scores = [v["best_silhouette_score"] for v in successful_runs.values()]
+        optimal_ks = [v["optimal_subtypes_detected"] for v in successful_runs.values()]
+
+        analysis["clinical_discovery_summary"] = {
+            "avg_silhouette_score": np.mean(silhouette_scores),
+            "best_silhouette_score": np.max(silhouette_scores),
+            "most_common_optimal_k": max(set(optimal_ks), key=optimal_ks.count),
+            "discovery_consistency": "High" if np.std(silhouette_scores) < 0.1 else "Moderate" if np.std(silhouette_scores) < 0.2 else "Low"
+        }
+
+        # Clinical validation summary
+        clinical_scores = [v["clinical_separation_score"] for v in successful_runs.values()]
+        clinical_efficiency = [v["clinical_efficiency"] for v in successful_runs.values()]
+
+        analysis["clinical_validation_summary"] = {
+            "avg_clinical_separation": np.mean(clinical_scores),
+            "best_clinical_separation": np.max(clinical_scores),
+            "avg_clinical_efficiency": np.mean(clinical_efficiency),
+            "clinical_validation_quality": "Strong" if np.mean(clinical_scores) > 0.5 else
+                                          "Moderate" if np.mean(clinical_scores) > 0.3 else "Weak"
+        }
+
+        # Clinical trade-off insights
+        if "clinical_trade_off_analysis" in results:
+            trade_offs = results["clinical_trade_off_analysis"]
+            analysis["clinical_trade_off_insights"] = {
+                "speed_quality_conflict": trade_offs.get("speed_quality_tradeoff", False),
+                "speed_validation_conflict": trade_offs.get("speed_validation_tradeoff", False),
+                "quality_validation_alignment": trade_offs.get("quality_validation_alignment", False),
+                "optimal_clinical_model": trade_offs.get("highest_clinical_quality_model", "Unknown")
+            }
+
+        # Clinical recommendations
+        best_clinical_k = max(successful_runs.keys(),
+                           key=lambda k: successful_runs[k]["integrated_clinical_score"])
+
+        analysis["clinical_recommendations"] = {
+            "recommended_k_clinical": best_clinical_k,
+            "reason": f"Best integrated clinical score: {successful_runs[best_clinical_k]['integrated_clinical_score']:.3f}",
+            "clinical_performance_grade": "Excellent" if analysis["performance_summary"]["performance_scalability"] == "Good" and
+                                                       analysis["clinical_discovery_summary"]["discovery_consistency"] == "High" else "Good",
+            "clinical_readiness": analysis["clinical_validation_summary"]["clinical_validation_quality"]
         }
 
         return analysis

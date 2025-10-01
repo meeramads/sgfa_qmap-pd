@@ -34,6 +34,22 @@ class TestModelArchitectureComparison:
                 experiments={"base_output_dir": tmpdir},
                 data={"data_dir": tmpdir},
                 model={"K": 3, "num_samples": 100, "num_warmup": 50, "num_chains": 1},
+                # Add the new model_comparison configuration section
+                model_comparison={
+                    "models": [
+                        {
+                            "name": "sparse_gfa",
+                            "n_factors": [3, 4],
+                            "sparsity_lambda": [0.1, 0.3],
+                            "group_lambda": [0.1, 0.5],
+                        }
+                    ],
+                    "baseline_methods": ["pca", "ica", "factor_analysis"],
+                    "comparative_benchmarks": {
+                        "baseline_methods": ["pca", "ica", "factor_analysis"],
+                        "performance_metrics": ["reconstruction_error", "log_likelihood"],
+                    }
+                }
             )
             yield config
 
@@ -152,6 +168,21 @@ class TestModelComparisonStandalone:
                 "experiments": {"base_output_dir": tmpdir},
                 "data": {"data_dir": tmpdir},
                 "model": {"K": 2, "num_samples": 50, "num_warmup": 25, "num_chains": 1},
+                # Add model_comparison configuration
+                "model_comparison": {
+                    "models": [
+                        {
+                            "name": "sparse_gfa",
+                            "n_factors": [2, 3],
+                            "sparsity_lambda": [0.1, 0.3],
+                        }
+                    ],
+                    "baseline_methods": ["pca", "ica"],
+                    "comparative_benchmarks": {
+                        "baseline_methods": ["pca", "ica"],
+                        "performance_metrics": ["reconstruction_error"],
+                    }
+                }
             }
 
             # Run model comparison
@@ -196,6 +227,22 @@ class TestModelComparisonIntegration:
                     "alpha_w": 1.0,
                     "alpha_z": 1.0,
                 },
+                # Add model_comparison configuration for integration test
+                model_comparison={
+                    "models": [
+                        {
+                            "name": "sparse_gfa",
+                            "n_factors": [3, 4],
+                            "sparsity_lambda": [0.1, 0.3, 0.5],
+                            "group_lambda": [0.1, 0.5],
+                        }
+                    ],
+                    "baseline_methods": ["pca", "ica", "factor_analysis", "nmf"],
+                    "comparative_benchmarks": {
+                        "baseline_methods": ["pca", "ica", "factor_analysis"],
+                        "performance_metrics": ["reconstruction_error", "log_likelihood"],
+                    }
+                }
             )
 
             # Generate test data

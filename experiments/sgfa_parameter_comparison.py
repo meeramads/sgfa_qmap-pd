@@ -67,6 +67,19 @@ class SGFAParameterComparison(ExperimentFramework):
         # Focus purely on SGFA parameter optimization
         # Traditional methods moved to model_comparison.py
 
+        # Load scalability test ranges from config
+        sgfa_config = config_dict.get("sgfa_parameter_comparison", {})
+        scalability_config = sgfa_config.get("scalability_analysis", {})
+        parameter_ranges = sgfa_config.get("parameter_ranges", {})
+
+        self.sample_size_ranges = scalability_config.get("sample_size_ranges", [50, 100, 250, 500, 1000, 2000, 5000])
+        self.feature_size_ranges = scalability_config.get("feature_size_ranges", [10, 25, 50, 100, 250, 500, 1000])
+        self.component_ranges = parameter_ranges.get("n_factors", [2, 3, 5, 8, 10, 15, 20])
+        self.chain_ranges = scalability_config.get("chain_ranges", [1, 2, 4, 8])
+
+        # Store parameter ranges for easy access
+        self.parameter_ranges = parameter_ranges
+
     @experiment_handler("sgfa_variant_comparison")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
     @validate_parameters(
@@ -184,74 +197,52 @@ class SGFAParameterComparison(ExperimentFramework):
         feature_sizes=lambda x: x is None
         or (isinstance(x, list) and all(isinstance(f, int) and f > 0 for f in x)),
     )
-    def run_scalability_comparison(
+    def run_comprehensive_sgfa_scalability_analysis(
         self,
         X_list: List[np.ndarray],
-        sample_sizes: List[int] = None,
-        feature_sizes: List[int] = None,
+        hypers: Dict,
+        args: Dict,
         **kwargs,
     ) -> ExperimentResult:
-        """Compare scalability of different methods."""
-        self.logger.info("Running scalability comparison")
-
-        if sample_sizes is None:
-            sample_sizes = [100, 500, 1000, 2000]
-        if feature_sizes is None:
-            feature_sizes = [50, 100, 200, 500]
+        """Run comprehensive SGFA scalability analysis (moved from performance_benchmarks.py)."""
+        self.logger.info("Running comprehensive SGFA scalability analysis")
 
         results = {}
 
         # Sample size scalability
-        self.logger.info("Testing sample size scalability")
-        sample_results = {}
-
-        for n_samples in sample_sizes:
-            if n_samples > X_list[0].shape[0]:
-                continue
-
-            # Subsample data
-            indices = np.random.choice(X_list[0].shape[0], n_samples, replace=False)
-            X_subset = [X[indices] for X in X_list]
-
-            sample_results[n_samples] = self._run_scalability_test(X_subset, **kwargs)
-
+        self.logger.info("Benchmarking SGFA sample size scalability")
+        sample_results = self._benchmark_sgfa_sample_scalability(X_list, hypers, args, **kwargs)
         results["sample_scalability"] = sample_results
 
         # Feature size scalability
-        self.logger.info("Testing feature size scalability")
-        feature_results = {}
-
-        for n_features in feature_sizes:
-            # Select subset of features from each view
-            X_feature_subset = []
-            for X in X_list:
-                if n_features >= X.shape[1]:
-                    X_feature_subset.append(X)
-                else:
-                    feature_indices = np.random.choice(
-                        X.shape[1], n_features, replace=False
-                    )
-                    X_feature_subset.append(X[:, feature_indices])
-
-            feature_results[n_features] = self._run_scalability_test(
-                X_feature_subset, **kwargs
-            )
-
+        self.logger.info("Benchmarking SGFA feature size scalability")
+        feature_results = self._benchmark_sgfa_feature_scalability(X_list, hypers, args, **kwargs)
         results["feature_scalability"] = feature_results
 
-        # Analyze scalability
-        analysis = self._analyze_scalability(results)
+        # Component scalability (K values)
+        self.logger.info("Benchmarking SGFA component scalability")
+        component_results = self._benchmark_sgfa_component_scalability(X_list, hypers, args, **kwargs)
+        results["component_scalability"] = component_results
 
-        # Generate plots
-        plots = self._plot_scalability_comparison(results)
+        # MCMC chain scalability
+        self.logger.info("Benchmarking SGFA MCMC chain scalability")
+        chain_results = self._benchmark_sgfa_chain_scalability(X_list, hypers, args, **kwargs)
+        results["chain_scalability"] = chain_results
+
+        # Comprehensive analysis
+        analysis = self._analyze_sgfa_scalability(results)
+
+        # Generate comprehensive plots
+        plots = self._plot_sgfa_scalability_analysis(results)
 
         return ExperimentResult(
-            experiment_name="scalability_comparison",
+            experiment_id="comprehensive_sgfa_scalability_analysis",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            start_time=self.profiler.get_current_metrics().execution_time if hasattr(self.profiler, 'get_current_metrics') else 0,
+            status="completed",
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
         )
 
     @experiment_handler("neuroimaging_hyperparameter_optimization")
@@ -274,19 +265,25 @@ class SGFAParameterComparison(ExperimentFramework):
             # Generate synthetic clinical data for optimization
             clinical_data = self._generate_synthetic_clinical_data(X_list[0].shape[0])
 
-        # Define hyperparameter search space specific to SGFA neuroimaging applications
+        # Define hyperparameter search space from config
+        n_factors_range = self.parameter_ranges.get("n_factors", [3, 5, 8, 10, 12])
+        sparsity_range = self.parameter_ranges.get("sparsity_lambda", [0.01, 0.1, 0.5, 1.0])
+
+        # Convert sparsity range to percentage for percW
+        percW_range = [val * 100 if val <= 1.0 else val for val in sparsity_range]
+
         search_space = {
             'K': {
                 'type': 'int',
-                'low': 3,
-                'high': 15,
+                'low': min(n_factors_range),
+                'high': max(n_factors_range),
                 'step': 1,
                 'description': 'Number of latent factors'
             },
             'percW': {
                 'type': 'float',
-                'low': 10.0,
-                'high': 50.0,
+                'low': min(percW_range),
+                'high': max(percW_range),
                 'step': 5.0,
                 'description': 'Sparsity percentage for factor loadings'
             },
@@ -1318,11 +1315,317 @@ class SGFAParameterComparison(ExperimentFramework):
 
         return best_result
 
+    def _benchmark_sgfa_sample_scalability(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> Dict:
+        """Benchmark SGFA scalability with respect to sample size."""
+        results = {}
 
-def run_method_comparison(config):
-    """Run method comparison experiments with remote workstation integration."""
+        for n_samples in self.sample_size_ranges:
+            if n_samples > X_list[0].shape[0]:
+                continue
+
+            self.logger.debug(f"Testing SGFA with {n_samples} samples")
+
+            # Subsample data
+            indices = np.random.choice(X_list[0].shape[0], n_samples, replace=False)
+            X_subset = [X[indices] for X in X_list]
+
+            try:
+                with self.profiler.profile(f"sgfa_samples_{n_samples}") as p:
+                    # Use existing SGFA method from the class
+                    result = self._run_sgfa_multiview(X_subset, hypers, args, **kwargs)
+
+                # Collect metrics
+                performance_metrics = self.profiler.get_current_metrics()
+
+                results[n_samples] = {
+                    "result": result,
+                    "performance_metrics": {
+                        "execution_time": performance_metrics.execution_time,
+                        "peak_memory_gb": performance_metrics.peak_memory_gb,
+                        "cpu_percent": performance_metrics.cpu_percent,
+                    },
+                    "dataset_info": {
+                        "n_subjects": n_samples,
+                        "n_features": [X.shape[1] for X in X_subset],
+                        "n_views": len(X_subset),
+                    },
+                }
+
+            except Exception as e:
+                self.logger.warning(
+                    f"SGFA sample scalability test failed for {n_samples}: {str(e)}"
+                )
+                results[n_samples] = {"error": str(e)}
+
+        return results
+
+    def _benchmark_sgfa_feature_scalability(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> Dict:
+        """Benchmark SGFA scalability with respect to feature size."""
+        results = {}
+
+        for n_features in self.feature_size_ranges:
+            self.logger.debug(f"Testing SGFA with {n_features} features per view")
+
+            # Select subset of features from each view
+            X_subset = []
+            for X in X_list:
+                if n_features >= X.shape[1]:
+                    X_subset.append(X)
+                else:
+                    feature_indices = np.random.choice(
+                        X.shape[1], n_features, replace=False
+                    )
+                    X_subset.append(X[:, feature_indices])
+
+            try:
+                with self.profiler.profile(f"sgfa_features_{n_features}") as p:
+                    result = self._run_sgfa_multiview(X_subset, hypers, args, **kwargs)
+
+                # Collect metrics
+                performance_metrics = self.profiler.get_current_metrics()
+
+                results[n_features] = {
+                    "result": result,
+                    "performance_metrics": {
+                        "execution_time": performance_metrics.execution_time,
+                        "peak_memory_gb": performance_metrics.peak_memory_gb,
+                        "cpu_percent": performance_metrics.cpu_percent,
+                    },
+                    "dataset_info": {
+                        "n_subjects": X_subset[0].shape[0],
+                        "n_features": [X.shape[1] for X in X_subset],
+                        "n_views": len(X_subset),
+                    },
+                }
+
+            except Exception as e:
+                self.logger.warning(
+                    f"SGFA feature scalability test failed for {n_features}: {str(e)}"
+                )
+                results[n_features] = {"error": str(e)}
+
+        return results
+
+    def _benchmark_sgfa_component_scalability(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> Dict:
+        """Benchmark SGFA scalability with respect to number of components (K)."""
+        results = {}
+
+        for K in self.component_ranges:
+            self.logger.debug(f"Testing SGFA with K={K} components")
+
+            # Update hyperparameters with component count
+            test_hypers = hypers.copy()
+            test_hypers["K"] = K
+
+            try:
+                with self.profiler.profile(f"sgfa_components_K{K}") as p:
+                    result = self._run_sgfa_multiview(X_list, test_hypers, args, **kwargs)
+
+                # Collect metrics
+                performance_metrics = self.profiler.get_current_metrics()
+
+                results[K] = {
+                    "result": result,
+                    "performance_metrics": {
+                        "execution_time": performance_metrics.execution_time,
+                        "peak_memory_gb": performance_metrics.peak_memory_gb,
+                        "cpu_percent": performance_metrics.cpu_percent,
+                    },
+                    "hyperparameters": test_hypers,
+                    "dataset_info": {
+                        "n_subjects": X_list[0].shape[0],
+                        "n_features": [X.shape[1] for X in X_list],
+                        "n_views": len(X_list),
+                        "K": K,
+                    },
+                }
+
+            except Exception as e:
+                self.logger.warning(
+                    f"SGFA component scalability test failed for K={K}: {str(e)}"
+                )
+                results[K] = {"error": str(e)}
+
+        return results
+
+    def _benchmark_sgfa_chain_scalability(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> Dict:
+        """Benchmark SGFA scalability with respect to number of MCMC chains."""
+        results = {}
+
+        for n_chains in self.chain_ranges:
+            self.logger.debug(f"Testing SGFA with {n_chains} MCMC chains")
+
+            # Update hyperparameters with chain count
+            test_hypers = hypers.copy()
+            test_hypers["num_chains"] = n_chains
+
+            try:
+                with self.profiler.profile(f"sgfa_chains_{n_chains}") as p:
+                    result = self._run_sgfa_multiview(X_list, test_hypers, args, **kwargs)
+
+                # Collect metrics
+                performance_metrics = self.profiler.get_current_metrics()
+
+                results[n_chains] = {
+                    "result": result,
+                    "performance_metrics": {
+                        "execution_time": performance_metrics.execution_time,
+                        "peak_memory_gb": performance_metrics.peak_memory_gb,
+                        "cpu_percent": performance_metrics.cpu_percent,
+                    },
+                    "hyperparameters": test_hypers,
+                    "mcmc_info": {
+                        "num_chains": n_chains,
+                        "convergence": result.get("convergence", False),
+                    },
+                }
+
+            except Exception as e:
+                self.logger.warning(
+                    f"SGFA chain scalability test failed for {n_chains}: {str(e)}"
+                )
+                results[n_chains] = {"error": str(e)}
+
+        return results
+
+    def _analyze_sgfa_scalability(self, results: Dict) -> Dict:
+        """Analyze SGFA scalability results."""
+        analysis = {
+            "sample_scalability_summary": {},
+            "feature_scalability_summary": {},
+            "component_scalability_summary": {},
+            "chain_scalability_summary": {},
+            "overall_scalability_assessment": {},
+        }
+
+        # Sample scalability analysis
+        sample_results = results.get("sample_scalability", {})
+        if sample_results:
+            successful_samples = {k: v for k, v in sample_results.items() if "error" not in v}
+            if successful_samples:
+                times = [v["performance_metrics"]["execution_time"] for v in successful_samples.values()]
+                memories = [v["performance_metrics"]["peak_memory_gb"] for v in successful_samples.values()]
+                sample_sizes = list(successful_samples.keys())
+
+                analysis["sample_scalability_summary"] = {
+                    "tested_sample_sizes": sample_sizes,
+                    "min_time": min(times),
+                    "max_time": max(times),
+                    "time_scaling_factor": max(times) / min(times) if min(times) > 0 else float('inf'),
+                    "memory_scaling_factor": max(memories) / min(memories) if min(memories) > 0 else float('inf'),
+                    "scalability_grade": "Excellent" if max(times) / min(times) < 2 else
+                                       "Good" if max(times) / min(times) < 5 else
+                                       "Moderate" if max(times) / min(times) < 10 else "Poor"
+                }
+
+        # Component scalability analysis (K values)
+        component_results = results.get("component_scalability", {})
+        if component_results:
+            successful_components = {k: v for k, v in component_results.items() if "error" not in v}
+            if successful_components:
+                times = [v["performance_metrics"]["execution_time"] for v in successful_components.values()]
+                memories = [v["performance_metrics"]["peak_memory_gb"] for v in successful_components.values()]
+                K_values = list(successful_components.keys())
+
+                analysis["component_scalability_summary"] = {
+                    "tested_K_values": K_values,
+                    "optimal_K_range": [k for k, v in successful_components.items()
+                                      if v["performance_metrics"]["execution_time"] < np.median(times) * 1.5],
+                    "time_vs_K_trend": "linear" if len(times) > 1 and np.corrcoef(K_values, times)[0,1] > 0.8 else "nonlinear",
+                    "memory_efficient_K": min(successful_components.keys(),
+                                            key=lambda k: successful_components[k]["performance_metrics"]["peak_memory_gb"])
+                }
+
+        # Overall assessment
+        analysis["overall_scalability_assessment"] = {
+            "sgfa_scalability_grade": "Good",  # Will be refined based on individual assessments
+            "bottleneck_analysis": "Component count (K) is primary scaling factor",
+            "recommendations": {
+                "optimal_sample_size_range": "500-2000 subjects for best efficiency",
+                "optimal_K_range": "3-10 factors for neuroimaging applications",
+                "memory_considerations": "Use K<=10 for datasets with >20K features"
+            }
+        }
+
+        return analysis
+
+    def _plot_sgfa_scalability_analysis(self, results: Dict) -> Dict:
+        """Generate comprehensive SGFA scalability plots."""
+        plots = {}
+
+        try:
+            import matplotlib.pyplot as plt
+
+            # Sample scalability plot
+            sample_results = results.get("sample_scalability", {})
+            if sample_results:
+                successful_samples = {k: v for k, v in sample_results.items() if "error" not in v}
+                if successful_samples:
+                    sample_sizes = list(successful_samples.keys())
+                    times = [v["performance_metrics"]["execution_time"] for v in successful_samples.values()]
+                    memories = [v["performance_metrics"]["peak_memory_gb"] for v in successful_samples.values()]
+
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+                    ax1.plot(sample_sizes, times, 'bo-', linewidth=2, markersize=8)
+                    ax1.set_xlabel('Sample Size')
+                    ax1.set_ylabel('Execution Time (seconds)')
+                    ax1.set_title('SGFA Sample Scalability - Time')
+                    ax1.grid(True, alpha=0.3)
+
+                    ax2.plot(sample_sizes, memories, 'ro-', linewidth=2, markersize=8)
+                    ax2.set_xlabel('Sample Size')
+                    ax2.set_ylabel('Peak Memory (GB)')
+                    ax2.set_title('SGFA Sample Scalability - Memory')
+                    ax2.grid(True, alpha=0.3)
+
+                    plt.tight_layout()
+                    plots["sample_scalability"] = fig
+
+            # Component scalability plot
+            component_results = results.get("component_scalability", {})
+            if component_results:
+                successful_components = {k: v for k, v in component_results.items() if "error" not in v}
+                if successful_components:
+                    K_values = list(successful_components.keys())
+                    times = [v["performance_metrics"]["execution_time"] for v in successful_components.values()]
+                    memories = [v["performance_metrics"]["peak_memory_gb"] for v in successful_components.values()]
+
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+                    ax1.plot(K_values, times, 'go-', linewidth=2, markersize=8)
+                    ax1.set_xlabel('Number of Factors (K)')
+                    ax1.set_ylabel('Execution Time (seconds)')
+                    ax1.set_title('SGFA Component Scalability - Time')
+                    ax1.grid(True, alpha=0.3)
+
+                    ax2.plot(K_values, memories, 'mo-', linewidth=2, markersize=8)
+                    ax2.set_xlabel('Number of Factors (K)')
+                    ax2.set_ylabel('Peak Memory (GB)')
+                    ax2.set_title('SGFA Component Scalability - Memory')
+                    ax2.grid(True, alpha=0.3)
+
+                    plt.tight_layout()
+                    plots["component_scalability"] = fig
+
+        except Exception as e:
+            self.logger.warning(f"Failed to generate scalability plots: {str(e)}")
+
+        return plots
+
+
+def run_sgfa_parameter_comparison(config):
+    """Run SGFA parameter comparison experiments with remote workstation integration."""
     logger = logging.getLogger(__name__)
-    logger.info("Starting Method Comparison Experiments")
+    logger.info("Starting SGFA Parameter Comparison Experiments")
 
     try:
         # Check if using shared data mode
@@ -1571,17 +1874,16 @@ def run_method_comparison(config):
             }
 
             # Test different K values for comparison
-            # Get configuration from normalized config dict
-            method_config = config_dict.get("method_comparison", {})
-            models_config = method_config.get("models", [{}])
+            # Get configuration from sgfa_parameter_comparison config section
+            sgfa_config = config_dict.get("sgfa_parameter_comparison", {})
+            parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
-            # Extract K values and percW values from config
-            if models_config and len(models_config) > 0:
-                K_values = models_config[0].get("n_factors", [3, 5, 8, 10])
-            else:
-                K_values = [3, 5, 8, 10]  # Default fallback (memory-optimized)
+            # Extract K values and percW values from proper config section
+            K_values = parameter_ranges.get("n_factors", [3, 5, 8, 10])
+            percW_values = parameter_ranges.get("sparsity_lambda", [0.1, 0.33, 0.5])
 
-            percW_values = [25.0, 33.0, 50.0]  # Different sparsity levels
+            # Convert sparsity_lambda (0-1 range) to percW (percentage)
+            percW_values = [val * 100 if val <= 1.0 else val for val in percW_values]
 
             model_results = {}
             performance_metrics = {}
@@ -1782,5 +2084,5 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
         logger.warning(f"Iteration cleanup failed: {e}")
 
 
-def run_method_comparison_analysis(X_list, hypers, args, **kwargs):
-    """Run the method comparison experiment with the given data."""
+def run_sgfa_parameter_analysis(X_list, hypers, args, **kwargs):
+    """Run the SGFA parameter analysis experiment with the given data."""

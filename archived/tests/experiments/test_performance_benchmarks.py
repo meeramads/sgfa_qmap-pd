@@ -1,4 +1,16 @@
-"""Tests for performance benchmarks experiment."""
+"""Tests for performance benchmarks experiment.
+
+MIGRATION NOTE: performance_benchmarks functionality has been redistributed:
+- Scalability analysis -> experiments.sgfa_parameter_comparison
+- Clinical benchmarks -> experiments.clinical_validation
+- Model comparison -> experiments.model_comparison
+
+These tests still test the legacy performance_benchmarks module for backward compatibility.
+For new tests, see:
+- tests/experiments/test_sgfa_parameter_comparison.py
+- tests/experiments/test_clinical_validation.py
+- tests/experiments/test_model_comparison.py
+"""
 
 import tempfile
 import time

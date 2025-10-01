@@ -44,9 +44,9 @@ experiments.reproducibility
    :undoc-members:
    :show-inheritance:
 
-experiments.performance_benchmarks
------------------------------------
-.. automodule:: experiments.performance_benchmarks
+experiments.sgfa_parameter_comparison
+-------------------------------------
+.. automodule:: experiments.sgfa_parameter_comparison
    :members:
    :undoc-members:
    :show-inheritance:

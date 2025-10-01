@@ -10,7 +10,7 @@ from data import generate_synthetic_data
 from experiments.framework import ExperimentConfig
 from experiments.sgfa_parameter_comparison import (
     SGFAParameterComparison,
-    run_method_comparison,
+    run_sgfa_parameter_comparison,  # Main entry point for SGFA parameter optimization
 )
 
 
@@ -40,6 +40,18 @@ class TestSGFAParameterComparison:
                     "alpha_w": 1.0,
                     "alpha_z": 1.0,
                 },
+                # Add the new sgfa_parameter_comparison configuration section
+                sgfa_parameter_comparison={
+                    "parameter_ranges": {
+                        "n_factors": [3, 4, 5],
+                        "sparsity_lambda": [0.1, 0.3, 0.5],
+                        "group_lambda": [0.1, 0.5],
+                    },
+                    "scalability_analysis": {
+                        "sample_size_ranges": [20, 30],
+                        "feature_size_ranges": [40, 60],
+                    }
+                }
             )
             yield config
 
@@ -77,28 +89,34 @@ class TestSGFAParameterComparison:
         assert len(variant_results) >= 1
         assert any("standard" in str(variant_results))
 
-    def test_run_traditional_method_comparison(self, sample_data, config):
-        """Test running traditional method comparison."""
+    def test_run_comprehensive_sgfa_scalability_analysis(self, sample_data, config):
+        """Test running comprehensive SGFA scalability analysis."""
         comparison = SGFAParameterComparison(config)
 
-        # Mock SGFA results for comparison
-        sgfa_results = {
-            "log_likelihood": -800.0,
-            "W_mean": np.random.randn(60, 4),
-            "Z_mean": np.random.randn(25, 4),
-            "reconstruction_error": 0.15,
+        # Prepare minimal args for scalability testing
+        hypers = {
+            "percW": 25.0,
+            "Dm": [X.shape[1] for X in sample_data],
+            "a_sigma": 1.0,
+            "b_sigma": 1.0,
+        }
+        args = {
+            "K": 3,
+            "num_samples": 50,  # Reduced for testing
+            "num_warmup": 25,   # Reduced for testing
+            "num_chains": 1,
         }
 
-        # Run traditional method comparison
-        result = comparison.run_traditional_method_comparison(
-            X_list=sample_data, sgfa_results=sgfa_results
+        # Run scalability analysis (this will use the config parameter ranges)
+        result = comparison.run_comprehensive_sgfa_scalability_analysis(
+            X_list=sample_data, hypers=hypers, args=args
         )
 
         # Check result structure
-        assert result.success is True
-        assert result.experiment_name == "traditional_method_comparison"
-        assert result.data is not None
-        assert "method_results" in result.data
+        assert result.status == "completed"
+        assert result.model_results is not None
+        # Verify different scalability tests were performed
+        assert "sample_scalability" in result.model_results or "feature_scalability" in result.model_results
 
     def test_run_multiview_capability_assessment(self, sample_data, config):
         """Test running multiview capability assessment."""
@@ -205,8 +223,8 @@ class TestSGFAParameterComparison:
 class TestSGFAParameterComparisonStandalone:
     """Test standalone SGFA parameter comparison function."""
 
-    def test_run_method_comparison_function(self):
-        """Test the standalone run_method_comparison function."""
+    def test_run_sgfa_parameter_comparison_function(self):
+        """Test the standalone run_sgfa_parameter_comparison function."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Generate test data
             data = generate_synthetic_data(
@@ -220,14 +238,26 @@ class TestSGFAParameterComparisonStandalone:
                 "model": {"K": 3, "num_samples": 50, "num_warmup": 25, "num_chains": 1},
             }
 
-            # Run method comparison
-            result = run_method_comparison(config)
+            # Add sgfa_parameter_comparison config section
+            config["sgfa_parameter_comparison"] = {
+                "parameter_ranges": {
+                    "n_factors": [3, 4],
+                    "sparsity_lambda": [0.1, 0.3],
+                },
+                "scalability_analysis": {
+                    "sample_size_ranges": [20],
+                    "feature_size_ranges": [40],
+                }
+            }
+
+            # Run SGFA parameter comparison
+            result = run_sgfa_parameter_comparison(config)
 
             # Check that function completes
             assert result is not None
 
-    def test_run_method_comparison_with_custom_data(self):
-        """Test method comparison with custom data."""
+    def test_run_sgfa_parameter_comparison_with_custom_data(self):
+        """Test SGFA parameter comparison with custom data."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Generate custom test data
             np.random.randn(15, 25)
@@ -237,10 +267,20 @@ class TestSGFAParameterComparisonStandalone:
                 "experiments": {"base_output_dir": tmpdir},
                 "data": {"data_dir": tmpdir},
                 "model": {"K": 2, "num_samples": 50, "num_warmup": 25},
+                "sgfa_parameter_comparison": {
+                    "parameter_ranges": {
+                        "n_factors": [2, 3],
+                        "sparsity_lambda": [0.2, 0.4],
+                    },
+                    "scalability_analysis": {
+                        "sample_size_ranges": [15],
+                        "feature_size_ranges": [25, 30],
+                    }
+                }
             }
 
             # Should handle custom data
-            result = run_method_comparison(config)
+            result = run_sgfa_parameter_comparison(config)
             assert result is not None
 
 

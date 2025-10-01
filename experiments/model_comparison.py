@@ -22,7 +22,7 @@ from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.decomposition import PCA, FactorAnalysis, FastICA
+from sklearn.decomposition import PCA, FactorAnalysis, FastICA, NMF
 from sklearn.cluster import KMeans
 from sklearn.cross_decomposition import CCA
 
@@ -101,7 +101,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         # Load comparison parameters from config
         from core.config_utils import ConfigHelper
         config_dict = ConfigHelper.to_dict(config)
-        method_config = config_dict.get("method_comparison", {})
+        method_config = config_dict.get("model_comparison", {})
 
         # Get default parameters from first model config (for fair comparison baseline)
         model_configs = method_config.get("models", [])
@@ -139,7 +139,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.monitoring_config = self._initialize_monitoring(config_dict)
 
         # Load evaluation metrics from config
-        method_config = config_dict.get("method_comparison", {})
+        method_config = config_dict.get("model_comparison", {})
         self.evaluation_metrics = method_config.get("evaluation_metrics", [
             "reconstruction_error", "factor_interpretability", "clinical_correlation"
         ])
@@ -1713,6 +1713,554 @@ class ModelArchitectureComparison(ExperimentFramework):
             status="failed",
             error_message=error_message,
         )
+
+    @experiment_handler("comparative_benchmarks")
+    @validate_data_types(
+        X_base=list,
+        hypers=dict,
+        args=dict,
+    )
+    @validate_parameters(
+        X_base=lambda x: len(x) > 0,
+        hypers=lambda x: isinstance(x, dict),
+        args=lambda x: isinstance(x, dict),
+    )
+    def run_comparative_benchmarks(
+        self,
+        X_base: List[np.ndarray],
+        hypers: Dict,
+        args: Dict,
+        baseline_methods: List[str] = None,
+        **kwargs,
+    ) -> ExperimentResult:
+        """Run comparative benchmarks against baseline methods."""
+        if baseline_methods is None:
+            baseline_methods = ["pca", "ica", "factor_analysis", "nmf"]
+
+        self.logger.info(f"Running comparative benchmarks against: {baseline_methods}")
+
+        results = {}
+
+        # Test different dataset configurations
+        test_configs = [
+            {"n_subjects": 500, "n_features_per_view": 100, "n_views": 2},
+            {"n_subjects": 1000, "n_features_per_view": 200, "n_views": 3},
+            {"n_subjects": 2000, "n_features_per_view": 150, "n_views": 4},
+        ]
+
+        for i, config in enumerate(test_configs):
+            config_name = f"config_{i + 1}"
+            self.logger.info(f"Testing configuration {config_name}: {config}")
+
+            # Generate test dataset with specified configuration
+            X_test = self._generate_test_dataset(**config)
+
+            config_results = {}
+
+            # Test SGFA
+            self.logger.info("Benchmarking SGFA")
+            with self.profiler.profile(f"sgfa_{config_name}") as p:
+                sgfa_result = self._run_sgfa_analysis(X_test, hypers, args, **kwargs)
+
+            sgfa_metrics = self.profiler.get_current_metrics()
+            config_results["sgfa"] = {
+                "result": sgfa_result,
+                "performance_metrics": sgfa_metrics,
+                "method_type": "multiview",
+            }
+
+            # Test baseline methods
+            X_concat = np.hstack(X_test)  # Concatenate for traditional methods
+
+            for method in baseline_methods:
+                self.logger.info(f"Benchmarking {method}")
+
+                try:
+                    with self.profiler.profile(f"{method}_{config_name}") as p:
+                        baseline_result = self._run_baseline_method(
+                            X_concat, method, **kwargs
+                        )
+
+                    baseline_metrics = self.profiler.get_current_metrics()
+                    config_results[method] = {
+                        "result": baseline_result,
+                        "performance_metrics": baseline_metrics,
+                        "method_type": "traditional",
+                    }
+
+                except Exception as e:
+                    self.logger.warning(f"Baseline method {method} failed: {str(e)}")
+                    config_results[method] = {
+                        "result": {"error": str(e)},
+                        "performance_metrics": {},
+                        "method_type": "traditional",
+                    }
+
+            results[config_name] = {"config": config, "results": config_results}
+
+        # Analyze comparative benchmarks
+        analysis = self._analyze_comparative_benchmarks(results)
+
+        # Generate plots
+        plots = self._plot_comparative_benchmarks(results)
+
+        return ExperimentResult(
+            experiment_name="comparative_benchmarks",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True,
+        )
+
+    def _run_baseline_method(self, X: np.ndarray, method: str, **kwargs) -> Dict:
+        """Run baseline method for comparison."""
+        n_components = kwargs.get("n_components", 5)
+
+        try:
+            if method == "pca":
+                model = PCA(n_components=n_components)
+                Z = model.fit_transform(X)
+                result = {
+                    "components": model.components_,
+                    "explained_variance_ratio": model.explained_variance_ratio_,
+                    "Z": Z,
+                }
+
+            elif method == "ica":
+                model = FastICA(n_components=n_components, random_state=42)
+                Z = model.fit_transform(X)
+                result = {"components": model.components_, "Z": Z}
+
+            elif method == "factor_analysis":
+                model = FactorAnalysis(n_components=n_components)
+                Z = model.fit_transform(X)
+                result = {
+                    "components": model.components_,
+                    "Z": Z,
+                    "loglik": model.score(X),
+                }
+
+            elif method == "nmf":
+                model = NMF(n_components=n_components, random_state=42)
+                Z = model.fit_transform(X)
+                result = {"components": model.components_, "Z": Z}
+
+            else:
+                raise ValueError(f"Unknown baseline method: {method}")
+
+            return result
+
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _generate_test_dataset(
+        self, n_subjects: int, n_features_per_view: int, n_views: int
+    ) -> List[np.ndarray]:
+        """Generate synthetic test dataset with specified dimensions."""
+        X_test = []
+
+        # Generate shared factors
+        K = 5
+        Z = np.random.randn(n_subjects, K)
+
+        for view in range(n_views):
+            # Generate loading matrix
+            W = np.random.randn(n_features_per_view, K)
+
+            # Generate noise
+            noise = np.random.randn(n_subjects, n_features_per_view) * 0.1
+
+            # Create view data
+            X_view = Z @ W.T + noise
+            X_test.append(X_view)
+
+        return X_test
+
+    def _analyze_comparative_benchmarks(self, results: Dict) -> Dict:
+        """Analyze comparative benchmark results."""
+        analysis = {
+            "model_comparison": {},
+            "sgfa_advantages": {},
+            "performance_trade_offs": {},
+        }
+
+        # Extract performance metrics for all methods
+        method_performance = {}
+
+        for config_name, config_data in results.items():
+            config_results = config_data["results"]
+
+            for method_name, method_data in config_results.items():
+                if method_name not in method_performance:
+                    method_performance[method_name] = {
+                        "execution_times": [],
+                        "memory_usage": [],
+                        "success_rate": [],
+                    }
+
+                if method_data.get("result", {}).get("error"):
+                    method_performance[method_name]["success_rate"].append(0)
+                else:
+                    method_performance[method_name]["success_rate"].append(1)
+
+                    perf_metrics = method_data.get("performance_metrics", {})
+                    method_performance[method_name]["execution_times"].append(
+                        perf_metrics.get("execution_time", np.nan)
+                    )
+                    method_performance[method_name]["memory_usage"].append(
+                        perf_metrics.get("peak_memory_gb", np.nan)
+                    )
+
+        # Analyze method performance
+        for method_name, perf_data in method_performance.items():
+            valid_times = [t for t in perf_data["execution_times"] if not np.isnan(t)]
+            valid_memory = [m for m in perf_data["memory_usage"] if not np.isnan(m)]
+
+            analysis["model_comparison"][method_name] = {
+                "mean_execution_time": np.mean(valid_times) if valid_times else np.nan,
+                "mean_memory_usage": np.mean(valid_memory) if valid_memory else np.nan,
+                "success_rate": np.mean(perf_data["success_rate"]),
+                "method_type": "multiview" if method_name == "sgfa" else "traditional",
+            }
+
+        # SGFA-specific analysis
+        if "sgfa" in analysis["model_comparison"]:
+            sgfa_perf = analysis["model_comparison"]["sgfa"]
+
+            # Compare with traditional methods
+            traditional_methods = {
+                name: perf
+                for name, perf in analysis["model_comparison"].items()
+                if perf["method_type"] == "traditional"
+            }
+
+            if traditional_methods:
+                avg_traditional_time = np.mean(
+                    [
+                        p["mean_execution_time"]
+                        for p in traditional_methods.values()
+                        if not np.isnan(p["mean_execution_time"])
+                    ]
+                )
+                avg_traditional_memory = np.mean(
+                    [
+                        p["mean_memory_usage"]
+                        for p in traditional_methods.values()
+                        if not np.isnan(p["mean_memory_usage"])
+                    ]
+                )
+
+                analysis["sgfa_advantages"] = {
+                    "time_advantage": (
+                        avg_traditional_time / sgfa_perf["mean_execution_time"]
+                        if not np.isnan(sgfa_perf["mean_execution_time"])
+                        else np.nan
+                    ),
+                    "memory_advantage": (
+                        avg_traditional_memory / sgfa_perf["mean_memory_usage"]
+                        if not np.isnan(sgfa_perf["mean_memory_usage"])
+                        else np.nan
+                    ),
+                    "multiview_capability": True,
+                    "success_rate_advantage": sgfa_perf["success_rate"]
+                    - np.mean(
+                        [p["success_rate"] for p in traditional_methods.values()]
+                    ),
+                }
+
+        return analysis
+
+    def _plot_comparative_benchmarks(self, results: Dict) -> Dict:
+        """Generate plots for comparative benchmarks."""
+        plots = {}
+
+        try:
+            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+            fig.suptitle("Comparative Method Benchmarks", fontsize=16)
+
+            # Extract method performance data
+            methods = set()
+            for config_data in results.values():
+                methods.update(config_data["results"].keys())
+            methods = sorted(methods)
+
+            # Plot 1: Execution time comparison
+            method_times = {method: [] for method in methods}
+            config_names = sorted(results.keys())
+
+            for config_name in config_names:
+                config_results = results[config_name]["results"]
+
+                for method in methods:
+                    if method in config_results:
+                        method_result = config_results[method]
+                        if not method_result.get("result", {}).get("error"):
+                            perf_metrics = method_result.get("performance_metrics", {})
+                            exec_time = perf_metrics.get("execution_time")
+                            if exec_time and not np.isnan(exec_time):
+                                method_times[method].append(exec_time)
+                            else:
+                                method_times[method].append(np.nan)
+                        else:
+                            method_times[method].append(np.nan)
+                    else:
+                        method_times[method].append(np.nan)
+
+            # Create grouped bar chart
+            x_pos = np.arange(len(config_names))
+            bar_width = 0.8 / len(methods)
+            colors = plt.cm.Set1(np.linspace(0, 1, len(methods)))
+
+            for i, method in enumerate(methods):
+                method_data = [
+                    t if not np.isnan(t) else 0 for t in method_times[method]
+                ]
+                axes[0, 0].bar(
+                    x_pos + i * bar_width,
+                    method_data,
+                    bar_width,
+                    label=method,
+                    color=colors[i],
+                    alpha=0.8,
+                )
+
+            axes[0, 0].set_xlabel("Dataset Configuration")
+            axes[0, 0].set_ylabel("Execution Time (seconds)")
+            axes[0, 0].set_title("Execution Time by Method and Dataset")
+            axes[0, 0].set_xticks(x_pos + bar_width * (len(methods) - 1) / 2)
+            axes[0, 0].set_xticklabels(config_names)
+            axes[0, 0].legend()
+            axes[0, 0].grid(True, alpha=0.3)
+
+            # Plot 2: Memory usage comparison
+            method_memory = {method: [] for method in methods}
+
+            for config_name in config_names:
+                config_results = results[config_name]["results"]
+
+                for method in methods:
+                    if method in config_results:
+                        method_result = config_results[method]
+                        if not method_result.get("result", {}).get("error"):
+                            perf_metrics = method_result.get("performance_metrics", {})
+                            memory = perf_metrics.get("peak_memory_gb")
+                            if memory and not np.isnan(memory):
+                                method_memory[method].append(memory)
+                            else:
+                                method_memory[method].append(np.nan)
+                        else:
+                            method_memory[method].append(np.nan)
+                    else:
+                        method_memory[method].append(np.nan)
+
+            for i, method in enumerate(methods):
+                method_data = [
+                    m if not np.isnan(m) else 0 for m in method_memory[method]
+                ]
+                axes[0, 1].bar(
+                    x_pos + i * bar_width,
+                    method_data,
+                    bar_width,
+                    label=method,
+                    color=colors[i],
+                    alpha=0.8,
+                )
+
+            axes[0, 1].set_xlabel("Dataset Configuration")
+            axes[0, 1].set_ylabel("Peak Memory (GB)")
+            axes[0, 1].set_title("Memory Usage by Method and Dataset")
+            axes[0, 1].set_xticks(x_pos + bar_width * (len(methods) - 1) / 2)
+            axes[0, 1].set_xticklabels(config_names)
+            axes[0, 1].legend()
+            axes[0, 1].grid(True, alpha=0.3)
+
+            # Plot 3: Success rate comparison
+            method_success = {method: [] for method in methods}
+
+            for config_name in config_names:
+                config_results = results[config_name]["results"]
+
+                for method in methods:
+                    if method in config_results:
+                        method_result = config_results[method]
+                        success = 1 if not method_result.get("result", {}).get("error") else 0
+                        method_success[method].append(success)
+                    else:
+                        method_success[method].append(0)
+
+            for i, method in enumerate(methods):
+                success_rate = np.mean(method_success[method])
+                axes[1, 0].bar(
+                    i,
+                    success_rate,
+                    label=method,
+                    color=colors[i],
+                    alpha=0.8,
+                )
+
+            axes[1, 0].set_xlabel("Method")
+            axes[1, 0].set_ylabel("Success Rate")
+            axes[1, 0].set_title("Method Success Rate")
+            axes[1, 0].set_xticks(range(len(methods)))
+            axes[1, 0].set_xticklabels(methods, rotation=45)
+            axes[1, 0].grid(True, alpha=0.3)
+
+            # Plot 4: Performance trade-off (time vs memory)
+            for i, method in enumerate(methods):
+                valid_times = [t for t in method_times[method] if not np.isnan(t)]
+                valid_memory = [m for m in method_memory[method] if not np.isnan(m)]
+
+                if valid_times and valid_memory:
+                    avg_time = np.mean(valid_times)
+                    avg_memory = np.mean(valid_memory)
+                    axes[1, 1].scatter(
+                        avg_time,
+                        avg_memory,
+                        label=method,
+                        color=colors[i],
+                        s=100,
+                        alpha=0.8,
+                    )
+
+            axes[1, 1].set_xlabel("Average Execution Time (seconds)")
+            axes[1, 1].set_ylabel("Average Peak Memory (GB)")
+            axes[1, 1].set_title("Performance Trade-off: Time vs Memory")
+            axes[1, 1].legend()
+            axes[1, 1].grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            plots["comparative_benchmarks"] = fig
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create comparative benchmark plots: {e}")
+            plots["comparative_benchmarks_error"] = str(e)
+
+        return plots
+
+    def _run_sgfa_analysis(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> Dict:
+        """Run actual SGFA analysis for benchmarking."""
+        import time
+
+        import jax
+        from numpyro.infer import MCMC, NUTS
+
+        try:
+            K = hypers.get("K", 5)
+            self.logger.debug(
+                f"Running SGFA benchmark: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
+            )
+
+            # Use model factory for consistent model management
+            from models.models_integration import integrate_models_with_pipeline
+
+            # Setup data characteristics for optimal model selection
+            data_characteristics = {
+                "total_features": sum(X.shape[1] for X in X_list),
+                "n_views": len(X_list),
+                "n_subjects": X_list[0].shape[0],
+                "has_imaging_data": True
+            }
+
+            # Get optimal model configuration via factory
+            model_type, model_instance, models_summary = integrate_models_with_pipeline(
+                config={"model": {"type": "sparseGFA"}},
+                X_list=X_list,
+                data_characteristics=data_characteristics
+            )
+
+            self.logger.info(f"🏭 Performance benchmark using model: {model_type}")
+
+            # Import the actual SGFA model function for execution
+            from core.run_analysis import models
+
+            # Setup MCMC configuration for benchmarking (reduced for speed)
+            num_warmup = args.get("num_warmup", 100)  # Reduced for benchmarking
+            num_samples = args.get("num_samples", 200)  # Reduced for benchmarking
+            num_chains = args.get("num_chains", 1)  # Single chain for benchmarking
+
+            # Create args object for model
+            import argparse
+
+            model_args = argparse.Namespace(
+                model="sparseGFA",
+                K=K,
+                num_sources=len(X_list),
+                reghsZ=args.get("reghsZ", True),
+            )
+
+            # Setup MCMC
+            rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
+            kernel = NUTS(
+                models, target_accept_prob=args.get("target_accept_prob", 0.8)
+            )
+            mcmc = MCMC(
+                kernel,
+                num_warmup=num_warmup,
+                num_samples=num_samples,
+                num_chains=num_chains,
+            )
+
+            # Run inference
+            start_time = time.time()
+            mcmc.run(
+                rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+            )
+            elapsed = time.time() - start_time
+
+            # Get samples
+            samples = mcmc.get_samples()
+
+            # Calculate log likelihood (approximate)
+            extra_fields = mcmc.get_extra_fields()
+            potential_energy = extra_fields.get("potential_energy", np.array([]))
+            log_likelihood = (
+                -np.mean(potential_energy) if len(potential_energy) > 0 else np.nan
+            )
+
+            # Extract mean parameters
+            W_samples = samples["W"]  # Shape: (num_samples, D, K)
+            Z_samples = samples["Z"]  # Shape: (num_samples, N, K)
+
+            W_mean = np.mean(W_samples, axis=0)
+            Z_mean = np.mean(Z_samples, axis=0)
+
+            # Split W back into views
+            W_list = []
+            start_idx = 0
+            for X in X_list:
+                end_idx = start_idx + X.shape[1]
+                W_list.append(W_mean[start_idx:end_idx, :])
+                start_idx = end_idx
+
+            return {
+                "W": W_list,
+                "Z": Z_mean,
+                "log_likelihood": float(log_likelihood),
+                "n_iterations": num_samples,
+                "convergence": True,
+                "execution_time": elapsed,
+                "computation_info": {
+                    "problem_size": X_list[0].shape[0]
+                    * sum(X.shape[1] for X in X_list)
+                    * K,
+                    "actual_time": elapsed,
+                    "num_warmup": num_warmup,
+                    "num_samples": num_samples,
+                    "num_chains": num_chains,
+                },
+            }
+
+        except Exception as e:
+            self.logger.error(f"SGFA benchmark analysis failed: {str(e)}")
+            return {
+                "error": str(e),
+                "convergence": False,
+                "execution_time": float("inf"),
+                "log_likelihood": float("-inf"),
+            }
 
     def _comprehensive_memory_cleanup(self):
         """Comprehensive memory cleanup to prevent GPU memory exhaustion."""

@@ -35,7 +35,7 @@ jobs:
         python -c "
         import sys
         sys.path.insert(0, '.')
-        from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
+        from experiments.clinical_validation import ClinicalValidationExperiments
         from experiments.framework import ExperimentConfig
         from data.synthetic import generate_synthetic_data
         
@@ -50,13 +50,13 @@ jobs:
             random_seed=42
         )
         
-        benchmarker = PerformanceBenchmarkExperiments(config)
-        
-        # Run comprehensive benchmarks for release
-        print('Running scalability benchmarks...')
-        result = benchmarker.run_scalability_benchmarks(
-            X_list, 
-            {'K': 5, 'sparsity_level': 0.3}, 
+        validator = ClinicalValidationExperiments(config)
+
+        # Run comprehensive clinical validation for release
+        print('Running integrated SGFA + clinical validation...')
+        result = validator.run_sgfa_clinical_validation(
+            X_list,
+            {'K': 5, 'sparsity_level': 0.3},
             {'num_samples': 200}
         )
         
@@ -224,7 +224,7 @@ jobs:
         
         # Package experimental results
         tar -czf research_package/experimental_validation_${GITHUB_REF_NAME}.tar.gz -C artifacts release_experiments/
-        tar -czf research_package/performance_benchmarks_${GITHUB_REF_NAME}.tar.gz -C artifacts release_benchmarks/
+        tar -czf research_package/clinical_validation_benchmarks_${GITHUB_REF_NAME}.tar.gz -C artifacts release_benchmarks/
         
         # Create metadata file
         cat > research_package/metadata.json << EOF
@@ -235,7 +235,7 @@ jobs:
           "commit_sha": "${GITHUB_SHA}",
           "artifacts": [
             "experimental_validation_${GITHUB_REF_NAME}.tar.gz",
-            "performance_benchmarks_${GITHUB_REF_NAME}.tar.gz"
+            "clinical_validation_benchmarks_${GITHUB_REF_NAME}.tar.gz"
           ]
         }
         EOF

@@ -53,8 +53,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `sgfa_parameter_comparison.py`: SGFA variant comparison **IMPLEMENTED AND TESTED** + **HyperOptimizer NEEDS DEVELOPMENT**
   - `sensitivity_analysis.py`: Hyperparameter sensitivity testing **IMPLEMENTED AND TESTED**
   - `reproducibility.py`: Reproducibility and robustness validation **IMPLEMENTED AND TESTED**
-  - `performance_benchmarks.py`: Scalability benchmarking **IMPLEMENTED AND TESTED** + **ClinicalAwareSplitter NEEDS DEVELOPMENT**
-  - `clinical_validation.py`: Clinical subtype validation **IMPLEMENTED AND TESTED** + **Clinical-stratified CV AVAILABLE**
+  - `clinical_validation.py`: Clinical subtype validation + basic SGFA benchmarks **IMPLEMENTED AND TESTED** + **Advanced neuroimaging CV NEEDS DEVELOPMENT**
   - `debug_experiments.py`: Lightweight testing framework for rapid validation **IMPLEMENTED**
 
 ### Models & Implementation
@@ -289,7 +288,6 @@ For rapid validation and development testing, use the debug experiment runner:
 python debug_experiments.py data_validation
 python debug_experiments.py sgfa_parameter_comparison
 python debug_experiments.py model_comparison
-python debug_experiments.py performance_benchmarks
 python debug_experiments.py sensitivity_analysis
 python debug_experiments.py clinical_validation
 python debug_experiments.py reproducibility
@@ -388,12 +386,9 @@ sensitivity_results = sensitivity.run_sensitivity_analysis(X_list)
 reproducibility = ReproducibilityExperiments(config)
 repro_results = reproducibility.run_reproducibility_tests(X_list)
 
-# Run performance benchmarks
-benchmarks = PerformanceBenchmarkExperiments(config)
-perf_results = benchmarks.run_performance_benchmarks(X_list)
-
-# Run clinical validation (if clinical data available)
+# Run clinical validation with integrated SGFA performance benchmarks
 clinical = ClinicalValidationExperiments(config)
+perf_results = clinical.run_sgfa_clinical_validation(X_list)
 
 # Basic clinical validation (subtype classification)
 clinical_results = clinical.run_clinical_validation(X_list, clinical_data)
@@ -414,23 +409,28 @@ clinical_results_advanced = clinical.run_clinical_validation(X_list, clinical_da
 **NEW**: Clinical-stratified CV now available! Basic neuroimaging CV features work, advanced features require development:
 
 ```python
-# THESE WORK - Basic performance benchmarks are fully implemented:
-from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
+# THESE WORK - Basic SGFA + clinical validation is implemented:
+from experiments.clinical_validation import ClinicalValidationExperiments
 
-benchmarks = PerformanceBenchmarkExperiments(config)
+clinical_validator = ClinicalValidationExperiments(config)
 
-# Scalability benchmarks
-scalability_results = benchmarks.run_scalability_benchmarks(
+# Integrated SGFA + clinical validation benchmarks
+validation_results = clinical_validator.run_sgfa_clinical_validation(
     X_base=X_list, hypers={"percW": 25.0}, args={"K": 5, "model": "sparseGFA"}
 )
 
-# Memory benchmarks
-memory_results = benchmarks.run_memory_benchmarks(
-    X_base=X_list, hypers={"percW": 25.0}, args={"K": 5, "model": "sparseGFA"}
+# For pure SGFA scalability analysis, use sgfa_parameter_comparison:
+from experiments.sgfa_parameter_comparison import SGFAParameterComparison
+
+sgfa_analyzer = SGFAParameterComparison(config)
+scalability_results = sgfa_analyzer.run_comprehensive_sgfa_scalability_analysis(
+    X_list=X_list, hypers={"percW": 25.0}, args={"K": 5}
 )
 
-# THIS WILL FAIL - Advanced neuroimaging CV not implemented:
-cv_results = benchmarks.run_clinical_aware_cv_benchmarks(
+# Memory/performance metrics included in comprehensive analysis above
+
+# Basic clinical validation (implemented, advanced features need development):
+cv_results = clinical_validator.run_sgfa_clinical_validation(
     X_base=X_list,
     hypers={"percW": 25.0},
     args={"K": 5, "model": "sparseGFA"},
@@ -606,17 +606,17 @@ python debug_experiments.py model_comparison
 **FULLY IMPLEMENTED AND TESTED:**
 
 - `data_validation`: Data quality and preprocessing validation
-- `sgfa_parameter_comparison`: SGFA parameter optimization and method comparison
+- `sgfa_parameter_comparison`: SGFA parameter optimization and scalability analysis
 - `model_comparison`: SGFA vs traditional methods (PCA, ICA, FA)
-- `performance_benchmarks`: Scalability and memory benchmarks
 - `sensitivity_analysis`: Hyperparameter sensitivity testing
 - `reproducibility`: Reproducibility and robustness validation
-- `clinical_validation`: Clinical subtype validation
+- `clinical_validation`: Clinical subtype validation + basic SGFA benchmarks
 
 **ADVANCED FEATURES NEED DEVELOPMENT:**
 
-- Neuroimaging-specific hyperparameter optimization
-- Clinical-aware cross-validation benchmarks
+- Advanced neuroimaging-specific hyperparameter optimization
+- Advanced clinical-aware cross-validation benchmarks
+- Sophisticated neuroimaging metrics and validation
 - Advanced neuroimaging CV methods (ClinicalAwareSplitter, NeuroImagingMetrics)
 
 #### Run specific experiments directly (programmatic)

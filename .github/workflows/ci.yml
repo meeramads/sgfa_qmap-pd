@@ -101,22 +101,22 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
         
-    - name: Run performance benchmarks
+    - name: Run clinical validation benchmarks
       run: |
         python -c "
         import sys
         sys.path.insert(0, '.')
-        from experiments.performance_benchmarks import PerformanceBenchmarkExperiments
+        from experiments.clinical_validation import ClinicalValidationExperiments
         from experiments.framework import ExperimentConfig
         from data.synthetic import generate_synthetic_data
-        
+
         # Generate synthetic data for benchmarking
         data = generate_synthetic_data(num_sources=2, K=3)
         X_list = [data['X1'], data['X2']]
-        
-        # Run lightweight performance tests
+
+        # Run lightweight clinical validation tests (includes integrated SGFA + clinical benchmarks)
         config = ExperimentConfig(output_dir='./benchmark_results')
-        benchmarker = PerformanceBenchmarkExperiments(config)
+        validator = ClinicalValidationExperiments(config)
         
         # Run subset of benchmarks suitable for CI
         print('Running CI performance benchmarks...')

@@ -7,9 +7,9 @@ Usage:
     python debug_experiments.py data_validation
     python debug_experiments.py sgfa_parameter_comparison
     python debug_experiments.py model_comparison
-    python debug_experiments.py performance_benchmarks
-    python debug_experiments.py sensitivity_analysis
     python debug_experiments.py clinical_validation
+    python debug_experiments.py sensitivity_analysis
+    python debug_experiments.py reproducibility
     python debug_experiments.py all
 """
 
@@ -524,278 +524,11 @@ def run_model_comparison_debug():
 
 
 def run_performance_benchmarks_debug():
-    """Run integrated SGFA performance + PD subtype discovery benchmarks."""
-    logger.info("⚡ Running DEBUG: Integrated SGFA Performance + PD Subtype Discovery Benchmarks")
+    """Run integrated SGFA performance + PD subtype discovery benchmarks (now in clinical_validation)."""
+    logger.info("⚡ Running DEBUG: Integrated SGFA Performance + PD Subtype Discovery Benchmarks (redirected to clinical_validation)")
 
-    config = load_debug_config()
-    start_time = time.time()
-
-    try:
-        from data.qmap_pd import load_qmap_pd
-        from core.config_utils import get_data_dir
-        from core.run_analysis import models
-        from numpyro.infer import MCMC, NUTS
-        import jax.random as random
-        import psutil
-        import os
-        import gc
-        import numpy as np
-        from sklearn.cluster import KMeans
-        from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_rand_score
-        import pandas as pd
-
-        logger.info("Testing integrated SGFA + PD subtype discovery performance...")
-        data_dir = get_data_dir(config)
-
-        issues = []
-        benchmarks = {}
-
-        # Get baseline system info
-        process = psutil.Process(os.getpid())
-        initial_memory = process.memory_info().rss / 1024 / 1024  # MB
-
-        # === LAYER 1: DATA LOADING PERFORMANCE ===
-        logger.info("Layer 1: Data loading performance...")
-        load_start = time.time()
-        result = load_qmap_pd(data_dir)
-        load_time = time.time() - load_start
-
-        # Handle different return types
-        if isinstance(result, dict):
-            logger.info(f"Data loading returned dict with keys: {list(result.keys())}")
-            if 'X_list' in result:
-                X_list = result['X_list']
-            elif 'processed_data' in result:
-                X_list = result['processed_data']
-            else:
-                X_list = []
-                for key in sorted(result.keys()):
-                    if key.startswith('X') or 'data' in key.lower():
-                        data = result[key]
-                        if hasattr(data, 'shape'):
-                            X_list.append(data)
-                if not X_list:
-                    raise ValueError(f"Could not extract data arrays from dict keys: {list(result.keys())}")
-        else:
-            X_list = result
-
-        post_load_memory = process.memory_info().rss / 1024 / 1024
-        load_memory_delta = post_load_memory - initial_memory
-
-        # Load clinical data for PD subtype validation
-        clinical_file = data_dir / "data_clinical" / "pd_motor_gfa_data.tsv"
-        clinical_data = None
-        if clinical_file.exists():
-            clinical_data = pd.read_csv(clinical_file, sep="\t")
-
-        benchmarks["data_loading"] = {
-            "load_time_seconds": load_time,
-            "memory_delta_mb": load_memory_delta,
-            "n_subjects": X_list[0].shape[0] if X_list else 0,
-            "n_modalities": len(X_list),
-            "clinical_available": clinical_data is not None
-        }
-
-        if load_time > 10:
-            issues.append(f"Slow data loading: {load_time:.1f}s")
-
-        # 2. SGFA Performance Scaling
-        logger.info("Benchmark 2: SGFA scaling...")
-
-        # Test different K values for scaling
-        K_values = [2, 3, 5]
-        sgfa_timings = {}
-
-        for K in K_values:
-            try:
-                sgfa_start = time.time()
-                pre_sgfa_memory = process.memory_info().rss / 1024 / 1024
-
-                # Setup proper SGFA execution
-                import argparse
-                args = argparse.Namespace()
-                args.model = "sparseGFA"
-                args.num_sources = len(X_list)
-                args.K = K
-                args.reghsZ = False
-
-                Dm = [X.shape[1] for X in X_list]
-
-                hypers = {
-                    'Dm': Dm,
-                    'a_sigma': 1.0, 'b_sigma': 1.0,
-                    'percW': 25.0, 'slab_df': 4.0, 'slab_scale': 1.0
-                }
-
-                rng_key = random.PRNGKey(42)
-                kernel = NUTS(models, target_accept_prob=0.8)
-                mcmc = MCMC(kernel, num_warmup=5, num_samples=10, num_chains=1)
-                mcmc.run(rng_key, X_list, hypers, args, extra_fields=("potential_energy",))
-
-                samples = mcmc.get_samples()
-                result = {"converged": True, "samples": samples}
-
-                sgfa_time = time.time() - sgfa_start
-                post_sgfa_memory = process.memory_info().rss / 1024 / 1024
-                sgfa_memory_delta = post_sgfa_memory - pre_sgfa_memory
-
-                sgfa_timings[f"K{K}"] = {
-                    "time_seconds": sgfa_time,
-                    "memory_delta_mb": sgfa_memory_delta,
-                    "converged": result.get("converged", False) if result else False
-                }
-
-                # Cleanup
-                del result
-                gc.collect()
-
-            except Exception as e:
-                sgfa_timings[f"K{K}"] = {"error": str(e)}
-                issues.append(f"SGFA K={K} failed: {str(e)}")
-
-        benchmarks["sgfa_scaling"] = sgfa_timings
-
-        # Check for performance issues
-        if len(sgfa_timings) > 1:
-            times = [t.get("time_seconds", 0) for t in sgfa_timings.values() if "time_seconds" in t]
-            if times and max(times) > 30:  # Very slow
-                issues.append(f"SGFA very slow: max {max(times):.1f}s")
-
-        # 3. Memory Pressure Test
-        logger.info("Benchmark 3: Memory pressure...")
-        try:
-            pre_pressure_memory = process.memory_info().rss / 1024 / 1024
-
-            # Create temporary large arrays to test memory handling
-            large_arrays = []
-            for i in range(3):
-                # Create arrays similar to factor matrices
-                n_subjects = X_list[0].shape[0]
-                large_array = np.random.randn(n_subjects, 50)  # Simulated large factor matrix
-                large_arrays.append(large_array)
-
-            peak_memory = process.memory_info().rss / 1024 / 1024
-            pressure_memory_delta = peak_memory - pre_pressure_memory
-
-            # Cleanup
-            del large_arrays
-            gc.collect()
-
-            post_cleanup_memory = process.memory_info().rss / 1024 / 1024
-            cleanup_efficiency = (peak_memory - post_cleanup_memory) / pressure_memory_delta if pressure_memory_delta > 0 else 0
-
-            benchmarks["memory_pressure"] = {
-                "pressure_memory_delta_mb": pressure_memory_delta,
-                "cleanup_efficiency": cleanup_efficiency,
-                "peak_memory_mb": peak_memory
-            }
-
-            if cleanup_efficiency < 0.8:  # Poor memory cleanup
-                issues.append(f"Poor memory cleanup: {cleanup_efficiency:.2f} efficiency")
-
-        except Exception as e:
-            benchmarks["memory_pressure"] = {"error": str(e)}
-            issues.append(f"Memory pressure test failed: {str(e)}")
-
-        # 4. System Resource Check
-        logger.info("Benchmark 4: System resources...")
-        try:
-            cpu_percent = psutil.cpu_percent(interval=1)
-            memory_percent = psutil.virtual_memory().percent
-            disk_usage = psutil.disk_usage('.').percent
-
-            benchmarks["system_resources"] = {
-                "cpu_percent": cpu_percent,
-                "memory_percent": memory_percent,
-                "disk_usage_percent": disk_usage,
-                "available_memory_gb": psutil.virtual_memory().available / 1024 / 1024 / 1024
-            }
-
-            if memory_percent > 90:
-                issues.append(f"High memory usage: {memory_percent:.1f}%")
-
-            if disk_usage > 90:
-                issues.append(f"High disk usage: {disk_usage:.1f}%")
-
-        except Exception as e:
-            benchmarks["system_resources"] = {"error": str(e)}
-            issues.append(f"System resource check failed: {str(e)}")
-
-        # 5. JAX/GPU Performance Check
-        logger.info("Benchmark 5: JAX/GPU check...")
-        try:
-            import jax
-            import jax.numpy as jnp
-
-            # Simple JAX operation timing
-            jax_start = time.time()
-            x = jnp.ones((1000, 1000))
-            y = jnp.dot(x, x)
-            jax_time = time.time() - jax_start
-
-            devices = jax.devices()
-            device_info = [str(device) for device in devices]
-
-            benchmarks["jax_performance"] = {
-                "simple_operation_time": jax_time,
-                "devices": device_info,
-                "device_count": len(devices),
-                "default_backend": jax.default_backend()
-            }
-
-            if jax_time > 1.0:  # Slow JAX operations
-                issues.append(f"Slow JAX operations: {jax_time:.2f}s")
-
-        except Exception as e:
-            benchmarks["jax_performance"] = {"error": str(e)}
-            issues.append(f"JAX performance check failed: {str(e)}")
-
-        # Create debug output
-        debug_dir = Path("debug_results/performance_benchmarks")
-        debug_dir.mkdir(parents=True, exist_ok=True)
-
-        duration = time.time() - start_time
-        final_memory = process.memory_info().rss / 1024 / 1024
-        total_memory_delta = final_memory - initial_memory
-
-        debug_result = {
-            "status": "completed" if len(issues) == 0 else "completed_with_issues",
-            "duration_seconds": duration,
-            "issues": issues,
-            "benchmarks": benchmarks,
-            "summary": {
-                "total_memory_delta_mb": total_memory_delta,
-                "data_load_time": load_time,
-                "performance_rating": "good" if len(issues) == 0 else "poor"
-            }
-        }
-
-        # Save detailed summary
-        import json
-        with open(debug_dir / "summary.json", "w") as f:
-            json.dump(debug_result, f, indent=2, default=str)
-
-        # Log summary
-        status_emoji = "✅" if len(issues) == 0 else "⚠️"
-        logger.info(f"{status_emoji} Performance benchmarks completed in {duration:.2f}s")
-        logger.info(f"   Issues found: {len(issues)}")
-        if issues:
-            for issue in issues[:3]:  # Show first 3 issues
-                logger.warning(f"   - {issue}")
-
-        logger.info(f"   Data loading: {load_time:.2f}s")
-        logger.info(f"   Memory delta: {total_memory_delta:.1f}MB")
-        logger.info(f"   JAX backend: {benchmarks.get('jax_performance', {}).get('default_backend', 'unknown')}")
-        logger.info(f"   Results saved to: {debug_dir}")
-
-        return debug_result
-
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(f"❌ Performance benchmarks failed after {duration:.2f}s: {e}")
-        raise
-
-
+    # Redirect to clinical validation since that's where the integrated functionality moved
+    return run_clinical_validation_debug()
 def run_sensitivity_analysis_debug():
     """Run minimal sensitivity analysis."""
     logger.info("📊 Running DEBUG: Sensitivity Analysis")
@@ -1419,7 +1152,6 @@ def run_all_debug():
         ("data_validation", run_data_validation_debug),
         ("sgfa_parameter_comparison", run_sgfa_parameter_comparison_debug),
         ("model_comparison", run_model_comparison_debug),
-        ("performance_benchmarks", run_performance_benchmarks_debug),
         ("sensitivity_analysis", run_sensitivity_analysis_debug),
         ("reproducibility", run_reproducibility_debug),
         ("clinical_validation", run_clinical_validation_debug),
@@ -1471,7 +1203,6 @@ def main():
             "data_validation",
             "sgfa_parameter_comparison",
             "model_comparison",
-            "performance_benchmarks",
             "sensitivity_analysis",
             "reproducibility",
             "clinical_validation",
@@ -1494,7 +1225,6 @@ def main():
         "data_validation": run_data_validation_debug,
         "sgfa_parameter_comparison": run_sgfa_parameter_comparison_debug,
         "model_comparison": run_model_comparison_debug,
-        "performance_benchmarks": run_performance_benchmarks_debug,
         "sensitivity_analysis": run_sensitivity_analysis_debug,
         "reproducibility": run_reproducibility_debug,
         "clinical_validation": run_clinical_validation_debug,

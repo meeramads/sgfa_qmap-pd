@@ -14,7 +14,6 @@ from .data_validation import DataValidationExperiments
 from .framework import ExperimentConfig, ExperimentFramework
 from .runner import ExperimentRunner
 from .model_comparison import ModelArchitectureComparison
-from .performance_benchmarks import PerformanceBenchmarkExperiments
 from .reproducibility import ReproducibilityExperiments
 from .sensitivity_analysis import SensitivityAnalysisExperiments
 from .sgfa_parameter_comparison import SGFAParameterComparison
@@ -28,6 +27,5 @@ __all__ = [
     "ModelArchitectureComparison",
     "SensitivityAnalysisExperiments",
     "ReproducibilityExperiments",
-    "PerformanceBenchmarkExperiments",
     "ClinicalValidationExperiments",
 ]
