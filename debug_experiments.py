@@ -395,7 +395,7 @@ def run_model_comparison_debug():
             "PCA": lambda: PCA(n_components=3).fit(X_combined),
             "ICA": lambda: FastICA(n_components=3, random_state=42).fit(X_combined),
             "FA": lambda: FactorAnalysis(n_components=3, random_state=42).fit(X_combined),
-            "KMeans": lambda: KMeans(n_clusters=3, random_state=42).fit(X_combined),
+            "KMeans": lambda: KMeans(n_clusters=3, random_state=42, n_init=10).fit(X_combined),
         }
 
         for method_name, method_func in traditional_methods.items():
