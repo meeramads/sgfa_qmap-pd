@@ -935,6 +935,111 @@ class ClinicalValidationExperiments(ExperimentFramework):
             success=True,
         )
 
+    @experiment_handler("pd_subtype_discovery")
+    @validate_data_types(
+        X_list=list,
+        clinical_data=dict,
+        hypers=dict,
+        args=dict,
+    )
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        clinical_data=lambda x: x is not None,
+        hypers=lambda x: isinstance(x, dict),
+        args=lambda x: isinstance(x, dict),
+    )
+    def run_pd_subtype_discovery(
+        self,
+        X_list: List[np.ndarray],
+        clinical_data: Dict,
+        hypers: Dict,
+        args: Dict,
+        **kwargs,
+    ) -> ExperimentResult:
+        """Discover PD subtypes using SGFA factors from neuroimaging data.
+
+        This function performs unsupervised PD subtype discovery by:
+        1. Extracting SGFA factors from multi-modal neuroimaging data
+        2. Applying clustering to discover potential PD subtypes
+        3. Validating discovered subtypes against available clinical measures
+        4. Analyzing stability and interpretability of discovered subtypes
+
+        Parameters
+        ----------
+        X_list : List[np.ndarray]
+            List of data matrices (one per imaging modality)
+        clinical_data : Dict
+            Dictionary containing clinical measures for validation
+        hypers : Dict
+            SGFA hyperparameters
+        args : Dict
+            Analysis arguments
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        ExperimentResult
+            Results containing discovered subtypes, validation metrics, and plots
+        """
+        self.logger.info("Running PD subtype discovery")
+
+        results = {}
+
+        # Extract SGFA factors
+        self.logger.info("Extracting SGFA factors for subtype discovery")
+        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+
+        if "error" in sgfa_result:
+            raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
+
+        Z_sgfa = sgfa_result["Z"]  # Factor scores [n_subjects x n_factors]
+        n_subjects, n_factors = Z_sgfa.shape
+
+        self.logger.info(f"Extracted {n_factors} factors for {n_subjects} subjects")
+
+        # Discover PD subtypes using clustering
+        self.logger.info("Discovering PD subtypes using clustering")
+        subtype_results = self._discover_pd_subtypes(Z_sgfa)
+        results["subtype_discovery"] = subtype_results
+
+        # Validate discovered subtypes against clinical measures
+        if clinical_data:
+            self.logger.info("Validating discovered subtypes against clinical measures")
+            validation_results = self._validate_subtypes_clinical(
+                subtype_results, clinical_data, Z_sgfa
+            )
+            results["clinical_validation"] = validation_results
+
+        # Analyze subtype stability across multiple runs
+        self.logger.info("Analyzing subtype stability")
+        stability_results = self._analyze_pd_subtype_stability(
+            X_list, hypers, args, n_runs=5, **kwargs
+        )
+        results["stability_analysis"] = stability_results
+
+        # Factor interpretation for each discovered subtype
+        self.logger.info("Analyzing factor patterns for each subtype")
+        interpretation_results = self._analyze_subtype_factor_patterns(
+            Z_sgfa, subtype_results, sgfa_result
+        )
+        results["factor_interpretation"] = interpretation_results
+
+        # Comprehensive analysis
+        analysis = self._analyze_pd_subtype_discovery(results)
+
+        # Generate plots
+        plots = self._plot_pd_subtype_discovery(results, Z_sgfa, clinical_data)
+
+        return ExperimentResult(
+            experiment_name="pd_subtype_discovery",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True,
+        )
+
     @experiment_handler("disease_progression_validation")
     @validate_data_types(
         X_list=list,
@@ -3486,6 +3591,371 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         return best_result
 
+    def _discover_pd_subtypes(self, Z_sgfa: np.ndarray) -> Dict:
+        """Discover PD subtypes using clustering on SGFA factors."""
+        from sklearn.cluster import KMeans
+        from sklearn.metrics import silhouette_score, calinski_harabasz_score
+
+        results = {}
+        n_subjects, n_factors = Z_sgfa.shape
+
+        # Test different numbers of clusters (2-6 subtypes)
+        cluster_range = range(2, min(7, n_subjects//3 + 1))  # Ensure enough samples per cluster
+
+        silhouette_scores = []
+        calinski_scores = []
+        cluster_solutions = {}
+
+        for k in cluster_range:
+            # Run KMeans clustering
+            kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+            cluster_labels = kmeans.fit_predict(Z_sgfa)
+
+            # Calculate clustering quality metrics
+            sil_score = silhouette_score(Z_sgfa, cluster_labels)
+            cal_score = calinski_harabasz_score(Z_sgfa, cluster_labels)
+
+            silhouette_scores.append(sil_score)
+            calinski_scores.append(cal_score)
+
+            cluster_solutions[k] = {
+                "labels": cluster_labels,
+                "centers": kmeans.cluster_centers_,
+                "silhouette_score": sil_score,
+                "calinski_score": cal_score,
+                "inertia": kmeans.inertia_
+            }
+
+        # Select optimal number of clusters based on silhouette score
+        best_k_idx = np.argmax(silhouette_scores)
+        best_k = list(cluster_range)[best_k_idx]
+
+        results = {
+            "optimal_k": best_k,
+            "cluster_range": list(cluster_range),
+            "silhouette_scores": silhouette_scores,
+            "calinski_scores": calinski_scores,
+            "solutions": cluster_solutions,
+            "best_solution": cluster_solutions[best_k]
+        }
+
+        self.logger.info(f"Optimal number of PD subtypes: {best_k}")
+        self.logger.info(f"Best silhouette score: {silhouette_scores[best_k_idx]:.3f}")
+
+        return results
+
+    def _validate_subtypes_clinical(self, subtype_results: Dict, clinical_data: Dict, Z_sgfa: np.ndarray) -> Dict:
+        """Validate discovered subtypes against available clinical measures."""
+        from scipy.stats import f_oneway, kruskal
+
+        validation_results = {}
+        best_solution = subtype_results["best_solution"]
+        cluster_labels = best_solution["labels"]
+
+        # Group subjects by discovered subtype
+        unique_labels = np.unique(cluster_labels)
+        subtype_groups = {label: np.where(cluster_labels == label)[0] for label in unique_labels}
+
+        clinical_validation = {}
+
+        # Test each clinical measure for subtype differences
+        for measure_name, measure_data in clinical_data.items():
+            if not isinstance(measure_data, (np.ndarray, list)):
+                continue
+
+            measure_array = np.array(measure_data)
+            if len(measure_array) != len(cluster_labels):
+                continue
+
+            # Group clinical measures by subtype
+            groups = [measure_array[indices] for indices in subtype_groups.values()]
+
+            # Remove groups with insufficient data
+            valid_groups = [group for group in groups if len(group) > 1 and not np.all(np.isnan(group))]
+
+            if len(valid_groups) < 2:
+                continue
+
+            # Statistical tests for subtype differences
+            try:
+                # ANOVA test (parametric)
+                f_stat, p_anova = f_oneway(*valid_groups)
+
+                # Kruskal-Wallis test (non-parametric)
+                h_stat, p_kruskal = kruskal(*valid_groups)
+
+                # Calculate effect size (eta-squared)
+                overall_mean = np.nanmean(measure_array)
+                ss_between = sum(len(group) * (np.nanmean(group) - overall_mean)**2 for group in valid_groups)
+                ss_total = np.nansum((measure_array - overall_mean)**2)
+                eta_squared = ss_between / ss_total if ss_total > 0 else 0
+
+                clinical_validation[measure_name] = {
+                    "anova_f": f_stat,
+                    "anova_p": p_anova,
+                    "kruskal_h": h_stat,
+                    "kruskal_p": p_kruskal,
+                    "eta_squared": eta_squared,
+                    "group_means": [np.nanmean(group) for group in valid_groups],
+                    "group_stds": [np.nanstd(group) for group in valid_groups],
+                    "significant": min(p_anova, p_kruskal) < 0.05
+                }
+
+            except Exception as e:
+                self.logger.warning(f"Could not validate {measure_name}: {e}")
+
+        validation_results["clinical_measures"] = clinical_validation
+
+        # Calculate overall clinical validation score
+        significant_measures = sum(1 for result in clinical_validation.values() if result["significant"])
+        total_measures = len(clinical_validation)
+        validation_score = significant_measures / total_measures if total_measures > 0 else 0
+
+        validation_results["validation_score"] = validation_score
+        validation_results["significant_measures"] = significant_measures
+        validation_results["total_measures"] = total_measures
+
+        self.logger.info(f"Clinical validation: {significant_measures}/{total_measures} measures show significant subtype differences")
+
+        return validation_results
+
+    def _analyze_pd_subtype_stability(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, n_runs: int = 5, **kwargs) -> Dict:
+        """Analyze stability of discovered subtypes across multiple runs."""
+        from sklearn.metrics import adjusted_rand_score
+
+        stability_results = {}
+        all_solutions = []
+
+        for run in range(n_runs):
+            # Run SGFA with different random seed
+            run_args = args.copy()
+            run_args['random_seed'] = args.get('random_seed', 42) + run
+
+            try:
+                sgfa_result = self._run_sgfa_analysis(X_list, hypers, run_args, **kwargs)
+                Z_sgfa = sgfa_result["Z"]
+
+                # Discover subtypes for this run
+                subtype_result = self._discover_pd_subtypes(Z_sgfa)
+                all_solutions.append(subtype_result["best_solution"]["labels"])
+
+            except Exception as e:
+                self.logger.warning(f"Stability run {run} failed: {e}")
+
+        if len(all_solutions) < 2:
+            return {"error": "Insufficient successful runs for stability analysis"}
+
+        # Calculate pairwise ARI scores
+        ari_scores = []
+        for i in range(len(all_solutions)):
+            for j in range(i+1, len(all_solutions)):
+                ari = adjusted_rand_score(all_solutions[i], all_solutions[j])
+                ari_scores.append(ari)
+
+        stability_results = {
+            "n_successful_runs": len(all_solutions),
+            "ari_scores": ari_scores,
+            "mean_ari": np.mean(ari_scores),
+            "std_ari": np.std(ari_scores),
+            "min_ari": np.min(ari_scores),
+            "max_ari": np.max(ari_scores),
+            "stability_grade": "High" if np.mean(ari_scores) > 0.7 else "Medium" if np.mean(ari_scores) > 0.4 else "Low"
+        }
+
+        self.logger.info(f"Subtype stability: Mean ARI = {np.mean(ari_scores):.3f} ({stability_results['stability_grade']})")
+
+        return stability_results
+
+    def _analyze_subtype_factor_patterns(self, Z_sgfa: np.ndarray, subtype_results: Dict, sgfa_result: Dict) -> Dict:
+        """Analyze factor patterns for each discovered subtype."""
+        interpretation_results = {}
+        best_solution = subtype_results["best_solution"]
+        cluster_labels = best_solution["labels"]
+
+        unique_labels = np.unique(cluster_labels)
+
+        for label in unique_labels:
+            subtype_indices = np.where(cluster_labels == label)[0]
+            subtype_factors = Z_sgfa[subtype_indices]
+
+            # Calculate subtype-specific factor statistics
+            factor_means = np.mean(subtype_factors, axis=0)
+            factor_stds = np.std(subtype_factors, axis=0)
+
+            # Identify characteristic factors (high absolute mean, low std)
+            factor_importance = np.abs(factor_means) / (factor_stds + 1e-8)
+            top_factors = np.argsort(factor_importance)[::-1]
+
+            interpretation_results[f"subtype_{label}"] = {
+                "n_subjects": len(subtype_indices),
+                "factor_means": factor_means.tolist(),
+                "factor_stds": factor_stds.tolist(),
+                "factor_importance": factor_importance.tolist(),
+                "top_factors": top_factors[:3].tolist(),  # Top 3 characteristic factors
+                "factor_center": best_solution["centers"][label].tolist()
+            }
+
+        return interpretation_results
+
+    def _analyze_pd_subtype_discovery(self, results: Dict) -> Dict:
+        """Comprehensive analysis of PD subtype discovery results."""
+        analysis = {}
+
+        # Clustering quality analysis
+        subtype_discovery = results["subtype_discovery"]
+        analysis["clustering_quality"] = {
+            "optimal_k": subtype_discovery["optimal_k"],
+            "best_silhouette": max(subtype_discovery["silhouette_scores"]),
+            "quality_grade": "Excellent" if max(subtype_discovery["silhouette_scores"]) > 0.7 else
+                           "Good" if max(subtype_discovery["silhouette_scores"]) > 0.5 else
+                           "Moderate" if max(subtype_discovery["silhouette_scores"]) > 0.3 else "Poor"
+        }
+
+        # Clinical validation analysis
+        if "clinical_validation" in results:
+            cv = results["clinical_validation"]
+            analysis["clinical_validation"] = {
+                "validation_score": cv["validation_score"],
+                "validation_grade": "Strong" if cv["validation_score"] > 0.5 else
+                                  "Moderate" if cv["validation_score"] > 0.3 else "Weak"
+            }
+
+        # Stability analysis
+        if "stability_analysis" in results:
+            sa = results["stability_analysis"]
+            if "error" not in sa:
+                analysis["stability"] = {
+                    "mean_ari": sa["mean_ari"],
+                    "stability_grade": sa["stability_grade"]
+                }
+
+        # Overall assessment
+        grades = [analysis["clustering_quality"]["quality_grade"]]
+        if "clinical_validation" in analysis:
+            grades.append(analysis["clinical_validation"]["validation_grade"])
+        if "stability" in analysis:
+            grades.append(analysis["stability"]["stability_grade"])
+
+        # Convert grades to numeric for overall score
+        grade_scores = {"Excellent": 4, "Strong": 4, "High": 4, "Good": 3, "Moderate": 2, "Medium": 2, "Poor": 1, "Weak": 1, "Low": 1}
+        numeric_scores = [grade_scores.get(grade, 1) for grade in grades]
+        overall_score = np.mean(numeric_scores)
+
+        analysis["overall_assessment"] = {
+            "score": overall_score,
+            "grade": "Excellent" if overall_score >= 3.5 else "Good" if overall_score >= 2.5 else "Moderate" if overall_score >= 1.5 else "Poor",
+            "components_evaluated": len(grades)
+        }
+
+        return analysis
+
+    def _plot_pd_subtype_discovery(self, results: Dict, Z_sgfa: np.ndarray, clinical_data: Dict) -> Dict:
+        """Generate comprehensive plots for PD subtype discovery."""
+        import matplotlib.pyplot as plt
+        from sklearn.decomposition import PCA
+        from sklearn.manifold import TSNE
+
+        plots = {}
+        subtype_discovery = results["subtype_discovery"]
+        best_solution = subtype_discovery["best_solution"]
+        cluster_labels = best_solution["labels"]
+
+        # 1. Clustering quality plot
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+        k_values = subtype_discovery["cluster_range"]
+        ax1.plot(k_values, subtype_discovery["silhouette_scores"], 'bo-', label='Silhouette Score')
+        ax1.axvline(subtype_discovery["optimal_k"], color='red', linestyle='--', alpha=0.7, label=f'Optimal k={subtype_discovery["optimal_k"]}')
+        ax1.set_xlabel('Number of Clusters')
+        ax1.set_ylabel('Silhouette Score')
+        ax1.set_title('Clustering Quality vs Number of Clusters')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+
+        ax2.plot(k_values, subtype_discovery["calinski_scores"], 'go-', label='Calinski-Harabasz Score')
+        ax2.axvline(subtype_discovery["optimal_k"], color='red', linestyle='--', alpha=0.7, label=f'Optimal k={subtype_discovery["optimal_k"]}')
+        ax2.set_xlabel('Number of Clusters')
+        ax2.set_ylabel('Calinski-Harabasz Score')
+        ax2.set_title('Calinski-Harabasz Score vs Number of Clusters')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plots["clustering_quality"] = fig
+
+        # 2. Subtype visualization in factor space
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+        # PCA visualization
+        pca = PCA(n_components=2)
+        Z_pca = pca.fit_transform(Z_sgfa)
+
+        unique_labels = np.unique(cluster_labels)
+        colors = plt.cm.Set1(np.linspace(0, 1, len(unique_labels)))
+
+        for i, label in enumerate(unique_labels):
+            mask = cluster_labels == label
+            ax1.scatter(Z_pca[mask, 0], Z_pca[mask, 1], c=[colors[i]], label=f'Subtype {label+1}', alpha=0.7, s=50)
+
+        ax1.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%} variance)')
+        ax1.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%} variance)')
+        ax1.set_title('PD Subtypes in PCA Space')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+
+        # t-SNE visualization
+        if Z_sgfa.shape[0] > 30:  # Only run t-SNE if enough samples
+            tsne = TSNE(n_components=2, random_state=42, perplexity=min(30, Z_sgfa.shape[0]//4))
+            Z_tsne = tsne.fit_transform(Z_sgfa)
+
+            for i, label in enumerate(unique_labels):
+                mask = cluster_labels == label
+                ax2.scatter(Z_tsne[mask, 0], Z_tsne[mask, 1], c=[colors[i]], label=f'Subtype {label+1}', alpha=0.7, s=50)
+
+            ax2.set_xlabel('t-SNE Component 1')
+            ax2.set_ylabel('t-SNE Component 2')
+            ax2.set_title('PD Subtypes in t-SNE Space')
+            ax2.legend()
+        else:
+            ax2.text(0.5, 0.5, 'Insufficient samples\nfor t-SNE visualization',
+                    ha='center', va='center', transform=ax2.transAxes, fontsize=12)
+            ax2.set_title('t-SNE Visualization (Insufficient Data)')
+
+        plt.tight_layout()
+        plots["subtype_visualization"] = fig
+
+        # 3. Clinical validation plot (if available)
+        if "clinical_validation" in results and clinical_data:
+            cv = results["clinical_validation"]["clinical_measures"]
+
+            if cv:
+                fig, ax = plt.subplots(figsize=(12, 8))
+
+                measures = list(cv.keys())
+                p_values = [cv[measure]["anova_p"] for measure in measures]
+                effect_sizes = [cv[measure]["eta_squared"] for measure in measures]
+
+                # Create bubble plot
+                colors = ['red' if p < 0.05 else 'blue' for p in p_values]
+                sizes = [max(50, es * 1000) for es in effect_sizes]
+
+                scatter = ax.scatter(range(len(measures)), [-np.log10(p) for p in p_values],
+                                  c=colors, s=sizes, alpha=0.6)
+
+                ax.axhline(-np.log10(0.05), color='red', linestyle='--', alpha=0.7, label='p = 0.05')
+                ax.set_xlabel('Clinical Measures')
+                ax.set_ylabel('-log10(p-value)')
+                ax.set_title('Clinical Validation of Discovered PD Subtypes')
+                ax.set_xticks(range(len(measures)))
+                ax.set_xticklabels(measures, rotation=45, ha='right')
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+
+                plt.tight_layout()
+                plots["clinical_validation"] = fig
+
+        return plots
+
 
 def run_clinical_validation(config):
     """Run clinical validation experiments with remote workstation integration."""
@@ -3703,6 +4173,34 @@ def run_clinical_validation(config):
                         # Placeholder for biomarker discovery validation
                         logger.info("⚠️  Biomarker discovery validation not yet implemented")
                         results[validation_type] = {"status": "not_implemented"}
+
+                    elif validation_type == "pd_subtype_discovery":
+                        # PD subtype discovery using unsupervised clustering
+                        logger.info("🧬 Running PD subtype discovery validation...")
+                        try:
+                            pd_discovery_result = clinical_exp.run_pd_subtype_discovery(
+                                X_list=X_list,
+                                clinical_data=clinical_data,
+                                hypers=base_hypers,
+                                args=base_args
+                            )
+                            results[validation_type] = pd_discovery_result.data
+
+                            # Log discovery results
+                            if "subtype_discovery" in pd_discovery_result.data:
+                                optimal_k = pd_discovery_result.data["subtype_discovery"]["optimal_k"]
+                                best_silhouette = pd_discovery_result.data["subtype_discovery"]["best_solution"]["silhouette_score"]
+                                logger.info(f"✅ Discovered {optimal_k} PD subtypes (silhouette: {best_silhouette:.3f})")
+
+                            if "clinical_validation" in pd_discovery_result.data:
+                                validation_score = pd_discovery_result.data["clinical_validation"]["validation_score"]
+                                logger.info(f"✅ Clinical validation score: {validation_score:.3f}")
+
+                            successful_tests += 1
+
+                        except Exception as e:
+                            logger.error(f"❌ PD subtype discovery failed: {e}")
+                            results[validation_type] = {"error": str(e)}
 
                     elif validation_type == "clinical_stratified_cv":
                         # Clinical-stratified cross-validation (using basic SGFA with clinical stratification)

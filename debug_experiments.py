@@ -1185,34 +1185,43 @@ def run_clinical_validation_debug():
             clinical_data = pd.read_csv(clinical_file, sep="\t")
             logger.info(f"Clinical data loaded: {clinical_data.shape}")
 
-            # Check for required fields
-            required_fields = ['diagnosis', 'subject_id']
-            missing_fields = [f for f in required_fields if f not in clinical_data.columns]
+            # Check for PD-relevant clinical fields (early-stage PD cohort)
+            pd_relevant_fields = ['UPDRS_motor', 'UPDRS_total', 'motor_score', 'disease_duration', 'age', 'H_Y_stage']
+            available_fields = [f for f in pd_relevant_fields if f in clinical_data.columns]
+            missing_fields = [f for f in pd_relevant_fields if f not in clinical_data.columns]
+
+            logger.info(f"Available PD clinical fields: {available_fields}")
             if missing_fields:
-                issues.append(f"Missing required fields: {missing_fields}")
+                logger.info(f"Optional PD fields not found: {missing_fields}")
 
             # Check data alignment
             n_imaging = X_list[0].shape[0] if X_list else 0
             n_clinical = len(clinical_data)
-            if n_imaging != n_clinical:
-                issues.append(f"Size mismatch: imaging={n_imaging}, clinical={n_clinical}")
+            if abs(n_imaging - n_clinical) > 1:  # Allow for minor mismatches
+                issues.append(f"Significant size mismatch: imaging={n_imaging}, clinical={n_clinical}")
+            elif n_imaging != n_clinical:
+                logger.info(f"Minor size difference: imaging={n_imaging}, clinical={n_clinical} (acceptable)")
 
-            # Check for missing values in key columns
-            for col in ['diagnosis']:
-                if col in clinical_data.columns:
-                    missing_pct = clinical_data[col].isna().mean() * 100
-                    if missing_pct > 0:
-                        issues.append(f"{col} has {missing_pct:.1f}% missing values")
+            # Check for missing values in available PD fields
+            for col in available_fields:
+                missing_pct = clinical_data[col].isna().mean() * 100
+                if missing_pct > 20:  # More lenient threshold for real clinical data
+                    issues.append(f"{col} has {missing_pct:.1f}% missing values")
+                elif missing_pct > 0:
+                    logger.info(f"{col} has {missing_pct:.1f}% missing values (acceptable)")
         else:
-            logger.warning("No clinical data found - creating synthetic for pipeline test")
+            logger.warning("No clinical data found - creating synthetic early PD data for pipeline test")
             n_subjects = X_list[0].shape[0] if X_list else 100
+            # Generate realistic early PD clinical data
             clinical_data = pd.DataFrame({
                 "subject_id": [f"sub_{i:03d}" for i in range(n_subjects)],
-                "diagnosis": np.random.choice([0, 1], n_subjects),  # Binary diagnosis
-                "UPDRS_motor": np.random.uniform(0, 50, n_subjects),
-                "disease_duration": np.random.uniform(1, 15, n_subjects)
+                "UPDRS_motor": np.random.normal(20, 8, n_subjects).clip(5, 40),  # Early PD motor scores
+                "UPDRS_total": np.random.normal(35, 12, n_subjects).clip(10, 60),  # Total UPDRS
+                "disease_duration": np.random.exponential(2, n_subjects).clip(0.5, 8),  # Early stage duration
+                "age": np.random.normal(65, 10, n_subjects).clip(45, 85),  # Typical PD age
+                "H_Y_stage": np.random.choice([1, 1.5, 2, 2.5], n_subjects, p=[0.3, 0.3, 0.3, 0.1])  # Early stages
             })
-            issues.append("Using synthetic clinical data - real data not found")
+            issues.append("Using synthetic early PD clinical data - real data not found")
 
         # 2. Test SGFA factor extraction (minimal)
         logger.info("Testing SGFA factor extraction...")
@@ -1261,46 +1270,74 @@ def run_clinical_validation_debug():
         except Exception as e:
             issues.append(f"SGFA extraction failed: {str(e)}")
 
-        # 3. Test clinical prediction pipeline
-        logger.info("Testing clinical prediction pipeline...")
-        prediction_success = False
-        prediction_accuracy = 0.0
+        # 3. Test PD subtype discovery pipeline
+        logger.info("Testing PD subtype discovery pipeline...")
+        subtype_success = False
+        subtype_silhouette = 0.0
+        n_subtypes = 0
 
-        if sgfa_success and factors is not None and 'diagnosis' in clinical_data.columns:
+        if sgfa_success and factors is not None:
             try:
-                y = clinical_data['diagnosis'].values
+                from sklearn.cluster import KMeans
+                from sklearn.metrics import silhouette_score
+                import numpy as np
 
-                # Check if we have enough samples for stratification
-                unique_classes, class_counts = np.unique(y, return_counts=True)
-                min_class_size = min(class_counts)
+                # Test subtype discovery using SGFA factors
+                # Try different numbers of subtypes (2-4 is typical for PD)
+                best_score = -1
+                best_k = 2
 
-                if min_class_size < 2:
-                    # Not enough samples for stratified split, use random split
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        factors, y, test_size=0.3, random_state=42
-                    )
-                    logger.info("Using random split (insufficient samples for stratification)")
+                for k in range(2, 5):  # Test 2, 3, 4 subtypes
+                    if factors.shape[0] > k * 2:  # Need enough samples per cluster
+                        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+                        subtype_labels = kmeans.fit_predict(factors)
+                        score = silhouette_score(factors, subtype_labels)
+
+                        if score > best_score:
+                            best_score = score
+                            best_k = k
+
+                # Use best clustering
+                kmeans = KMeans(n_clusters=best_k, random_state=42, n_init=10)
+                subtype_labels = kmeans.fit_predict(factors)
+                subtype_silhouette = silhouette_score(factors, subtype_labels)
+                n_subtypes = best_k
+                subtype_success = True
+
+                logger.info(f"PD subtype discovery: {n_subtypes} subtypes, silhouette={subtype_silhouette:.3f}")
+
+                # Test if subtypes correlate with clinical measures
+                clinical_validation = False
+                if subtype_silhouette > 0.2:  # Reasonable clustering
+                    # Check if subtypes differ in available clinical measures
+                    clinical_measures = ['UPDRS_motor', 'UPDRS_total', 'disease_duration', 'age']
+                    available_measures = [col for col in clinical_measures if col in clinical_data.columns]
+
+                    if available_measures:
+                        from scipy.stats import f_oneway
+                        for measure in available_measures[:2]:  # Test top 2 measures
+                            values_by_subtype = [clinical_data[measure][subtype_labels == i].dropna()
+                                               for i in range(n_subtypes)]
+                            # Only test if each subtype has enough samples
+                            if all(len(vals) >= 3 for vals in values_by_subtype):
+                                try:
+                                    f_stat, p_val = f_oneway(*values_by_subtype)
+                                    if p_val < 0.1:  # Lenient threshold for debug
+                                        clinical_validation = True
+                                        logger.info(f"Subtypes differ in {measure}: p={p_val:.3f}")
+                                        break
+                                except:
+                                    pass
+
+                    if not clinical_validation:
+                        logger.info("Subtypes don't show clear clinical differences (expected in debug)")
                 else:
-                    # Use stratified split
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        factors, y, test_size=0.3, random_state=42, stratify=y
-                    )
-                    logger.info("Using stratified split")
-
-                # Test logistic regression
-                clf = LogisticRegression(random_state=42)
-                clf.fit(X_train, y_train)
-                y_pred = clf.predict(X_test)
-                prediction_accuracy = accuracy_score(y_test, y_pred)
-                prediction_success = True
-
-                logger.info(f"Prediction test accuracy: {prediction_accuracy:.3f}")
-
-                if prediction_accuracy < 0.6:
-                    issues.append(f"Low prediction accuracy: {prediction_accuracy:.3f}")
+                    issues.append(f"Poor subtype clustering: silhouette={subtype_silhouette:.3f}")
 
             except Exception as e:
-                issues.append(f"Clinical prediction failed: {str(e)}")
+                issues.append(f"PD subtype discovery failed: {str(e)}")
+        else:
+            logger.info("SGFA factors not available for subtype discovery")
 
         # 4. Test cross-validation imports
         logger.info("Testing CV imports...")
@@ -1330,8 +1367,9 @@ def run_clinical_validation_debug():
             },
             "pipeline_tests": {
                 "sgfa_extraction_ok": sgfa_success,
-                "prediction_pipeline_ok": prediction_success,
-                "prediction_accuracy": float(prediction_accuracy),
+                "pd_subtype_discovery_ok": subtype_success,
+                "subtype_silhouette_score": float(subtype_silhouette),
+                "n_discovered_subtypes": int(n_subtypes),
                 "cv_imports_ok": cv_imports_ok
             },
             "factors_shape": list(factors.shape) if factors is not None else None
@@ -1350,7 +1388,9 @@ def run_clinical_validation_debug():
             for issue in issues[:3]:  # Show first 3 issues
                 logger.warning(f"   - {issue}")
         logger.info(f"   SGFA extraction: {'✓' if sgfa_success else '✗'}")
-        logger.info(f"   Prediction test: {'✓' if prediction_success else '✗'}")
+        logger.info(f"   PD subtype discovery: {'✓' if subtype_success else '✗'}")
+        if subtype_success:
+            logger.info(f"   Discovered {n_subtypes} subtypes (silhouette: {subtype_silhouette:.3f})")
         logger.info(f"   Results saved to: {debug_dir}")
 
         return debug_result

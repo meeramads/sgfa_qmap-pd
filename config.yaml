@@ -186,7 +186,8 @@ performance_benchmarks:
 # Clinical Validation Experiment
 clinical_validation:
   validation_types:
-    - "subtype_classification"          # PD subtype prediction
+    - "pd_subtype_discovery"            # PD subtype discovery using unsupervised clustering
+    - "subtype_classification"          # PD subtype prediction (requires predefined labels)
     - "disease_progression"             # Disease progression modeling
     - "biomarker_discovery"             # Novel biomarker identification
 
