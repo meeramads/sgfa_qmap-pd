@@ -3599,6 +3599,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
         """Discover PD subtypes using clustering on SGFA factors."""
         from sklearn.cluster import KMeans
         from sklearn.metrics import silhouette_score, calinski_harabasz_score
+        import gc
 
         results = {}
         n_subjects, n_factors = Z_sgfa.shape
@@ -3629,6 +3630,10 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 "calinski_score": cal_score,
                 "inertia": kmeans.inertia_
             }
+
+            # Clean up KMeans object after each iteration
+            del kmeans
+            gc.collect()
 
         # Select optimal number of clusters based on silhouette score
         best_k_idx = np.argmax(silhouette_scores)

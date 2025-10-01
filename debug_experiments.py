@@ -235,10 +235,10 @@ def run_sgfa_parameter_comparison_debug():
         args.model = "sparseGFA"  # Required by models function
 
         try:
-            # Run SGFA model
+            # Run SGFA model with memory optimization
             nuts_kernel = NUTS(models)
             mcmc = MCMC(nuts_kernel, num_samples=args.num_samples, num_warmup=args.num_warmup, num_chains=args.num_chains)
-            mcmc.run(jax.random.PRNGKey(42), X_list, hypers, args)
+            mcmc.run(jax.random.PRNGKey(42), X_list, hypers, args, extra_fields=("potential_energy",))
 
             # Get results
             samples = mcmc.get_samples()
@@ -364,7 +364,7 @@ def run_model_comparison_debug():
             rng_key = jax.random.PRNGKey(42)
             kernel = NUTS(models, target_accept_prob=0.8)
             mcmc = MCMC(kernel, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc.run(rng_key, X_list, hypers, args)
+            mcmc.run(rng_key, X_list, hypers, args, extra_fields=("potential_energy",))
 
             samples = mcmc.get_samples()
             sgfa_result = {"converged": True, "samples": samples}
@@ -630,7 +630,7 @@ def run_performance_benchmarks_debug():
                 rng_key = random.PRNGKey(42)
                 kernel = NUTS(models, target_accept_prob=0.8)
                 mcmc = MCMC(kernel, num_warmup=5, num_samples=10, num_chains=1)
-                mcmc.run(rng_key, X_list, hypers, args)
+                mcmc.run(rng_key, X_list, hypers, args, extra_fields=("potential_energy",))
 
                 samples = mcmc.get_samples()
                 result = {"converged": True, "samples": samples}
@@ -1243,7 +1243,7 @@ def run_clinical_validation_debug():
             rng_key = random.PRNGKey(42)
             kernel = NUTS(models, target_accept_prob=0.8)
             mcmc = MCMC(kernel, num_warmup=5, num_samples=10, num_chains=1)
-            mcmc.run(rng_key, X_list, hypers, args)
+            mcmc.run(rng_key, X_list, hypers, args, extra_fields=("potential_energy",))
 
             samples = mcmc.get_samples()
             sgfa_result = {"converged": True, "samples": samples}

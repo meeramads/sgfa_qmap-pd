@@ -65,6 +65,7 @@ class PDSubtypeVisualizer:
         plot_dir : Path
             Directory for saving plots
         """
+        import gc
         logger.info("Creating PD subtype discovery visualizations")
 
         plot_dir.mkdir(parents=True, exist_ok=True)
@@ -177,6 +178,10 @@ class PDSubtypeVisualizer:
         plt.tight_layout()
         save_plot(plot_path)
 
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
+
     def _plot_subtype_factor_space(self, Z_sgfa: np.ndarray, cluster_labels: np.ndarray, plot_path: Path):
         """Plot subtype visualization in factor space using PCA and t-SNE."""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -221,6 +226,10 @@ class PDSubtypeVisualizer:
         plt.tight_layout()
         save_plot(plot_path)
 
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
+
     def _plot_clinical_validation_bubble(self, clinical_measures: Dict, plot_path: Path):
         """Plot clinical validation results as bubble plot."""
         if not clinical_measures:
@@ -250,6 +259,10 @@ class PDSubtypeVisualizer:
 
         plt.tight_layout()
         save_plot(plot_path)
+
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
 
     def _plot_pd_subtype_characterization(
         self,
@@ -354,6 +367,10 @@ class PDSubtypeVisualizer:
         plt.tight_layout()
         save_plot(plot_path)
 
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
+
     def _plot_subtype_discovery_summary(self, results: Dict, plot_path: Path):
         """Create subtype discovery pipeline summary visualization."""
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 10))
@@ -421,6 +438,10 @@ class PDSubtypeVisualizer:
         plt.tight_layout()
         save_plot(plot_path)
 
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
+
     def _plot_integrated_performance_overview(self, integrated_results: Dict, plot_path: Path):
         """Plot integrated performance overview across K values."""
         successful_runs = {k: v for k, v in integrated_results.items() if "error" not in v}
@@ -473,6 +494,10 @@ class PDSubtypeVisualizer:
         plt.tight_layout()
         save_plot(plot_path)
 
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
+
     def _plot_performance_discovery_tradeoffs(self, integrated_results: Dict, plot_path: Path):
         """Plot performance vs discovery quality trade-offs."""
         successful_runs = {k: v for k, v in integrated_results.items() if "error" not in v}
@@ -508,6 +533,10 @@ class PDSubtypeVisualizer:
 
         plt.tight_layout()
         save_plot(plot_path)
+
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
 
     def _plot_pd_research_decision_matrix(self, integrated_results: Dict, plot_path: Path):
         """Create PD research decision matrix for optimal K selection."""
@@ -575,3 +604,7 @@ class PDSubtypeVisualizer:
 
         plt.tight_layout()
         save_plot(plot_path)
+
+        # Memory cleanup for large plots
+        plt.close(fig)
+        gc.collect()
