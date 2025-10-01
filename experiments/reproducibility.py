@@ -426,64 +426,6 @@ class ReproducibilityExperiments(ExperimentFramework):
             success=True,
         )
 
-    def _run_sgfa_analysis(
-        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
-    ) -> Dict:
-        """Run SGFA analysis with given parameters."""
-        import jax.numpy as jnp
-        import jax.random as random
-        import numpyro
-        import numpyro.distributions as dist
-        from numpyro.infer import MCMC, NUTS
-
-        seed = args.get("random_seed", 42)
-        key = random.PRNGKey(seed)
-        K = hypers.get("K", 5)
-
-        # Convert to JAX arrays
-        X_jax = [jnp.array(X) for X in X_list]
-        n_samples, n_features = X_jax[0].shape
-
-        def sgfa_model():
-            # Priors for factor loadings W
-            W = []
-            for v, X in enumerate(X_jax):
-                W_v = numpyro.sample(
-                    f"W_{v}", dist.Normal(0, 1).expand([X.shape[1], K])
-                )
-                W.append(W_v)
-
-            # Prior for factors Z
-            Z = numpyro.sample("Z", dist.Normal(0, 1).expand([n_samples, K]))
-
-            # Likelihood
-            for v, X in enumerate(X_jax):
-                mu = jnp.dot(Z, W[v].T)
-                numpyro.sample(f"obs_{v}", dist.Normal(mu, 1), obs=X)
-
-        # Run reduced MCMC for reproducibility testing
-        nuts_kernel = NUTS(sgfa_model)
-        mcmc = MCMC(nuts_kernel, num_warmup=50, num_samples=100)
-        mcmc.run(key)
-
-        # Extract results
-        samples = mcmc.get_samples()
-        W_samples = [samples[f"W_{v}"] for v in range(len(X_jax))]
-        Z_samples = samples["Z"]
-
-        # Compute log likelihood estimate
-        log_likelihood = float(jnp.mean(mcmc.get_extra_fields()["potential_energy"]))
-
-        return {
-            "W": [jnp.mean(W_v, axis=0) for W_v in W_samples],
-            "Z": jnp.mean(Z_samples, axis=0),
-            "log_likelihood": -log_likelihood,  # Convert potential energy to log likelihood
-            "n_iterations": 150,  # warmup + samples
-            "convergence": True,
-            "seed_used": seed,
-            "hyperparameters": hypers.copy(),
-        }
-
     def _apply_data_perturbation(
         self,
         X_list: List[np.ndarray],
