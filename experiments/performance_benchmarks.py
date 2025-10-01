@@ -3,6 +3,7 @@
 import gc
 import logging
 from contextlib import contextmanager
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
@@ -640,15 +641,24 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         visualizer = PDSubtypeVisualizer(self.config)
         plot_dir = get_output_dir(self.config) / "integrated_benchmark_plots"
         plot_dir.mkdir(exist_ok=True)
-        plots = visualizer.create_performance_subtype_plots(results, plot_dir)
+
+        # Pass only the integrated_benchmarks data to the visualizer
+        integrated_results = results.get("integrated_benchmarks", {})
+        if integrated_results:
+            plots = visualizer.create_performance_subtype_plots(integrated_results, plot_dir)
+        else:
+            self.logger.warning("No integrated benchmark results available for plotting")
+            plots = {}
 
         return ExperimentResult(
-            experiment_name="integrated_sgfa_subtype_benchmarks",
+            experiment_id="integrated_sgfa_subtype_benchmarks",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            status="completed",
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
         )
 
     def _benchmark_sample_scalability(
@@ -3066,19 +3076,19 @@ def run_performance_benchmarks(config):
 
                     metrics = benchmark_exp.profiler.get_current_metrics()
                     results["integrated_sgfa_subtype"] = {
-                        "result": integrated_result.data,
-                        "analysis": integrated_result.analysis,
+                        "result": integrated_result.model_results,
+                        "analysis": integrated_result.diagnostics,
                         "performance": {
                             "execution_time": metrics.execution_time,
                             "peak_memory_gb": metrics.peak_memory_gb,
                         },
-                        "success": integrated_result.success
+                        "success": integrated_result.status == "completed"
                     }
 
-                    if integrated_result.success:
+                    if integrated_result.status == "completed":
                         successful_tests += 1
                         # Extract key insights for logging
-                        analysis = integrated_result.analysis
+                        analysis = integrated_result.diagnostics
                         if 'recommendations' in analysis:
                             rec_k = analysis['recommendations'].get('recommended_k', 'Unknown')
                             performance_grade = analysis['recommendations'].get('performance_grade', 'Unknown')

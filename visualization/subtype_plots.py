@@ -449,7 +449,14 @@ class PDSubtypeVisualizer:
             return
 
         # Extract data for plotting
-        k_values = [int(k[1:]) for k in successful_runs.keys()]  # Remove 'K' prefix
+        k_values = []
+        for k in successful_runs.keys():
+            if k.startswith('K') and k[1:].isdigit():
+                k_values.append(int(k[1:]))  # Remove 'K' prefix and convert to int
+
+        if not k_values:
+            logger.warning("No valid K values found in successful runs")
+            return
         sgfa_times = [successful_runs[f"K{k}"]["sgfa_time_seconds"] for k in k_values]
         silhouette_scores = [successful_runs[f"K{k}"]["best_silhouette_score"] for k in k_values]
         clinical_scores = [successful_runs[f"K{k}"]["clinical_separation_score"] for k in k_values]
