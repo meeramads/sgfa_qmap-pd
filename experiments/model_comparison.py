@@ -598,23 +598,6 @@ class ModelArchitectureComparison(ExperimentFramework):
             plots=plots,
         )
 
-    @experiment_handler("model_architecture_comparison")
-    @validate_data_types(X_list=list, hypers=dict, args=dict)
-    @validate_parameters(X_list=lambda x: len(x) > 0)
-    def run_model_architecture_comparison(
-        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
-    ) -> ExperimentResult:
-        """DEPRECATED: Wrapper for backward compatibility. Use run_methods_comparison instead.
-
-        This method now calls the unified run_methods_comparison which tests sparseGFA
-        against traditional baselines.
-        """
-        self.logger.warning(
-            "run_model_architecture_comparison is deprecated. "
-            "Use run_methods_comparison for unified sparseGFA vs baselines comparison."
-        )
-        return self.run_methods_comparison(X_list, hypers, args, **kwargs)
-
     def _run_model_architecture(
         self,
         X_list: List[np.ndarray],
@@ -860,23 +843,6 @@ class ModelArchitectureComparison(ExperimentFramework):
                 "log_likelihood": float("-inf"),
                 "model_type": args.get("model", "unknown"),
             }
-
-    def run_traditional_method_comparison(
-        self, X_list: List[np.ndarray], model_results: Dict = None, **kwargs
-    ) -> ExperimentResult:
-        """DEPRECATED: Wrapper for backward compatibility. Use run_methods_comparison instead.
-
-        This method now calls the unified run_methods_comparison which tests both sparseGFA
-        and traditional baselines together.
-        """
-        self.logger.warning(
-            "run_traditional_method_comparison is deprecated. "
-            "Use run_methods_comparison for unified comparison."
-        )
-        # Create minimal args dict for compatibility
-        args = kwargs.pop("args", {"K": self.comparison_params["K"]})
-        hypers = kwargs.pop("hypers", {})
-        return self.run_methods_comparison(X_list, hypers, args, **kwargs)
 
     def _run_traditional_method(
         self, X: np.ndarray, method_name: str, n_components: int, **kwargs

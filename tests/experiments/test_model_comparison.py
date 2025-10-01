@@ -82,16 +82,18 @@ class TestModelArchitectureComparison:
         assert "sparseGFA" in result.model_results
         assert len(result.model_results) >= 2  # At least sparseGFA + 1 traditional method
 
-    def test_run_traditional_method_comparison_backward_compatibility(self, sample_data, config):
-        """Test backward compatibility wrapper for deprecated run_traditional_method_comparison."""
+    def test_run_methods_comparison_basic(self, sample_data, config):
+        """Test basic methods comparison with sparseGFA and traditional methods."""
         comparison = ModelArchitectureComparison(config)
 
-        # Run deprecated method (should call run_methods_comparison internally)
-        result = comparison.run_traditional_method_comparison(
-            X_list=sample_data
+        # Run unified methods comparison
+        result = comparison.run_methods_comparison(
+            X_list=sample_data,
+            hypers={"Dm": [X.shape[1] for X in sample_data], "a_sigma": 1.0, "b_sigma": 1.0, "percW": 25.0},
+            args={"K": 3, "num_samples": 50, "num_warmup": 25, "reghsZ": True}
         )
 
-        # Check result structure - should match run_methods_comparison output
+        # Check result structure
         assert result.status == "completed"
         assert result.experiment_id == "methods_comparison"
         assert result.model_results is not None
