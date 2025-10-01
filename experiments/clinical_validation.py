@@ -46,6 +46,17 @@ from analysis.cross_validation_library import (
 from analysis.cv_fallbacks import CVFallbackHandler, MetricsFallbackHandler
 from visualization.subtype_plots import PDSubtypeVisualizer
 
+# Import extracted clinical validation modules
+from analysis.clinical import (
+    ClinicalMetrics,
+    ClinicalDataProcessor,
+    ClinicalClassifier,
+    PDSubtypeAnalyzer,
+    DiseaseProgressionAnalyzer,
+    BiomarkerAnalyzer,
+    ExternalValidator
+)
+
 
 @performance_optimized_experiment()
 class ClinicalValidationExperiments(ExperimentFramework):
@@ -88,9 +99,36 @@ class ClinicalValidationExperiments(ExperimentFramework):
         from core.config_utils import ConfigHelper
         config_dict = ConfigHelper.to_dict(config)
         clinical_config = config_dict.get("clinical_validation", {})
-        self.clinical_metrics = clinical_config.get("classification_metrics", [
+        self.clinical_metrics_list = clinical_config.get("classification_metrics", [
             "accuracy", "precision", "recall", "f1_score", "roc_auc"
         ])
+
+        # Initialize extracted clinical validation modules
+        self.metrics_calculator = ClinicalMetrics(
+            metrics_list=self.clinical_metrics_list,
+            logger=self.logger
+        )
+        self.data_processor = ClinicalDataProcessor(logger=self.logger)
+        self.classifier = ClinicalClassifier(
+            metrics_calculator=self.metrics_calculator,
+            classification_models=self.classification_models,
+            config=config_dict,
+            logger=self.logger
+        )
+        self.subtype_analyzer = PDSubtypeAnalyzer(
+            data_processor=self.data_processor,
+            logger=self.logger
+        )
+        self.progression_analyzer = DiseaseProgressionAnalyzer(
+            classifier=self.classifier,
+            logger=self.logger
+        )
+        self.biomarker_analyzer = BiomarkerAnalyzer(
+            data_processor=self.data_processor,
+            config=config_dict,
+            logger=self.logger
+        )
+        self.external_validator = ExternalValidator(logger=self.logger)
 
     @experiment_handler("neuroimaging_clinical_validation")
     @validate_data_types(
@@ -149,21 +187,21 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 # 2. Extract latent factors for clinical prediction
                 if sgfa_cv_results.get("success", False):
                     self.logger.info("Extracting latent factors for clinical validation")
-                    factors_cv_results = self._validate_factors_clinical_prediction(
+                    factors_cv_results = self.classifier.validate_factors_clinical_prediction(
                         sgfa_cv_results, clinical_data
                     )
                     results["factors_cv_results"] = factors_cv_results
 
                     # 3. Biomarker discovery with neuroimaging metrics
                     self.logger.info("Performing biomarker discovery with neuroimaging metrics")
-                    biomarker_results = self._discover_neuroimaging_biomarkers(
+                    biomarker_results = self.biomarker_analyzer.discover_neuroimaging_biomarkers(
                         sgfa_cv_results, clinical_data
                     )
                     results["biomarker_results"] = biomarker_results
 
                     # 4. Clinical subtype analysis
                     self.logger.info("Analyzing clinical subtypes with neuroimaging factors")
-                    subtype_results = self._analyze_clinical_subtypes_neuroimaging(
+                    subtype_results = self.subtype_analyzer.analyze_clinical_subtypes_neuroimaging(
                         sgfa_cv_results, clinical_data
                     )
                     results["subtype_results"] = subtype_results
@@ -338,376 +376,6 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
             return {"success": False, "error": str(e)}
 
-    def _run_sgfa_training(self, X_train: List[np.ndarray], hypers: Dict, args: Dict) -> Dict:
-        """Run SGFA training on training data."""
-        import time
-        import jax
-        from numpyro.infer import MCMC, NUTS
-
-        try:
-            # Use model factory for consistent model management
-            from models.models_integration import integrate_models_with_pipeline
-
-            # Setup data characteristics for optimal model selection
-            data_characteristics = {
-                "total_features": sum(X.shape[1] for X in X_list),
-                "n_views": len(X_list),
-                "n_subjects": X_list[0].shape[0],
-                "has_imaging_data": True
-            }
-
-            # Get optimal model configuration via factory
-            model_type, model_instance, models_summary = integrate_models_with_pipeline(
-                config={"model": {"type": args.get("model", "sparseGFA")}},
-                X_list=X_list,
-                data_characteristics=data_characteristics
-            )
-
-            self.logger.info(f"🏭 Clinical validation using model: {model_type}")
-
-            # Import SGFA model for execution
-            from core.run_analysis import models
-
-            # Setup MCMC
-            num_warmup = args.get("num_warmup", 200)
-            num_samples = args.get("num_samples", 300)
-            num_chains = args.get("num_chains", 1)
-
-            # Create args object
-            import argparse
-            model_args = argparse.Namespace(
-                model=args.get("model", "sparseGFA"),
-                K=args.get("K", 5),
-                num_sources=len(X_train),
-                reghsZ=args.get("reghsZ", True),
-            )
-
-            # Run MCMC
-            rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
-            kernel = NUTS(models, target_accept_prob=0.8)
-            mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains)
-
-            start_time = time.time()
-            mcmc.run(rng_key, X_train, hypers, model_args, extra_fields=("potential_energy",))
-            execution_time = time.time() - start_time
-
-            # Extract results
-            samples = mcmc.get_samples()
-            extra_fields = mcmc.get_extra_fields()
-            potential_energy = extra_fields.get("potential_energy", np.array([]))
-
-            # Calculate log likelihood
-            log_likelihood = -np.mean(potential_energy) if len(potential_energy) > 0 else np.nan
-
-            # Extract parameters
-            W_samples = samples["W"]
-            Z_samples = samples["Z"]
-
-            W_mean = np.mean(W_samples, axis=0)
-            Z_mean = np.mean(Z_samples, axis=0)
-
-            # Split W back into views
-            W_list = []
-            start_idx = 0
-            for X in X_train:
-                end_idx = start_idx + X.shape[1]
-                W_list.append(W_mean[start_idx:end_idx, :])
-                start_idx = end_idx
-
-            return {
-                "W": W_list,
-                "Z": Z_mean,
-                "log_likelihood": float(log_likelihood),
-                "convergence": True,  # Assume convergence if no exception
-                "execution_time": execution_time,
-                "samples": samples
-            }
-
-        except Exception as e:
-            self.logger.warning(f"SGFA training failed: {str(e)}")
-            return {
-                "convergence": False,
-                "error": str(e),
-                "execution_time": float("inf")
-            }
-
-    def _evaluate_sgfa_test_set(
-        self, X_test: List[np.ndarray], train_result: Dict, test_idx: np.ndarray, clinical_data: Dict
-    ) -> Dict:
-        """Evaluate SGFA model on test set."""
-        try:
-            W_list = train_result.get("W", [])
-            if not W_list:
-                return {"error": "No trained weights available"}
-
-            # Project test data onto learned factors
-            Z_test_list = []
-            reconstruction_errors = []
-
-            for X_view, W_view in zip(X_test, W_list):
-                # Simple projection
-                Z_test = X_view @ W_view @ np.linalg.pinv(W_view.T @ W_view)
-                Z_test_list.append(Z_test)
-
-                # Reconstruction error
-                X_recon = Z_test @ W_view.T
-                recon_error = np.mean((X_view - X_recon) ** 2)
-                reconstruction_errors.append(recon_error)
-
-            # Average factors across views
-            Z_test_mean = np.mean(Z_test_list, axis=0)
-
-            # Clinical labels for test set
-            test_diagnoses = np.array(clinical_data["diagnosis"])[test_idx]
-
-            return {
-                "Z_test": Z_test_mean,
-                "reconstruction_errors": reconstruction_errors,
-                "mean_reconstruction_error": np.mean(reconstruction_errors),
-                "test_diagnoses": test_diagnoses,
-                "n_test_subjects": len(test_idx)
-            }
-
-        except Exception as e:
-            return {"error": f"Test evaluation failed: {str(e)}"}
-
-    def _validate_factors_clinical_prediction(self, sgfa_cv_results: Dict, clinical_data: Dict) -> Dict:
-        """Validate clinical prediction using SGFA factors with neuroimaging CV."""
-        try:
-            successful_folds = [
-                f for f in sgfa_cv_results.get("fold_results", [])
-                if f.get("success", False)
-            ]
-
-            if not successful_folds:
-                return {"error": "No successful folds for validation"}
-
-            # Aggregate predictions across folds
-            all_predictions = []
-            all_true_labels = []
-
-            for fold in successful_folds:
-                test_metrics = fold.get("test_metrics", {})
-                Z_test = test_metrics.get("Z_test")
-                test_diagnoses = test_metrics.get("test_diagnoses")
-
-                if Z_test is not None and test_diagnoses is not None:
-                    # Use random forest for prediction (could be configurable)
-                    from sklearn.ensemble import RandomForestClassifier
-                    from sklearn.preprocessing import LabelEncoder
-
-                    # Get training data for this fold
-                    train_idx = fold.get("train_idx", [])
-                    train_result = fold.get("train_result", {})
-                    Z_train = train_result.get("Z")
-
-                    if Z_train is not None:
-                        train_diagnoses = np.array(clinical_data["diagnosis"])[train_idx]
-
-                        # Encode labels
-                        le = LabelEncoder()
-                        le.fit(clinical_data["diagnosis"])
-                        train_labels_encoded = le.transform(train_diagnoses)
-                        test_labels_encoded = le.transform(test_diagnoses)
-
-                        # Train classifier
-                        clf = RandomForestClassifier(random_state=42, n_estimators=100)
-                        clf.fit(Z_train, train_labels_encoded)
-
-                        # Predict
-                        predictions = clf.predict(Z_test)
-                        prediction_proba = clf.predict_proba(Z_test)
-
-                        all_predictions.extend(predictions)
-                        all_true_labels.extend(test_labels_encoded)
-
-            if all_predictions:
-                # Calculate performance metrics
-                from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-                from sklearn.metrics import classification_report
-
-                accuracy = accuracy_score(all_true_labels, all_predictions)
-                f1 = f1_score(all_true_labels, all_predictions, average='weighted')
-                precision = precision_score(all_true_labels, all_predictions, average='weighted')
-                recall = recall_score(all_true_labels, all_predictions, average='weighted')
-
-                return {
-                    "accuracy": accuracy,
-                    "f1_score": f1,
-                    "precision": precision,
-                    "recall": recall,
-                    "classification_report": classification_report(all_true_labels, all_predictions),
-                    "n_predictions": len(all_predictions),
-                    "success": True
-                }
-
-            else:
-                return {"error": "No predictions could be made"}
-
-        except Exception as e:
-            return {"error": f"Clinical prediction validation failed: {str(e)}"}
-
-    def _discover_neuroimaging_biomarkers(self, sgfa_cv_results: Dict, clinical_data: Dict) -> Dict:
-        """Discover neuroimaging biomarkers using SGFA factors."""
-        try:
-            successful_folds = [
-                f for f in sgfa_cv_results.get("fold_results", [])
-                if f.get("success", False)
-            ]
-
-            if not successful_folds:
-                return {"error": "No successful folds for biomarker discovery"}
-
-            biomarker_results = {
-                "factor_importance": {},
-                "clinical_associations": {},
-                "discriminative_factors": []
-            }
-
-            # Analyze factor importance across folds
-            factor_importances = []
-            for fold in successful_folds:
-                neuroimaging_metrics = fold.get("neuroimaging_metrics", {})
-                if "factor_importance" in neuroimaging_metrics:
-                    factor_importances.append(neuroimaging_metrics["factor_importance"])
-
-            if factor_importances:
-                # Aggregate factor importance
-                n_factors = len(factor_importances[0]) if factor_importances else 0
-                mean_importance = np.mean(factor_importances, axis=0) if factor_importances else []
-
-                biomarker_results["factor_importance"] = {
-                    "mean_importance": mean_importance.tolist(),
-                    "top_factors": np.argsort(mean_importance)[-3:].tolist() if len(mean_importance) > 0 else []
-                }
-
-            # Identify discriminative factors
-            diagnoses = np.array(clinical_data["diagnosis"])
-            unique_diagnoses = np.unique(diagnoses)
-
-            if len(unique_diagnoses) > 1:
-                # For each factor, test association with diagnosis
-                discriminative_factors = []
-
-                for fold in successful_folds:
-                    train_result = fold.get("train_result", {})
-                    Z_train = train_result.get("Z")
-                    train_idx = fold.get("train_idx", [])
-
-                    if Z_train is not None:
-                        train_diagnoses = diagnoses[train_idx]
-
-                        # Test each factor for discriminative power
-                        for factor_idx in range(Z_train.shape[1]):
-                            factor_values = Z_train[:, factor_idx]
-
-                            # Group by diagnosis
-                            groups = [factor_values[train_diagnoses == diag] for diag in unique_diagnoses]
-                            groups = [g for g in groups if len(g) > 0]  # Remove empty groups
-
-                            if len(groups) > 1:
-                                # ANOVA test
-                                try:
-                                    f_stat, p_value = stats.f_oneway(*groups)
-                                    if p_value < 0.05:  # Significant
-                                        discriminative_factors.append({
-                                            "factor_idx": factor_idx,
-                                            "f_statistic": f_stat,
-                                            "p_value": p_value,
-                                            "fold_idx": fold["fold_idx"]
-                                        })
-                                except:
-                                    pass
-
-                biomarker_results["discriminative_factors"] = discriminative_factors
-
-            biomarker_results["success"] = True
-            return biomarker_results
-
-        except Exception as e:
-            return {"error": f"Biomarker discovery failed: {str(e)}"}
-
-    def _analyze_clinical_subtypes_neuroimaging(self, sgfa_cv_results: Dict, clinical_data: Dict) -> Dict:
-        """Analyze clinical subtypes using neuroimaging factors."""
-        try:
-            successful_folds = [
-                f for f in sgfa_cv_results.get("fold_results", [])
-                if f.get("success", False)
-            ]
-
-            if not successful_folds:
-                return {"error": "No successful folds for subtype analysis"}
-
-            # Combine factors from all folds for subtype analysis
-            all_factors = []
-            all_diagnoses = []
-
-            for fold in successful_folds:
-                train_result = fold.get("train_result", {})
-                Z_train = train_result.get("Z")
-                train_idx = fold.get("train_idx", [])
-
-                if Z_train is not None:
-                    all_factors.append(Z_train)
-                    all_diagnoses.extend(np.array(clinical_data["diagnosis"])[train_idx])
-
-            if all_factors:
-                # Concatenate all factors
-                combined_factors = np.vstack(all_factors)
-                all_diagnoses = np.array(all_diagnoses)
-
-                # Cluster analysis within each diagnosis group
-                from sklearn.cluster import KMeans
-                from sklearn.metrics import silhouette_score
-
-                subtype_results = {}
-
-                unique_diagnoses = np.unique(all_diagnoses)
-                for diagnosis in unique_diagnoses:
-                    diag_mask = all_diagnoses == diagnosis
-                    diag_factors = combined_factors[diag_mask]
-
-                    if len(diag_factors) > 3:  # Need enough samples for clustering
-                        # Try different numbers of clusters
-                        best_k = 2
-                        best_score = -1
-
-                        for k in range(2, min(6, len(diag_factors))):
-                            try:
-                                kmeans = KMeans(n_clusters=k, random_state=42)
-                                cluster_labels = kmeans.fit_predict(diag_factors)
-                                score = silhouette_score(diag_factors, cluster_labels)
-
-                                if score > best_score:
-                                    best_score = score
-                                    best_k = k
-                            except:
-                                pass
-
-                        # Final clustering with best k
-                        if best_score > 0:
-                            kmeans = KMeans(n_clusters=best_k, random_state=42)
-                            cluster_labels = kmeans.fit_predict(diag_factors)
-
-                            subtype_results[diagnosis] = {
-                                "n_subtypes": best_k,
-                                "silhouette_score": best_score,
-                                "cluster_centers": kmeans.cluster_centers_.tolist(),
-                                "n_subjects": len(diag_factors)
-                            }
-
-                return {
-                    "subtype_analysis": subtype_results,
-                    "total_subjects_analyzed": len(combined_factors),
-                    "success": True
-                }
-
-            else:
-                return {"error": "No factors available for subtype analysis"}
-
-        except Exception as e:
-            return {"error": f"Subtype analysis failed: {str(e)}"}
-
     def _analyze_neuroimaging_clinical_validation(self, results: Dict) -> Dict:
         """Analyze overall neuroimaging clinical validation results."""
         try:
@@ -870,7 +538,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Run SGFA to get factor scores
         self.logger.info("Extracting SGFA factors")
-        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+        sgfa_result = self.data_processor.run_sgfa_analysis(X_list, hypers, args, **kwargs)
 
         if "error" in sgfa_result:
             raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
@@ -882,7 +550,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 1. Direct factor-based classification
         self.logger.info("Testing direct factor-based classification")
-        direct_results = self._test_factor_classification(
+        direct_results = self.classifier.test_factor_classification(
             Z_sgfa, clinical_labels, "sgfa_factors"
         )
         classification_results["sgfa_factors"] = direct_results
@@ -890,7 +558,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
         # 2. Compare with raw data classification
         self.logger.info("Testing raw data classification")
         X_concat = np.hstack(X_list)
-        raw_results = self._test_factor_classification(
+        raw_results = self.classifier.test_factor_classification(
             X_concat, clinical_labels, "raw_data"
         )
         classification_results["raw_data"] = raw_results
@@ -901,7 +569,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         pca = PCA(n_components=Z_sgfa.shape[1])
         Z_pca = pca.fit_transform(X_concat)
-        pca_results = self._test_factor_classification(
+        pca_results = self.classifier.test_factor_classification(
             Z_pca, clinical_labels, "pca_features"
         )
         classification_results["pca_features"] = pca_results
@@ -910,14 +578,14 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 4. Clinical interpretation analysis
         self.logger.info("Analyzing clinical interpretability")
-        interpretation_results = self._analyze_clinical_interpretability(
+        interpretation_results = self.metrics_calculator.analyze_clinical_interpretability(
             Z_sgfa, clinical_labels, sgfa_result
         )
         results["clinical_interpretation"] = interpretation_results
 
         # 5. Subtype stability analysis
         self.logger.info("Analyzing subtype stability")
-        stability_results = self._analyze_subtype_stability(
+        stability_results = self.subtype_analyzer.analyze_subtype_stability(
             X_list, clinical_labels, hypers, args, **kwargs
         )
         results["subtype_stability"] = stability_results
@@ -996,7 +664,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Extract SGFA factors
         self.logger.info("Extracting SGFA factors for subtype discovery")
-        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+        sgfa_result = self.data_processor.run_sgfa_analysis(X_list, hypers, args, **kwargs)
 
         if "error" in sgfa_result:
             raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
@@ -1008,27 +676,27 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Discover PD subtypes using clustering
         self.logger.info("Discovering PD subtypes using clustering")
-        subtype_results = self._discover_pd_subtypes(Z_sgfa)
+        subtype_results = self.subtype_analyzer.discover_pd_subtypes(Z_sgfa)
         results["subtype_discovery"] = subtype_results
 
         # Validate discovered subtypes against clinical measures
         if clinical_data:
             self.logger.info("Validating discovered subtypes against clinical measures")
-            validation_results = self._validate_subtypes_clinical(
+            validation_results = self.subtype_analyzer.validate_subtypes_clinical(
                 subtype_results, clinical_data, Z_sgfa
             )
             results["clinical_validation"] = validation_results
 
         # Analyze subtype stability across multiple runs
         self.logger.info("Analyzing subtype stability")
-        stability_results = self._analyze_pd_subtype_stability(
+        stability_results = self.subtype_analyzer.analyze_pd_subtype_stability(
             X_list, hypers, args, n_runs=5, **kwargs
         )
         results["stability_analysis"] = stability_results
 
         # Factor interpretation for each discovered subtype
         self.logger.info("Analyzing factor patterns for each subtype")
-        interpretation_results = self._analyze_subtype_factor_patterns(
+        interpretation_results = self.subtype_analyzer.analyze_subtype_factor_patterns(
             Z_sgfa, subtype_results, sgfa_result
         )
         results["factor_interpretation"] = interpretation_results
@@ -1084,7 +752,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Run SGFA to get factor scores
         self.logger.info("Extracting SGFA factors for progression analysis")
-        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+        sgfa_result = self.data_processor.run_sgfa_analysis(X_list, hypers, args, **kwargs)
 
         if "error" in sgfa_result:
             raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
@@ -1093,7 +761,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 1. Cross-sectional correlation analysis
         self.logger.info("Analyzing cross-sectional correlations")
-        cross_sectional_results = self._analyze_cross_sectional_correlations(
+        cross_sectional_results = self.progression_analyzer.analyze_cross_sectional_correlations(
             Z_sgfa, progression_scores
         )
         results["cross_sectional_correlations"] = cross_sectional_results
@@ -1103,7 +771,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
             subject_ids
         ):  # Longitudinal data available
             self.logger.info("Analyzing longitudinal progression")
-            longitudinal_results = self._analyze_longitudinal_progression(
+            longitudinal_results = self.progression_analyzer.analyze_longitudinal_progression(
                 Z_sgfa, progression_scores, time_points, subject_ids
             )
             results["longitudinal_analysis"] = longitudinal_results
@@ -1115,14 +783,14 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 3. Progression prediction validation
         self.logger.info("Validating progression prediction")
-        prediction_results = self._validate_progression_prediction(
+        prediction_results = self.progression_analyzer.validate_progression_prediction(
             Z_sgfa, progression_scores, time_points
         )
         results["progression_prediction"] = prediction_results
 
         # 4. Clinical milestone prediction
         self.logger.info("Analyzing clinical milestone prediction")
-        milestone_results = self._analyze_clinical_milestones(
+        milestone_results = self.progression_analyzer.analyze_clinical_milestones(
             Z_sgfa, progression_scores, time_points
         )
         results["clinical_milestones"] = milestone_results
@@ -1170,7 +838,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Run SGFA to get factors and loadings
         self.logger.info("Extracting SGFA factors and loadings")
-        sgfa_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+        sgfa_result = self.data_processor.run_sgfa_analysis(X_list, hypers, args, **kwargs)
 
         if "error" in sgfa_result:
             raise ValueError(f"SGFA analysis failed: {sgfa_result['error']}")
@@ -1180,26 +848,26 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 1. Factor-outcome associations
         self.logger.info("Analyzing factor-outcome associations")
-        association_results = self._analyze_factor_outcome_associations(
+        association_results = self.biomarker_analyzer.analyze_factor_outcome_associations(
             Z_sgfa, clinical_outcomes
         )
         results["factor_associations"] = association_results
 
         # 2. Feature importance analysis
         self.logger.info("Analyzing feature importance")
-        importance_results = self._analyze_feature_importance(
+        importance_results = self.biomarker_analyzer.analyze_feature_importance(
             W_sgfa, X_list, clinical_outcomes
         )
         results["feature_importance"] = importance_results
 
         # 3. Biomarker panel validation
         self.logger.info("Validating biomarker panels")
-        panel_results = self._validate_biomarker_panels(Z_sgfa, clinical_outcomes)
+        panel_results = self.biomarker_analyzer.validate_biomarker_panels(Z_sgfa, clinical_outcomes)
         results["biomarker_panels"] = panel_results
 
         # 4. Cross-validation robustness
         self.logger.info("Testing biomarker robustness")
-        robustness_results = self._test_biomarker_robustness(
+        robustness_results = self.biomarker_analyzer.test_biomarker_robustness(
             X_list, clinical_outcomes, hypers, args, **kwargs
         )
         results["robustness_analysis"] = robustness_results
@@ -1268,14 +936,14 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 3. Compare factor distributions
         self.logger.info("Comparing factor distributions")
-        distribution_comparison = self._compare_factor_distributions(
+        distribution_comparison = self.external_validator.compare_factor_distributions(
             train_result["Z"], test_result["Z"]
         )
         results["distribution_comparison"] = distribution_comparison
 
         # 4. Cross-cohort classification
         self.logger.info("Testing cross-cohort classification")
-        classification_results = self._test_cross_cohort_classification(
+        classification_results = self.classifier.test_cross_cohort_classification(
             train_result["Z"],
             test_result["Z"],
             clinical_labels_train,
@@ -1285,7 +953,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 5. Model transferability analysis
         self.logger.info("Analyzing model transferability")
-        transferability_results = self._analyze_model_transferability(
+        transferability_results = self.external_validator.analyze_model_transferability(
             train_result, test_result, clinical_labels_train, clinical_labels_test
         )
         results["transferability_analysis"] = transferability_results
@@ -1306,1128 +974,6 @@ class ClinicalValidationExperiments(ExperimentFramework):
             plots=plots,
             success=True,
         )
-
-    def _test_factor_classification(
-        self, features: np.ndarray, labels: np.ndarray, feature_type: str
-    ) -> Dict:
-        """Test classification performance using given features."""
-        results = {}
-
-        # Ensure we have valid data
-        if len(np.unique(labels)) < 2:
-            return {"error": "Insufficient label diversity for classification"}
-
-        # Get CV settings from config
-        from core.config_utils import ConfigHelper
-        config_dict = ConfigHelper.to_dict(self.config)
-        cv_settings = config_dict.get("cross_validation", {})
-
-        n_folds = cv_settings.get("n_folds", 5)
-        stratified = cv_settings.get("stratified", True)
-        random_seed = cv_settings.get("random_seed", 42)
-
-        if stratified:
-            cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=random_seed)
-        else:
-            from sklearn.model_selection import KFold
-            cv = KFold(n_splits=n_folds, shuffle=True, random_state=random_seed)
-
-        for model_name, model in self.classification_models.items():
-            try:
-                # Cross-validation scores
-                cv_scores = {}
-                for metric in [
-                    "accuracy",
-                    "precision_macro",
-                    "recall_macro",
-                    "f1_macro",
-                ]:
-                    scores = cross_val_score(
-                        model, features, labels, cv=cv, scoring=metric
-                    )
-                    cv_scores[metric] = {
-                        "mean": np.mean(scores),
-                        "std": np.std(scores),
-                        "scores": scores.tolist(),
-                    }
-
-                # Train on full data for detailed metrics
-                model.fit(features, labels)
-                y_pred = model.predict(features)
-                y_pred_proba = model.predict_proba(features)
-
-                # Calculate detailed metrics using configured metrics
-                detailed_metrics = self._calculate_detailed_metrics(
-                    labels, y_pred, y_pred_proba, self.clinical_metrics
-                )
-
-                results[model_name] = {
-                    "cross_validation": cv_scores,
-                    "detailed_metrics": detailed_metrics,
-                    "feature_type": feature_type,
-                }
-
-            except Exception as e:
-                self.logger.warning(f"Classification failed for {model_name}: {str(e)}")
-                results[model_name] = {"error": str(e)}
-
-        return results
-
-    def _calculate_detailed_metrics(
-        self, y_true: np.ndarray, y_pred: np.ndarray, y_pred_proba: np.ndarray,
-        requested_metrics: list = None
-    ) -> Dict:
-        """Calculate detailed classification metrics based on configuration."""
-        if requested_metrics is None:
-            requested_metrics = ["accuracy", "precision", "recall", "f1_score", "roc_auc"]
-
-        metrics = {}
-
-        # Calculate only requested metrics
-        if "accuracy" in requested_metrics:
-            metrics["accuracy"] = accuracy_score(y_true, y_pred)
-
-        if "precision" in requested_metrics:
-            metrics["precision"] = precision_score(y_true, y_pred, average="macro", zero_division=0)
-
-        if "recall" in requested_metrics:
-            metrics["recall"] = recall_score(y_true, y_pred, average="macro", zero_division=0)
-
-        if "f1_score" in requested_metrics:
-            metrics["f1_score"] = f1_score(y_true, y_pred, average="macro", zero_division=0)
-
-        # ROC AUC (for binary or multiclass)
-        if "roc_auc" in requested_metrics:
-            try:
-                if len(np.unique(y_true)) == 2:
-                    metrics["roc_auc"] = roc_auc_score(y_true, y_pred_proba[:, 1])
-                else:
-                    metrics["roc_auc"] = roc_auc_score(
-                        y_true, y_pred_proba, multi_class="ovr"
-                    )
-            except BaseException:
-                metrics["roc_auc"] = np.nan
-
-        # Confusion matrix
-        cm = confusion_matrix(y_true, y_pred)
-        metrics["confusion_matrix"] = cm.tolist()
-
-        # Class-specific metrics
-        if len(np.unique(y_true)) == 2:
-            tn, fp, fn, tp = cm.ravel()
-            metrics["specificity"] = tn / (tn + fp) if (tn + fp) > 0 else np.nan
-            metrics["npv"] = tn / (tn + fn) if (tn + fn) > 0 else np.nan
-            metrics["ppv"] = tp / (tp + fp) if (tp + fp) > 0 else np.nan
-
-        return metrics
-
-    def _analyze_clinical_interpretability(
-        self, Z: np.ndarray, clinical_labels: np.ndarray, sgfa_result: Dict
-    ) -> Dict:
-        """Analyze clinical interpretability of factors."""
-        results = {}
-
-        K = Z.shape[1]
-
-        # Factor-label correlations
-        factor_correlations = []
-        for k in range(K):
-            if len(np.unique(clinical_labels)) > 2:
-                # For multiclass, use ANOVA F-statistic
-                f_stat, p_val = stats.f_oneway(
-                    *[
-                        Z[clinical_labels == label, k]
-                        for label in np.unique(clinical_labels)
-                    ]
-                )
-                factor_correlations.append(
-                    {
-                        "factor": k,
-                        "f_statistic": f_stat,
-                        "p_value": p_val,
-                        "effect_size": f_stat
-                        / (
-                            f_stat
-                            + len(clinical_labels)
-                            - len(np.unique(clinical_labels))
-                        ),
-                    }
-                )
-            else:
-                # For binary, use t-test
-                group_0 = Z[clinical_labels == 0, k]
-                group_1 = Z[clinical_labels == 1, k]
-                t_stat, p_val = stats.ttest_ind(group_0, group_1)
-
-                # Cohen's d effect size
-                pooled_std = np.sqrt(
-                    (
-                        (len(group_0) - 1) * np.var(group_0, ddof=1)
-                        + (len(group_1) - 1) * np.var(group_1, ddof=1)
-                    )
-                    / (len(group_0) + len(group_1) - 2)
-                )
-                cohens_d = (np.mean(group_1) - np.mean(group_0)) / pooled_std
-
-                factor_correlations.append(
-                    {
-                        "factor": k,
-                        "t_statistic": t_stat,
-                        "p_value": p_val,
-                        "cohens_d": cohens_d,
-                        "effect_size": abs(cohens_d),
-                    }
-                )
-
-        results["factor_label_associations"] = factor_correlations
-
-        # Factor interpretability scores
-        W = sgfa_result["W"]
-        interpretability_scores = []
-
-        for k in range(K):
-            # Calculate sparsity (proportion of near-zero loadings)
-            all_loadings = np.concatenate([w[:, k] for w in W])
-            sparsity = np.mean(np.abs(all_loadings) < 0.1)
-
-            # Calculate loading concentration (how concentrated are the large loadings)
-            sorted_abs_loadings = np.sort(np.abs(all_loadings))[::-1]
-            top_10_percent = int(len(sorted_abs_loadings) * 0.1)
-            concentration = np.sum(sorted_abs_loadings[:top_10_percent]) / np.sum(
-                sorted_abs_loadings
-            )
-
-            interpretability_scores.append(
-                {
-                    "factor": k,
-                    "sparsity": sparsity,
-                    "loading_concentration": concentration,
-                    "interpretability_score": sparsity * concentration,
-                }
-            )
-
-        results["interpretability_analysis"] = interpretability_scores
-
-        return results
-
-    def _analyze_subtype_stability(
-        self,
-        X_list: List[np.ndarray],
-        clinical_labels: np.ndarray,
-        hypers: Dict,
-        args: Dict,
-        n_bootstrap: int = 10,
-        **kwargs,
-    ) -> Dict:
-        """Analyze stability of subtype assignments."""
-        results = {}
-
-        n_subjects = len(clinical_labels)
-        bootstrap_predictions = []
-
-        for bootstrap_idx in range(n_bootstrap):
-            # Bootstrap sample
-            boot_indices = np.random.choice(n_subjects, n_subjects, replace=True)
-            X_boot = [X[boot_indices] for X in X_list]
-            labels_boot = clinical_labels[boot_indices]
-
-            try:
-                # Run SGFA on bootstrap sample
-                sgfa_result = self._run_sgfa_analysis(X_boot, hypers, args, **kwargs)
-                Z_boot = sgfa_result["Z"]
-
-                # Train classifier on bootstrap factors
-                model = LogisticRegression(random_state=42)
-                model.fit(Z_boot, labels_boot)
-
-                # Predict on original (out-of-bootstrap) samples
-                oob_mask = np.array([i not in boot_indices for i in range(n_subjects)])
-                if np.any(oob_mask):
-                    # For simplicity, predict on all samples using bootstrap model
-                    sgfa_original = self._run_sgfa_analysis(
-                        X_list, hypers, args, **kwargs
-                    )
-                    predictions = model.predict(sgfa_original["Z"])
-                    bootstrap_predictions.append(predictions)
-
-            except Exception as e:
-                self.logger.warning(
-                    f"Bootstrap iteration {bootstrap_idx} failed: {str(e)}"
-                )
-                continue
-
-        if bootstrap_predictions:
-            # Calculate stability metrics
-            bootstrap_predictions = np.array(bootstrap_predictions)
-
-            # Agreement between bootstrap predictions
-            agreement_matrix = np.zeros((n_subjects, n_subjects))
-            for i in range(len(bootstrap_predictions)):
-                for j in range(len(bootstrap_predictions)):
-                    if i != j:
-                        agreement = np.mean(
-                            bootstrap_predictions[i] == bootstrap_predictions[j]
-                        )
-                        agreement_matrix[i, j] = agreement
-
-            stability_scores = np.mean(agreement_matrix, axis=1)
-
-            results["bootstrap_stability"] = {
-                "mean_stability": np.mean(stability_scores),
-                "stability_per_subject": stability_scores.tolist(),
-                "n_bootstrap_iterations": len(bootstrap_predictions),
-            }
-        else:
-            results["bootstrap_stability"] = {
-                "error": "All bootstrap iterations failed"
-            }
-
-        return results
-
-    def _analyze_cross_sectional_correlations(
-        self, Z: np.ndarray, progression_scores: np.ndarray
-    ) -> Dict:
-        """Analyze cross-sectional correlations between factors and progression."""
-        results = {}
-
-        K = Z.shape[1]
-        correlations = []
-
-        for k in range(K):
-            corr_coef, p_val = stats.pearsonr(Z[:, k], progression_scores)
-
-            # Also calculate Spearman correlation for non-linear relationships
-            spearman_coef, spearman_p = stats.spearmanr(Z[:, k], progression_scores)
-
-            correlations.append(
-                {
-                    "factor": k,
-                    "pearson_correlation": corr_coef,
-                    "pearson_p_value": p_val,
-                    "spearman_correlation": spearman_coef,
-                    "spearman_p_value": spearman_p,
-                    "correlation_strength": (
-                        "strong"
-                        if abs(corr_coef) > 0.5
-                        else "moderate" if abs(corr_coef) > 0.3 else "weak"
-                    ),
-                }
-            )
-
-        results["factor_progression_correlations"] = correlations
-
-        # Multiple regression analysis
-        from sklearn.linear_model import LinearRegression
-        from sklearn.metrics import r2_score
-
-        model = LinearRegression()
-        model.fit(Z, progression_scores)
-        predictions = model.predict(Z)
-
-        results["multiple_regression"] = {
-            "r2_score": r2_score(progression_scores, predictions),
-            "coefficients": model.coef_.tolist(),
-            "intercept": model.intercept_,
-            "feature_importance": np.abs(model.coef_) / np.sum(np.abs(model.coef_)),
-        }
-
-        return results
-
-    def _analyze_longitudinal_progression(
-        self,
-        Z: np.ndarray,
-        progression_scores: np.ndarray,
-        time_points: np.ndarray,
-        subject_ids: np.ndarray,
-    ) -> Dict:
-        """Analyze longitudinal progression patterns."""
-        results = {}
-
-        # Group data by subject
-        unique_subjects = np.unique(subject_ids)
-        longitudinal_data = []
-
-        for subject_id in unique_subjects:
-            subject_mask = subject_ids == subject_id
-            if np.sum(subject_mask) > 1:  # At least 2 time points
-                subject_data = {
-                    "subject_id": subject_id,
-                    "time_points": time_points[subject_mask],
-                    "progression_scores": progression_scores[subject_mask],
-                    "factors": Z[subject_mask],
-                    "n_timepoints": np.sum(subject_mask),
-                }
-                longitudinal_data.append(subject_data)
-
-        results["n_longitudinal_subjects"] = len(longitudinal_data)
-
-        if longitudinal_data:
-            # Analyze progression rates
-            progression_rates = []
-            factor_changes = []
-
-            for subject_data in longitudinal_data:
-                times = subject_data["time_points"]
-                scores = subject_data["progression_scores"]
-                factors = subject_data["factors"]
-
-                # Calculate progression rate
-                if len(times) > 1:
-                    rate = (scores[-1] - scores[0]) / (times[-1] - times[0])
-                    progression_rates.append(rate)
-
-                    # Calculate factor change rates
-                    factor_change_rates = []
-                    for k in range(factors.shape[1]):
-                        factor_rate = (factors[-1, k] - factors[0, k]) / (
-                            times[-1] - times[0]
-                        )
-                        factor_change_rates.append(factor_rate)
-                    factor_changes.append(factor_change_rates)
-
-            results["progression_analysis"] = {
-                "mean_progression_rate": np.mean(progression_rates),
-                "std_progression_rate": np.std(progression_rates),
-                "progression_rates": progression_rates,
-            }
-
-            if factor_changes:
-                factor_changes = np.array(factor_changes)
-                results["factor_change_analysis"] = {
-                    "mean_factor_changes": np.mean(factor_changes, axis=0).tolist(),
-                    "std_factor_changes": np.std(factor_changes, axis=0).tolist(),
-                    "factor_progression_correlations": [],
-                }
-
-                # Correlate factor changes with progression rates
-                for k in range(factor_changes.shape[1]):
-                    corr, p_val = stats.pearsonr(
-                        factor_changes[:, k], progression_rates
-                    )
-                    results["factor_change_analysis"][
-                        "factor_progression_correlations"
-                    ].append({"factor": k, "correlation": corr, "p_value": p_val})
-
-        return results
-
-    def _validate_progression_prediction(
-        self, Z: np.ndarray, progression_scores: np.ndarray, time_points: np.ndarray
-    ) -> Dict:
-        """Validate progression prediction using factors."""
-        results = {}
-
-        from sklearn.ensemble import RandomForestRegressor
-        from sklearn.linear_model import Ridge
-        from sklearn.metrics import mean_absolute_error, mean_squared_error
-        from sklearn.model_selection import train_test_split
-
-        # Split data for validation
-        X_train, X_test, y_train, y_test = train_test_split(
-            Z, progression_scores, test_size=0.3, random_state=42
-        )
-
-        # Test different prediction models
-        models = {
-            "linear_regression": Ridge(alpha=1.0),
-            "random_forest": RandomForestRegressor(n_estimators=100, random_state=42),
-        }
-
-        for model_name, model in models.items():
-            try:
-                model.fit(X_train, y_train)
-                y_pred = model.predict(X_test)
-
-                mse = mean_squared_error(y_test, y_pred)
-                mae = mean_absolute_error(y_test, y_pred)
-                r2 = model.score(X_test, y_test)
-
-                results[model_name] = {
-                    "mse": mse,
-                    "mae": mae,
-                    "r2_score": r2,
-                    "rmse": np.sqrt(mse),
-                }
-
-                # Feature importance for random forest
-                if hasattr(model, "feature_importances_"):
-                    results[model_name][
-                        "feature_importances"
-                    ] = model.feature_importances_.tolist()
-
-            except Exception as e:
-                self.logger.warning(
-                    f"Progression prediction failed for {model_name}: {str(e)}"
-                )
-                results[model_name] = {"error": str(e)}
-
-        return results
-
-    def _analyze_clinical_milestones(
-        self, Z: np.ndarray, progression_scores: np.ndarray, time_points: np.ndarray
-    ) -> Dict:
-        """Analyze prediction of clinical milestones."""
-        results = {}
-
-        # Define clinical milestones based on progression scores
-        # (These would be clinically meaningful thresholds)
-        milestones = {
-            "mild_progression": np.percentile(progression_scores, 33),
-            "moderate_progression": np.percentile(progression_scores, 66),
-            "severe_progression": np.percentile(progression_scores, 90),
-        }
-
-        for milestone_name, threshold in milestones.items():
-            # Create binary outcome
-            milestone_reached = (progression_scores >= threshold).astype(int)
-
-            if np.sum(milestone_reached) > 5:  # Ensure sufficient positive cases
-                # Test prediction using factors
-                milestone_result = self._test_factor_classification(
-                    Z, milestone_reached, f"milestone_{milestone_name}"
-                )
-                results[milestone_name] = milestone_result
-
-        return results
-
-    def _analyze_factor_outcome_associations(
-        self, Z: np.ndarray, clinical_outcomes: Dict[str, np.ndarray]
-    ) -> Dict:
-        """Analyze associations between factors and clinical outcomes."""
-        results = {}
-
-        K = Z.shape[1]
-
-        for outcome_name, outcome_values in clinical_outcomes.items():
-            outcome_results = []
-
-            for k in range(K):
-                # Determine if outcome is continuous or categorical
-                if len(np.unique(outcome_values)) > 10:  # Continuous outcome
-                    corr_coef, p_val = stats.pearsonr(Z[:, k], outcome_values)
-                    spearman_coef, spearman_p = stats.spearmanr(Z[:, k], outcome_values)
-
-                    outcome_results.append(
-                        {
-                            "factor": k,
-                            "outcome_type": "continuous",
-                            "pearson_correlation": corr_coef,
-                            "pearson_p_value": p_val,
-                            "spearman_correlation": spearman_coef,
-                            "spearman_p_value": spearman_p,
-                        }
-                    )
-
-                else:  # Categorical outcome
-                    # Use ANOVA or t-test depending on number of categories
-                    unique_categories = np.unique(outcome_values)
-
-                    if len(unique_categories) == 2:
-                        # t-test for binary outcomes
-                        group_0 = Z[outcome_values == unique_categories[0], k]
-                        group_1 = Z[outcome_values == unique_categories[1], k]
-                        t_stat, p_val = stats.ttest_ind(group_0, group_1)
-
-                        outcome_results.append(
-                            {
-                                "factor": k,
-                                "outcome_type": "binary",
-                                "t_statistic": t_stat,
-                                "p_value": p_val,
-                                "mean_group_0": np.mean(group_0),
-                                "mean_group_1": np.mean(group_1),
-                            }
-                        )
-
-                    else:
-                        # ANOVA for multi-category outcomes
-                        groups = [
-                            Z[outcome_values == cat, k] for cat in unique_categories
-                        ]
-                        f_stat, p_val = stats.f_oneway(*groups)
-
-                        outcome_results.append(
-                            {
-                                "factor": k,
-                                "outcome_type": "multiclass",
-                                "f_statistic": f_stat,
-                                "p_value": p_val,
-                                "group_means": [np.mean(group) for group in groups],
-                            }
-                        )
-
-            results[outcome_name] = outcome_results
-
-        return results
-
-    def _run_sgfa_analysis(
-        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
-    ) -> Dict:
-        """Run actual SGFA analysis for clinical validation."""
-        import time
-
-        import jax
-        from numpyro.infer import MCMC, NUTS
-
-        try:
-            K = hypers.get("K", 10)
-            self.logger.debug(
-                f"Running SGFA for clinical validation: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
-            )
-
-            # Use model factory for consistent model management (if not already done)
-            if 'models_summary' not in locals():
-                from models.models_integration import integrate_models_with_pipeline
-                data_characteristics = {
-                    "total_features": sum(X.shape[1] for X in X_list),
-                    "n_views": len(X_list),
-                    "n_subjects": X_list[0].shape[0],
-                    "has_imaging_data": True
-                }
-                model_type, model_instance, models_summary = integrate_models_with_pipeline(
-                    config={"model": {"type": "sparseGFA"}},
-                    X_list=X_list,
-                    data_characteristics=data_characteristics
-                )
-                self.logger.info(f"🏭 Model factory configured: {model_type}")
-
-            # Import the actual SGFA model function for execution
-            from core.run_analysis import models
-
-            # Setup MCMC configuration for clinical validation
-            num_warmup = args.get("num_warmup", 100)
-            num_samples = args.get("num_samples", 300)
-            num_chains = args.get("num_chains", 1)
-
-            # Create args object for model
-            import argparse
-
-            model_args = argparse.Namespace(
-                model="sparseGFA",
-                K=K,
-                num_sources=len(X_list),
-                reghsZ=args.get("reghsZ", True),
-            )
-
-            # Setup MCMC
-            rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
-            kernel = NUTS(
-                models, target_accept_prob=args.get("target_accept_prob", 0.8)
-            )
-            mcmc = MCMC(
-                kernel,
-                num_warmup=num_warmup,
-                num_samples=num_samples,
-                num_chains=num_chains,
-            )
-
-            # Run inference
-            start_time = time.time()
-            mcmc.run(
-                rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
-            )
-            elapsed = time.time() - start_time
-
-            # Get samples
-            samples = mcmc.get_samples()
-
-            # Calculate log likelihood (approximate)
-            extra_fields = mcmc.get_extra_fields()
-            potential_energy = extra_fields.get("potential_energy", np.array([]))
-            log_likelihood = (
-                -np.mean(potential_energy) if len(potential_energy) > 0 else np.nan
-            )
-
-            # Extract mean parameters
-            W_samples = samples["W"]  # Shape: (num_samples, D, K)
-            Z_samples = samples["Z"]  # Shape: (num_samples, N, K)
-
-            W_mean = np.mean(W_samples, axis=0)
-            Z_mean = np.mean(Z_samples, axis=0)
-
-            # Split W back into views
-            W_list = []
-            start_idx = 0
-            for X in X_list:
-                end_idx = start_idx + X.shape[1]
-                W_list.append(W_mean[start_idx:end_idx, :])
-                start_idx = end_idx
-
-            return {
-                "W": W_list,
-                "Z": Z_mean,
-                "W_samples": W_samples,
-                "Z_samples": Z_samples,
-                "samples": samples,
-                "log_likelihood": float(log_likelihood),
-                "n_iterations": num_samples,
-                "convergence": True,
-                "execution_time": elapsed,
-                "clinical_info": {
-                    "factors_extracted": Z_mean.shape[1],
-                    "subjects_analyzed": Z_mean.shape[0],
-                    "mcmc_config": {
-                        "num_warmup": num_warmup,
-                        "num_samples": num_samples,
-                        "num_chains": num_chains,
-                    },
-                },
-            }
-
-        except Exception as e:
-            self.logger.error(f"SGFA clinical analysis failed: {str(e)}")
-            return {
-                "error": str(e),
-                "convergence": False,
-                "execution_time": float("inf"),
-                "log_likelihood": float("-inf"),
-            }
-
-    def _analyze_feature_importance(
-        self,
-        W: List[np.ndarray],
-        X_list: List[np.ndarray],
-        clinical_outcomes: Dict[str, np.ndarray],
-    ) -> Dict:
-        """Analyze which features are most important for clinical outcomes."""
-        results = {}
-
-        # Calculate feature importance scores based on loadings
-        all_features = []
-        all_loadings = []
-
-        for view_idx, (X, w) in enumerate(zip(X_list, W)):
-            n_features = X.shape[1]
-
-            for feature_idx in range(n_features):
-                # Feature importance as sum of absolute loadings across factors
-                importance_score = np.sum(np.abs(w[feature_idx, :]))
-
-                all_features.append(
-                    {
-                        "view": view_idx,
-                        "feature_index": feature_idx,
-                        "global_feature_index": len(all_features),
-                        "importance_score": importance_score,
-                        "loadings": w[feature_idx, :].tolist(),
-                    }
-                )
-                all_loadings.append(w[feature_idx, :])
-
-        all_loadings = np.array(all_loadings)
-
-        # Rank features by importance
-        sorted_features = sorted(
-            all_features, key=lambda x: x["importance_score"], reverse=True
-        )
-
-        results["feature_rankings"] = {
-            "top_features": sorted_features[:20],  # Top 20 features
-            "importance_threshold": np.percentile(
-                [f["importance_score"] for f in all_features], 90
-            ),
-        }
-
-        # Analyze factor-specific feature importance
-        K = all_loadings.shape[1]
-        factor_specific_importance = []
-
-        for k in range(K):
-            factor_loadings = all_loadings[:, k]
-            top_feature_indices = np.argsort(np.abs(factor_loadings))[::-1][:10]
-
-            factor_specific_importance.append(
-                {
-                    "factor": k,
-                    "top_features": [
-                        {
-                            "global_index": idx,
-                            "view": all_features[idx]["view"],
-                            "feature_index": all_features[idx]["feature_index"],
-                            "loading": factor_loadings[idx],
-                        }
-                        for idx in top_feature_indices
-                    ],
-                }
-            )
-
-        results["factor_specific_importance"] = factor_specific_importance
-
-        return results
-
-    def _validate_biomarker_panels(
-        self, Z: np.ndarray, clinical_outcomes: Dict[str, np.ndarray]
-    ) -> Dict:
-        """Validate different biomarker panels."""
-        results = {}
-
-        # Get CV settings from config
-        from core.config_utils import ConfigHelper
-        config_dict = ConfigHelper.to_dict(self.config)
-        cv_settings = config_dict.get("cross_validation", {})
-        n_folds = cv_settings.get("n_folds", 5)
-
-        from sklearn.feature_selection import SelectKBest, f_classif, f_regression
-        from sklearn.model_selection import cross_val_score
-
-        for outcome_name, outcome_values in clinical_outcomes.items():
-            if len(np.unique(outcome_values)) < 2:
-                continue
-
-            outcome_results = {}
-
-            # Determine if classification or regression task
-            is_classification = len(np.unique(outcome_values)) < 10
-
-            if is_classification:
-                # Test different panel sizes for classification
-                for k_features in [1, 2, 3, min(5, Z.shape[1])]:
-                    if k_features > Z.shape[1]:
-                        continue
-
-                    # Select k best features
-                    selector = SelectKBest(score_func=f_classif, k=k_features)
-                    Z_selected = selector.fit_transform(Z, outcome_values)
-
-                    # Test with logistic regression
-                    model = LogisticRegression(random_state=42)
-
-                    try:
-                        cv_scores = cross_val_score(
-                            model, Z_selected, outcome_values, cv=n_folds
-                        )
-
-                        outcome_results[f"panel_size_{k_features}"] = {
-                            "selected_factors": selector.get_support().tolist(),
-                            "cv_accuracy_mean": np.mean(cv_scores),
-                            "cv_accuracy_std": np.std(cv_scores),
-                            "feature_scores": selector.scores_.tolist(),
-                        }
-
-                    except Exception as e:
-                        self.logger.warning(
-                            f"Panel validation failed for {k_features} features: { str(e)}"
-                        )
-
-            else:
-                # Regression task
-                for k_features in [1, 2, 3, min(5, Z.shape[1])]:
-                    if k_features > Z.shape[1]:
-                        continue
-
-                    selector = SelectKBest(score_func=f_regression, k=k_features)
-                    Z_selected = selector.fit_transform(Z, outcome_values)
-
-                    from sklearn.linear_model import Ridge
-
-                    model = Ridge(alpha=1.0)
-
-                    try:
-                        cv_scores = cross_val_score(
-                            model, Z_selected, outcome_values, cv=n_folds, scoring="r2"
-                        )
-
-                        outcome_results[f"panel_size_{k_features}"] = {
-                            "selected_factors": selector.get_support().tolist(),
-                            "cv_r2_mean": np.mean(cv_scores),
-                            "cv_r2_std": np.std(cv_scores),
-                            "feature_scores": selector.scores_.tolist(),
-                        }
-
-                    except Exception as e:
-                        self.logger.warning(
-                            f"Panel validation failed for {k_features} features: { str(e)}"
-                        )
-
-            results[outcome_name] = outcome_results
-
-        return results
-
-    def _test_biomarker_robustness(
-        self,
-        X_list: List[np.ndarray],
-        clinical_outcomes: Dict[str, np.ndarray],
-        hypers: Dict,
-        args: Dict,
-        n_bootstrap: int = 10,
-        **kwargs,
-    ) -> Dict:
-        """Test robustness of biomarker discoveries."""
-        results = {}
-
-        bootstrap_associations = {outcome: [] for outcome in clinical_outcomes.keys()}
-
-        for bootstrap_idx in range(n_bootstrap):
-            # Bootstrap sample
-            n_subjects = X_list[0].shape[0]
-            boot_indices = np.random.choice(n_subjects, n_subjects, replace=True)
-
-            X_boot = [X[boot_indices] for X in X_list]
-            outcomes_boot = {
-                name: values[boot_indices] for name, values in clinical_outcomes.items()
-            }
-
-            try:
-                # Run SGFA on bootstrap sample
-                sgfa_result = self._run_sgfa_analysis(X_boot, hypers, args, **kwargs)
-                Z_boot = sgfa_result["Z"]
-
-                # Calculate associations
-                associations = self._analyze_factor_outcome_associations(
-                    Z_boot, outcomes_boot
-                )
-
-                for outcome_name, outcome_associations in associations.items():
-                    bootstrap_associations[outcome_name].append(outcome_associations)
-
-            except Exception as e:
-                self.logger.warning(
-                    f"Bootstrap iteration {bootstrap_idx} failed: {str(e)}"
-                )
-                continue
-
-        # Analyze robustness
-        for outcome_name, bootstrap_results in bootstrap_associations.items():
-            if not bootstrap_results:
-                results[outcome_name] = {"error": "No successful bootstrap iterations"}
-                continue
-
-            # Calculate stability of associations
-            K = len(bootstrap_results[0]) if bootstrap_results else 0
-
-            factor_stability = []
-            for k in range(K):
-                # Extract p-values or correlations across bootstraps
-                p_values = []
-                correlations = []
-
-                for boot_result in bootstrap_results:
-                    if k < len(boot_result):
-                        factor_result = boot_result[k]
-                        if "p_value" in factor_result:
-                            p_values.append(factor_result["p_value"])
-                        if "pearson_correlation" in factor_result:
-                            correlations.append(factor_result["pearson_correlation"])
-
-                stability_metrics = {"factor": k}
-
-                if p_values:
-                    # Proportion of significant results (p < 0.05)
-                    stability_metrics["significance_rate"] = np.mean(
-                        [p < 0.05 for p in p_values]
-                    )
-                    stability_metrics["mean_p_value"] = np.mean(p_values)
-
-                if correlations:
-                    stability_metrics["mean_correlation"] = np.mean(correlations)
-                    stability_metrics["correlation_std"] = np.std(correlations)
-
-                factor_stability.append(stability_metrics)
-
-            results[outcome_name] = {
-                "factor_stability": factor_stability,
-                "n_bootstrap_iterations": len(bootstrap_results),
-            }
-
-        return results
-
-    def _apply_trained_model(
-        self,
-        X_test_list: List[np.ndarray],
-        train_result: Dict,
-        hypers: Dict,
-        args: Dict,
-        **kwargs,
-    ) -> Dict:
-        """Apply trained SGFA model to test data."""
-        # In practice, this would use the trained model parameters
-        # For simulation, we generate test factors with similar properties
-
-        K = train_result["Z"].shape[1]
-        n_test_subjects = X_test_list[0].shape[0]
-
-        # Simulate test factors with some similarity to training
-        np.random.seed(123)  # Different seed for test data
-        Z_test = np.random.randn(n_test_subjects, K)
-
-        # Add some systematic differences to simulate domain shift
-        Z_test += np.random.normal(0.1, 0.2, Z_test.shape)  # Small systematic shift
-
-        return {
-            "Z": Z_test,
-            "W": train_result["W"],  # Assume same loadings
-            "log_likelihood": train_result["log_likelihood"] - 50,  # Slightly worse fit
-            "domain_applied": "test_cohort",
-        }
-
-    def _compare_factor_distributions(
-        self, Z_train: np.ndarray, Z_test: np.ndarray
-    ) -> Dict:
-        """Compare factor distributions between cohorts."""
-        results = {}
-
-        K = min(Z_train.shape[1], Z_test.shape[1])
-
-        distribution_comparisons = []
-
-        for k in range(K):
-            # Statistical tests for distribution differences
-            ks_stat, ks_p = stats.ks_2samp(Z_train[:, k], Z_test[:, k])
-            t_stat, t_p = stats.ttest_ind(Z_train[:, k], Z_test[:, k])
-
-            # Effect size (Cohen's d)
-            pooled_std = np.sqrt((np.var(Z_train[:, k]) + np.var(Z_test[:, k])) / 2)
-            cohens_d = (np.mean(Z_test[:, k]) - np.mean(Z_train[:, k])) / pooled_std
-
-            distribution_comparisons.append(
-                {
-                    "factor": k,
-                    "ks_statistic": ks_stat,
-                    "ks_p_value": ks_p,
-                    "t_statistic": t_stat,
-                    "t_p_value": t_p,
-                    "cohens_d": cohens_d,
-                    "train_mean": np.mean(Z_train[:, k]),
-                    "test_mean": np.mean(Z_test[:, k]),
-                    "train_std": np.std(Z_train[:, k]),
-                    "test_std": np.std(Z_test[:, k]),
-                }
-            )
-
-        results["factor_comparisons"] = distribution_comparisons
-
-        # Overall distribution similarity
-        significant_differences = sum(
-            1 for comp in distribution_comparisons if comp["ks_p_value"] < 0.05
-        )
-        results["overall_similarity"] = {
-            "n_significant_differences": significant_differences,
-            "similarity_score": 1 - (significant_differences / K),
-            "mean_effect_size": np.mean(
-                [abs(comp["cohens_d"]) for comp in distribution_comparisons]
-            ),
-        }
-
-        return results
-
-    def _test_cross_cohort_classification(
-        self,
-        Z_train: np.ndarray,
-        Z_test: np.ndarray,
-        labels_train: np.ndarray,
-        labels_test: np.ndarray,
-    ) -> Dict:
-        """Test classification performance across cohorts."""
-        results = {}
-
-        # Train on training cohort, test on test cohort
-        for model_name, model in self.classification_models.items():
-            try:
-                # Train on training cohort
-                model.fit(Z_train, labels_train)
-
-                # Test on test cohort
-                y_pred = model.predict(Z_test)
-                y_pred_proba = model.predict_proba(Z_test)
-
-                # Calculate metrics using configured metrics
-                cross_cohort_metrics = self._calculate_detailed_metrics(
-                    labels_test, y_pred, y_pred_proba, self.clinical_metrics
-                )
-
-                # Also test within-cohort performance for comparison
-                model_same_cohort = model.__class__(**model.get_params())
-                model_same_cohort.fit(Z_test, labels_test)
-                y_pred_same = model_same_cohort.predict(Z_test)
-                y_pred_proba_same = model_same_cohort.predict_proba(Z_test)
-
-                within_cohort_metrics = self._calculate_detailed_metrics(
-                    labels_test, y_pred_same, y_pred_proba_same, self.clinical_metrics
-                )
-
-                results[model_name] = {
-                    "cross_cohort_performance": cross_cohort_metrics,
-                    "within_cohort_performance": within_cohort_metrics,
-                    "performance_drop": cross_cohort_metrics["accuracy"]
-                    - within_cohort_metrics["accuracy"],
-                }
-
-            except Exception as e:
-                self.logger.warning(
-                    f"Cross-cohort classification failed for {model_name}: {str(e)}"
-                )
-                results[model_name] = {"error": str(e)}
-
-        return results
-
-    def _analyze_model_transferability(
-        self,
-        train_result: Dict,
-        test_result: Dict,
-        labels_train: np.ndarray,
-        labels_test: np.ndarray,
-    ) -> Dict:
-        """Analyze model transferability between cohorts."""
-        results = {}
-
-        # Compare model fits
-        results["model_fit_comparison"] = {
-            "train_likelihood": train_result.get("log_likelihood", np.nan),
-            "test_likelihood": test_result.get("log_likelihood", np.nan),
-            "likelihood_drop": train_result.get("log_likelihood", 0)
-            - test_result.get("log_likelihood", 0),
-        }
-
-        # Factor space similarity
-        Z_train = train_result["Z"]
-        Z_test = test_result["Z"]
-
-        # Calculate canonical correlations between factor spaces
-        from sklearn.cross_decomposition import CCA
-
-        min_components = min(
-            Z_train.shape[1], Z_test.shape[1], Z_train.shape[0], Z_test.shape[0]
-        )
-        if min_components > 1:
-            try:
-                cca = CCA(n_components=min_components)
-                cca.fit(Z_train, Z_test)
-
-                # Transform both sets
-                Z_train_cca, Z_test_cca = cca.transform(Z_train, Z_test)
-
-                # Calculate canonical correlations
-                canonical_correlations = []
-                for i in range(min_components):
-                    corr, _ = stats.pearsonr(Z_train_cca[:, i], Z_test_cca[:, i])
-                    canonical_correlations.append(corr)
-
-                results["factor_space_similarity"] = {
-                    "canonical_correlations": canonical_correlations,
-                    "mean_canonical_correlation": np.mean(canonical_correlations),
-                    "transferability_score": np.mean(canonical_correlations),
-                }
-
-            except Exception as e:
-                self.logger.warning(f"CCA analysis failed: {str(e)}")
-                results["factor_space_similarity"] = {"error": str(e)}
-
-        # Demographic transferability (if applicable)
-        if len(np.unique(labels_train)) == len(np.unique(labels_test)):
-            # Compare class distributions
-            train_class_dist = np.bincount(labels_train) / len(labels_train)
-            test_class_dist = np.bincount(labels_test) / len(labels_test)
-
-            # KL divergence between class distributions
-            kl_divergence = stats.entropy(test_class_dist, train_class_dist)
-
-            results["demographic_transferability"] = {
-                "train_class_distribution": train_class_dist.tolist(),
-                "test_class_distribution": test_class_dist.tolist(),
-                "kl_divergence": kl_divergence,
-                "distribution_similarity": np.exp(-kl_divergence),
-            }
-
-        return results
 
     def _analyze_subtype_classification(self, results: Dict) -> Dict:
         """Analyze subtype classification validation results."""
@@ -3557,217 +2103,6 @@ class ClinicalValidationExperiments(ExperimentFramework):
                     best_result = result
 
         return best_result
-
-    def _discover_pd_subtypes(self, Z_sgfa: np.ndarray) -> Dict:
-        """Discover PD subtypes using clustering on SGFA factors."""
-        from sklearn.cluster import KMeans
-        from sklearn.metrics import silhouette_score, calinski_harabasz_score
-        import gc
-
-        results = {}
-        n_subjects, n_factors = Z_sgfa.shape
-
-        # Test different numbers of clusters (2-6 subtypes)
-        cluster_range = range(2, min(7, n_subjects//3 + 1))  # Ensure enough samples per cluster
-
-        silhouette_scores = []
-        calinski_scores = []
-        cluster_solutions = {}
-
-        for k in cluster_range:
-            # Run KMeans clustering
-            kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-            cluster_labels = kmeans.fit_predict(Z_sgfa)
-
-            # Calculate clustering quality metrics
-            sil_score = silhouette_score(Z_sgfa, cluster_labels)
-            cal_score = calinski_harabasz_score(Z_sgfa, cluster_labels)
-
-            silhouette_scores.append(sil_score)
-            calinski_scores.append(cal_score)
-
-            cluster_solutions[k] = {
-                "labels": cluster_labels,
-                "centers": kmeans.cluster_centers_,
-                "silhouette_score": sil_score,
-                "calinski_score": cal_score,
-                "inertia": kmeans.inertia_
-            }
-
-            # Clean up KMeans object after each iteration
-            del kmeans
-            gc.collect()
-
-        # Select optimal number of clusters based on silhouette score
-        best_k_idx = np.argmax(silhouette_scores)
-        best_k = list(cluster_range)[best_k_idx]
-
-        results = {
-            "optimal_k": best_k,
-            "cluster_range": list(cluster_range),
-            "silhouette_scores": silhouette_scores,
-            "calinski_scores": calinski_scores,
-            "solutions": cluster_solutions,
-            "best_solution": cluster_solutions[best_k]
-        }
-
-        self.logger.info(f"Optimal number of PD subtypes: {best_k}")
-        self.logger.info(f"Best silhouette score: {silhouette_scores[best_k_idx]:.3f}")
-
-        return results
-
-    def _validate_subtypes_clinical(self, subtype_results: Dict, clinical_data: Dict, Z_sgfa: np.ndarray) -> Dict:
-        """Validate discovered subtypes against available clinical measures."""
-        from scipy.stats import f_oneway, kruskal
-
-        validation_results = {}
-        best_solution = subtype_results["best_solution"]
-        cluster_labels = best_solution["labels"]
-
-        # Group subjects by discovered subtype
-        unique_labels = np.unique(cluster_labels)
-        subtype_groups = {label: np.where(cluster_labels == label)[0] for label in unique_labels}
-
-        clinical_validation = {}
-
-        # Test each clinical measure for subtype differences
-        for measure_name, measure_data in clinical_data.items():
-            if not isinstance(measure_data, (np.ndarray, list)):
-                continue
-
-            measure_array = np.array(measure_data)
-            if len(measure_array) != len(cluster_labels):
-                continue
-
-            # Group clinical measures by subtype
-            groups = [measure_array[indices] for indices in subtype_groups.values()]
-
-            # Remove groups with insufficient data
-            valid_groups = [group for group in groups if len(group) > 1 and not np.all(np.isnan(group))]
-
-            if len(valid_groups) < 2:
-                continue
-
-            # Statistical tests for subtype differences
-            try:
-                # ANOVA test (parametric)
-                f_stat, p_anova = f_oneway(*valid_groups)
-
-                # Kruskal-Wallis test (non-parametric)
-                h_stat, p_kruskal = kruskal(*valid_groups)
-
-                # Calculate effect size (eta-squared)
-                overall_mean = np.nanmean(measure_array)
-                ss_between = sum(len(group) * (np.nanmean(group) - overall_mean)**2 for group in valid_groups)
-                ss_total = np.nansum((measure_array - overall_mean)**2)
-                eta_squared = ss_between / ss_total if ss_total > 0 else 0
-
-                clinical_validation[measure_name] = {
-                    "anova_f": f_stat,
-                    "anova_p": p_anova,
-                    "kruskal_h": h_stat,
-                    "kruskal_p": p_kruskal,
-                    "eta_squared": eta_squared,
-                    "group_means": [np.nanmean(group) for group in valid_groups],
-                    "group_stds": [np.nanstd(group) for group in valid_groups],
-                    "significant": min(p_anova, p_kruskal) < 0.05
-                }
-
-            except Exception as e:
-                self.logger.warning(f"Could not validate {measure_name}: {e}")
-
-        validation_results["clinical_measures"] = clinical_validation
-
-        # Calculate overall clinical validation score
-        significant_measures = sum(1 for result in clinical_validation.values() if result["significant"])
-        total_measures = len(clinical_validation)
-        validation_score = significant_measures / total_measures if total_measures > 0 else 0
-
-        validation_results["validation_score"] = validation_score
-        validation_results["significant_measures"] = significant_measures
-        validation_results["total_measures"] = total_measures
-
-        self.logger.info(f"Clinical validation: {significant_measures}/{total_measures} measures show significant subtype differences")
-
-        return validation_results
-
-    def _analyze_pd_subtype_stability(self, X_list: List[np.ndarray], hypers: Dict, args: Dict, n_runs: int = 5, **kwargs) -> Dict:
-        """Analyze stability of discovered subtypes across multiple runs."""
-        from sklearn.metrics import adjusted_rand_score
-
-        stability_results = {}
-        all_solutions = []
-
-        for run in range(n_runs):
-            # Run SGFA with different random seed
-            run_args = args.copy()
-            run_args['random_seed'] = args.get('random_seed', 42) + run
-
-            try:
-                sgfa_result = self._run_sgfa_analysis(X_list, hypers, run_args, **kwargs)
-                Z_sgfa = sgfa_result["Z"]
-
-                # Discover subtypes for this run
-                subtype_result = self._discover_pd_subtypes(Z_sgfa)
-                all_solutions.append(subtype_result["best_solution"]["labels"])
-
-            except Exception as e:
-                self.logger.warning(f"Stability run {run} failed: {e}")
-
-        if len(all_solutions) < 2:
-            return {"error": "Insufficient successful runs for stability analysis"}
-
-        # Calculate pairwise ARI scores
-        ari_scores = []
-        for i in range(len(all_solutions)):
-            for j in range(i+1, len(all_solutions)):
-                ari = adjusted_rand_score(all_solutions[i], all_solutions[j])
-                ari_scores.append(ari)
-
-        stability_results = {
-            "n_successful_runs": len(all_solutions),
-            "ari_scores": ari_scores,
-            "mean_ari": np.mean(ari_scores),
-            "std_ari": np.std(ari_scores),
-            "min_ari": np.min(ari_scores),
-            "max_ari": np.max(ari_scores),
-            "stability_grade": "High" if np.mean(ari_scores) > 0.7 else "Medium" if np.mean(ari_scores) > 0.4 else "Low"
-        }
-
-        self.logger.info(f"Subtype stability: Mean ARI = {np.mean(ari_scores):.3f} ({stability_results['stability_grade']})")
-
-        return stability_results
-
-    def _analyze_subtype_factor_patterns(self, Z_sgfa: np.ndarray, subtype_results: Dict, sgfa_result: Dict) -> Dict:
-        """Analyze factor patterns for each discovered subtype."""
-        interpretation_results = {}
-        best_solution = subtype_results["best_solution"]
-        cluster_labels = best_solution["labels"]
-
-        unique_labels = np.unique(cluster_labels)
-
-        for label in unique_labels:
-            subtype_indices = np.where(cluster_labels == label)[0]
-            subtype_factors = Z_sgfa[subtype_indices]
-
-            # Calculate subtype-specific factor statistics
-            factor_means = np.mean(subtype_factors, axis=0)
-            factor_stds = np.std(subtype_factors, axis=0)
-
-            # Identify characteristic factors (high absolute mean, low std)
-            factor_importance = np.abs(factor_means) / (factor_stds + 1e-8)
-            top_factors = np.argsort(factor_importance)[::-1]
-
-            interpretation_results[f"subtype_{label}"] = {
-                "n_subjects": len(subtype_indices),
-                "factor_means": factor_means.tolist(),
-                "factor_stds": factor_stds.tolist(),
-                "factor_importance": factor_importance.tolist(),
-                "top_factors": top_factors[:3].tolist(),  # Top 3 characteristic factors
-                "factor_center": best_solution["centers"][label].tolist()
-            }
-
-        return interpretation_results
 
     def _analyze_pd_subtype_discovery(self, results: Dict) -> Dict:
         """Comprehensive analysis of PD subtype discovery results."""
