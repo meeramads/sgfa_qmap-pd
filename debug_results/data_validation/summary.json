@@ -1,0 +1,25 @@
+{
+  "status": "completed",
+  "duration_seconds": 1.9730348587036133,
+  "views": 4,
+  "shapes": [
+    [
+      86,
+      1794
+    ],
+    [
+      86,
+      21444
+    ],
+    [
+      86,
+      7201
+    ],
+    [
+      86,
+      17
+    ]
+  ],
+  "total_features": 30456,
+  "total_subjects": 86
+}

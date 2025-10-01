@@ -1,6 +1,6 @@
 {
   "status": "completed",
-  "duration_seconds": 12.823601961135864,
+  "duration_seconds": 14.098369598388672,
   "issues": [],
   "methods_results": {
     "SGFA": {
@@ -8,12 +8,22 @@
       "converged": true,
       "has_samples": true,
       "sample_keys": [
-        "test"
+        "W",
+        "Z",
+        "cW",
+        "lmbW",
+        "lmbZ",
+        "sigma",
+        "tauW1",
+        "tauW2",
+        "tauW3",
+        "tauW4",
+        "tauZ"
       ]
     },
     "PCA": {
       "success": true,
-      "explained_variance": 0.4878639105158089,
+      "explained_variance": 0.48786391052262307,
       "has_components": true,
       "has_transform": true
     },

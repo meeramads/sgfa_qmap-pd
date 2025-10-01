@@ -1,6 +1,6 @@
 {
   "status": "completed",
-  "duration_seconds": 28.96104598045349,
+  "duration_seconds": 10.911798238754272,
   "issues": [],
   "data_checks": {
     "clinical_data_available": true,
@@ -31,8 +31,8 @@
   "pipeline_tests": {
     "sgfa_extraction_ok": true,
     "pd_subtype_discovery_ok": true,
-    "subtype_silhouette_score": 0.3310690224170685,
-    "n_discovered_subtypes": 4,
+    "subtype_silhouette_score": 0.2712351977825165,
+    "n_discovered_subtypes": 2,
     "cv_imports_ok": true
   },
   "factors_shape": [

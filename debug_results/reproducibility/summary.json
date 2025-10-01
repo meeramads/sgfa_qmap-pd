@@ -1,0 +1,52 @@
+{
+  "status": "completed_with_issues",
+  "duration_seconds": 48.628270864486694,
+  "issues": [
+    "Different seeds produce identical results: diff=0.000000"
+  ],
+  "tests": {
+    "basic_seed_test": {
+      "same_sample_keys": true,
+      "sample_keys_1": [
+        "tauW1",
+        "cW",
+        "tauW2",
+        "lmbW",
+        "tauZ",
+        "W",
+        "lmbZ",
+        "tauW4",
+        "tauW3",
+        "sigma",
+        "Z"
+      ],
+      "sample_keys_2": [
+        "tauW1",
+        "cW",
+        "tauW2",
+        "lmbW",
+        "tauZ",
+        "W",
+        "lmbZ",
+        "tauW4",
+        "tauW3",
+        "sigma",
+        "Z"
+      ],
+      "reproducible": true
+    },
+    "different_seeds_test": {
+      "ll_difference": 0.0,
+      "appropriately_different": false
+    },
+    "perturbation_robustness": {
+      "ll_difference": 0.0,
+      "robust": true
+    },
+    "serialization_test": {
+      "serialization_ok": true,
+      "serialized_size_kb": 14319.1826171875
+    }
+  },
+  "overall_reproducible": false
+}
