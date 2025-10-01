@@ -914,9 +914,35 @@ def run_clinical_validation_debug():
             logger.info(f"Clinical data loaded: {clinical_data.shape}")
 
             # Check for PD-relevant clinical fields (early-stage PD cohort)
-            pd_relevant_fields = ['UPDRS_motor', 'UPDRS_total', 'motor_score', 'disease_duration', 'age', 'H_Y_stage']
-            available_fields = [f for f in pd_relevant_fields if f in clinical_data.columns]
-            missing_fields = [f for f in pd_relevant_fields if f not in clinical_data.columns]
+            # First check for individual motor symptom scores (actual qMAP-PD data format)
+            motor_symptom_fields = [
+                'rigidity_left', 'rigidity_right',
+                'tremor_rest_left', 'tremor_rest_right',
+                'tremor_postural_left', 'tremor_postural_right',
+                'bradykinesia_speed_left', 'bradykinesia_speed_right',
+                'bradykinesia_amplitude_left', 'bradykinesia_amplitude_right',
+                'bradykinesia_rhythm_left', 'bradykinesia_rhythm_right',
+                'mirrormovement_left', 'mirrormovement_right'
+            ]
+            # Also check for aggregated scores (alternative format)
+            aggregated_fields = ['UPDRS_motor', 'UPDRS_total', 'motor_score', 'disease_duration', 'H_Y_stage']
+            demographic_fields = ['age', 'sex', 'tiv']
+
+            # Determine which format is present
+            motor_fields_present = [f for f in motor_symptom_fields if f in clinical_data.columns]
+            aggregated_fields_present = [f for f in aggregated_fields if f in clinical_data.columns]
+            demographic_fields_present = [f for f in demographic_fields if f in clinical_data.columns]
+
+            available_fields = motor_fields_present + aggregated_fields_present + demographic_fields_present
+
+            if motor_fields_present:
+                logger.info(f"✓ Found individual motor symptom scores: {len(motor_fields_present)} fields")
+            if aggregated_fields_present:
+                logger.info(f"✓ Found aggregated UPDRS scores: {aggregated_fields_present}")
+            if demographic_fields_present:
+                logger.info(f"✓ Found demographic fields: {demographic_fields_present}")
+
+            missing_fields = [f for f in aggregated_fields if f not in clinical_data.columns]
 
             logger.info(f"Available PD clinical fields: {available_fields}")
             if missing_fields:

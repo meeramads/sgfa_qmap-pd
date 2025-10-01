@@ -1,0 +1,42 @@
+{
+  "status": "completed",
+  "duration_seconds": 28.96104598045349,
+  "issues": [],
+  "data_checks": {
+    "clinical_data_available": true,
+    "data_alignment_ok": false,
+    "n_subjects_imaging": 86,
+    "n_subjects_clinical": 87,
+    "clinical_features": [
+      "sid",
+      "age",
+      "sex",
+      "tiv",
+      "rigidity_left",
+      "rigidity_right",
+      "tremor_rest_left",
+      "tremor_rest_right",
+      "tremor_postural_left",
+      "tremor_postural_right",
+      "bradykinesia_speed_left",
+      "bradykinesia_speed_right",
+      "bradykinesia_amplitude_left",
+      "bradykinesia_amplitude_right",
+      "bradykinesia_rhythm_left",
+      "bradykinesia_rhythm_right",
+      "mirrormovement_left",
+      "mirrormovement_right"
+    ]
+  },
+  "pipeline_tests": {
+    "sgfa_extraction_ok": true,
+    "pd_subtype_discovery_ok": true,
+    "subtype_silhouette_score": 0.3310690224170685,
+    "n_discovered_subtypes": 4,
+    "cv_imports_ok": true
+  },
+  "factors_shape": [
+    86,
+    3
+  ]
+}
