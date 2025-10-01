@@ -1247,7 +1247,7 @@ def run_clinical_validation_debug():
 
             rng_key = random.PRNGKey(42)
             kernel = NUTS(models, target_accept_prob=0.8)
-            mcmc = MCMC(kernel, num_warmup=10, num_samples=20, num_chains=1)
+            mcmc = MCMC(kernel, num_warmup=5, num_samples=10, num_chains=1)
             mcmc.run(rng_key, X_list, hypers, args)
 
             samples = mcmc.get_samples()
@@ -1256,9 +1256,18 @@ def run_clinical_validation_debug():
             # Extract factors from samples (use Z if available, otherwise mock for debug)
             if sgfa_result and sgfa_result.get("samples"):
                 if "Z" in sgfa_result["samples"]:
-                    factors = sgfa_result["samples"]["Z"]
+                    Z_samples = sgfa_result["samples"]["Z"]
+                    logger.info(f"SGFA factors extracted: {Z_samples.shape}")
+
+                    # Z_samples has shape (n_samples, n_subjects, n_factors)
+                    # Take mean across MCMC samples to get final factor scores
+                    if len(Z_samples.shape) == 3:
+                        factors = np.mean(Z_samples, axis=0)  # Average across samples
+                        logger.info(f"Averaged factors shape: {factors.shape}")
+                    else:
+                        factors = Z_samples
+
                     sgfa_success = True
-                    logger.info(f"SGFA factors extracted: {factors.shape}")
                 else:
                     # Create mock factors for debug testing if Z not available
                     n_subjects = X_list[0].shape[0]
@@ -1315,8 +1324,14 @@ def run_clinical_validation_debug():
 
                     if available_measures:
                         from scipy.stats import f_oneway
+
+                        # Align clinical data with imaging data (handle size mismatch)
+                        n_imaging = len(subtype_labels)
+                        n_clinical = len(clinical_data)
+                        clinical_aligned = clinical_data.iloc[:n_imaging] if n_clinical > n_imaging else clinical_data
+
                         for measure in available_measures[:2]:  # Test top 2 measures
-                            values_by_subtype = [clinical_data[measure][subtype_labels == i].dropna()
+                            values_by_subtype = [clinical_aligned[measure][subtype_labels == i].dropna()
                                                for i in range(n_subtypes)]
                             # Only test if each subtype has enough samples
                             if all(len(vals) >= 3 for vals in values_by_subtype):
