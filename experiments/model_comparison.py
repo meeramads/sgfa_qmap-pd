@@ -45,6 +45,9 @@ from optimization.experiment_mixins import performance_optimized_experiment
 from analysis.cross_validation_library import NeuroImagingMetrics
 from analysis.cv_fallbacks import MetricsFallbackHandler
 
+# Import clinical validation modules for optional clinical performance analysis
+from analysis.clinical import ClinicalMetrics, ClinicalClassifier
+
 
 @performance_optimized_experiment()
 class ModelArchitectureComparison(ExperimentFramework):
@@ -69,6 +72,13 @@ class ModelArchitectureComparison(ExperimentFramework):
 
         # Initialize fallback handler
         self.metrics_fallback = MetricsFallbackHandler(self.logger)
+
+        # Initialize clinical validation modules for optional clinical performance analysis
+        self.clinical_metrics = ClinicalMetrics(logger=self.logger)
+        self.clinical_classifier = ClinicalClassifier(
+            metrics_calculator=self.clinical_metrics,
+            logger=self.logger
+        )
 
         # Model architectures to compare
         self.model_architectures = {
@@ -812,8 +822,20 @@ class ModelArchitectureComparison(ExperimentFramework):
                     "has_samples": has_samples,
                     "has_valid_likelihood": has_valid_likelihood,
                     "potential_energy_available": len(potential_energy) > 0
-                }
+                },
+                "W_list": W_list,  # Add for compatibility with downstream analysis
             }
+
+            # Add clinical performance if clinical labels provided
+            if "clinical_labels" in kwargs and kwargs["clinical_labels"] is not None:
+                try:
+                    clinical_perf = self.clinical_classifier.test_factor_classification(
+                        Z_mean, kwargs["clinical_labels"], model_name
+                    )
+                    result["clinical_performance"] = clinical_perf
+                    self.logger.info(f"  Clinical validation: {len(clinical_perf)} classifiers tested")
+                except Exception as e:
+                    self.logger.warning(f"  Clinical validation failed: {str(e)}")
 
             # Clear GPU memory after training
             try:
@@ -974,6 +996,17 @@ class ModelArchitectureComparison(ExperimentFramework):
             )
 
             self.logger.info(f"✅ {method_name}: {elapsed:.1f}s")
+
+            # Add clinical performance if clinical labels provided
+            if "clinical_labels" in kwargs and kwargs["clinical_labels"] is not None:
+                try:
+                    clinical_perf = self.clinical_classifier.test_factor_classification(
+                        results["Z"], kwargs["clinical_labels"], method_name
+                    )
+                    results["clinical_performance"] = clinical_perf
+                    self.logger.info(f"  Clinical validation: {len(clinical_perf)} classifiers tested")
+                except Exception as e:
+                    self.logger.warning(f"  Clinical validation failed: {str(e)}")
 
         except Exception as e:
             self.logger.error(f"Traditional method {method_name} failed: {str(e)}")

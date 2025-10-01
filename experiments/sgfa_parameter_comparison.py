@@ -27,6 +27,9 @@ from optimization.experiment_mixins import performance_optimized_experiment
 from analysis.cross_validation_library import NeuroImagingHyperOptimizer, NeuroImagingCVConfig
 from analysis.cv_fallbacks import HyperoptFallbackHandler
 
+# Import clinical validation modules for parameter optimization
+from analysis.clinical import ClinicalMetrics, ClinicalClassifier
+
 
 @performance_optimized_experiment()
 class SGFAParameterComparison(ExperimentFramework):
@@ -59,6 +62,13 @@ class SGFAParameterComparison(ExperimentFramework):
         # Initialize comparison visualizer
         from visualization import ComparisonVisualizer
         self.comparison_viz = ComparisonVisualizer(config=config_dict)
+
+        # Initialize clinical validation modules for parameter optimization
+        self.clinical_metrics = ClinicalMetrics(logger=self.logger)
+        self.clinical_classifier = ClinicalClassifier(
+            metrics_calculator=self.clinical_metrics,
+            logger=self.logger
+        )
 
         # Method configurations
         self.sgfa_variants = {
@@ -329,7 +339,7 @@ class SGFAParameterComparison(ExperimentFramework):
                     })
 
                     # Run SGFA with these parameters
-                    result = self._run_sgfa_variant(X_list, trial_hypers, trial_args)
+                    result = self._run_sgfa_variant(X_list, trial_hypers, trial_args, **kwargs)
 
                     if not result.get('convergence', False):
                         return -1000.0  # Heavy penalty for non-convergence
@@ -390,7 +400,7 @@ class SGFAParameterComparison(ExperimentFramework):
                 'model': 'sparseGFA'
             })
 
-            final_result = self._run_sgfa_variant(X_list, final_hypers, final_args)
+            final_result = self._run_sgfa_variant(X_list, final_hypers, final_args, **kwargs)
 
             # Compile comprehensive results
             results = {
@@ -595,7 +605,7 @@ class SGFAParameterComparison(ExperimentFramework):
         return plots
 
     def _run_sgfa_variant(
-        self, X_list: List[np.ndarray], hypers: Dict, args: Dict
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
     ) -> Dict:
         """Run SGFA with specific variant configuration."""
         import gc
@@ -748,6 +758,17 @@ class SGFAParameterComparison(ExperimentFramework):
                     "num_chains": num_chains,
                 },
             }
+
+            # Add clinical performance if clinical labels provided
+            if "clinical_labels" in kwargs and kwargs["clinical_labels"] is not None:
+                try:
+                    clinical_perf = self.clinical_classifier.test_factor_classification(
+                        Z_mean, kwargs["clinical_labels"], f"SGFA_K{K}_percW{percW}"
+                    )
+                    result["clinical_performance"] = clinical_perf
+                    self.logger.info(f"  Clinical validation: {len(clinical_perf)} classifiers tested")
+                except Exception as e:
+                    self.logger.warning(f"  Clinical validation failed: {str(e)}")
 
             # Clear GPU memory after training
             del samples, W_samples, Z_samples, mcmc
