@@ -37,6 +37,7 @@ from analysis.cross_validation_library import (
     NeuroImagingMetrics
 )
 from analysis.cv_fallbacks import CVFallbackHandler, MetricsFallbackHandler
+from visualization.subtype_plots import PDSubtypeVisualizer
 
 
 @performance_optimized_experiment()
@@ -1028,8 +1029,11 @@ class ClinicalValidationExperiments(ExperimentFramework):
         # Comprehensive analysis
         analysis = self._analyze_pd_subtype_discovery(results)
 
-        # Generate plots
-        plots = self._plot_pd_subtype_discovery(results, Z_sgfa, clinical_data)
+        # Generate plots using PDSubtypeVisualizer
+        visualizer = PDSubtypeVisualizer()
+        plot_dir = get_output_dir(self.config) / "pd_subtype_plots"
+        plot_dir.mkdir(exist_ok=True)
+        plots = visualizer.create_pd_subtype_plots(results, Z_sgfa, clinical_data, plot_dir)
 
         return ExperimentResult(
             experiment_name="pd_subtype_discovery",
@@ -3848,113 +3852,6 @@ class ClinicalValidationExperiments(ExperimentFramework):
         }
 
         return analysis
-
-    def _plot_pd_subtype_discovery(self, results: Dict, Z_sgfa: np.ndarray, clinical_data: Dict) -> Dict:
-        """Generate comprehensive plots for PD subtype discovery."""
-        import matplotlib.pyplot as plt
-        from sklearn.decomposition import PCA
-        from sklearn.manifold import TSNE
-
-        plots = {}
-        subtype_discovery = results["subtype_discovery"]
-        best_solution = subtype_discovery["best_solution"]
-        cluster_labels = best_solution["labels"]
-
-        # 1. Clustering quality plot
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-        k_values = subtype_discovery["cluster_range"]
-        ax1.plot(k_values, subtype_discovery["silhouette_scores"], 'bo-', label='Silhouette Score')
-        ax1.axvline(subtype_discovery["optimal_k"], color='red', linestyle='--', alpha=0.7, label=f'Optimal k={subtype_discovery["optimal_k"]}')
-        ax1.set_xlabel('Number of Clusters')
-        ax1.set_ylabel('Silhouette Score')
-        ax1.set_title('Clustering Quality vs Number of Clusters')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-
-        ax2.plot(k_values, subtype_discovery["calinski_scores"], 'go-', label='Calinski-Harabasz Score')
-        ax2.axvline(subtype_discovery["optimal_k"], color='red', linestyle='--', alpha=0.7, label=f'Optimal k={subtype_discovery["optimal_k"]}')
-        ax2.set_xlabel('Number of Clusters')
-        ax2.set_ylabel('Calinski-Harabasz Score')
-        ax2.set_title('Calinski-Harabasz Score vs Number of Clusters')
-        ax2.legend()
-        ax2.grid(True, alpha=0.3)
-
-        plt.tight_layout()
-        plots["clustering_quality"] = fig
-
-        # 2. Subtype visualization in factor space
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-
-        # PCA visualization
-        pca = PCA(n_components=2)
-        Z_pca = pca.fit_transform(Z_sgfa)
-
-        unique_labels = np.unique(cluster_labels)
-        colors = plt.cm.Set1(np.linspace(0, 1, len(unique_labels)))
-
-        for i, label in enumerate(unique_labels):
-            mask = cluster_labels == label
-            ax1.scatter(Z_pca[mask, 0], Z_pca[mask, 1], c=[colors[i]], label=f'Subtype {label+1}', alpha=0.7, s=50)
-
-        ax1.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%} variance)')
-        ax1.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%} variance)')
-        ax1.set_title('PD Subtypes in PCA Space')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-
-        # t-SNE visualization
-        if Z_sgfa.shape[0] > 30:  # Only run t-SNE if enough samples
-            tsne = TSNE(n_components=2, random_state=42, perplexity=min(30, Z_sgfa.shape[0]//4))
-            Z_tsne = tsne.fit_transform(Z_sgfa)
-
-            for i, label in enumerate(unique_labels):
-                mask = cluster_labels == label
-                ax2.scatter(Z_tsne[mask, 0], Z_tsne[mask, 1], c=[colors[i]], label=f'Subtype {label+1}', alpha=0.7, s=50)
-
-            ax2.set_xlabel('t-SNE Component 1')
-            ax2.set_ylabel('t-SNE Component 2')
-            ax2.set_title('PD Subtypes in t-SNE Space')
-            ax2.legend()
-        else:
-            ax2.text(0.5, 0.5, 'Insufficient samples\nfor t-SNE visualization',
-                    ha='center', va='center', transform=ax2.transAxes, fontsize=12)
-            ax2.set_title('t-SNE Visualization (Insufficient Data)')
-
-        plt.tight_layout()
-        plots["subtype_visualization"] = fig
-
-        # 3. Clinical validation plot (if available)
-        if "clinical_validation" in results and clinical_data:
-            cv = results["clinical_validation"]["clinical_measures"]
-
-            if cv:
-                fig, ax = plt.subplots(figsize=(12, 8))
-
-                measures = list(cv.keys())
-                p_values = [cv[measure]["anova_p"] for measure in measures]
-                effect_sizes = [cv[measure]["eta_squared"] for measure in measures]
-
-                # Create bubble plot
-                colors = ['red' if p < 0.05 else 'blue' for p in p_values]
-                sizes = [max(50, es * 1000) for es in effect_sizes]
-
-                scatter = ax.scatter(range(len(measures)), [-np.log10(p) for p in p_values],
-                                  c=colors, s=sizes, alpha=0.6)
-
-                ax.axhline(-np.log10(0.05), color='red', linestyle='--', alpha=0.7, label='p = 0.05')
-                ax.set_xlabel('Clinical Measures')
-                ax.set_ylabel('-log10(p-value)')
-                ax.set_title('Clinical Validation of Discovered PD Subtypes')
-                ax.set_xticks(range(len(measures)))
-                ax.set_xticklabels(measures, rotation=45, ha='right')
-                ax.legend()
-                ax.grid(True, alpha=0.3)
-
-                plt.tight_layout()
-                plots["clinical_validation"] = fig
-
-        return plots
 
 
 def run_clinical_validation(config):

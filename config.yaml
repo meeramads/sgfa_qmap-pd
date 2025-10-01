@@ -178,10 +178,32 @@ performance_benchmarks:
       n_subjects: 200
       n_features_per_view: [2000, 1500] # Full dataset size
 
-  metrics_to_track:
-    - "training_time"                   # How long does training take
-    - "memory_usage"                    # Peak memory consumption
-    - "convergence_rate"                # How quickly does model converge
+  # Multi-layer metrics framework
+  sgfa_performance_metrics:
+    - "training_time"                   # How long does SGFA training take
+    - "memory_usage"                    # Peak memory consumption during SGFA
+    - "convergence_rate"                # How quickly SGFA converges
+    - "factor_extraction_time"          # Time to extract factor scores
+    - "mcmc_sampling_efficiency"        # Effective sample size per second
+
+  pd_subtype_discovery_metrics:
+    - "subtype_stability_time"          # Time to achieve stable cluster assignments
+    - "clinical_validation_speed"       # Speed of clinical correlation analysis
+    - "optimal_k_detection_time"        # Time to find optimal number of subtypes
+    - "clustering_quality_score"        # Silhouette/Calinski-Harabasz scores
+    - "subtype_reproducibility"         # Consistency across random seeds
+
+  clinical_translation_metrics:
+    - "factor_interpretability_score"   # Clinical meaningfulness of factors
+    - "subtype_clinical_separation"     # Clinical difference between subtypes
+    - "biomarker_discovery_efficiency"  # Speed of finding clinical correlates
+    - "cross_validation_stability"      # Subtype stability in CV folds
+
+  # Performance-Discovery trade-off analysis
+  trade_off_analysis:
+    - "speed_vs_subtype_quality"        # SGFA speed impact on subtype quality
+    - "memory_vs_stability"             # Memory optimization impact on reproducibility
+    - "convergence_vs_clinical_validity" # Fast convergence vs clinical correlation
 
 # Clinical Validation Experiment
 clinical_validation:

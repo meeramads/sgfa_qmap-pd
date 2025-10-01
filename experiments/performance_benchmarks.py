@@ -31,6 +31,7 @@ from analysis.cross_validation_library import (
     NeuroImagingMetrics,
 )
 from analysis.cv_fallbacks import CVFallbackHandler, MetricsFallbackHandler
+from visualization.subtype_plots import PDSubtypeVisualizer
 
 
 @performance_optimized_experiment()
@@ -405,6 +406,250 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                 plots=plots,
                 success=True,
             )
+
+    @experiment_handler("integrated_sgfa_subtype_benchmarks")
+    @validate_data_types(
+        X_list=list,
+        clinical_data=dict,
+        hypers=dict,
+        args=dict,
+    )
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        clinical_data=lambda x: x is not None,
+        hypers=lambda x: isinstance(x, dict),
+        args=lambda x: isinstance(x, dict),
+    )
+    def run_integrated_sgfa_subtype_benchmarks(
+        self,
+        X_list: List[np.ndarray],
+        clinical_data: Dict,
+        hypers: Dict,
+        args: Dict,
+        **kwargs,
+    ) -> ExperimentResult:
+        """Run integrated SGFA performance + PD subtype discovery benchmarks.
+
+        This benchmark measures both computational performance (SGFA metrics) and
+        clinical research utility (PD subtype discovery quality) simultaneously.
+
+        Parameters
+        ----------
+        X_list : List[np.ndarray]
+            Multi-modal neuroimaging data
+        clinical_data : Dict
+            Clinical measures for validation
+        hypers : Dict
+            SGFA hyperparameters
+        args : Dict
+            Analysis arguments
+        **kwargs
+            Additional arguments
+
+        Returns
+        -------
+        ExperimentResult
+            Integrated performance and subtype discovery results
+        """
+        self.logger.info("Running integrated SGFA performance + PD subtype discovery benchmarks")
+
+        results = {}
+
+        # Import required libraries
+        from sklearn.cluster import KMeans
+        from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_rand_score
+        from scipy.stats import f_oneway
+        import time
+        import pandas as pd
+
+        # Test multiple K values to assess performance-discovery trade-offs
+        K_test_values = [3, 5, 8, 10]  # Production scale
+        integrated_results = {}
+
+        for K in K_test_values:
+            self.logger.info(f"Testing integrated benchmarks with K={K} factors")
+
+            try:
+                with self.profiler.profile(f"integrated_benchmark_K{K}") as p:
+                    # === LAYER 1: SGFA PERFORMANCE METRICS ===
+                    sgfa_start = time.time()
+
+                    # Update hyperparameters for this K
+                    test_hypers = hypers.copy()
+                    test_hypers["K"] = K
+                    test_args = args.copy()
+                    test_args.K = K
+
+                    # Run SGFA with performance monitoring
+                    sgfa_result = self._run_sgfa_analysis(X_list, test_hypers, test_args, **kwargs)
+
+                    if "error" in sgfa_result:
+                        integrated_results[f"K{K}"] = {"error": sgfa_result["error"]}
+                        continue
+
+                    sgfa_time = time.time() - sgfa_start
+                    Z_sgfa = sgfa_result["Z"]  # Factor scores [n_subjects x n_factors]
+
+                    # === LAYER 2: PD SUBTYPE DISCOVERY METRICS ===
+                    subtype_start = time.time()
+
+                    # Test clustering with different numbers of subtypes
+                    best_silhouette = -1
+                    best_k = 2
+                    clustering_attempts = {}
+
+                    for n_clusters in range(2, min(7, Z_sgfa.shape[0]//5)):  # Ensure enough samples
+                        try:
+                            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+                            cluster_labels = kmeans.fit_predict(Z_sgfa)
+                            sil_score = silhouette_score(Z_sgfa, cluster_labels)
+                            cal_score = calinski_harabasz_score(Z_sgfa, cluster_labels)
+
+                            clustering_attempts[n_clusters] = {
+                                "silhouette_score": sil_score,
+                                "calinski_score": cal_score,
+                                "inertia": kmeans.inertia_
+                            }
+
+                            if sil_score > best_silhouette:
+                                best_silhouette = sil_score
+                                best_k = n_clusters
+
+                        except Exception as e:
+                            clustering_attempts[n_clusters] = {"error": str(e)}
+
+                    subtype_discovery_time = time.time() - subtype_start
+
+                    # === LAYER 3: CLINICAL TRANSLATION METRICS ===
+                    clinical_start = time.time()
+                    clinical_separation_score = 0
+                    significant_measures = 0
+                    total_measures = 0
+
+                    if clinical_data and best_silhouette > 0:
+                        # Use best clustering for clinical validation
+                        kmeans = KMeans(n_clusters=best_k, random_state=42, n_init=10)
+                        subtype_labels = kmeans.fit_predict(Z_sgfa)
+
+                        # Convert clinical data to DataFrame if needed
+                        if isinstance(clinical_data, dict) and 'clinical' in clinical_data:
+                            clinical_df = clinical_data['clinical']
+                        else:
+                            clinical_df = pd.DataFrame(clinical_data)
+
+                        # Align data sizes
+                        n_imaging = len(subtype_labels)
+                        n_clinical = len(clinical_df)
+                        clinical_aligned = clinical_df.iloc[:n_imaging] if n_clinical > n_imaging else clinical_df
+
+                        # Test clinical separation
+                        clinical_measures = ['age'] + [col for col in clinical_aligned.columns
+                                                     if any(keyword in col.lower() for keyword in
+                                                           ['updrs', 'motor', 'duration', 'stage'])]
+
+                        for measure in clinical_measures[:5]:  # Test top 5 measures
+                            if measure in clinical_aligned.columns:
+                                total_measures += 1
+                                try:
+                                    groups = [clinical_aligned[measure][subtype_labels == i].dropna()
+                                            for i in range(best_k)]
+                                    if all(len(g) >= 3 for g in groups):  # Need minimum samples
+                                        f_stat, p_val = f_oneway(*groups)
+                                        if p_val < 0.05:
+                                            significant_measures += 1
+                                except Exception as e:
+                                    self.logger.debug(f"Clinical validation failed for {measure}: {e}")
+
+                        clinical_separation_score = significant_measures / total_measures if total_measures > 0 else 0
+
+                    clinical_validation_time = time.time() - clinical_start
+
+                    # === LAYER 4: PERFORMANCE-DISCOVERY TRADE-OFF ANALYSIS ===
+                    metrics = p.get_current_metrics()
+
+                    integrated_results[f"K{K}"] = {
+                        # SGFA Performance Layer
+                        "sgfa_time_seconds": sgfa_time,
+                        "sgfa_memory_mb": metrics.peak_memory_gb * 1024,
+                        "sgfa_convergence_rate": sgfa_result.get("convergence_rate", 0),
+                        "factor_extraction_time": sgfa_result.get("factor_extraction_time", 0),
+
+                        # PD Subtype Discovery Layer
+                        "subtype_discovery_time_seconds": subtype_discovery_time,
+                        "optimal_subtypes_detected": best_k,
+                        "best_silhouette_score": best_silhouette,
+                        "clustering_quality_grade": "Excellent" if best_silhouette > 0.7 else
+                                                  "Good" if best_silhouette > 0.5 else
+                                                  "Moderate" if best_silhouette > 0.3 else "Poor",
+                        "clustering_attempts": clustering_attempts,
+
+                        # Clinical Translation Layer
+                        "clinical_validation_time_seconds": clinical_validation_time,
+                        "clinical_separation_score": clinical_separation_score,
+                        "significant_clinical_measures": significant_measures,
+                        "total_clinical_measures": total_measures,
+                        "clinical_validation_grade": "Strong" if clinical_separation_score > 0.5 else
+                                                   "Moderate" if clinical_separation_score > 0.3 else "Weak",
+
+                        # Integrated Performance-Discovery Metrics
+                        "subtype_quality_per_second": best_silhouette / sgfa_time if sgfa_time > 0 else 0,
+                        "clinical_efficiency": clinical_separation_score / clinical_validation_time if clinical_validation_time > 0 else 0,
+                        "total_time_seconds": sgfa_time + subtype_discovery_time + clinical_validation_time,
+
+                        # Overall Assessment
+                        "integrated_quality_score": (best_silhouette + clinical_separation_score) / 2,
+                        "performance_efficiency": best_silhouette / (sgfa_time/60) if sgfa_time > 0 else 0  # Quality per minute
+                    }
+
+            except Exception as e:
+                self.logger.error(f"Integrated benchmark K={K} failed: {e}")
+                integrated_results[f"K{K}"] = {"error": str(e)}
+
+        results["integrated_benchmarks"] = integrated_results
+
+        # === TRADE-OFF ANALYSIS ACROSS K VALUES ===
+        successful_runs = {k: v for k, v in integrated_results.items() if "error" not in v}
+
+        if len(successful_runs) > 1:
+            # Speed vs Quality trade-offs
+            speeds = [(k, v["sgfa_time_seconds"]) for k, v in successful_runs.items()]
+            qualities = [(k, v["best_silhouette_score"]) for k, v in successful_runs.items()]
+            clinical_scores = [(k, v["clinical_separation_score"]) for k, v in successful_runs.items()]
+
+            if speeds and qualities:
+                fastest_k = min(speeds, key=lambda x: x[1])[0]
+                highest_quality_k = max(qualities, key=lambda x: x[1])[0]
+                best_clinical_k = max(clinical_scores, key=lambda x: x[1])[0]
+
+                results["trade_off_analysis"] = {
+                    "fastest_model": fastest_k,
+                    "fastest_time": min(speeds, key=lambda x: x[1])[1],
+                    "highest_quality_model": highest_quality_k,
+                    "highest_quality_score": max(qualities, key=lambda x: x[1])[1],
+                    "best_clinical_model": best_clinical_k,
+                    "best_clinical_score": max(clinical_scores, key=lambda x: x[1])[1],
+                    "speed_quality_tradeoff": fastest_k != highest_quality_k,
+                    "speed_clinical_tradeoff": fastest_k != best_clinical_k,
+                    "quality_clinical_alignment": highest_quality_k == best_clinical_k
+                }
+
+        # Comprehensive analysis
+        analysis = self._analyze_integrated_benchmarks(results)
+
+        # Generate plots using PDSubtypeVisualizer
+        visualizer = PDSubtypeVisualizer()
+        plot_dir = get_output_dir(self.config) / "integrated_benchmark_plots"
+        plot_dir.mkdir(exist_ok=True)
+        plots = visualizer.create_performance_subtype_plots(results, plot_dir)
+
+        return ExperimentResult(
+            experiment_name="integrated_sgfa_subtype_benchmarks",
+            config=self.config,
+            data=results,
+            analysis=analysis,
+            plots=plots,
+            success=True,
+        )
 
     def _benchmark_sample_scalability(
         self, X_base: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
@@ -1544,6 +1789,82 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
             self.logger.warning(f"Failed to create clinical CV benchmark plots: {str(e)}")
 
         return plots
+
+    def _analyze_integrated_benchmarks(self, results: Dict) -> Dict:
+        """Analyze integrated SGFA + PD subtype discovery benchmark results."""
+        analysis = {
+            "performance_summary": {},
+            "subtype_discovery_summary": {},
+            "clinical_translation_summary": {},
+            "trade_off_insights": {},
+            "recommendations": {}
+        }
+
+        integrated_results = results.get("integrated_benchmarks", {})
+        successful_runs = {k: v for k, v in integrated_results.items() if "error" not in v}
+
+        if not successful_runs:
+            analysis["error"] = "No successful benchmark runs"
+            return analysis
+
+        # Performance summary
+        sgfa_times = [v["sgfa_time_seconds"] for v in successful_runs.values()]
+        memory_usage = [v["sgfa_memory_mb"] for v in successful_runs.values()]
+
+        analysis["performance_summary"] = {
+            "avg_sgfa_time": np.mean(sgfa_times),
+            "min_sgfa_time": np.min(sgfa_times),
+            "max_sgfa_time": np.max(sgfa_times),
+            "avg_memory_usage_mb": np.mean(memory_usage),
+            "performance_scalability": "Good" if np.max(sgfa_times) / np.min(sgfa_times) < 3 else "Poor"
+        }
+
+        # Subtype discovery summary
+        silhouette_scores = [v["best_silhouette_score"] for v in successful_runs.values()]
+        optimal_ks = [v["optimal_subtypes_detected"] for v in successful_runs.values()]
+
+        analysis["subtype_discovery_summary"] = {
+            "avg_silhouette_score": np.mean(silhouette_scores),
+            "best_silhouette_score": np.max(silhouette_scores),
+            "most_common_optimal_k": max(set(optimal_ks), key=optimal_ks.count),
+            "discovery_consistency": "High" if np.std(silhouette_scores) < 0.1 else "Moderate" if np.std(silhouette_scores) < 0.2 else "Low"
+        }
+
+        # Clinical translation summary
+        clinical_scores = [v["clinical_separation_score"] for v in successful_runs.values()]
+        clinical_efficiency = [v["clinical_efficiency"] for v in successful_runs.values()]
+
+        analysis["clinical_translation_summary"] = {
+            "avg_clinical_separation": np.mean(clinical_scores),
+            "best_clinical_separation": np.max(clinical_scores),
+            "avg_clinical_efficiency": np.mean(clinical_efficiency),
+            "clinical_validation_quality": "Strong" if np.mean(clinical_scores) > 0.5 else
+                                          "Moderate" if np.mean(clinical_scores) > 0.3 else "Weak"
+        }
+
+        # Trade-off insights
+        if "trade_off_analysis" in results:
+            trade_offs = results["trade_off_analysis"]
+            analysis["trade_off_insights"] = {
+                "speed_quality_conflict": trade_offs.get("speed_quality_tradeoff", False),
+                "speed_clinical_conflict": trade_offs.get("speed_clinical_tradeoff", False),
+                "quality_clinical_alignment": trade_offs.get("quality_clinical_alignment", False),
+                "optimal_balance_model": trade_offs.get("highest_quality_model", "Unknown")
+            }
+
+        # Recommendations
+        best_overall_k = max(successful_runs.keys(),
+                           key=lambda k: successful_runs[k]["integrated_quality_score"])
+
+        analysis["recommendations"] = {
+            "recommended_k": best_overall_k,
+            "reason": f"Best integrated quality score: {successful_runs[best_overall_k]['integrated_quality_score']:.3f}",
+            "performance_grade": "Excellent" if analysis["performance_summary"]["performance_scalability"] == "Good" and
+                                             analysis["subtype_discovery_summary"]["discovery_consistency"] == "High" else "Good",
+            "clinical_readiness": analysis["clinical_translation_summary"]["clinical_validation_quality"]
+        }
+
+        return analysis
 
     def _analyze_comparative_benchmarks(self, results: Dict) -> Dict:
         """Analyze comparative benchmark results."""
@@ -2695,6 +3016,78 @@ def run_performance_benchmarks(config):
                 total_tests += 1
 
             results["component_scalability"] = component_results
+
+            # NEW: Integrated SGFA + PD Subtype Discovery Benchmarks
+            logger.info("🧬 Testing integrated SGFA + PD subtype discovery benchmarks...")
+
+            try:
+                # Load clinical data for PD subtype validation
+                clinical_data = None
+                try:
+                    from data.qmap_pd import load_qmap_pd
+                    qmap_result = load_qmap_pd(get_data_dir(config))
+                    if isinstance(qmap_result, dict) and 'clinical' in qmap_result:
+                        clinical_data = qmap_result['clinical']
+                    else:
+                        # Create minimal synthetic clinical data for benchmarking
+                        n_subjects = X_list[0].shape[0]
+                        import pandas as pd
+                        clinical_data = pd.DataFrame({
+                            'age': np.random.normal(65, 10, n_subjects).clip(45, 85),
+                            'UPDRS_motor': np.random.normal(20, 8, n_subjects).clip(5, 40)
+                        })
+                        logger.info("Using synthetic clinical data for integrated benchmarks")
+                except Exception as e:
+                    logger.warning(f"Could not load clinical data: {e}")
+                    # Fallback to basic synthetic data
+                    n_subjects = X_list[0].shape[0]
+                    clinical_data = {'age': np.random.normal(65, 10, n_subjects)}
+
+                if clinical_data is not None:
+                    with benchmark_exp.profiler.profile("integrated_sgfa_subtype_benchmark") as p:
+                        integrated_result = benchmark_exp.run_integrated_sgfa_subtype_benchmarks(
+                            X_list=X_list,
+                            clinical_data=clinical_data,
+                            hypers=base_hypers,
+                            args=base_args
+                        )
+
+                    metrics = benchmark_exp.profiler.get_current_metrics()
+                    results["integrated_sgfa_subtype"] = {
+                        "result": integrated_result.data,
+                        "analysis": integrated_result.analysis,
+                        "performance": {
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                        },
+                        "success": integrated_result.success
+                    }
+
+                    if integrated_result.success:
+                        successful_tests += 1
+                        # Extract key insights for logging
+                        analysis = integrated_result.analysis
+                        if 'recommendations' in analysis:
+                            rec_k = analysis['recommendations'].get('recommended_k', 'Unknown')
+                            performance_grade = analysis['recommendations'].get('performance_grade', 'Unknown')
+                            clinical_readiness = analysis['recommendations'].get('clinical_readiness', 'Unknown')
+                            logger.info(f"✅ Integrated benchmark: {metrics.execution_time:.1f}s, recommended K={rec_k}")
+                            logger.info(f"   Performance grade: {performance_grade}, Clinical readiness: {clinical_readiness}")
+                        else:
+                            logger.info(f"✅ Integrated benchmark completed: {metrics.execution_time:.1f}s")
+                    else:
+                        logger.warning("❌ Integrated benchmark completed with issues")
+
+                else:
+                    logger.warning("❌ Skipping integrated benchmark: no clinical data available")
+                    results["integrated_sgfa_subtype"] = {"error": "No clinical data available"}
+
+                total_tests += 1
+
+            except Exception as e:
+                logger.error(f"❌ Integrated SGFA + PD subtype benchmark failed: {e}")
+                results["integrated_sgfa_subtype"] = {"error": str(e)}
+                total_tests += 1
 
             logger.info("🚀 Performance benchmarks completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")

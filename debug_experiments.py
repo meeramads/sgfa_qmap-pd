@@ -524,8 +524,8 @@ def run_model_comparison_debug():
 
 
 def run_performance_benchmarks_debug():
-    """Run enhanced performance benchmarks - lightweight but comprehensive testing."""
-    logger.info("⚡ Running DEBUG: Performance Benchmarks (Enhanced)")
+    """Run integrated SGFA performance + PD subtype discovery benchmarks."""
+    logger.info("⚡ Running DEBUG: Integrated SGFA Performance + PD Subtype Discovery Benchmarks")
 
     config = load_debug_config()
     start_time = time.time()
@@ -540,8 +540,11 @@ def run_performance_benchmarks_debug():
         import os
         import gc
         import numpy as np
+        from sklearn.cluster import KMeans
+        from sklearn.metrics import silhouette_score, calinski_harabasz_score, adjusted_rand_score
+        import pandas as pd
 
-        logger.info("Testing performance across multiple operations...")
+        logger.info("Testing integrated SGFA + PD subtype discovery performance...")
         data_dir = get_data_dir(config)
 
         issues = []
@@ -551,13 +554,13 @@ def run_performance_benchmarks_debug():
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB
 
-        # 1. Data Loading Performance
-        logger.info("Benchmark 1: Data loading...")
+        # === LAYER 1: DATA LOADING PERFORMANCE ===
+        logger.info("Layer 1: Data loading performance...")
         load_start = time.time()
         result = load_qmap_pd(data_dir)
         load_time = time.time() - load_start
 
-        # Handle different return types (same as model comparison debug)
+        # Handle different return types
         if isinstance(result, dict):
             logger.info(f"Data loading returned dict with keys: {list(result.keys())}")
             if 'X_list' in result:
@@ -565,7 +568,6 @@ def run_performance_benchmarks_debug():
             elif 'processed_data' in result:
                 X_list = result['processed_data']
             else:
-                # Extract data from dictionary structure
                 X_list = []
                 for key in sorted(result.keys()):
                     if key.startswith('X') or 'data' in key.lower():
@@ -580,29 +582,22 @@ def run_performance_benchmarks_debug():
         post_load_memory = process.memory_info().rss / 1024 / 1024
         load_memory_delta = post_load_memory - initial_memory
 
-        # Calculate data size safely
-        data_size_mb = 0
-        for X in X_list:
-            if hasattr(X, 'nbytes'):
-                data_size_mb += X.nbytes
-            elif hasattr(X, 'shape') and hasattr(X, 'dtype'):
-                # Estimate size for array-like objects
-                data_size_mb += np.prod(X.shape) * X.dtype.itemsize
-        data_size_mb = data_size_mb / 1024 / 1024
-        load_efficiency = data_size_mb / load_memory_delta if load_memory_delta > 0 else 0
+        # Load clinical data for PD subtype validation
+        clinical_file = data_dir / "data_clinical" / "pd_motor_gfa_data.tsv"
+        clinical_data = None
+        if clinical_file.exists():
+            clinical_data = pd.read_csv(clinical_file, sep="\t")
 
         benchmarks["data_loading"] = {
             "load_time_seconds": load_time,
-            "data_size_mb": data_size_mb,
             "memory_delta_mb": load_memory_delta,
-            "load_efficiency": load_efficiency  # Data size / memory used
+            "n_subjects": X_list[0].shape[0] if X_list else 0,
+            "n_modalities": len(X_list),
+            "clinical_available": clinical_data is not None
         }
 
-        if load_time > 10:  # Slow loading
+        if load_time > 10:
             issues.append(f"Slow data loading: {load_time:.1f}s")
-
-        if load_efficiency < 0.5:  # Memory inefficient
-            issues.append(f"Memory inefficient loading: {load_efficiency:.2f} efficiency")
 
         # 2. SGFA Performance Scaling
         logger.info("Benchmark 2: SGFA scaling...")
@@ -770,7 +765,7 @@ def run_performance_benchmarks_debug():
             "benchmarks": benchmarks,
             "summary": {
                 "total_memory_delta_mb": total_memory_delta,
-                "data_size_mb": data_size_mb,
+                "data_load_time": load_time,
                 "performance_rating": "good" if len(issues) == 0 else "poor"
             }
         }

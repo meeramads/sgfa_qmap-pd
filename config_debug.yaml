@@ -8,11 +8,17 @@
 #   - No plots or intermediate saves
 #   - Minimal preprocessing (no feature selection)
 #   - 2 CV folds (vs 10 in production)
-#   - Single metrics only
 #   - CPU-only execution
 #
+# 🧬 PD SUBTYPE DISCOVERY FOCUS:
+#   - Integrated SGFA performance + PD subtype discovery benchmarks
+#   - Primary validation: pd_subtype_discovery (unsupervised clustering)
+#   - Performance-discovery trade-off analysis
+#   - Clinical translation metrics
+#   - Multi-layer evaluation framework
+#
 # ⏱️  Expected runtime: ~1-2 minutes per experiment (vs 20-30 minutes)
-# 🎯 Use for: debugging, quick tests, CI/CD, development
+# 🎯 Use for: debugging, quick tests, CI/CD, PD subtype discovery development
 # 📝 Usage: python run_experiments.py --config config_debug.yaml
 # =============================================================================
 
@@ -96,7 +102,7 @@ data_validation:
       feature_selection_method: "variance"
       variance_threshold: 0.005
 
-# Method Comparison Experiment - minimal comparisons
+# Method Comparison Experiment - PD subtype discovery focused
 method_comparison:
   models:
     - name: "sparse_gfa"
@@ -112,7 +118,9 @@ method_comparison:
     n_repeats: 1
 
   evaluation_metrics:
-    - "reconstruction_error"
+    - "reconstruction_error"              # Traditional SGFA metric
+    - "subtype_discovery_quality"         # NEW: How well does model discover PD subtypes
+    - "clinical_correlation"              # NEW: Correlation with clinical measures
 
 # Sensitivity Analysis Experiment - minimal parameter ranges
 sensitivity_analysis:
@@ -125,7 +133,7 @@ sensitivity_analysis:
     n_random_inits: 2                     # Minimal random inits
     convergence_threshold: 1e-3           # Relaxed convergence
 
-# Performance Benchmarks Experiment - tiny datasets
+# Performance Benchmarks Experiment - integrated SGFA + PD subtype discovery
 performance_benchmarks:
   benchmark_configs:
     tiny_scale:
@@ -136,17 +144,40 @@ performance_benchmarks:
       n_subjects: 30
       n_features_per_view: [100, 80]
 
-  metrics_to_track:
-    - "training_time"
-    - "memory_usage"
+  # Multi-layer metrics framework (debug version)
+  sgfa_performance_metrics:
+    - "training_time"                     # Basic SGFA timing
+    - "memory_usage"                      # Memory consumption
+    - "factor_extraction_time"            # Time to extract factors
 
-# Clinical Validation Experiment - single validation type
+  pd_subtype_discovery_metrics:
+    - "subtype_stability_time"            # Time for stable clustering
+    - "clustering_quality_score"          # Silhouette scores
+    - "optimal_k_detection_time"          # Time to find best k
+
+  clinical_translation_metrics:
+    - "clinical_validation_speed"         # Speed of clinical validation
+    - "subtype_clinical_separation"       # Clinical difference between subtypes
+
+  # Performance-Discovery trade-off analysis (debug version)
+  trade_off_analysis:
+    - "speed_vs_subtype_quality"          # SGFA speed vs clustering quality
+    - "memory_vs_stability"               # Memory usage vs reproducibility
+
+# Clinical Validation Experiment - PD subtype discovery focused
 clinical_validation:
   validation_types:
-    - "subtype_classification"            # Only one type
+    - "pd_subtype_discovery"              # Primary: unsupervised PD subtype discovery
+    - "subtype_classification"            # Secondary: supervised classification (if labels available)
 
   classification_metrics:
-    - "accuracy"                          # Only basic metric
+    - "accuracy"                          # Basic metric for supervised validation
+
+  # PD subtype discovery specific settings
+  subtype_discovery_settings:
+    max_subtypes: 4                       # Test 2-4 subtypes (common in PD research)
+    clustering_methods: ["kmeans"]        # Just KMeans for debug speed
+    stability_runs: 2                     # Minimal stability testing
 
   cross_validation:
     n_folds: 2                            # Minimal folds
