@@ -131,7 +131,11 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.model_parameter_grids = model_configs
 
         # Traditional methods for comparison
-        self.traditional_methods = ["pca", "ica", "fa", "kmeans", "cca"]
+        self.traditional_methods = ["pca", "ica", "fa", "nmf", "kmeans", "cca"]
+
+        # Initialize comparison visualizer
+        from visualization import ComparisonVisualizer
+        self.comparison_viz = ComparisonVisualizer(config=config_dict)
 
         # system_config already initialized above before super().__init__
 
@@ -488,90 +492,93 @@ class ModelArchitectureComparison(ExperimentFramework):
 
         return analysis
 
-    @experiment_handler("model_architecture_comparison")
+    @experiment_handler("methods_comparison")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
     @validate_parameters(X_list=lambda x: len(x) > 0)
-    def run_model_architecture_comparison(
+    def run_methods_comparison(
         self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
     ) -> ExperimentResult:
-        """Compare different model architectures with fixed hyperparameters."""
-        # Validate inputs
-        ResultValidator.validate_data_matrices(X_list)
+        """Compare sparseGFA against traditional baseline methods.
 
-        self.logger.info("🧠 Starting model architecture comparison")
+        This unified comparison tests:
+        - sparseGFA: Our proposed sparse group factor analysis method
+        - Traditional baselines: PCA, ICA, FA, NMF, KMeans, CCA
+
+        Args:
+            X_list: List of data matrices (multi-view data)
+            hypers: Hyperparameters for models
+            args: Configuration arguments
+            **kwargs: Additional arguments
+
+        Returns:
+            ExperimentResult containing comparison results and analysis
+        """
+        self.logger.info("=== Running Unified Methods Comparison ===")
+        self.logger.info("Comparing sparseGFA (proposed) vs Traditional Methods (baselines)")
 
         results = {}
         performance_metrics = {}
 
-        # Test each model architecture
-        for model_name, model_config in self.model_architectures.items():
-            if model_config.get("implemented", True):
-                self.logger.info(f"Testing model architecture: {model_name}")
-                self.logger.info(f"Description: {model_config['description']}")
+        # Setup model arguments
+        model_args = args.copy()
+        model_args.update({
+            "model": "sparseGFA",
+            "K": args.get("K", self.comparison_params["K"]),
+            **{k: v for k, v in self.comparison_params.items() if k != "K"}
+        })
 
-                # Update model configuration
-                model_args = args.copy()
-                model_args.update(
-                    {"model": model_config["model_type"], **self.comparison_params}
+        n_components = model_args.get("K", 5)
+
+        # === Part 1: Test sparseGFA (Proposed Method) ===
+        self.logger.info("\n--- Testing Proposed Method: sparseGFA ---")
+        try:
+            with self.profiler.profile("sparseGFA") as p:
+                sgfa_result = self._run_model_architecture(
+                    X_list, hypers, model_args, "sparseGFA", **kwargs
                 )
 
-                # Run model
-                model_result = self._run_model_architecture(
-                    X_list, hypers, model_args, model_name, **kwargs
-                )
+            results["sparseGFA"] = sgfa_result
+            performance_metrics["sparseGFA"] = self.profiler.get_current_metrics().__dict__
+            self.logger.info("✓ sparseGFA completed successfully")
 
-                results[model_name] = model_result
+        except Exception as e:
+            self.logger.error(f"✗ sparseGFA failed: {e}")
+            results["sparseGFA"] = {"error": str(e)}
+            performance_metrics["sparseGFA"] = {"error": str(e)}
 
-                # Explicit memory cleanup after each model
-                self._cleanup_model_memory()
+        # === Part 2: Test Traditional Baselines ===
+        self.logger.info("\n--- Testing Traditional Baseline Methods ---")
 
-                # Calculate neuroimaging-specific metrics if model converged
-                if model_result.get("convergence", False):
-                    neuroimaging_evaluation = self._evaluate_neuroimaging_metrics(
-                        X_list, model_result, model_name
+        # Combine views for traditional methods (they don't handle multi-view naturally)
+        X_combined = np.hstack(X_list)
+        self.logger.info(f"Combined data shape: {X_combined.shape}")
+
+        for method_name in self.traditional_methods:
+            self.logger.info(f"\nTesting {method_name.upper()}...")
+            try:
+                with self.profiler.profile(method_name) as p:
+                    method_result = self._run_traditional_method(
+                        X_combined, method_name, n_components, **kwargs
                     )
-                    model_result["neuroimaging_metrics"] = neuroimaging_evaluation
-                else:
-                    model_result["neuroimaging_metrics"] = {"error": "Model did not converge"}
 
-                # Store enhanced performance metrics
-                performance_metrics[model_name] = {
-                    "execution_time": model_result.get("execution_time", 0),
-                    "peak_memory_gb": model_result.get("peak_memory_gb", 0.0),
-                    "convergence": model_result.get("convergence", False),
-                    "log_likelihood": model_result.get("log_likelihood", float("-inf")),
-                    "neuroimaging_score": model_result.get("neuroimaging_metrics", {}).get("overall_score", np.nan),
-                    "sparsity_score": model_result.get("neuroimaging_metrics", {}).get("sparsity_score", np.nan),
-                    "reconstruction_quality": model_result.get("neuroimaging_metrics", {}).get("reconstruction_quality", np.nan),
-                }
-            else:
-                self.logger.info(f"Skipping model architecture: {model_name}")
-                self.logger.info(
-                    f"Reason: {model_config.get('reason', 'Not implemented')}"
-                )
+                results[method_name] = method_result
+                performance_metrics[method_name] = self.profiler.get_current_metrics().__dict__
+                self.logger.info(f"✓ {method_name.upper()} completed successfully")
 
-                # Record as skipped
-                results[model_name] = {
-                    "skipped": True,
-                    "reason": model_config.get("reason", "Not implemented"),
-                    "model_type": model_config["model_type"],
-                    "description": model_config["description"],
-                }
+            except Exception as e:
+                self.logger.error(f"✗ {method_name.upper()} failed: {e}")
+                results[method_name] = {"error": str(e)}
+                performance_metrics[method_name] = {"error": str(e)}
 
-        # Analyze results
-        analysis = self._analyze_model_architectures(results, performance_metrics)
+        # === Part 3: Analyze and Compare ===
+        self.logger.info("\n=== Analyzing Results ===")
+        analysis = self._analyze_unified_comparison(results, performance_metrics, X_list, X_combined)
 
-        # Generate basic plots
-        plots = self._plot_model_comparison(results, performance_metrics)
-
-        # Add comprehensive visualizations
-        advanced_plots = self._create_comprehensive_visualizations(
-            X_list, results, "model_architecture_comparison"
-        )
-        plots.update(advanced_plots)
+        # === Part 4: Generate Plots ===
+        plots = self._plot_unified_comparison(results, performance_metrics, analysis)
 
         return ExperimentResult(
-            experiment_id="model_architecture_comparison",
+            experiment_id="methods_comparison",
             config=self.config,
             start_time=datetime.now(),
             end_time=datetime.now(),
@@ -580,6 +587,23 @@ class ModelArchitectureComparison(ExperimentFramework):
             performance_metrics=performance_metrics,
             plots=plots,
         )
+
+    @experiment_handler("model_architecture_comparison")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(X_list=lambda x: len(x) > 0)
+    def run_model_architecture_comparison(
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+    ) -> ExperimentResult:
+        """DEPRECATED: Wrapper for backward compatibility. Use run_methods_comparison instead.
+
+        This method now calls the unified run_methods_comparison which tests sparseGFA
+        against traditional baselines.
+        """
+        self.logger.warning(
+            "run_model_architecture_comparison is deprecated. "
+            "Use run_methods_comparison for unified sparseGFA vs baselines comparison."
+        )
+        return self.run_methods_comparison(X_list, hypers, args, **kwargs)
 
     def _run_model_architecture(
         self,
@@ -818,61 +842,19 @@ class ModelArchitectureComparison(ExperimentFramework):
     def run_traditional_method_comparison(
         self, X_list: List[np.ndarray], model_results: Dict = None, **kwargs
     ) -> ExperimentResult:
-        """Compare model architectures with traditional methods."""
-        self.logger.info("📊 Running traditional method comparison")
+        """DEPRECATED: Wrapper for backward compatibility. Use run_methods_comparison instead.
 
-        results = {}
-        performance_metrics = {}
-
-        # Combine all views for traditional methods with adaptive processing
-        X_combined = np.hstack(X_list)
-        n_components = self.comparison_params["K"]  # Use same K as model comparison
-
-        # Calculate adaptive batch size for traditional methods (using mixin method)
-        batch_size = self.calculate_adaptive_batch_size(
-            [X_combined], operation_type="traditional"
+        This method now calls the unified run_methods_comparison which tests both sparseGFA
+        and traditional baselines together.
+        """
+        self.logger.warning(
+            "run_traditional_method_comparison is deprecated. "
+            "Use run_methods_comparison for unified comparison."
         )
-
-        try:
-            for method_name in self.traditional_methods:
-                self.logger.info(f"Testing traditional method: {method_name}")
-
-                method_result = self._run_traditional_method(
-                    X_combined, method_name, n_components, **kwargs
-                )
-
-                results[method_name] = method_result
-
-                # Explicit memory cleanup after each traditional method
-                self._cleanup_model_memory()
-
-                # Store basic performance metrics
-                performance_metrics[method_name] = {
-                    "execution_time": method_result.get("execution_time", 0),
-                    "peak_memory_gb": 0.0,  # Traditional methods use minimal memory
-                    "convergence": method_result.get("convergence", True),
-                }
-
-            # Analyze results
-            analysis = self._analyze_traditional_methods(results, performance_metrics)
-
-            # Generate plots
-            plots = self._plot_traditional_comparison(results, performance_metrics)
-
-            return ExperimentResult(
-                experiment_id="traditional_method_comparison",
-                config=self.config,
-                start_time=datetime.now(),
-                end_time=datetime.now(),
-                status="completed",
-                model_results=results,
-                performance_metrics=performance_metrics,
-                plots=plots,
-            )
-
-        except Exception as e:
-            self.logger.error(f"Traditional method comparison failed: {str(e)}")
-            return self._create_failure_result("traditional_method_comparison", str(e))
+        # Create minimal args dict for compatibility
+        args = kwargs.pop("args", {"K": self.comparison_params["K"]})
+        hypers = kwargs.pop("hypers", {})
+        return self.run_methods_comparison(X_list, hypers, args, **kwargs)
 
     def _run_traditional_method(
         self, X: np.ndarray, method_name: str, n_components: int, **kwargs
@@ -940,6 +922,21 @@ class ModelArchitectureComparison(ExperimentFramework):
                     "method": "kmeans",
                 }
 
+            elif method_name == "nmf":
+                # NMF requires non-negative data
+                X_nonneg = X - X.min() + 1e-10  # Shift to ensure all values are positive
+                method = NMF(n_components=n_components, random_state=42, max_iter=1000)
+                Z = method.fit_transform(X_nonneg)
+                W = method.components_.T
+
+                results = {
+                    "Z": Z,
+                    "W": W,
+                    "reconstruction_error": method.reconstruction_err_,
+                    "n_iter": method.n_iter_,
+                    "method": "nmf",
+                }
+
             elif method_name == "cca":
                 # For CCA, split data in half (or use view structure if available)
                 n_features_1 = X.shape[1] // 2
@@ -989,106 +986,103 @@ class ModelArchitectureComparison(ExperimentFramework):
 
         return results
 
-    def _analyze_model_architectures(
-        self, results: Dict, performance_metrics: Dict
+    def _analyze_unified_comparison(
+        self, results: Dict, performance_metrics: Dict, X_list: List[np.ndarray], X_combined: np.ndarray
     ) -> Dict:
-        """Analyze model architecture comparison results."""
+        """Analyze unified comparison results (sparseGFA vs traditional methods)."""
         analysis = {
             "summary": {
-                "total_models_tested": len(results),
-                "successful_models": sum(
-                    1 for r in results.values() if r.get("convergence", False)
-                ),
-                "total_execution_time": sum(
-                    performance_metrics[m]["execution_time"]
-                    for m in performance_metrics
-                ),
+                "total_methods_tested": len(results),
+                "successful_methods": sum(1 for r in results.values() if not r.get("error")),
             },
             "performance_comparison": {},
-            "model_quality": {},
-            "convergence_analysis": {},
+            "quality_comparison": {},
         }
 
         # Performance comparison
-        for model_name, metrics in performance_metrics.items():
-            analysis["performance_comparison"][model_name] = {
-                "execution_time": metrics["execution_time"],
-                "memory_efficiency": 1.0
-                / max(metrics["peak_memory_gb"], 0.1),  # Inverse for efficiency
-                "convergence_success": metrics["convergence"],
-            }
+        for method_name, metrics in performance_metrics.items():
+            if "error" not in metrics:
+                analysis["performance_comparison"][method_name] = {
+                    "execution_time": metrics.get("execution_time", 0),
+                    "peak_memory_gb": metrics.get("peak_memory_gb", 0),
+                }
 
-        # Model quality comparison
-        successful_models = [
-            m for m in results.keys() if results[m].get("convergence", False)
-        ]
-        if successful_models:
-            log_likelihoods = {
-                m: results[m].get("log_likelihood", float("-inf"))
-                for m in successful_models
-            }
-
-            # Find best model by log-likelihood
-            if any(
-                ll != float("-inf") and not np.isnan(ll)
-                for ll in log_likelihoods.values()
-            ):
-                best_model = max(
-                    log_likelihoods.keys(),
-                    key=lambda x: (
-                        log_likelihoods[x]
-                        if not np.isnan(log_likelihoods[x])
-                        else float("-inf")
-                    ),
-                )
-                analysis["model_quality"]["best_model"] = best_model
-                analysis["model_quality"]["log_likelihoods"] = log_likelihoods
-
-        # Convergence analysis
-        convergence_rates = {
-            m: int(metrics["convergence"]) for m, metrics in performance_metrics.items()
-        }
-        analysis["convergence_analysis"] = {
-            "convergence_rates": convergence_rates,
-            "overall_success_rate": np.mean(list(convergence_rates.values())),
-        }
-
-        return analysis
-
-    def _analyze_traditional_methods(
-        self, results: Dict, performance_metrics: Dict
-    ) -> Dict:
-        """Analyze traditional method results."""
-        analysis = {
-            "summary": {
-                "methods_tested": len(results),
-                "successful_methods": sum(
-                    1 for r in results.values() if r.get("convergence", False)
-                ),
-            },
-            "performance_comparison": performance_metrics,
-            "method_characteristics": {},
-        }
-
-        # Analyze method-specific characteristics
+        # Quality comparison - reconstruction error for all methods
         for method_name, result in results.items():
-            if result.get("convergence", False):
-                if method_name == "pca":
-                    analysis["method_characteristics"][method_name] = {
-                        "total_explained_variance": np.sum(
-                            result.get("explained_variance_ratio", [])
-                        ),
-                        "eigenvalue_decay": result.get("singular_values", []),
-                    }
-                elif method_name == "fa":
-                    analysis["method_characteristics"][method_name] = {
-                        "log_likelihood": result.get("loglikelihood", float("-inf")),
-                        "noise_variance_mean": np.mean(
-                            result.get("noise_variance", [])
-                        ),
-                    }
+            if "error" not in result and "Z" in result and "W" in result:
+                # Calculate reconstruction error
+                Z = result["Z"]
+                W = result["W"]
+
+                # For sparseGFA, use multi-view reconstruction
+                if method_name == "sparseGFA" and "W_list" in result:
+                    recon_errors = []
+                    W_list = result["W_list"]
+                    for i, (X_view, W_view) in enumerate(zip(X_list, W_list)):
+                        X_recon = Z @ W_view.T
+                        mse = np.mean((X_view - X_recon) ** 2)
+                        recon_errors.append(mse)
+                    mean_recon_error = np.mean(recon_errors)
+                else:
+                    # For traditional methods, use combined data
+                    X_recon = Z @ W.T
+                    mean_recon_error = np.mean((X_combined - X_recon) ** 2)
+
+                analysis["quality_comparison"][method_name] = {
+                    "reconstruction_error": mean_recon_error,
+                    "log_likelihood": result.get("log_likelihood", np.nan),
+                }
 
         return analysis
+
+    def _plot_unified_comparison(
+        self, results: Dict, performance_metrics: Dict, analysis: Dict
+    ) -> Dict:
+        """Generate plots for unified methods comparison using ComparisonVisualizer."""
+        plots = {}
+
+        # Prepare data for ComparisonVisualizer
+        methods = list(results.keys())
+        successful_methods = [m for m in methods if "error" not in results[m]]
+
+        if not successful_methods:
+            self.logger.warning("No successful methods to plot")
+            return plots
+
+        # Plot 1: Performance comparison (execution time, memory)
+        perf_fig = self.comparison_viz.plot_performance_comparison(
+            methods=successful_methods,
+            performance_metrics={
+                m: {
+                    "execution_time": performance_metrics[m].get("execution_time", 0),
+                    "peak_memory_gb": performance_metrics[m].get("peak_memory_gb", 0),
+                }
+                for m in successful_methods if m in performance_metrics
+            },
+            title="sparseGFA vs Traditional Methods: Performance",
+            metrics_to_plot=["execution_time", "peak_memory_gb"],
+        )
+        plots["performance_comparison"] = perf_fig
+
+        # Plot 2: Quality comparison (reconstruction error)
+        quality_scores = {}
+        for m in successful_methods:
+            if m in analysis["quality_comparison"]:
+                # Convert reconstruction error to quality score (lower is better → invert)
+                recon_error = analysis["quality_comparison"][m]["reconstruction_error"]
+                quality_scores[m] = 1.0 / (1.0 + recon_error)
+
+        if quality_scores:
+            quality_fig = self.comparison_viz.plot_quality_comparison(
+                methods=list(quality_scores.keys()),
+                quality_scores=quality_scores,
+                title="sparseGFA vs Traditional Methods: Reconstruction Quality",
+                ylabel="Quality Score (higher is better)",
+                higher_is_better=True,
+            )
+            plots["quality_comparison"] = quality_fig
+
+        return plots
 
     def _evaluate_neuroimaging_metrics(
         self, X_list: List[np.ndarray], model_result: Dict, model_name: str
@@ -1266,90 +1260,6 @@ class ModelArchitectureComparison(ExperimentFramework):
                 "overall_score": 0.0
             }
 
-    def _plot_model_comparison(self, results: Dict, performance_metrics: Dict) -> Dict:
-        """Generate plots for model architecture comparison."""
-        plots = {}
-
-        try:
-            # Performance comparison plot
-            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-            fig.suptitle("Model Architecture Comparison", fontsize=16)
-
-            models = list(results.keys())
-            successful_models = [
-                m for m in models if results[m].get("convergence", False)
-            ]
-
-            if successful_models:
-                # Execution time comparison
-                times = [
-                    performance_metrics[m]["execution_time"] for m in successful_models
-                ]
-                axes[0, 0].bar(successful_models, times)
-                axes[0, 0].set_title("Execution Time")
-                axes[0, 0].set_ylabel("Time (seconds)")
-                axes[0, 0].tick_params(axis="x", rotation=45)
-
-                # Log-likelihood comparison
-                log_liks = [
-                    results[m].get("log_likelihood", float("-inf"))
-                    for m in successful_models
-                ]
-                valid_log_liks = [
-                    (m, ll)
-                    for m, ll in zip(successful_models, log_liks)
-                    if ll != float("-inf") and not np.isnan(ll)
-                ]
-
-                if valid_log_liks:
-                    models_ll, values_ll = zip(*valid_log_liks)
-                    axes[0, 1].bar(models_ll, values_ll)
-                    axes[0, 1].set_title("Log-Likelihood")
-                    axes[0, 1].set_ylabel("Log-Likelihood")
-                    axes[0, 1].tick_params(axis="x", rotation=45)
-                else:
-                    axes[0, 1].text(
-                        0.5,
-                        0.5,
-                        "No valid log-likelihood data",
-                        ha="center",
-                        va="center",
-                        transform=axes[0, 1].transAxes,
-                    )
-
-                # Model complexity (placeholder)
-                axes[1, 0].bar(
-                    successful_models,
-                    [self.comparison_params["K"]] * len(successful_models),
-                )
-                axes[1, 0].set_title("Model Complexity (K factors)")
-                axes[1, 0].set_ylabel("Number of Factors")
-                axes[1, 0].tick_params(axis="x", rotation=45)
-
-                # Convergence status
-                convergence = [
-                    int(results[m].get("convergence", False)) for m in models
-                ]
-                axes[1, 1].bar(models, convergence)
-                axes[1, 1].set_title("Convergence Success")
-                axes[1, 1].set_ylabel("Converged (1=Yes, 0=No)")
-                axes[1, 1].tick_params(axis="x", rotation=45)
-
-            plt.tight_layout()
-            plots["model_performance_comparison"] = fig
-
-            # Create neuroimaging metrics comparison plot
-            neuroimaging_plot = self._plot_neuroimaging_metrics_comparison(
-                results, performance_metrics, successful_models
-            )
-            if neuroimaging_plot:
-                plots["neuroimaging_metrics_comparison"] = neuroimaging_plot
-
-        except Exception as e:
-            self.logger.warning(f"Failed to generate model comparison plots: {e}")
-
-        return plots
-
     def _plot_neuroimaging_metrics_comparison(
         self, results: Dict, performance_metrics: Dict, successful_models: List[str]
     ) -> Optional[plt.Figure]:
@@ -1485,58 +1395,6 @@ class ModelArchitectureComparison(ExperimentFramework):
             self.logger.warning(f"Failed to create neuroimaging metrics comparison plot: {str(e)}")
             return None
 
-    def _plot_traditional_comparison(
-        self, results: Dict, performance_metrics: Dict
-    ) -> Dict:
-        """Generate plots for traditional method comparison."""
-        plots = {}
-
-        try:
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            fig.suptitle("Traditional Methods Comparison", fontsize=16)
-
-            methods = list(results.keys())
-            successful_methods = [
-                m for m in methods if results[m].get("convergence", False)
-            ]
-
-            if successful_methods:
-                # Execution time
-                times = [
-                    performance_metrics[m]["execution_time"] for m in successful_methods
-                ]
-                axes[0].bar(successful_methods, times)
-                axes[0].set_title("Execution Time")
-                axes[0].set_ylabel("Time (seconds)")
-
-                # Method-specific quality metric
-                quality_scores = []
-                for method in successful_methods:
-                    if method == "pca":
-                        score = np.sum(
-                            results[method].get("explained_variance_ratio", [0])
-                        )
-                    elif method == "fa":
-                        score = results[method].get("loglikelihood", 0)
-                    else:
-                        score = 0
-                    quality_scores.append(score)
-
-                axes[1].bar(successful_methods, quality_scores)
-                axes[1].set_title("Quality Metric")
-                axes[1].set_ylabel("Explained Variance (PCA) / Log-Likelihood (FA)")
-
-            plt.tight_layout()
-            plots["traditional_methods_comparison"] = fig
-
-        except Exception as e:
-            self.logger.warning(f"Failed to generate traditional method plots: {e}")
-
-        return plots
-
-    def _create_comprehensive_visualizations(
-        self, X_list: List[np.ndarray], results: Dict, experiment_name: str
-    ) -> Dict:
         """Create comprehensive visualizations using the advanced visualization system."""
         advanced_plots = {}
 
@@ -2366,28 +2224,23 @@ def run_model_comparison(config=None, **kwargs):
 
     # Create experiment configuration
     exp_config = ExperimentConfig(
-        experiment_name="model_architecture_comparison",
-        description="Compare different SGFA model architectures"
+        experiment_name="methods_comparison",
+        description="Compare sparseGFA against traditional baseline methods"
     )
 
     # Run experiments
     experiment = ModelArchitectureComparison(exp_config, logger)
 
-    # Run model architecture comparison
-    model_results = experiment.run_model_architecture_comparison(
+    # Run unified methods comparison (sparseGFA vs all traditional baselines)
+    results = experiment.run_methods_comparison(
         X_list, hypers, args, **kwargs
     )
 
-    # Run traditional method comparison
-    traditional_results = experiment.run_traditional_method_comparison(X_list, **kwargs)
-
-    logger.info("🔬 Model architecture comparison experiments completed!")
-    logger.info(f"   Model architectures tested: {len(experiment.model_architectures)}")
-    logger.info(f"   Traditional methods tested: {len(experiment.traditional_methods)}")
+    logger.info("🔬 Methods comparison experiments completed!")
+    logger.info(f"   Methods tested: sparseGFA + {len(experiment.traditional_methods)} traditional baselines")
 
     return {
-        "model_results": model_results,
-        "traditional_results": traditional_results,
+        "results": results,
         "experiment": experiment,
     }
 
