@@ -152,21 +152,9 @@ class SGFAParameterComparison(ExperimentFramework):
             # SGFA with subset of views
             sgfa_result = self._run_sgfa_multiview(view_subset, **kwargs)
 
-            # Traditional methods (concatenated)
-            X_concat = np.hstack(view_subset)
-            traditional_results = {}
-
-            for method in ["pca", "fa", "cca"]:
-                if method == "cca" and n_view_test < 2:
-                    continue  # CCA needs at least 2 views
-
-                traditional_results[method] = self._run_traditional_method(
-                    X_concat, method, min(10, X_concat.shape[1] // 2)
-                )
-
+            # Store results for this view configuration
             results[f"{n_view_test}_views"] = {
                 "sgfa": sgfa_result,
-                "traditional": traditional_results,
                 "view_dimensions": [X.shape[1] for X in view_subset],
             }
 
@@ -951,11 +939,11 @@ class SGFAParameterComparison(ExperimentFramework):
             n_views = int(view_key.split("_")[0])
 
             sgfa_result = view_results["sgfa"]
-            traditional_results = view_results["traditional"]
+            sgfa_variants = view_results.get("sgfa_variants", {})
 
             analysis["view_scaling"][n_views] = {
                 "sgfa_likelihood": sgfa_result.get("log_likelihood", 0),
-                "traditional_methods_available": list(traditional_results.keys()),
+                "sgfa_variants_available": len(sgfa_variants),
                 "total_features": sum(view_results["view_dimensions"]),
             }
 
@@ -1364,8 +1352,8 @@ def run_method_comparison(config):
         framework = ExperimentFramework(config_accessor.output_dir)
 
         exp_config = ExperimentConfig(
-            experiment_name="remote_workstation_method_comparison",
-            description="Compare SGFA model variants on remote workstation",
+            experiment_name="sgfa_parameter_comparison",
+            description="Compare SGFA model parameter variants",
             dataset="qmap_pd",
             data_dir=config_accessor.data_dir,
         )
@@ -1670,7 +1658,7 @@ def run_method_comparison(config):
                 "experiment_config": {
                     "K_values_tested": K_values[:2],
                     "percW_values_tested": percW_values[:2],
-                    "traditional_methods_tested": traditional_methods,
+                    "sgfa_variants_tested": list(sgfa_results.keys()),
                     "data_characteristics": {
                         "num_subjects": X_list[0].shape[0],
                         "num_features_per_view": [X.shape[1] for X in X_list],
