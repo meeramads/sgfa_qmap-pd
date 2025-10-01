@@ -456,11 +456,15 @@ def run_model_comparison_debug():
         logger.info("Test: Comparison metrics...")
         try:
             from models.models_integration import integrate_models_with_pipeline
-            # Test if factory integration works
+            # Test if factory integration works with correct parameters
+            test_config = {
+                "model": {"model_type": "sparse_gfa", "K": 3},
+                "data": {"data_dir": "./qMAP-PD_data"}
+            }
             factory_test = integrate_models_with_pipeline(
-                data_characteristics={"n_subjects": n_subjects, "n_features": n_features},
-                computational_resources={"memory_limit_gb": 4},
-                model_preferences={"model_type": "sparseGFA"}
+                config=test_config,
+                X_list=X_list,
+                data_characteristics={"n_subjects": n_subjects, "n_features": n_features}
             )
             methods_results["model_factory"] = {"success": True, "integration_ok": factory_test is not None}
 

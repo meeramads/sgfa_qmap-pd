@@ -1,18 +1,19 @@
 {
-  "status": "completed_with_issues",
-  "duration_seconds": 51.841094732284546,
-  "issues": [
-    "SGFA crashed: 'Namespace' object has no attribute 'reghsZ'",
-    "Model factory integration failed: integrate_models_with_pipeline() got an unexpected keyword argument 'computational_resources'"
-  ],
+  "status": "completed",
+  "duration_seconds": 12.823601961135864,
+  "issues": [],
   "methods_results": {
     "SGFA": {
-      "success": false,
-      "error": "'Namespace' object has no attribute 'reghsZ'"
+      "success": true,
+      "converged": true,
+      "has_samples": true,
+      "sample_keys": [
+        "test"
+      ]
     },
     "PCA": {
       "success": true,
-      "explained_variance": 0.48786391053179345,
+      "explained_variance": 0.4878639105158089,
       "has_components": true,
       "has_transform": true
     },
@@ -40,14 +41,14 @@
       "has_transform": true
     },
     "model_factory": {
-      "success": false,
-      "error": "integrate_models_with_pipeline() got an unexpected keyword argument 'computational_resources'"
+      "success": true,
+      "integration_ok": true
     }
   },
   "summary": {
-    "successful_methods": 5,
+    "successful_methods": 7,
     "total_methods": 7,
-    "success_rate": 0.7142857142857143,
+    "success_rate": 1.0,
     "data_shape": [
       86,
       30456
