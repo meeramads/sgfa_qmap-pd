@@ -23,8 +23,6 @@ experiments:
   enable_spatial_analysis: false         # OPTIONAL: Enable spatial analysis (requires MRI reference, default: true)
   save_pickle_results: false             # OPTIONAL: Save pickle files (can be large, default: false)
   max_parallel_jobs: 2                   # OPTIONAL: Maximum parallel experiments (1-16, default: 1)
-  max_result_size_mb: 500                # OPTIONAL: Maximum size per result file in MB (default: 500)
-  cleanup_intermediates: true            # OPTIONAL: Clean up intermediate files after experiments (default: true)
 
 
 # Model Configuration (REQUIRED)
