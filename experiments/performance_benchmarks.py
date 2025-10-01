@@ -478,7 +478,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
                     test_hypers = hypers.copy()
                     test_hypers["K"] = K
                     test_args = args.copy()
-                    test_args.K = K
+                    test_args["K"] = K
 
                     # Run SGFA with performance monitoring
                     sgfa_result = self._run_sgfa_analysis(X_list, test_hypers, test_args, **kwargs)
@@ -637,7 +637,7 @@ class PerformanceBenchmarkExperiments(ExperimentFramework):
         analysis = self._analyze_integrated_benchmarks(results)
 
         # Generate plots using PDSubtypeVisualizer
-        visualizer = PDSubtypeVisualizer()
+        visualizer = PDSubtypeVisualizer(self.config)
         plot_dir = get_output_dir(self.config) / "integrated_benchmark_plots"
         plot_dir.mkdir(exist_ok=True)
         plots = visualizer.create_performance_subtype_plots(results, plot_dir)
@@ -3025,9 +3025,21 @@ def run_performance_benchmarks(config):
                 clinical_data = None
                 try:
                     from data.qmap_pd import load_qmap_pd
-                    qmap_result = load_qmap_pd(get_data_dir(config))
+                    import os
+
+                    # Try primary data directory first
+                    data_dir = get_data_dir(config)
+                    logger.info(f"Attempting to load clinical data from: {data_dir}")
+
+                    # If relative path fails, try absolute path
+                    if not os.path.isabs(data_dir):
+                        abs_data_dir = os.path.abspath(data_dir)
+                        logger.info(f"Absolute path: {abs_data_dir}")
+
+                    qmap_result = load_qmap_pd(data_dir)
                     if isinstance(qmap_result, dict) and 'clinical' in qmap_result:
                         clinical_data = qmap_result['clinical']
+                        logger.info(f"Successfully loaded clinical data with {len(clinical_data)} subjects")
                     else:
                         # Create minimal synthetic clinical data for benchmarking
                         n_subjects = X_list[0].shape[0]
