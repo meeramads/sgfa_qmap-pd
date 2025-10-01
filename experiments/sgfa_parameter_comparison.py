@@ -56,6 +56,10 @@ class SGFAParameterComparison(ExperimentFramework):
         # Initialize fallback handler for hyperparameter optimization
         self.hyperopt_fallback = HyperoptFallbackHandler(self.logger)
 
+        # Initialize comparison visualizer
+        from visualization import ComparisonVisualizer
+        self.comparison_viz = ComparisonVisualizer(config=config_dict)
+
         # Method configurations
         self.sgfa_variants = {
             "standard": {"use_sparse": True, "use_group": True},
@@ -525,7 +529,7 @@ class SGFAParameterComparison(ExperimentFramework):
             return {'error': str(e)}
 
     def _plot_hyperparameter_optimization(self, results: Dict) -> Dict:
-        """Generate plots for hyperparameter optimization results."""
+        """Generate plots for hyperparameter optimization results using ComparisonVisualizer."""
         plots = {}
 
         try:
@@ -535,28 +539,23 @@ class SGFAParameterComparison(ExperimentFramework):
             if not optimization_history:
                 return plots
 
-            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-            fig.suptitle("Neuroimaging Hyperparameter Optimization Results", fontsize=16)
-
-            # Plot 1: Optimization progress
+            # Extract objective values
             objective_values = [trial.get('objective_value', float('-inf')) for trial in optimization_history]
             valid_indices = [i for i, obj in enumerate(objective_values) if obj != float('-inf')]
             valid_objectives = [objective_values[i] for i in valid_indices]
 
+            # Plot 1: Optimization progress using scalability_analysis
             if valid_objectives:
-                axes[0, 0].plot(valid_indices, valid_objectives, 'o-', alpha=0.7)
-                axes[0, 0].set_xlabel("Trial Number")
-                axes[0, 0].set_ylabel("Objective Score")
-                axes[0, 0].set_title("Optimization Progress")
-                axes[0, 0].grid(True, alpha=0.3)
+                progress_fig = self.comparison_viz.plot_scalability_analysis(
+                    data_sizes=valid_indices,
+                    metrics_by_size={"Objective Score": valid_objectives},
+                    title="Hyperparameter Optimization Progress",
+                    xlabel="Trial Number",
+                    ylabel="Objective Score"
+                )
+                plots["optimization_progress"] = progress_fig
 
-                # Add best score line
-                best_score = max(valid_objectives)
-                axes[0, 0].axhline(y=best_score, color='red', linestyle='--',
-                                 label=f'Best Score: {best_score:.2f}')
-                axes[0, 0].legend()
-
-            # Plot 2: Parameter vs Objective (K)
+            # Plot 2: K vs Performance using hyperparameter_grid
             K_values = [trial.get('K') for trial in optimization_history if 'K' in trial]
             K_objectives = [trial.get('objective_value') for trial in optimization_history if 'K' in trial]
 
@@ -564,20 +563,16 @@ class SGFAParameterComparison(ExperimentFramework):
                 valid_K_data = [(k, obj) for k, obj in zip(K_values, K_objectives) if obj != float('-inf')]
                 if valid_K_data:
                     K_vals, K_objs = zip(*valid_K_data)
-                    axes[0, 1].scatter(K_vals, K_objs, alpha=0.7, s=50)
-                    axes[0, 1].set_xlabel("Number of Factors (K)")
-                    axes[0, 1].set_ylabel("Objective Score")
-                    axes[0, 1].set_title("Factors vs Performance")
-                    axes[0, 1].grid(True, alpha=0.3)
+                    K_fig = self.comparison_viz.plot_hyperparameter_grid(
+                        param_name="Number of Factors (K)",
+                        param_values=list(K_vals),
+                        scores=list(K_objs),
+                        title="Factors vs Performance",
+                        ylabel="Objective Score"
+                    )
+                    plots["K_optimization"] = K_fig
 
-                    # Highlight best K
-                    best_K = best_params.get('K')
-                    if best_K is not None:
-                        axes[0, 1].axvline(x=best_K, color='red', linestyle='--',
-                                         label=f'Best K: {best_K}')
-                        axes[0, 1].legend()
-
-            # Plot 3: Parameter vs Objective (percW)
+            # Plot 3: percW vs Performance using hyperparameter_grid
             percW_values = [trial.get('percW') for trial in optimization_history if 'percW' in trial]
             percW_objectives = [trial.get('objective_value') for trial in optimization_history if 'percW' in trial]
 
@@ -585,58 +580,14 @@ class SGFAParameterComparison(ExperimentFramework):
                 valid_percW_data = [(p, obj) for p, obj in zip(percW_values, percW_objectives) if obj != float('-inf')]
                 if valid_percW_data:
                     percW_vals, percW_objs = zip(*valid_percW_data)
-                    axes[1, 0].scatter(percW_vals, percW_objs, alpha=0.7, s=50, color='orange')
-                    axes[1, 0].set_xlabel("Sparsity Percentage (percW)")
-                    axes[1, 0].set_ylabel("Objective Score")
-                    axes[1, 0].set_title("Sparsity vs Performance")
-                    axes[1, 0].grid(True, alpha=0.3)
-
-                    # Highlight best percW
-                    best_percW = best_params.get('percW')
-                    if best_percW is not None:
-                        axes[1, 0].axvline(x=best_percW, color='red', linestyle='--',
-                                         label=f'Best percW: {best_percW:.1f}')
-                        axes[1, 0].legend()
-
-            # Plot 4: Parameter correlation heatmap
-            param_names = ['K', 'percW', 'num_samples']
-            param_data = []
-
-            for param in param_names:
-                param_values = [trial.get(param, np.nan) for trial in optimization_history]
-                param_data.append(param_values)
-
-            # Add objective values
-            param_data.append(objective_values)
-            param_names.append('Objective')
-
-            # Calculate correlation matrix
-            valid_data = []
-            for i in range(len(optimization_history)):
-                row_data = [param_data[j][i] for j in range(len(param_names))]
-                if all(not (isinstance(x, float) and np.isnan(x)) and x != float('-inf') for x in row_data):
-                    valid_data.append(row_data)
-
-            if len(valid_data) > 3:  # Need sufficient data
-                corr_matrix = np.corrcoef(np.array(valid_data).T)
-
-                im = axes[1, 1].imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1)
-                axes[1, 1].set_xticks(range(len(param_names)))
-                axes[1, 1].set_yticks(range(len(param_names)))
-                axes[1, 1].set_xticklabels(param_names, rotation=45)
-                axes[1, 1].set_yticklabels(param_names)
-                axes[1, 1].set_title("Parameter Correlation Matrix")
-
-                # Add correlation values
-                for i in range(len(param_names)):
-                    for j in range(len(param_names)):
-                        axes[1, 1].text(j, i, f'{corr_matrix[i, j]:.2f}',
-                                       ha="center", va="center", color="black", fontsize=8)
-
-                plt.colorbar(im, ax=axes[1, 1])
-
-            plt.tight_layout()
-            plots["hyperparameter_optimization"] = fig
+                    percW_fig = self.comparison_viz.plot_hyperparameter_grid(
+                        param_name="Sparsity Percentage (percW)",
+                        param_values=list(percW_vals),
+                        scores=list(percW_objs),
+                        title="Sparsity vs Performance",
+                        ylabel="Objective Score"
+                    )
+                    plots["percW_optimization"] = percW_fig
 
         except Exception as e:
             self.logger.warning(f"Failed to create hyperparameter optimization plots: {str(e)}")
@@ -817,7 +768,8 @@ class SGFAParameterComparison(ExperimentFramework):
                 "log_likelihood": float("-inf"),
             }
 
-    # _run_traditional_method removed - available in model_comparison.py
+    # _run_traditional_method removed - not needed for SGFA-focused hyperparameter optimization
+    # Traditional method comparison is available in model_comparison.py
 
     def _run_sgfa_multiview(self, X_list: List[np.ndarray]) -> Dict:
         """Run SGFA on multi-view data."""
@@ -829,39 +781,8 @@ class SGFAParameterComparison(ExperimentFramework):
             "n_views_used": len(X_list),
         }
 
-    def _run_scalability_test(self, X_list: List[np.ndarray]) -> Dict:
-        """Run scalability test for all methods."""
-        results = {}
-
-        # SGFA
-        with self.profiler.profile("sgfa_scalability"):
-            sgfa_result = self._run_sgfa_multiview(X_list)
-
-        sgfa_metrics = self.profiler.get_current_metrics()
-        results["sgfa"] = {
-            "result": sgfa_result,
-            "execution_time": sgfa_metrics.execution_time,
-            "peak_memory_gb": sgfa_metrics.peak_memory_gb,
-        }
-
-        # Traditional methods
-        X_concat = np.hstack(X_list)
-        n_components = min(5, X_concat.shape[1] // 2)
-
-        for method in ["pca", "fa"]:
-            with self.profiler.profile(f"{method}_scalability"):
-                method_result = self._run_traditional_method(
-                    X_concat, method, n_components
-                )
-
-            method_metrics = self.profiler.get_current_metrics()
-            results[method] = {
-                "result": method_result,
-                "execution_time": method_metrics.execution_time,
-                "peak_memory_gb": method_metrics.peak_memory_gb,
-            }
-
-        return results
+    # _run_scalability_test removed - unused method that tested traditional methods (PCA, FA)
+    # This experiment focuses purely on SGFA hyperparameter optimization, not method comparison
 
     def _analyze_sgfa_variants(self, results: Dict, performance_metrics: Dict) -> Dict:
         """Analyze SGFA variant comparison results."""
@@ -980,48 +901,31 @@ class SGFAParameterComparison(ExperimentFramework):
     # _get_output_dimensions removed - was only used for traditional method comparison
 
     def _plot_sgfa_comparison(self, results: Dict, performance_metrics: Dict) -> Dict:
-        """Generate plots for SGFA variant comparison."""
+        """Generate plots for SGFA variant comparison using ComparisonVisualizer."""
         plots = {}
 
         try:
-            # Performance comparison plot
-            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-            fig.suptitle("SGFA Variant Comparison", fontsize=16)
-
             variants = list(results.keys())
 
-            # Execution time
-            times = [performance_metrics[v]["execution_time"] for v in variants]
-            axes[0, 0].bar(variants, times)
-            axes[0, 0].set_title("Execution Time")
-            axes[0, 0].set_ylabel("Time (seconds)")
-            axes[0, 0].tick_params(axis="x", rotation=45)
+            # Performance comparison (execution time, memory)
+            perf_fig = self.comparison_viz.plot_performance_comparison(
+                methods=variants,
+                performance_metrics=performance_metrics,
+                title="SGFA Variant Performance Comparison",
+                metrics_to_plot=['execution_time', 'peak_memory_gb']
+            )
+            plots["sgfa_variant_performance"] = perf_fig
 
-            # Memory usage
-            memory = [performance_metrics[v]["peak_memory_gb"] for v in variants]
-            axes[0, 1].bar(variants, memory)
-            axes[0, 1].set_title("Peak Memory Usage")
-            axes[0, 1].set_ylabel("Memory (GB)")
-            axes[0, 1].tick_params(axis="x", rotation=45)
-
-            # Convergence iterations
-            iterations = [
-                performance_metrics[v]["convergence_iterations"] for v in variants
-            ]
-            axes[1, 0].bar(variants, iterations)
-            axes[1, 0].set_title("Convergence Iterations")
-            axes[1, 0].set_ylabel("Iterations")
-            axes[1, 0].tick_params(axis="x", rotation=45)
-
-            # Log likelihood
-            likelihoods = [results[v].get("log_likelihood", 0) for v in variants]
-            axes[1, 1].bar(variants, likelihoods)
-            axes[1, 1].set_title("Log Likelihood")
-            axes[1, 1].set_ylabel("Log Likelihood")
-            axes[1, 1].tick_params(axis="x", rotation=45)
-
-            plt.tight_layout()
-            plots["sgfa_variant_comparison"] = fig
+            # Quality comparison (log-likelihood)
+            log_liks = {v: results[v].get("log_likelihood", float("-inf")) for v in variants}
+            quality_fig = self.comparison_viz.plot_quality_comparison(
+                methods=variants,
+                quality_scores=log_liks,
+                title="SGFA Variant Quality Comparison",
+                ylabel="Log-Likelihood",
+                higher_is_better=True
+            )
+            plots["sgfa_variant_quality"] = quality_fig
 
         except Exception as e:
             self.logger.warning(f"Failed to create SGFA comparison plots: {str(e)}")
@@ -1031,14 +935,10 @@ class SGFAParameterComparison(ExperimentFramework):
     # _plot_traditional_comparison removed - available in model_comparison.py
 
     def _plot_multiview_comparison(self, results: Dict) -> Dict:
-        """Generate plots for multi-view comparison."""
+        """Generate plots for multi-view comparison using ComparisonVisualizer."""
         plots = {}
 
         try:
-            # Multi-view scaling plot
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            fig.suptitle("Multi-view Capability Assessment", fontsize=16)
-
             view_counts = sorted([int(k.split("_")[0]) for k in results.keys()])
 
             # SGFA likelihood vs number of views
@@ -1046,113 +946,124 @@ class SGFAParameterComparison(ExperimentFramework):
                 results[f"{n}_views"]["sgfa"].get("log_likelihood", 0)
                 for n in view_counts
             ]
-            axes[0].plot(view_counts, sgfa_likelihoods, "o-", label="SGFA")
-            axes[0].set_title("Log Likelihood vs Number of Views")
-            axes[0].set_xlabel("Number of Views")
-            axes[0].set_ylabel("Log Likelihood")
-            axes[0].legend()
+
+            # Use scalability analysis for multiview scaling
+            likelihood_fig = self.comparison_viz.plot_scalability_analysis(
+                data_sizes=view_counts,
+                metrics_by_size={"SGFA Log-Likelihood": sgfa_likelihoods},
+                title="Multi-view Capability Assessment",
+                xlabel="Number of Views",
+                ylabel="Log-Likelihood"
+            )
+            plots["multiview_likelihood"] = likelihood_fig
 
             # Feature dimensions handled
             total_features = [
                 sum(results[f"{n}_views"]["view_dimensions"]) for n in view_counts
             ]
-            axes[1].plot(view_counts, total_features, "s-", color="red")
-            axes[1].set_title("Total Features vs Number of Views")
-            axes[1].set_xlabel("Number of Views")
-            axes[1].set_ylabel("Total Features")
-
-            plt.tight_layout()
-            plots["multiview_comparison"] = fig
+            features_fig = self.comparison_viz.plot_scalability_analysis(
+                data_sizes=view_counts,
+                metrics_by_size={"Total Features": total_features},
+                title="Feature Scaling with Multi-view",
+                xlabel="Number of Views",
+                ylabel="Total Features"
+            )
+            plots["multiview_features"] = features_fig
 
         except Exception as e:
-            self.logger.warning(
-                f"Failed to create multi-view comparison plots: {str(e)}"
-            )
+            self.logger.warning(f"Failed to create multi-view comparison plots: {str(e)}")
 
         return plots
 
     def _plot_scalability_comparison(self, results: Dict) -> Dict:
-        """Generate plots for scalability comparison."""
+        """Generate plots for scalability comparison using ComparisonVisualizer."""
         plots = {}
 
         try:
-            # Scalability plots
-            fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-            fig.suptitle("Scalability Comparison", fontsize=16)
-
             # Sample size scalability - execution time
             sample_results = results["sample_scalability"]
             sample_sizes = sorted(sample_results.keys())
-
             methods = list(next(iter(sample_results.values())).keys())
 
+            # Build metrics_by_size dict for execution time
+            time_metrics = {}
             for method in methods:
-                times = [
+                time_metrics[method] = [
                     sample_results[size][method]["execution_time"]
                     for size in sample_sizes
                 ]
-                axes[0, 0].plot(sample_sizes, times, "o-", label=method)
 
-            axes[0, 0].set_title("Execution Time vs Sample Size")
-            axes[0, 0].set_xlabel("Sample Size")
-            axes[0, 0].set_ylabel("Time (seconds)")
-            axes[0, 0].legend()
-            axes[0, 0].set_xscale("log")
-            axes[0, 0].set_yscale("log")
+            sample_time_fig = self.comparison_viz.plot_scalability_analysis(
+                data_sizes=sample_sizes,
+                metrics_by_size=time_metrics,
+                title="Execution Time vs Sample Size",
+                xlabel="Sample Size",
+                ylabel="Time (seconds)",
+                log_x=True,
+                log_y=True
+            )
+            plots["sample_time_scalability"] = sample_time_fig
 
             # Sample size scalability - memory
+            memory_metrics = {}
             for method in methods:
-                memory = [
+                memory_metrics[method] = [
                     sample_results[size][method]["peak_memory_gb"]
                     for size in sample_sizes
                 ]
-                axes[0, 1].plot(sample_sizes, memory, "s-", label=method)
 
-            axes[0, 1].set_title("Memory Usage vs Sample Size")
-            axes[0, 1].set_xlabel("Sample Size")
-            axes[0, 1].set_ylabel("Memory (GB)")
-            axes[0, 1].legend()
-            axes[0, 1].set_xscale("log")
+            sample_memory_fig = self.comparison_viz.plot_scalability_analysis(
+                data_sizes=sample_sizes,
+                metrics_by_size=memory_metrics,
+                title="Memory Usage vs Sample Size",
+                xlabel="Sample Size",
+                ylabel="Memory (GB)",
+                log_x=True
+            )
+            plots["sample_memory_scalability"] = sample_memory_fig
 
             # Feature size scalability - execution time
             feature_results = results["feature_scalability"]
             feature_sizes = sorted(feature_results.keys())
 
+            feature_time_metrics = {}
             for method in methods:
-                times = [
+                feature_time_metrics[method] = [
                     feature_results[size][method]["execution_time"]
                     for size in feature_sizes
                 ]
-                axes[1, 0].plot(feature_sizes, times, "o-", label=method)
 
-            axes[1, 0].set_title("Execution Time vs Feature Size")
-            axes[1, 0].set_xlabel("Feature Size")
-            axes[1, 0].set_ylabel("Time (seconds)")
-            axes[1, 0].legend()
-            axes[1, 0].set_xscale("log")
-            axes[1, 0].set_yscale("log")
+            feature_time_fig = self.comparison_viz.plot_scalability_analysis(
+                data_sizes=feature_sizes,
+                metrics_by_size=feature_time_metrics,
+                title="Execution Time vs Feature Size",
+                xlabel="Feature Size",
+                ylabel="Time (seconds)",
+                log_x=True,
+                log_y=True
+            )
+            plots["feature_time_scalability"] = feature_time_fig
 
             # Feature size scalability - memory
+            feature_memory_metrics = {}
             for method in methods:
-                memory = [
+                feature_memory_metrics[method] = [
                     feature_results[size][method]["peak_memory_gb"]
                     for size in feature_sizes
                 ]
-                axes[1, 1].plot(feature_sizes, memory, "s-", label=method)
 
-            axes[1, 1].set_title("Memory Usage vs Feature Size")
-            axes[1, 1].set_xlabel("Feature Size")
-            axes[1, 1].set_ylabel("Memory (GB)")
-            axes[1, 1].legend()
-            axes[1, 1].set_xscale("log")
-
-            plt.tight_layout()
-            plots["scalability_comparison"] = fig
+            feature_memory_fig = self.comparison_viz.plot_scalability_analysis(
+                data_sizes=feature_sizes,
+                metrics_by_size=feature_memory_metrics,
+                title="Memory Usage vs Feature Size",
+                xlabel="Feature Size",
+                ylabel="Memory (GB)",
+                log_x=True
+            )
+            plots["feature_memory_scalability"] = feature_memory_fig
 
         except Exception as e:
-            self.logger.warning(
-                f"Failed to create scalability comparison plots: {str(e)}"
-            )
+            self.logger.warning(f"Failed to create scalability comparison plots: {str(e)}")
 
         return plots
 
@@ -1558,13 +1469,11 @@ class SGFAParameterComparison(ExperimentFramework):
         return analysis
 
     def _plot_sgfa_scalability_analysis(self, results: Dict) -> Dict:
-        """Generate comprehensive SGFA scalability plots."""
+        """Generate comprehensive SGFA scalability plots using ComparisonVisualizer."""
         plots = {}
 
         try:
-            import matplotlib.pyplot as plt
-
-            # Sample scalability plot
+            # Sample scalability plots
             sample_results = results.get("sample_scalability", {})
             if sample_results:
                 successful_samples = {k: v for k, v in sample_results.items() if "error" not in v}
@@ -1573,24 +1482,27 @@ class SGFAParameterComparison(ExperimentFramework):
                     times = [v["performance_metrics"]["execution_time"] for v in successful_samples.values()]
                     memories = [v["performance_metrics"]["peak_memory_gb"] for v in successful_samples.values()]
 
-                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                    # Time scalability
+                    time_fig = self.comparison_viz.plot_scalability_analysis(
+                        data_sizes=sample_sizes,
+                        metrics_by_size={"Execution Time": times},
+                        title="SGFA Sample Scalability - Time",
+                        xlabel="Sample Size",
+                        ylabel="Execution Time (seconds)"
+                    )
+                    plots["sample_time_scalability"] = time_fig
 
-                    ax1.plot(sample_sizes, times, 'bo-', linewidth=2, markersize=8)
-                    ax1.set_xlabel('Sample Size')
-                    ax1.set_ylabel('Execution Time (seconds)')
-                    ax1.set_title('SGFA Sample Scalability - Time')
-                    ax1.grid(True, alpha=0.3)
+                    # Memory scalability
+                    memory_fig = self.comparison_viz.plot_scalability_analysis(
+                        data_sizes=sample_sizes,
+                        metrics_by_size={"Peak Memory": memories},
+                        title="SGFA Sample Scalability - Memory",
+                        xlabel="Sample Size",
+                        ylabel="Peak Memory (GB)"
+                    )
+                    plots["sample_memory_scalability"] = memory_fig
 
-                    ax2.plot(sample_sizes, memories, 'ro-', linewidth=2, markersize=8)
-                    ax2.set_xlabel('Sample Size')
-                    ax2.set_ylabel('Peak Memory (GB)')
-                    ax2.set_title('SGFA Sample Scalability - Memory')
-                    ax2.grid(True, alpha=0.3)
-
-                    plt.tight_layout()
-                    plots["sample_scalability"] = fig
-
-            # Component scalability plot
+            # Component scalability plots
             component_results = results.get("component_scalability", {})
             if component_results:
                 successful_components = {k: v for k, v in component_results.items() if "error" not in v}
@@ -1599,22 +1511,25 @@ class SGFAParameterComparison(ExperimentFramework):
                     times = [v["performance_metrics"]["execution_time"] for v in successful_components.values()]
                     memories = [v["performance_metrics"]["peak_memory_gb"] for v in successful_components.values()]
 
-                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                    # Time scalability
+                    time_fig = self.comparison_viz.plot_scalability_analysis(
+                        data_sizes=K_values,
+                        metrics_by_size={"Execution Time": times},
+                        title="SGFA Component Scalability - Time",
+                        xlabel="Number of Factors (K)",
+                        ylabel="Execution Time (seconds)"
+                    )
+                    plots["component_time_scalability"] = time_fig
 
-                    ax1.plot(K_values, times, 'go-', linewidth=2, markersize=8)
-                    ax1.set_xlabel('Number of Factors (K)')
-                    ax1.set_ylabel('Execution Time (seconds)')
-                    ax1.set_title('SGFA Component Scalability - Time')
-                    ax1.grid(True, alpha=0.3)
-
-                    ax2.plot(K_values, memories, 'mo-', linewidth=2, markersize=8)
-                    ax2.set_xlabel('Number of Factors (K)')
-                    ax2.set_ylabel('Peak Memory (GB)')
-                    ax2.set_title('SGFA Component Scalability - Memory')
-                    ax2.grid(True, alpha=0.3)
-
-                    plt.tight_layout()
-                    plots["component_scalability"] = fig
+                    # Memory scalability
+                    memory_fig = self.comparison_viz.plot_scalability_analysis(
+                        data_sizes=K_values,
+                        metrics_by_size={"Peak Memory": memories},
+                        title="SGFA Component Scalability - Memory",
+                        xlabel="Number of Factors (K)",
+                        ylabel="Peak Memory (GB)"
+                    )
+                    plots["component_memory_scalability"] = memory_fig
 
         except Exception as e:
             self.logger.warning(f"Failed to generate scalability plots: {str(e)}")
