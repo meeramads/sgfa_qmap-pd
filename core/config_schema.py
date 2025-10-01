@@ -37,6 +37,7 @@ class PreprocessingStrategy(Enum):
     STANDARD = "standard"
     ADVANCED = "advanced"
     CLINICAL_FOCUSED = "clinical_focused"
+    DIFFERENTIATED_IMAGING_CLINICAL = "differentiated_imaging_clinical"
 
 
 @dataclass

@@ -50,13 +50,13 @@ model:
 # Preprocessing Configuration (OPTIONAL)
 # Controls data preprocessing and feature selection
 preprocessing:
-  strategy: "standard"                   # "minimal"|"standard"|"advanced"|"clinical_focused"
-  enable_advanced_preprocessing: true    # Enable advanced preprocessing pipeline
-  enable_spatial_processing: true       # Enable neuroimaging spatial processing
-  imputation_strategy: "median"         # "mean"|"median"|"mode"|"drop"
-  feature_selection_method: "variance"  # "variance"|"correlation"|"mutual_info"|"none"
-  variance_threshold: 0.01              # Remove features with variance < threshold (0.0-1.0)
-  missing_threshold: 0.5                # Remove features with >threshold missing (0.0-1.0)
+  strategy: "differentiated_imaging_clinical"  # TEST: differentiated preprocessing for imaging vs clinical
+  enable_advanced_preprocessing: false  # Disable to preserve spatial integrity
+  enable_spatial_processing: false      # CRITICAL: Disabled to preserve voxel spatial mapping
+  imputation_strategy: "median"         # Handle missing values without removing voxels
+  feature_selection_method: "none"      # CRITICAL: no feature removal to preserve spatial mapping
+  variance_threshold: 0.0               # Don't remove any voxels based on variance
+  missing_threshold: 1.0                # Don't remove any voxels based on missing data
 
 # Cross-Validation Configuration (OPTIONAL)
 # Configures model evaluation and validation
@@ -117,6 +117,24 @@ data_validation:
       feature_selection_method: "combined"
       n_top_features: 500
       variance_threshold: 0.01
+
+    spatial_preserving:
+      enable_advanced_preprocessing: false
+      enable_spatial_processing: false
+      imputation_strategy: "median"
+      feature_selection_method: "none"
+      variance_threshold: 0.0
+      missing_threshold: 1.0
+
+    differentiated_imaging_clinical:
+      enable_advanced_preprocessing: true
+      enable_spatial_processing: false
+      imputation_strategy: "median"
+      feature_selection_method: "clinical_only"    # NEW: Only apply feature selection to clinical data
+      variance_threshold: 0.01
+      missing_threshold: 0.5
+      imaging_preserve_voxels: true                # NEW: Preserve all imaging voxels for spatial mapping
+      clinical_enable_outlier_removal: true        # NEW: Allow outlier removal for clinical data only
 
     optimized:
       enable_advanced_preprocessing: true

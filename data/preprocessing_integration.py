@@ -90,7 +90,12 @@ def get_advanced_preprocessing_data(
         )
 
         # Determine preprocessing approach
-        if not strategy_config.get("enable_advanced_preprocessing", False):
+        if preprocessing_strategy == "differentiated_imaging_clinical":
+            logger.info("Using differentiated preprocessing (imaging vs clinical)")
+            return _apply_differentiated_preprocessing(
+                X_list_raw, view_names, strategy_config, data_dir
+            )
+        elif not strategy_config.get("enable_advanced_preprocessing", False):
             logger.info("Using minimal preprocessing (basic scaling only)")
             return _apply_minimal_preprocessing(X_list_raw, view_names, strategy_config)
         else:
@@ -427,3 +432,92 @@ def apply_preprocessing_to_pipeline(
             "error": str(e),
         }
         return basic_data["X_list"], fallback_info
+
+
+def _apply_differentiated_preprocessing(
+    X_list: List[np.ndarray],
+    view_names: List[str],
+    strategy_config: Dict,
+    data_dir: str,
+) -> Tuple[List[np.ndarray], Dict]:
+    """Apply differentiated preprocessing for imaging vs clinical data."""
+    try:
+        from data.preprocessing import NeuroImagingConfig, NeuroImagingPreprocessor
+        from sklearn.preprocessing import RobustScaler
+        from sklearn.impute import SimpleImputer
+
+        logger.info("Applying differentiated preprocessing (imaging vs clinical)...")
+
+        X_processed = []
+        steps_applied = []
+
+        for i, (X, view_name) in enumerate(zip(X_list, view_names)):
+            logger.info(f"Processing view: {view_name} (shape: {X.shape})")
+
+            # Determine if this is imaging or clinical data
+            is_imaging = _is_imaging_view(view_name)
+
+            if is_imaging:
+                logger.info(f"  → IMAGING data: preserving spatial structure")
+                # For imaging: minimal processing to preserve spatial mapping
+
+                # Only basic scaling and imputation, NO outlier removal or feature selection
+                # Imputation only
+                imputer = SimpleImputer(strategy=strategy_config.get("imputation_strategy", "median"))
+                X_imputed = imputer.fit_transform(X)
+
+                # Scaling only
+                scaler = RobustScaler()
+                X_scaled = scaler.fit_transform(X_imputed)
+
+                X_processed.append(X_scaled)
+                steps_applied.extend(["imaging_imputation", "imaging_scaling"])
+
+                logger.info(f"  → Preserved all {X.shape[1]} imaging voxels for spatial mapping")
+
+            else:
+                logger.info(f"  → CLINICAL data: applying comprehensive preprocessing")
+                # For clinical: full preprocessing including outlier removal and feature selection
+
+                clinical_config = NeuroImagingConfig(
+                    imputation_strategy=strategy_config.get("imputation_strategy", "median"),
+                    feature_selection_method=strategy_config.get("feature_selection_method", "variance"),
+                    variance_threshold=strategy_config.get("variance_threshold", 0.01),
+                    missing_threshold=strategy_config.get("missing_threshold", 0.5),
+                    enable_spatial_processing=False,  # Clinical data isn't spatial
+                )
+
+                # Apply full preprocessing to clinical data
+                clinical_preprocessor = NeuroImagingPreprocessor(data_dir=data_dir, **clinical_config.to_dict())
+                X_clinical_processed = clinical_preprocessor.fit_transform([X], [view_name])
+                X_processed.append(X_clinical_processed[0])
+
+                steps_applied.extend(["clinical_imputation", "clinical_scaling", "clinical_feature_selection"])
+
+                logger.info(f"  → Clinical features: {X.shape[1]} → {X_clinical_processed[0].shape[1]}")
+
+        # Collect preprocessing information
+        preprocessing_info = {
+            "status": "completed",
+            "strategy": "differentiated_imaging_clinical",
+            "steps_applied": list(set(steps_applied)),
+            "preprocessing_type": "DifferentiatedPreprocessor",
+        }
+
+        logger.info("✅ Differentiated preprocessing completed")
+        logger.info(f"   Applied steps: {preprocessing_info['steps_applied']}")
+
+        return X_processed, preprocessing_info
+
+    except Exception as e:
+        logger.error(f"Differentiated preprocessing failed: {e}")
+        logger.info("Falling back to basic preprocessing...")
+        return _apply_basic_preprocessing(X_list, view_names, strategy_config)
+
+
+def _is_imaging_view(view_name: str) -> bool:
+    """Check if view contains imaging data."""
+    imaging_keywords = [
+        "imaging", "volume_", "sn", "putamen", "lentiform", "bg-all", "voxels"
+    ]
+    return any(keyword in view_name.lower() for keyword in imaging_keywords)
