@@ -554,13 +554,41 @@ def run_performance_benchmarks_debug():
         # 1. Data Loading Performance
         logger.info("Benchmark 1: Data loading...")
         load_start = time.time()
-        X_list = load_qmap_pd(data_dir)
+        result = load_qmap_pd(data_dir)
         load_time = time.time() - load_start
+
+        # Handle different return types (same as model comparison debug)
+        if isinstance(result, dict):
+            logger.info(f"Data loading returned dict with keys: {list(result.keys())}")
+            if 'X_list' in result:
+                X_list = result['X_list']
+            elif 'processed_data' in result:
+                X_list = result['processed_data']
+            else:
+                # Extract data from dictionary structure
+                X_list = []
+                for key in sorted(result.keys()):
+                    if key.startswith('X') or 'data' in key.lower():
+                        data = result[key]
+                        if hasattr(data, 'shape'):
+                            X_list.append(data)
+                if not X_list:
+                    raise ValueError(f"Could not extract data arrays from dict keys: {list(result.keys())}")
+        else:
+            X_list = result
 
         post_load_memory = process.memory_info().rss / 1024 / 1024
         load_memory_delta = post_load_memory - initial_memory
 
-        data_size_mb = sum(X.nbytes for X in X_list) / 1024 / 1024
+        # Calculate data size safely
+        data_size_mb = 0
+        for X in X_list:
+            if hasattr(X, 'nbytes'):
+                data_size_mb += X.nbytes
+            elif hasattr(X, 'shape') and hasattr(X, 'dtype'):
+                # Estimate size for array-like objects
+                data_size_mb += np.prod(X.shape) * X.dtype.itemsize
+        data_size_mb = data_size_mb / 1024 / 1024
         load_efficiency = data_size_mb / load_memory_delta if load_memory_delta > 0 else 0
 
         benchmarks["data_loading"] = {
@@ -592,6 +620,9 @@ def run_performance_benchmarks_debug():
                 import argparse
                 args = argparse.Namespace()
                 args.model = "sparseGFA"
+                args.num_sources = len(X_list)
+                args.K = K
+                args.reghsZ = False
 
                 Dm = [X.shape[1] for X in X_list]
 
@@ -604,7 +635,7 @@ def run_performance_benchmarks_debug():
                 rng_key = random.PRNGKey(42)
                 kernel = NUTS(models, target_accept_prob=0.8)
                 mcmc = MCMC(kernel, num_warmup=5, num_samples=10, num_chains=1)
-                mcmc.run(rng_key, X_list, K, hypers, args)
+                mcmc.run(rng_key, X_list, hypers, args)
 
                 samples = mcmc.get_samples()
                 result = {"converged": True, "samples": samples}
@@ -1101,6 +1132,9 @@ def run_clinical_validation_debug():
             import argparse
             args = argparse.Namespace()
             args.model = "sparseGFA"
+            args.num_sources = len(X_list)
+            args.K = 3
+            args.reghsZ = False
 
             K = 3
             Dm = [X.shape[1] for X in X_list]
@@ -1114,7 +1148,7 @@ def run_clinical_validation_debug():
             rng_key = random.PRNGKey(42)
             kernel = NUTS(models, target_accept_prob=0.8)
             mcmc = MCMC(kernel, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc.run(rng_key, X_list, K, hypers, args)
+            mcmc.run(rng_key, X_list, hypers, args)
 
             samples = mcmc.get_samples()
             sgfa_result = {"converged": True, "samples": samples}
