@@ -152,12 +152,12 @@ data_validation:
 method_comparison:
   models:
     - name: "sparse_gfa"
-      n_factors: [5, 8, 10]              # Different factor numbers to test
+      n_factors: [3, 5, 8, 10]           # Unified K values (memory-optimized)
       sparsity_lambda: [0.01, 0.1, 0.5]  # Different sparsity levels
       group_lambda: [0.1, 0.5]           # Group sparsity options
 
     - name: "standard_gfa"
-      n_factors: [5, 8, 10]              # For comparison with sparse version
+      n_factors: [3, 5, 8, 10]           # Unified K values for comparison
 
   cross_validation:
     n_folds: 5                          # Cross-validation for model comparison

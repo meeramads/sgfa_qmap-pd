@@ -1577,9 +1577,9 @@ def run_method_comparison(config):
 
             # Extract K values and percW values from config
             if models_config and len(models_config) > 0:
-                K_values = models_config[0].get("n_factors", [5, 10, 15])
+                K_values = models_config[0].get("n_factors", [3, 5, 8, 10])
             else:
-                K_values = [5, 10, 15]  # Default fallback
+                K_values = [3, 5, 8, 10]  # Default fallback (memory-optimized)
 
             percW_values = [25.0, 33.0, 50.0]  # Different sparsity levels
 
