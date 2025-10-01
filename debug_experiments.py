@@ -844,7 +844,27 @@ def run_reproducibility_debug():
 
         logger.info("Testing reproducibility across multiple dimensions...")
         data_dir = get_data_dir(config)
-        X_list = load_qmap_pd(data_dir)
+        result = load_qmap_pd(data_dir)
+
+        # Handle different return types (same as other debug functions)
+        if isinstance(result, dict):
+            logger.info(f"Data loading returned dict with keys: {list(result.keys())}")
+            if 'X_list' in result:
+                X_list = result['X_list']
+            elif 'processed_data' in result:
+                X_list = result['processed_data']
+            else:
+                # Extract data from dictionary structure
+                X_list = []
+                for key in sorted(result.keys()):
+                    if key.startswith('X') or 'data' in key.lower():
+                        data = result[key]
+                        if hasattr(data, 'shape'):
+                            X_list.append(data)
+                if not X_list:
+                    raise ValueError(f"Could not extract data arrays from dict keys: {list(result.keys())}")
+        else:
+            X_list = result
 
         issues = []
         tests = {}
@@ -856,6 +876,9 @@ def run_reproducibility_debug():
             import argparse
             args = argparse.Namespace()
             args.model = "sparseGFA"
+            args.num_sources = len(X_list)
+            args.K = 3
+            args.reghsZ = False
 
             K = 3
             Dm = [X.shape[1] for X in X_list]
@@ -870,7 +893,7 @@ def run_reproducibility_debug():
             rng_key1 = random.PRNGKey(42)
             kernel1 = NUTS(models, target_accept_prob=0.8)
             mcmc1 = MCMC(kernel1, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc1.run(rng_key1, X_list, K, hypers, args)
+            mcmc1.run(rng_key1, X_list, hypers, args)
             samples1 = mcmc1.get_samples()
             result1 = {"converged": True, "samples": samples1}
 
@@ -878,7 +901,7 @@ def run_reproducibility_debug():
             rng_key2 = random.PRNGKey(42)
             kernel2 = NUTS(models, target_accept_prob=0.8)
             mcmc2 = MCMC(kernel2, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc2.run(rng_key2, X_list, K, hypers, args)
+            mcmc2.run(rng_key2, X_list, hypers, args)
             samples2 = mcmc2.get_samples()
             result2 = {"converged": True, "samples": samples2}
 
@@ -910,18 +933,34 @@ def run_reproducibility_debug():
         # 2. Test different seeds produce different results
         logger.info("Test 2: Different seeds produce different results...")
         try:
+            # Setup args and hypers again for this test
+            import argparse
+            args = argparse.Namespace()
+            args.model = "sparseGFA"
+            args.num_sources = len(X_list)
+            args.K = 3
+            args.reghsZ = False
+
+            K = 3
+            Dm = [X.shape[1] for X in X_list]
+            hypers = {
+                'Dm': Dm,
+                'a_sigma': 1.0, 'b_sigma': 1.0,
+                'percW': 25.0, 'slab_df': 4.0, 'slab_scale': 1.0
+            }
+
             # Run with different seeds
             rng_key42 = random.PRNGKey(42)
             kernel42 = NUTS(models, target_accept_prob=0.8)
             mcmc42 = MCMC(kernel42, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc42.run(rng_key42, X_list, K, hypers, args)
+            mcmc42.run(rng_key42, X_list, hypers, args)
             samples42 = mcmc42.get_samples()
             result_seed42 = {"converged": True, "samples": samples42}
 
             rng_key99 = random.PRNGKey(99)
             kernel99 = NUTS(models, target_accept_prob=0.8)
             mcmc99 = MCMC(kernel99, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc99.run(rng_key99, X_list, K, hypers, args)
+            mcmc99.run(rng_key99, X_list, hypers, args)
             samples99 = mcmc99.get_samples()
             result_seed99 = {"converged": True, "samples": samples99}
 
@@ -948,6 +987,22 @@ def run_reproducibility_debug():
         # 3. Test data perturbation robustness
         logger.info("Test 3: Data perturbation robustness...")
         try:
+            # Setup args and hypers again for this test
+            import argparse
+            args = argparse.Namespace()
+            args.model = "sparseGFA"
+            args.num_sources = len(X_list)
+            args.K = 3
+            args.reghsZ = False
+
+            K = 3
+            Dm = [X.shape[1] for X in X_list]
+            hypers = {
+                'Dm': Dm,
+                'a_sigma': 1.0, 'b_sigma': 1.0,
+                'percW': 25.0, 'slab_df': 4.0, 'slab_scale': 1.0
+            }
+
             # Add tiny noise to data
             X_list_perturbed = [X + np.random.normal(0, 1e-10, X.shape) for X in X_list]
 
@@ -955,7 +1010,7 @@ def run_reproducibility_debug():
             rng_key_orig = random.PRNGKey(42)
             kernel_orig = NUTS(models, target_accept_prob=0.8)
             mcmc_orig = MCMC(kernel_orig, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc_orig.run(rng_key_orig, X_list, K, hypers, args)
+            mcmc_orig.run(rng_key_orig, X_list, hypers, args)
             samples_orig = mcmc_orig.get_samples()
             result_original = {"converged": True, "samples": samples_orig}
 
@@ -963,7 +1018,7 @@ def run_reproducibility_debug():
             rng_key_pert = random.PRNGKey(42)
             kernel_pert = NUTS(models, target_accept_prob=0.8)
             mcmc_pert = MCMC(kernel_pert, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc_pert.run(rng_key_pert, X_list_perturbed, K, hypers, args)
+            mcmc_pert.run(rng_key_pert, X_list_perturbed, hypers, args)
             samples_pert = mcmc_pert.get_samples()
             result_perturbed = {"converged": True, "samples": samples_pert}
 
@@ -990,11 +1045,27 @@ def run_reproducibility_debug():
         # 4. Test serialization reproducibility
         logger.info("Test 4: Serialization reproducibility...")
         try:
+            # Setup args and hypers again for this test
+            import argparse
+            args = argparse.Namespace()
+            args.model = "sparseGFA"
+            args.num_sources = len(X_list)
+            args.K = 3
+            args.reghsZ = False
+
+            K = 3
+            Dm = [X.shape[1] for X in X_list]
+            hypers = {
+                'Dm': Dm,
+                'a_sigma': 1.0, 'b_sigma': 1.0,
+                'percW': 25.0, 'slab_df': 4.0, 'slab_scale': 1.0
+            }
+
             # Run fresh model
             rng_key_fresh = random.PRNGKey(42)
             kernel_fresh = NUTS(models, target_accept_prob=0.8)
             mcmc_fresh = MCMC(kernel_fresh, num_warmup=10, num_samples=20, num_chains=1)
-            mcmc_fresh.run(rng_key_fresh, X_list, K, hypers, args)
+            mcmc_fresh.run(rng_key_fresh, X_list, hypers, args)
             samples_fresh = mcmc_fresh.get_samples()
             result_fresh = {"converged": True, "samples": samples_fresh}
 
