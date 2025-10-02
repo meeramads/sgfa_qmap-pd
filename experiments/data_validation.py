@@ -1370,6 +1370,7 @@ class DataValidationExperiments(ExperimentFramework):
         self, raw_data: Dict, preprocessed_data: Dict, results: Dict
     ) -> Dict:
         """Generate basic data validation plots and return as matplotlib figures."""
+        logger.info("📊 Generating data validation plots...")
         plots = {}
 
         try:
@@ -1389,6 +1390,7 @@ class DataValidationExperiments(ExperimentFramework):
 
                 if clinical_views:
                     n_views = len(clinical_views)
+                    logger.info(f"   Creating distribution histograms for {n_views} clinical view(s), skipping {len(raw_data['X_list']) - n_views} imaging views")
                     fig, axes = plt.subplots(2, n_views, figsize=(5*n_views, 10))
                     if n_views == 1:
                         axes = axes.reshape(-1, 1)
@@ -1411,10 +1413,11 @@ class DataValidationExperiments(ExperimentFramework):
 
                     plt.tight_layout()
                     plots["data_distribution_comparison"] = fig
-                    logger.info(f"Created distribution plots for {n_views} clinical view(s), skipped {len(raw_data['X_list']) - n_views} imaging views")
+                    logger.info(f"   ✅ Distribution histograms created")
 
             # Quality metrics summary plot
             if "quality_metrics" in results:
+                logger.info("   Creating quality metrics summary plot...")
                 fig, ax = plt.subplots(figsize=(10, 6))
 
                 metrics_names = []
@@ -1434,10 +1437,12 @@ class DataValidationExperiments(ExperimentFramework):
                     ax.tick_params(axis="x", rotation=45)
                     plt.tight_layout()
                     plots["quality_metrics_summary"] = fig
+                    logger.info(f"   ✅ Quality metrics plot created ({len(metrics_names)} metrics)")
 
         except Exception as e:
             logger.warning(f"Failed to create data validation plots: {e}")
 
+        logger.info(f"📊 Basic data validation plots completed: {len(plots)} plots generated")
         return plots
 
     def _create_comprehensive_data_validation_visualizations(
@@ -1493,13 +1498,17 @@ class DataValidationExperiments(ExperimentFramework):
             }
 
             # Focus on preprocessing visualizations
+            logger.info("   Creating preprocessing quality visualizations...")
             viz_manager.preprocessing_viz.create_plots(
                 data["preprocessing"], viz_manager.plot_dir
             )
+            logger.info("   ✅ Preprocessing visualizations created")
 
             # Extract the generated plots and convert to matplotlib figures
+            logger.info("   Loading and converting generated plots to figures...")
             if hasattr(viz_manager, "plot_dir") and viz_manager.plot_dir.exists():
                 plot_files = list(viz_manager.plot_dir.glob("**/*.png"))
+                logger.info(f"   Found {len(plot_files)} plot files to convert")
 
                 for plot_file in plot_files:
                     plot_name = f"data_validation_{plot_file.stem}"
@@ -1522,10 +1531,7 @@ class DataValidationExperiments(ExperimentFramework):
                         )
 
                 logger.info(
-                    f"✅ Created { len(plot_files)} comprehensive data validation visualizations"
-                )
-                logger.info(
-                    "   → Preprocessing quality and optimization plots generated"
+                    f"   ✅ Created {len(plot_files)} comprehensive data validation visualizations"
                 )
 
             else:
@@ -1538,6 +1544,7 @@ class DataValidationExperiments(ExperimentFramework):
                 f"Failed to create comprehensive data validation visualizations: {e}"
             )
 
+        logger.info(f"🎨 Comprehensive data validation plots completed: {len(advanced_plots)} advanced plots generated")
         return advanced_plots
 
     def _create_failure_result(
