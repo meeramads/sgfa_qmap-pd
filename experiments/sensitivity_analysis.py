@@ -1390,7 +1390,7 @@ def run_sensitivity_analysis(config):
         framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
-            experiment_id="sensitivity_analysis",
+            experiment_name="sensitivity_analysis",
             description="Hyperparameter sensitivity analysis for SGFA",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
