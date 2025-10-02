@@ -336,7 +336,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.logger.info(f"💾 Running MCMC with checkpointing every {checkpoint_interval} samples")
 
         # Try to resume from checkpoint
-        checkpoint = self._load_checkpoint(experiment_name)
+        checkpoint = self._load_checkpoint(experiment_id)
         if checkpoint:
             self.logger.info(f"🔄 Resuming from checkpoint at iteration {checkpoint['iteration']}")
             # For now, we'll start fresh but this could be extended to actually resume
@@ -356,7 +356,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 "num_samples": num_samples,
                 "completed": True,
             }
-            self._save_checkpoint(experiment_name, num_samples, mcmc_state, {"status": "completed"})
+            self._save_checkpoint(experiment_id, num_samples, mcmc_state, {"status": "completed"})
 
         return mcmc
 

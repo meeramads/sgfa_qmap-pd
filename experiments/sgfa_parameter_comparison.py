@@ -339,7 +339,7 @@ class SGFAParameterComparison(ExperimentFramework):
                     })
 
                     # Run SGFA with these parameters
-                    result = self._run_sgfa_variant(X_list, trial_hypers, trial_args, **kwargs)
+                    result = self._run_sgfa_variant(X_list, trial_hypers, trial_args)
 
                     if not result.get('convergence', False):
                         return -1000.0  # Heavy penalty for non-convergence
@@ -400,7 +400,7 @@ class SGFAParameterComparison(ExperimentFramework):
                 'model': 'sparseGFA'
             })
 
-            final_result = self._run_sgfa_variant(X_list, final_hypers, final_args, **kwargs)
+            final_result = self._run_sgfa_variant(X_list, final_hypers, final_args)
 
             # Compile comprehensive results
             results = {
