@@ -1342,8 +1342,10 @@ class ExperimentFramework:
                 from jax._src import compilation_cache
                 compilation_cache.clear_cache()
                 logger.info("JAX compilation cache cleared")
-            except Exception as e:
-                logger.warning(f"Could not clear JAX cache: {e}")
+            except Exception:
+                # Silently ignore - newer JAX versions don't have this internal API
+                # jax.clear_caches() below handles cache clearing
+                pass
 
             # Force multiple garbage collection cycles
             for i in range(5):
