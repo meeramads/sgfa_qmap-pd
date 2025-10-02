@@ -100,7 +100,7 @@ def run_data_validation(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Run full data validation with EDA plots
+        # Run comprehensive data validation with EDA plots
         logger.info("Running comprehensive data validation with EDA plots...")
 
         # Initialize experiment framework
@@ -126,6 +126,7 @@ def run_data_validation(config):
             plots_dir = Path(output_dir) / "plots"
             plots_dir.mkdir(exist_ok=True, parents=True)
 
+            import matplotlib.pyplot as plt
             for plot_name, fig in result.plots.items():
                 if fig is not None:
                     plot_path = plots_dir / f"{plot_name}.png"
@@ -143,7 +144,7 @@ def run_data_validation(config):
         return {
             "status": "completed",
             "plots_generated": len(result.plots) if result and result.plots else 0,
-            "analysis": result.analysis if result else {},
+            "analysis": result.diagnostics if result else {},
         }
 
     except Exception as e:
@@ -257,12 +258,12 @@ class DataValidationExperiments(ExperimentFramework):
             plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="data_quality_assessment",
+            experiment_id="data_quality_assessment",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     def _analyze_data_structure(
@@ -998,32 +999,33 @@ class DataValidationExperiments(ExperimentFramework):
                 logger.warning(f"Could not generate comparison plots: {e}")
 
             return ExperimentResult(
-                experiment_name="preprocessing_comparison",
+                experiment_id="preprocessing_comparison",
                 config=self.config,
-                data={
+                model_results={
                     "strategy_results": strategy_results,
                     "strategy_comparison": comparison_analysis,
                     "tested_strategies": list(strategies_config.keys())
                 },
-                analysis={
+                diagnostics={
                     "comparison_summary": comparison_analysis,
                     "recommendations": recommendations,
                     "best_strategy": recommendations.get("best_strategy"),
                     "strategies_tested": len(strategy_results)
                 },
                 plots=plots,
-                success=True,
+                status="completed",
             )
 
         except Exception as e:
             logger.error(f"Preprocessing comparison failed: {e}")
             return ExperimentResult(
-                experiment_name="preprocessing_comparison",
+                experiment_id="preprocessing_comparison",
                 config=self.config,
-                data={"error": str(e)},
-                analysis={"error": str(e)},
+                model_results={"error": str(e)},
+                diagnostics={"error": str(e)},
                 plots={},
-                success=False,
+                status="failed",
+                error_message=str(e),
             )
 
     def _assess_strategy_quality(self, X_list: List[np.ndarray]) -> Dict[str, Any]:
@@ -1525,10 +1527,11 @@ class DataValidationExperiments(ExperimentFramework):
     ) -> ExperimentResult:
         """Create a failure result for data validation experiments."""
         return ExperimentResult(
-            experiment_name=experiment_name,
+            experiment_id=experiment_name,
             config=self.config,
-            data={},
-            analysis={"error": error_message},
+            model_results={},
+            diagnostics={"error": error_message},
             plots={},
-            success=False,
+            status="failed",
+            error_message=error_message,
         )

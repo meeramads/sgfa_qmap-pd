@@ -219,23 +219,24 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 plots = self._plot_neuroimaging_clinical_validation(results, clinical_data)
 
                 return ExperimentResult(
-                    experiment_name="neuroimaging_clinical_validation",
+                    experiment_id="neuroimaging_clinical_validation",
                     config=self.config,
-                    data=results,
-                    analysis=analysis,
+                    model_results=results,
+                    diagnostics=analysis,
                     plots=plots,
-                    success=True,
+                    status="completed",
                 )
 
             except Exception as e:
                 self.logger.error(f"Neuroimaging clinical validation failed: {str(e)}")
                 return ExperimentResult(
-                    experiment_name="neuroimaging_clinical_validation",
+                    experiment_id="neuroimaging_clinical_validation",
                     config=self.config,
-                    data={"error": str(e)},
-                    analysis={},
+                    model_results={"error": str(e)},
+                    diagnostics={},
                     plots={},
-                    success=False,
+                    status="failed",
+                    error_message=str(e),
                 )
 
     def _train_sgfa_with_neuroimaging_cv(
@@ -603,12 +604,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="subtype_classification_validation",
+            experiment_id="subtype_classification_validation",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("pd_subtype_discovery")
@@ -711,12 +712,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
         plots = visualizer.create_pd_subtype_plots(results, Z_sgfa, clinical_data, plot_dir)
 
         return ExperimentResult(
-            experiment_name="pd_subtype_discovery",
+            experiment_id="pd_subtype_discovery",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("disease_progression_validation")
@@ -808,12 +809,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="disease_progression_validation",
+            experiment_id="disease_progression_validation",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("biomarker_discovery_validation")
@@ -879,12 +880,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
         plots = self._plot_biomarker_discovery(results, clinical_outcomes)
 
         return ExperimentResult(
-            experiment_name="biomarker_discovery_validation",
+            experiment_id="biomarker_discovery_validation",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("external_cohort_validation")
@@ -967,12 +968,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
         )
 
         return ExperimentResult(
-            experiment_name="external_cohort_validation",
+            experiment_id="external_cohort_validation",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     def _analyze_subtype_classification(self, results: Dict) -> Dict:
@@ -2014,7 +2015,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
                 # Create all comprehensive visualizations with clinical focus
                 viz_manager.create_all_visualizations(
-                    data=data, analysis_results=analysis_results, cv_results=cv_results
+                    model_results=data, analysis_results=analysis_results, cv_results=cv_results
                 )
 
                 # Extract the generated plots and convert to matplotlib figures
@@ -2561,7 +2562,7 @@ def run_clinical_validation(config):
         framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
-            experiment_name="clinical_validation",
+            experiment_id="clinical_validation",
             description="Clinical validation of SGFA factors for PD subtypes",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
@@ -2770,7 +2771,7 @@ def run_clinical_validation(config):
                                     X_list=X_list,
                                     args=args_namespace,
                                     hypers=base_hypers,
-                                    data={"clinical": clinical_df},
+                                    model_results={"clinical": clinical_df},
                                     cv_type="clinical_stratified"
                                 )
 
@@ -2932,7 +2933,7 @@ def run_clinical_validation(config):
         result = framework.run_experiment(
             experiment_function=clinical_validation_experiment,
             config=exp_config,
-            data={
+            model_results={
                 "X_list": X_list,
                 "preprocessing_info": preprocessing_info,
                 "clinical_labels": clinical_labels,

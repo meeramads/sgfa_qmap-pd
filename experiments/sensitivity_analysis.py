@@ -131,13 +131,13 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="univariate_sensitivity_analysis",
+            experiment_id="univariate_sensitivity_analysis",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
             performance_metrics=performance_metrics,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("multivariate_sensitivity_analysis")
@@ -238,13 +238,13 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         plots = self._plot_multivariate_sensitivity(results, performance_metrics)
 
         return ExperimentResult(
-            experiment_name="multivariate_sensitivity_analysis",
+            experiment_id="multivariate_sensitivity_analysis",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
             performance_metrics=performance_metrics,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("gradient_based_sensitivity")
@@ -336,12 +336,12 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         plots = self._plot_gradient_sensitivity(gradients)
 
         return ExperimentResult(
-            experiment_name="gradient_based_sensitivity",
+            experiment_id="gradient_based_sensitivity",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("robustness_analysis")
@@ -414,12 +414,12 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         plots = self._plot_robustness_analysis(results)
 
         return ExperimentResult(
-            experiment_name="robustness_analysis",
+            experiment_id="robustness_analysis",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     def _get_reduced_range(self, param_name: str, n_values: int = 3) -> List:
@@ -1244,7 +1244,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 
                 # Create comprehensive visualizations with sensitivity focus
                 viz_manager.create_all_visualizations(
-                    data=data, analysis_results=analysis_results, cv_results=cv_results
+                    model_results=data, analysis_results=analysis_results, cv_results=cv_results
                 )
 
                 # Extract and process generated plots
@@ -1390,7 +1390,7 @@ def run_sensitivity_analysis(config):
         framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
-            experiment_name="sensitivity_analysis",
+            experiment_id="sensitivity_analysis",
             description="Hyperparameter sensitivity analysis for SGFA",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
@@ -1674,7 +1674,7 @@ def run_sensitivity_analysis(config):
         result = framework.run_experiment(
             experiment_function=sensitivity_analysis_experiment,
             config=exp_config,
-            data={"X_list": X_list, "preprocessing_info": preprocessing_info},
+            model_results={"X_list": X_list, "preprocessing_info": preprocessing_info},
         )
 
         logger.info("✅ Sensitivity analysis completed successfully")

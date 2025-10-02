@@ -119,13 +119,13 @@ class ReproducibilityExperiments(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="seed_reproducibility_test",
+            experiment_id="seed_reproducibility_test",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
             performance_metrics=performance_metrics,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("data_perturbation_robustness")
@@ -233,12 +233,12 @@ class ReproducibilityExperiments(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="data_perturbation_robustness",
+            experiment_id="data_perturbation_robustness",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("initialization_robustness")
@@ -343,13 +343,13 @@ class ReproducibilityExperiments(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="initialization_robustness",
+            experiment_id="initialization_robustness",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
             performance_metrics=performance_metrics,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("computational_reproducibility_audit")
@@ -418,12 +418,12 @@ class ReproducibilityExperiments(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="computational_reproducibility_audit",
+            experiment_id="computational_reproducibility_audit",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     def _apply_data_perturbation(
@@ -1374,7 +1374,7 @@ class ReproducibilityExperiments(ExperimentFramework):
 
                 # Create comprehensive visualizations with reproducibility focus
                 viz_manager.create_all_visualizations(
-                    data=data, analysis_results=analysis_results, cv_results=cv_results
+                    model_results=data, analysis_results=analysis_results, cv_results=cv_results
                 )
 
                 # Extract and process generated plots
@@ -1568,7 +1568,7 @@ def run_reproducibility(config):
         framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
-            experiment_name="reproducibility_tests",
+            experiment_id="reproducibility_tests",
             description="Reproducibility and robustness testing for SGFA",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
@@ -1858,7 +1858,7 @@ def run_reproducibility(config):
         result = framework.run_experiment(
             experiment_function=reproducibility_experiment,
             config=exp_config,
-            data={"X_list": X_list, "preprocessing_info": preprocessing_info},
+            model_results={"X_list": X_list, "preprocessing_info": preprocessing_info},
         )
 
         logger.info("✅ Reproducibility tests completed successfully")

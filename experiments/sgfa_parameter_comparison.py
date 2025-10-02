@@ -143,13 +143,13 @@ class SGFAParameterComparison(ExperimentFramework):
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_name="sgfa_variant_comparison",
+            experiment_id="sgfa_variant_comparison",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
             performance_metrics=performance_metrics,
-            success=True,
+            status="completed",
         )
 
     # Traditional method comparison removed - available in model_comparison.py
@@ -192,12 +192,12 @@ class SGFAParameterComparison(ExperimentFramework):
         plots = self._plot_multiview_comparison(results)
 
         return ExperimentResult(
-            experiment_name="multiview_capability_assessment",
+            experiment_id="multiview_capability_assessment",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     @experiment_handler("scalability_comparison")
@@ -420,23 +420,24 @@ class SGFAParameterComparison(ExperimentFramework):
             plots = self._plot_hyperparameter_optimization(results)
 
             return ExperimentResult(
-                experiment_name="neuroimaging_hyperparameter_optimization",
+                experiment_id="neuroimaging_hyperparameter_optimization",
                 config=self.config,
-                data=results,
-                analysis=analysis,
+                model_results=results,
+                diagnostics=analysis,
                 plots=plots,
-                success=True,
+                status="completed",
             )
 
         except Exception as e:
             self.logger.error(f"Neuroimaging hyperparameter optimization failed: {str(e)}")
             return ExperimentResult(
-                experiment_name="neuroimaging_hyperparameter_optimization",
+                experiment_id="neuroimaging_hyperparameter_optimization",
                 config=self.config,
-                data={'error': str(e)},
-                analysis={},
+                model_results={'error': str(e)},
+                diagnostics={},
                 plots={},
-                success=False,
+                status="failed",
+                error_message=str(e),
             )
 
     def _generate_synthetic_clinical_data(self, n_subjects: int) -> Dict:

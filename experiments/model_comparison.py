@@ -323,7 +323,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             self.logger.warning(f"⚠️ Failed to load checkpoint: {e}")
             return None
 
-    def _run_mcmc_with_checkpointing(self, mcmc, rng_key, *args, experiment_name="experiment", **kwargs):
+    def _run_mcmc_with_checkpointing(self, mcmc, rng_key, *args, experiment_id="experiment", **kwargs):
         """Run MCMC with periodic checkpointing if enabled."""
         if not self.monitoring_config["save_checkpoints"]:
             # No checkpointing - run normally
@@ -442,10 +442,10 @@ class ModelArchitectureComparison(ExperimentFramework):
         analysis = self._analyze_comprehensive_comparison(results)
 
         return ExperimentResult(
-            experiment_name="comprehensive_model_comparison",
+            experiment_id="comprehensive_model_comparison",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots={},  # Could add plots for parameter exploration
         )
 
@@ -692,7 +692,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             start_time = time.time()
             self._run_mcmc_with_checkpointing(
                 mcmc, rng_key, X_list, hypers, model_args,
-                experiment_name=f"model_architecture_{model_name}",
+                experiment_id=f"model_architecture_{model_name}",
                 extra_fields=("potential_energy",)
             )
             elapsed = time.time() - start_time
@@ -1506,7 +1506,7 @@ class ModelArchitectureComparison(ExperimentFramework):
 
                 # Create all comprehensive visualizations
                 viz_manager.create_all_visualizations(
-                    data=data, analysis_results=analysis_results
+                    model_results=data, analysis_results=analysis_results
                 )
 
                 # Extract the generated plots and create matplotlib figures for the
@@ -1722,12 +1722,12 @@ class ModelArchitectureComparison(ExperimentFramework):
         plots = self._plot_comparative_benchmarks(results)
 
         return ExperimentResult(
-            experiment_name="comparative_benchmarks",
+            experiment_id="comparative_benchmarks",
             config=self.config,
-            data=results,
-            analysis=analysis,
+            model_results=results,
+            diagnostics=analysis,
             plots=plots,
-            success=True,
+            status="completed",
         )
 
     def _run_baseline_method(self, X: np.ndarray, method: str, **kwargs) -> Dict:
@@ -2283,7 +2283,7 @@ def run_model_comparison(config=None, **kwargs):
 
     # Create experiment configuration
     exp_config = ExperimentConfig(
-        experiment_name="methods_comparison",
+        experiment_id="methods_comparison",
         description="Compare sparseGFA against traditional baseline methods"
     )
 
@@ -2320,7 +2320,7 @@ def run_model_comparison(config=None, **kwargs):
     result = framework.run_experiment(
         experiment_function=model_comparison_experiment,
         config=exp_config,
-        data={"X_list": X_list, "hypers": hypers, "args": args},
+        model_results={"X_list": X_list, "hypers": hypers, "args": args},
     )
 
     logger.info("✅ Model comparison completed successfully")

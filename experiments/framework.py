@@ -94,9 +94,9 @@ class ExperimentConfig:
 class ExperimentResult:
     """Container for experiment results."""
 
-    experiment_id: str
-    config: ExperimentConfig
-    start_time: datetime
+    experiment_id: str = ""
+    config: Optional[ExperimentConfig] = None
+    start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     status: str = "running"  # running, completed, failed
     error_message: Optional[str] = None
@@ -111,6 +111,16 @@ class ExperimentResult:
     # Metadata
     data_summary: Dict[str, Any] = field(default_factory=dict)
     convergence_diagnostics: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Auto-populate fields if not provided."""
+        # Auto-set start_time if not provided
+        if self.start_time is None:
+            self.start_time = datetime.now()
+
+        # Auto-set end_time if status is completed/failed but no end_time set
+        if self.end_time is None and self.status in ("completed", "failed"):
+            self.end_time = datetime.now()
 
     def mark_completed(self):
         """Mark experiment as completed."""
