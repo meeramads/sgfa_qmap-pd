@@ -1885,11 +1885,101 @@ def run_sgfa_parameter_comparison(config):
                 f" Total execution time: { sum( m.get( 'execution_time', 0) for m in performance_metrics.values()):.1f}s"
             )
 
+            # Generate plots for parameter comparison
+            logger.info("📊 Generating parameter comparison plots...")
+            plots = method_exp._plot_sgfa_comparison(model_results, performance_metrics)
+
+            # Add detailed parameter grid plot
+            import matplotlib.pyplot as plt
+            try:
+                fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+                fig.suptitle("SGFA Parameter Grid Search Results", fontsize=16)
+
+                # Extract K and percW values from variant names
+                variants = list(model_results.keys())
+                K_vals = []
+                percW_vals = []
+                lls = []
+                times = []
+
+                for variant_name in variants:
+                    # Parse variant name (e.g., "K3_percW10")
+                    parts = variant_name.split('_')
+                    K = int(parts[0].replace('K', ''))
+                    percW = int(parts[1].replace('percW', ''))
+                    K_vals.append(K)
+                    percW_vals.append(percW)
+                    lls.append(model_results[variant_name].get('log_likelihood', float('-inf')))
+                    times.append(performance_metrics[variant_name]['execution_time'])
+
+                # Plot 1: Log-likelihood by K
+                unique_K = sorted(set(K_vals))
+                for percW in sorted(set(percW_vals)):
+                    K_for_percW = [K_vals[i] for i in range(len(K_vals)) if percW_vals[i] == percW]
+                    ll_for_percW = [lls[i] for i in range(len(lls)) if percW_vals[i] == percW]
+                    axes[0, 0].plot(K_for_percW, ll_for_percW, 'o-', label=f'percW={percW}', linewidth=2, markersize=8)
+                axes[0, 0].set_xlabel('Number of Factors (K)')
+                axes[0, 0].set_ylabel('Log Likelihood')
+                axes[0, 0].set_title('Effect of K on Model Quality')
+                axes[0, 0].legend()
+                axes[0, 0].grid(True, alpha=0.3)
+
+                # Plot 2: Log-likelihood by percW
+                for K in unique_K:
+                    percW_for_K = [percW_vals[i] for i in range(len(percW_vals)) if K_vals[i] == K]
+                    ll_for_K = [lls[i] for i in range(len(lls)) if K_vals[i] == K]
+                    axes[0, 1].plot(percW_for_K, ll_for_K, 's-', label=f'K={K}', linewidth=2, markersize=8)
+                axes[0, 1].set_xlabel('Sparsity (percW %)')
+                axes[0, 1].set_ylabel('Log Likelihood')
+                axes[0, 1].set_title('Effect of Sparsity on Model Quality')
+                axes[0, 1].legend()
+                axes[0, 1].grid(True, alpha=0.3)
+
+                # Plot 3: Execution time by K
+                for percW in sorted(set(percW_vals)):
+                    K_for_percW = [K_vals[i] for i in range(len(K_vals)) if percW_vals[i] == percW]
+                    time_for_percW = [times[i] for i in range(len(times)) if percW_vals[i] == percW]
+                    axes[1, 0].plot(K_for_percW, time_for_percW, 'o-', label=f'percW={percW}', linewidth=2, markersize=8)
+                axes[1, 0].set_xlabel('Number of Factors (K)')
+                axes[1, 0].set_ylabel('Execution Time (s)')
+                axes[1, 0].set_title('Computational Cost vs K')
+                axes[1, 0].legend()
+                axes[1, 0].grid(True, alpha=0.3)
+
+                # Plot 4: 2D heatmap of log-likelihood (K vs percW)
+                import numpy as np
+                K_unique = sorted(set(K_vals))
+                percW_unique = sorted(set(percW_vals))
+                ll_grid = np.full((len(K_unique), len(percW_unique)), np.nan)
+                for i, K in enumerate(K_unique):
+                    for j, percW in enumerate(percW_unique):
+                        idx = [idx for idx, (k, p) in enumerate(zip(K_vals, percW_vals)) if k == K and p == percW]
+                        if idx:
+                            ll_grid[i, j] = lls[idx[0]]
+
+                im = axes[1, 1].imshow(ll_grid, aspect='auto', cmap='viridis', origin='lower')
+                axes[1, 1].set_xticks(range(len(percW_unique)))
+                axes[1, 1].set_yticks(range(len(K_unique)))
+                axes[1, 1].set_xticklabels(percW_unique)
+                axes[1, 1].set_yticklabels(K_unique)
+                axes[1, 1].set_xlabel('Sparsity (percW %)')
+                axes[1, 1].set_ylabel('Number of Factors (K)')
+                axes[1, 1].set_title('Parameter Grid Heatmap')
+                plt.colorbar(im, ax=axes[1, 1], label='Log Likelihood')
+
+                plt.tight_layout()
+                plots["parameter_grid_search"] = fig
+                logger.info("✅ Parameter comparison plots generated")
+
+            except Exception as e:
+                logger.warning(f"Failed to create parameter grid plot: {e}")
+
             # Prepare return data before cleanup
             return_data = {
                 "status": "completed",
                 "model_results": all_results,
                 "performance_metrics": performance_metrics,
+                "plots": plots,
                 "models_summary": models_summary,
                 "analysis_summary": analysis_summary,
                 "performance_summary": performance_summary,

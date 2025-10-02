@@ -1760,9 +1760,81 @@ def run_reproducibility(config):
             logger.info("🔄 Reproducibility tests completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
 
+            # Generate reproducibility plots
+            import matplotlib.pyplot as plt
+            plots = {}
+
+            try:
+                # Create reproducibility summary plot
+                fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+                fig.suptitle("Reproducibility and Robustness Analysis", fontsize=16)
+
+                # Plot 1: Seed reproducibility - log likelihood consistency
+                if "seed_reproducibility" in results:
+                    seed_data = results["seed_reproducibility"]
+                    seeds = [seed_data[k]["seed"] for k in sorted(seed_data.keys()) if "error" not in seed_data[k]]
+                    lls = [seed_data[k]["performance"]["log_likelihood"] for k in sorted(seed_data.keys()) if "error" not in seed_data[k]]
+                    if seeds:
+                        axes[0, 0].plot(seeds, lls, 'o-', linewidth=2, markersize=8)
+                        axes[0, 0].set_xlabel("Random Seed")
+                        axes[0, 0].set_ylabel("Log Likelihood")
+                        axes[0, 0].set_title("Seed Reproducibility")
+                        axes[0, 0].grid(True, alpha=0.3)
+
+                # Plot 2: Data perturbation robustness
+                if "data_perturbation" in results:
+                    perturb_data = results["data_perturbation"]
+                    noise_levels = [perturb_data[k]["noise_level"] for k in sorted(perturb_data.keys()) if "error" not in perturb_data[k]]
+                    lls = [perturb_data[k]["performance"]["log_likelihood"] for k in sorted(perturb_data.keys()) if "error" not in perturb_data[k]]
+                    if noise_levels:
+                        axes[0, 1].plot(noise_levels, lls, 's-', linewidth=2, markersize=8)
+                        axes[0, 1].set_xlabel("Noise Level")
+                        axes[0, 1].set_ylabel("Log Likelihood")
+                        axes[0, 1].set_title("Data Perturbation Robustness")
+                        axes[0, 1].grid(True, alpha=0.3)
+
+                # Plot 3: Initialization robustness
+                if "initialization_robustness" in results:
+                    init_data = results["initialization_robustness"]
+                    init_ids = list(range(len([k for k in init_data.keys() if "error" not in init_data[k]])))
+                    lls = [init_data[k]["performance"]["log_likelihood"] for k in sorted(init_data.keys()) if "error" not in init_data[k]]
+                    if init_ids:
+                        axes[1, 0].plot(init_ids, lls, '^-', linewidth=2, markersize=8)
+                        axes[1, 0].set_xlabel("Initialization ID")
+                        axes[1, 0].set_ylabel("Log Likelihood")
+                        axes[1, 0].set_title("Initialization Robustness")
+                        axes[1, 0].grid(True, alpha=0.3)
+
+                # Plot 4: Test success summary
+                test_names = []
+                test_success = []
+                if "seed_reproducibility" in results:
+                    test_names.append("Seed Reproducibility")
+                    test_success.append(len([k for k in results["seed_reproducibility"].keys() if "error" not in results["seed_reproducibility"][k]]))
+                if "data_perturbation" in results:
+                    test_names.append("Data Perturbation")
+                    test_success.append(len([k for k in results["data_perturbation"].keys() if "error" not in results["data_perturbation"][k]]))
+                if "initialization_robustness" in results:
+                    test_names.append("Initialization")
+                    test_success.append(len([k for k in results["initialization_robustness"].keys() if "error" not in results["initialization_robustness"][k]]))
+
+                if test_names:
+                    axes[1, 1].bar(test_names, test_success)
+                    axes[1, 1].set_ylabel("Successful Tests")
+                    axes[1, 1].set_title(f"Reproducibility Tests ({successful_tests}/{total_tests} total)")
+                    axes[1, 1].tick_params(axis='x', rotation=15)
+                    axes[1, 1].grid(True, alpha=0.3, axis='y')
+
+                plt.tight_layout()
+                plots["reproducibility_summary"] = fig
+
+            except Exception as e:
+                logger.warning(f"Failed to create reproducibility plots: {e}")
+
             return {
                 "status": "completed",
                 "reproducibility_results": results,
+                "plots": plots,
                 "summary": {
                     "total_tests": total_tests,
                     "successful_tests": successful_tests,
