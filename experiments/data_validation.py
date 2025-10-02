@@ -381,9 +381,16 @@ class DataValidationExperiments(ExperimentFramework):
                     high_corr_pairs = np.sum(np.abs(corr_matrix) > 0.95) - len(
                         corr_matrix
                     )  # Exclude diagonal
+
+                    # Compute condition number
+                    if n_valid > 0:
+                        condition_number = float(np.linalg.cond(X_valid.T @ X_valid))
+                    else:
+                        condition_number = np.inf
                 else:
                     # Skip correlation computation for large imaging views
                     high_corr_pairs = -1  # -1 indicates skipped
+                    condition_number = np.inf  # Cannot compute without correlation
 
                 metrics[view_name] = {
                     "missing_data_ratio": float(missing_ratio),
@@ -393,11 +400,7 @@ class DataValidationExperiments(ExperimentFramework):
                     "mean_feature_range": float(np.nanmean(feature_ranges)),
                     "std_feature_range": float(np.nanstd(feature_ranges)),
                     "highly_correlated_pairs": int(high_corr_pairs),
-                    "condition_number": (
-                        float(np.linalg.cond(X_valid.T @ X_valid))
-                        if np.sum(valid_mask) > 0
-                        else np.inf
-                    ),
+                    "condition_number": condition_number,
                 }
 
             quality_metrics[label] = metrics
