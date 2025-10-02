@@ -21,6 +21,20 @@ from optimization.config import auto_configure_for_system
 logger = logging.getLogger(__name__)
 
 
+def safe_log(log_func, message, *args, **kwargs):
+    """
+    Safely log a message, catching OSError (stale file handle) from network filesystems.
+
+    This prevents "Stale file handle" errors on NFS from breaking experiment execution.
+    """
+    try:
+        log_func(message, *args, **kwargs)
+    except OSError:
+        # Silently ignore stale file handle errors on network filesystems
+        # The experiment continues successfully even if logging fails
+        pass
+
+
 @dataclass
 class ExperimentConfig:
     """Configuration for experimental runs."""
@@ -1037,7 +1051,7 @@ class ExperimentFramework:
         plots_dir = output_dir / "plots"
         plots_dir.mkdir(exist_ok=True)
 
-        logger.info(f"Saving {len(result.plots)} plots to {plots_dir}")
+        safe_log(logger.info, f"Saving {len(result.plots)} plots to {plots_dir}")
 
         for plot_name, plot_figure in result.plots.items():
             if plot_figure is None:
@@ -1066,12 +1080,12 @@ class ExperimentFramework:
                     close_after=True,
                 )
 
-                logger.info(f"  ✅ Saved plot: {plot_name}")
+                safe_log(logger.info, f"  ✅ Saved plot: {plot_name}")
 
             except Exception as e:
-                logger.warning(f"Failed to save plot {plot_name}: {e}")
+                safe_log(logger.warning, f"Failed to save plot {plot_name}: {e}")
 
-        logger.info(f"All plots saved to: {plots_dir}")
+        safe_log(logger.info, f"All plots saved to: {plots_dir}")
 
     def run_experiment_grid(
         self,
