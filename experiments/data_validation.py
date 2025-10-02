@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from core.config_utils import get_data_dir
+from core.config_utils import get_data_dir, get_output_dir
 from core.experiment_utils import (
     experiment_handler,
 )
