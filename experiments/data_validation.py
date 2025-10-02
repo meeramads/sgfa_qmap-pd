@@ -1373,30 +1373,45 @@ class DataValidationExperiments(ExperimentFramework):
         plots = {}
 
         try:
-            # Data distribution comparison plot
+            # Data distribution comparison plot (only for clinical data, skip imaging)
             if raw_data.get("X_list") and preprocessed_data.get("X_list"):
-                fig, axes = plt.subplots(2, len(raw_data["X_list"]), figsize=(15, 10))
-                fig.suptitle("Data Distribution: Raw vs Preprocessed", fontsize=16)
+                view_names = raw_data.get("view_names", [])
 
+                # Only plot clinical view (last view, typically smallest)
+                clinical_views = []
                 for view_idx, (raw_X, proc_X) in enumerate(
                     zip(raw_data["X_list"], preprocessed_data["X_list"])
                 ):
-                    # Raw data distribution
-                    axes[0, view_idx].hist(
-                        raw_X.flatten(), bins=50, alpha=0.7, color="red"
-                    )
-                    axes[0, view_idx].set_title(f"Raw View {view_idx}")
-                    axes[0, view_idx].set_ylabel("Frequency")
+                    view_name = view_names[view_idx] if view_idx < len(view_names) else f"view_{view_idx}"
+                    # Skip large imaging views - only plot clinical data
+                    if raw_X.shape[1] < 100 or "clinical" in view_name.lower():
+                        clinical_views.append((view_idx, view_name, raw_X, proc_X))
 
-                    # Preprocessed data distribution
-                    axes[1, view_idx].hist(
-                        proc_X.flatten(), bins=50, alpha=0.7, color="blue"
-                    )
-                    axes[1, view_idx].set_title(f"Preprocessed View {view_idx}")
-                    axes[1, view_idx].set_ylabel("Frequency")
+                if clinical_views:
+                    n_views = len(clinical_views)
+                    fig, axes = plt.subplots(2, n_views, figsize=(5*n_views, 10))
+                    if n_views == 1:
+                        axes = axes.reshape(-1, 1)
+                    fig.suptitle("Data Distribution: Raw vs Preprocessed (Clinical Data Only)", fontsize=16)
 
-                plt.tight_layout()
-                plots["data_distribution_comparison"] = fig
+                    for plot_idx, (view_idx, view_name, raw_X, proc_X) in enumerate(clinical_views):
+                        # Raw data distribution
+                        axes[0, plot_idx].hist(
+                            raw_X.flatten(), bins=50, alpha=0.7, color="red"
+                        )
+                        axes[0, plot_idx].set_title(f"Raw {view_name}")
+                        axes[0, plot_idx].set_ylabel("Frequency")
+
+                        # Preprocessed data distribution
+                        axes[1, plot_idx].hist(
+                            proc_X.flatten(), bins=50, alpha=0.7, color="blue"
+                        )
+                        axes[1, plot_idx].set_title(f"Preprocessed {view_name}")
+                        axes[1, plot_idx].set_ylabel("Frequency")
+
+                    plt.tight_layout()
+                    plots["data_distribution_comparison"] = fig
+                    logger.info(f"Created distribution plots for {n_views} clinical view(s), skipped {len(raw_data['X_list']) - n_views} imaging views")
 
             # Quality metrics summary plot
             if "quality_metrics" in results:
