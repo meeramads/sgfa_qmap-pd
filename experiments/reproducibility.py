@@ -970,6 +970,7 @@ class ReproducibilityExperiments(ExperimentFramework):
 
     def _plot_data_perturbation_robustness(self, results: Dict) -> Dict:
         """Generate plots for data perturbation robustness analysis."""
+        self.logger.info("📊 Generating data perturbation robustness plots...")
         plots = {}
 
         try:
@@ -1006,6 +1007,7 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             df = pd.DataFrame(perturbation_data)
 
+            self.logger.info(f"   Creating 4-panel perturbation robustness plot for {len(df['perturbation_type'].unique())} perturbation types...")
             # Create plots
             fig, axes = plt.subplots(2, 2, figsize=(15, 12))
             fig.suptitle("Data Perturbation Robustness Analysis", fontsize=16)
@@ -1087,12 +1089,14 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["data_perturbation_robustness"] = fig
+            self.logger.info("   ✅ Data perturbation robustness plot created")
 
         except Exception as e:
             self.logger.warning(
                 f"Failed to create data perturbation robustness plots: {str(e)}"
             )
 
+        self.logger.info(f"📊 Data perturbation robustness plots completed: {len(plots)} plots generated")
         return plots
 
     def _plot_initialization_robustness(
@@ -1216,9 +1220,11 @@ class ReproducibilityExperiments(ExperimentFramework):
 
     def _plot_computational_reproducibility(self, results: Dict) -> Dict:
         """Generate plots for computational reproducibility analysis."""
+        self.logger.info("📊 Generating computational reproducibility plots...")
         plots = {}
 
         try:
+            self.logger.info("   Creating 4-panel computational reproducibility plot...")
             fig, axes = plt.subplots(2, 2, figsize=(15, 10))
             fig.suptitle("Computational Reproducibility Analysis", fontsize=16)
 
@@ -1297,12 +1303,14 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["computational_reproducibility"] = fig
+            self.logger.info("   ✅ Computational reproducibility plot created")
 
         except Exception as e:
             self.logger.warning(
                 f"Failed to create computational reproducibility plots: {str(e)}"
             )
 
+        self.logger.info(f"📊 Computational reproducibility plots completed: {len(plots)} plots generated")
         return plots
 
     def _create_comprehensive_reproducibility_visualizations(

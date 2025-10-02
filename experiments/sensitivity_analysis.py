@@ -826,6 +826,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
         self, results: Dict, performance_metrics: Dict
     ) -> Dict:
         """Generate plots for univariate sensitivity analysis."""
+        self.logger.info("📊 Generating univariate sensitivity analysis plots...")
         plots = {}
 
         try:
@@ -833,6 +834,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             if n_params == 0:
                 return plots
 
+            self.logger.info(f"   Creating 4-panel sensitivity plot for {n_params} parameters...")
             # Create subplots
             fig, axes = plt.subplots(2, 2, figsize=(15, 10))
             fig.suptitle("Univariate Sensitivity Analysis", fontsize=16)
@@ -955,18 +957,21 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["univariate_sensitivity"] = fig
+            self.logger.info("   ✅ Univariate sensitivity plot created")
 
         except Exception as e:
             self.logger.warning(
                 f"Failed to create univariate sensitivity plots: {str(e)}"
             )
 
+        self.logger.info(f"📊 Univariate sensitivity plots completed: {len(plots)} plots generated")
         return plots
 
     def _plot_multivariate_sensitivity(
         self, results: Dict, performance_metrics: Dict
     ) -> Dict:
         """Generate plots for multivariate sensitivity analysis."""
+        self.logger.info("📊 Generating multivariate sensitivity analysis plots...")
         plots = {}
 
         try:
@@ -974,6 +979,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             if n_pairs == 0:
                 return plots
 
+            self.logger.info(f"   Creating heatmaps for {n_pairs} parameter pairs...")
             # Create heatmaps for each parameter pair
             for pair_name, pair_data in results.items():
                 param1 = pair_data["param1"]
@@ -1023,15 +1029,19 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                 plt.tight_layout()
                 plots[f"heatmap_{pair_name}"] = fig
 
+            self.logger.info(f"   ✅ Created {n_pairs} heatmaps")
+
         except Exception as e:
             self.logger.warning(
                 f"Failed to create multivariate sensitivity plots: {str(e)}"
             )
 
+        self.logger.info(f"📊 Multivariate sensitivity plots completed: {len(plots)} plots generated")
         return plots
 
     def _plot_gradient_sensitivity(self, gradients: Dict) -> Dict:
         """Generate plots for gradient-based sensitivity analysis."""
+        self.logger.info("📊 Generating gradient sensitivity plots...")
         plots = {}
 
         try:
@@ -1045,6 +1055,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             if not valid_gradients:
                 return plots
 
+            self.logger.info(f"   Creating gradient plot for {len(valid_gradients)} parameters...")
             # Create gradient plots
             fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
@@ -1073,16 +1084,19 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["gradient_sensitivity"] = fig
+            self.logger.info("   ✅ Gradient sensitivity plot created")
 
         except Exception as e:
             self.logger.warning(
                 f"Failed to create gradient sensitivity plots: {str(e)}"
             )
 
+        self.logger.info(f"📊 Gradient sensitivity plots completed: {len(plots)} plots generated")
         return plots
 
     def _plot_robustness_analysis(self, results: Dict) -> Dict:
         """Generate plots for robustness analysis."""
+        self.logger.info("📊 Generating robustness analysis plots...")
         plots = {}
 
         try:
@@ -1113,6 +1127,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             if not noise_levels:
                 return plots
 
+            self.logger.info(f"   Creating 4-panel robustness plot for {len(noise_levels)} noise levels...")
             # Create robustness plots
             fig, axes = plt.subplots(2, 2, figsize=(12, 10))
             fig.suptitle("Robustness Analysis", fontsize=16)
@@ -1172,10 +1187,12 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["robustness_analysis"] = fig
+            self.logger.info("   ✅ Robustness analysis plot created")
 
         except Exception as e:
             self.logger.warning(f"Failed to create robustness analysis plots: {str(e)}")
 
+        self.logger.info(f"📊 Robustness analysis plots completed: {len(plots)} plots generated")
         return plots
 
     def _create_comprehensive_sensitivity_visualizations(

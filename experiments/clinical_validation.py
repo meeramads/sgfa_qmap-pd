@@ -434,6 +434,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
     def _plot_neuroimaging_clinical_validation(self, results: Dict, clinical_data: Dict) -> Dict:
         """Generate plots for neuroimaging clinical validation."""
+        self.logger.info("📊 Generating neuroimaging clinical validation plots...")
         plots = {}
 
         try:
@@ -441,6 +442,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
             if not sgfa_results.get("success", False):
                 return plots
 
+            self.logger.info("   Creating 4-panel clinical validation plot...")
             fig, axes = plt.subplots(2, 2, figsize=(15, 12))
             fig.suptitle("Neuroimaging Clinical Validation Results", fontsize=16)
 
@@ -509,10 +511,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["neuroimaging_clinical_validation"] = fig
+            self.logger.info("   ✅ Neuroimaging clinical validation plot created")
 
         except Exception as e:
             self.logger.warning(f"Failed to create neuroimaging clinical validation plots: {str(e)}")
 
+        self.logger.info(f"📊 Neuroimaging clinical validation plots completed: {len(plots)} plots generated")
         return plots
 
     @experiment_handler("subtype_classification_validation")

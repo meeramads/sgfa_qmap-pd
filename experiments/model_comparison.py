@@ -1038,6 +1038,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         self, results: Dict, performance_metrics: Dict, analysis: Dict
     ) -> Dict:
         """Generate plots for unified methods comparison using ComparisonVisualizer."""
+        self.logger.info("📊 Generating unified model comparison plots...")
         plots = {}
 
         # Prepare data for ComparisonVisualizer
@@ -1049,6 +1050,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             return plots
 
         # Plot 1: Performance comparison (execution time, memory)
+        self.logger.info(f"   Creating performance comparison plot for {len(successful_methods)} methods...")
         perf_fig = self.comparison_viz.plot_performance_comparison(
             methods=successful_methods,
             performance_metrics={
@@ -1062,8 +1064,10 @@ class ModelArchitectureComparison(ExperimentFramework):
             metrics_to_plot=["execution_time", "peak_memory_gb"],
         )
         plots["performance_comparison"] = perf_fig
+        self.logger.info("   ✅ Performance comparison plot created")
 
         # Plot 2: Quality comparison (reconstruction error)
+        self.logger.info("   Creating quality comparison plot...")
         quality_scores = {}
         for m in successful_methods:
             if m in analysis["quality_comparison"]:
@@ -1080,8 +1084,10 @@ class ModelArchitectureComparison(ExperimentFramework):
                 higher_is_better=True,
             )
             plots["quality_comparison"] = quality_fig
+            self.logger.info("   ✅ Quality comparison plot created")
 
         # Plot 3: Clinical validation comparison (if available)
+        self.logger.info("   Creating clinical validation plot...")
         clinical_scores = {}
         for m in successful_methods:
             if "clinical_performance" in results[m]:
@@ -1114,9 +1120,10 @@ class ModelArchitectureComparison(ExperimentFramework):
 
             plt.tight_layout()
             plots["clinical_validation"] = fig
-            self.logger.info(f"✅ Clinical validation plot generated ({len(clinical_scores)} methods)")
+            self.logger.info(f"   ✅ Clinical validation plot created ({len(clinical_scores)} methods)")
 
         # Plot 4: Performance vs Quality tradeoff
+        self.logger.info("   Creating performance vs quality tradeoff plot...")
         perf_quality_data = {}
         for m in successful_methods:
             if m in performance_metrics and m in quality_scores:
@@ -1135,12 +1142,14 @@ class ModelArchitectureComparison(ExperimentFramework):
                 higher_quality_is_better=True
             )
             plots["performance_vs_quality"] = perf_vs_quality_fig
+            self.logger.info("   ✅ Performance vs quality tradeoff plot created")
 
         # NOTE: Additional plots removed - they depend on unimplemented features:
         # - Method characteristics: requires NeuroImagingMetrics (README line 52, 126)
         # - Convergence comparison: requires proper convergence diagnostics
         # - Neuroimaging metrics: NeuroImagingMetrics NEEDS DEVELOPMENT (README line 52)
 
+        self.logger.info(f"📊 Unified model comparison plots completed: {len(plots)} plots generated")
         return plots
 
     def _evaluate_neuroimaging_metrics(
@@ -1323,6 +1332,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         self, results: Dict, performance_metrics: Dict, successful_models: List[str]
     ) -> Optional[plt.Figure]:
         """Generate neuroimaging-specific metrics comparison plot."""
+        self.logger.info("📊 Generating neuroimaging metrics comparison plots...")
         try:
             if not successful_models:
                 return None
@@ -1337,6 +1347,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 self.logger.info("No models with neuroimaging metrics for comparison")
                 return None
 
+            self.logger.info(f"   Creating 6-panel neuroimaging metrics plot for {len(models_with_metrics)} models...")
             fig, axes = plt.subplots(2, 3, figsize=(18, 12))
             fig.suptitle("Neuroimaging-Specific Model Comparison", fontsize=16)
 
@@ -1448,6 +1459,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             axes[1, 2].grid(True, alpha=0.3)
 
             plt.tight_layout()
+            self.logger.info("   ✅ Neuroimaging metrics comparison plot created")
             return fig
 
         except Exception as e:
@@ -1890,17 +1902,19 @@ class ModelArchitectureComparison(ExperimentFramework):
 
     def _plot_comparative_benchmarks(self, results: Dict) -> Dict:
         """Generate plots for comparative benchmarks."""
+        self.logger.info("📊 Generating comparative benchmark plots...")
         plots = {}
 
         try:
-            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-            fig.suptitle("Comparative Method Benchmarks", fontsize=16)
-
             # Extract method performance data
             methods = set()
             for config_data in results.values():
                 methods.update(config_data["results"].keys())
             methods = sorted(methods)
+
+            self.logger.info(f"   Creating 4-panel comparative benchmark plot for {len(methods)} methods...")
+            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+            fig.suptitle("Comparative Method Benchmarks", fontsize=16)
 
             # Plot 1: Execution time comparison
             method_times = {method: [] for method in methods}
@@ -2048,11 +2062,13 @@ class ModelArchitectureComparison(ExperimentFramework):
 
             plt.tight_layout()
             plots["comparative_benchmarks"] = fig
+            self.logger.info("   ✅ Comparative benchmark plots created")
 
         except Exception as e:
             self.logger.warning(f"Failed to create comparative benchmark plots: {e}")
             plots["comparative_benchmarks_error"] = str(e)
 
+        self.logger.info(f"📊 Comparative benchmark plots completed: {len(plots)} plots generated")
         return plots
 
     def _run_sgfa_analysis(
