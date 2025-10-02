@@ -1591,9 +1591,70 @@ def run_sensitivity_analysis(config):
             logger.info("🔬 Sensitivity analysis completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
 
+            # Generate plots for sensitivity analysis
+            import matplotlib.pyplot as plt
+            plots = {}
+
+            try:
+                # Create parameter sensitivity plot
+                fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+                fig.suptitle("SGFA Parameter Sensitivity Analysis", fontsize=16)
+
+                # Plot 1: K sensitivity
+                K_data = results.get("K_sensitivity", {})
+                if K_data:
+                    K_vals = [K_data[k]["K"] for k in sorted(K_data.keys())]
+                    K_lls = [K_data[k]["performance"]["log_likelihood"] for k in sorted(K_data.keys())]
+                    axes[0, 0].plot(K_vals, K_lls, 'o-', linewidth=2, markersize=8)
+                    axes[0, 0].set_xlabel("Number of Factors (K)")
+                    axes[0, 0].set_ylabel("Log Likelihood")
+                    axes[0, 0].set_title("K (Number of Factors) Sensitivity")
+                    axes[0, 0].grid(True, alpha=0.3)
+
+                # Plot 2: percW sensitivity
+                percW_data = results.get("sparsity_sensitivity", {})
+                if percW_data:
+                    percW_vals = [percW_data[p]["percW"] for p in sorted(percW_data.keys())]
+                    percW_lls = [percW_data[p]["performance"]["log_likelihood"] for p in sorted(percW_data.keys())]
+                    axes[0, 1].plot(percW_vals, percW_lls, 's-', linewidth=2, markersize=8)
+                    axes[0, 1].set_xlabel("Sparsity (percW %)")
+                    axes[0, 1].set_ylabel("Log Likelihood")
+                    axes[0, 1].set_title("Sparsity (percW) Sensitivity")
+                    axes[0, 1].grid(True, alpha=0.3)
+
+                # Plot 3: MCMC config comparison
+                mcmc_data = results.get("mcmc_sensitivity", {})
+                if mcmc_data:
+                    mcmc_labels = list(mcmc_data.keys())
+                    mcmc_lls = [mcmc_data[m]["performance"]["log_likelihood"] for m in mcmc_labels]
+                    axes[1, 0].bar(mcmc_labels, mcmc_lls)
+                    axes[1, 0].set_xlabel("MCMC Configuration")
+                    axes[1, 0].set_ylabel("Log Likelihood")
+                    axes[1, 0].set_title("MCMC Parameter Sensitivity")
+                    axes[1, 0].grid(True, alpha=0.3, axis='y')
+
+                # Plot 4: Success summary
+                params_tested = ["K", "percW", "MCMC"]
+                success_counts = [
+                    len([k for k in K_data.values() if not k.get("error")]),
+                    len([p for p in percW_data.values() if not p.get("error")]),
+                    len([m for m in mcmc_data.values() if not m.get("error")])
+                ]
+                axes[1, 1].bar(params_tested, success_counts)
+                axes[1, 1].set_ylabel("Successful Tests")
+                axes[1, 1].set_title(f"Test Success Summary ({successful_tests}/{total_tests} total)")
+                axes[1, 1].grid(True, alpha=0.3, axis='y')
+
+                plt.tight_layout()
+                plots["parameter_sensitivity_summary"] = fig
+
+            except Exception as e:
+                logger.warning(f"Failed to create sensitivity plots: {e}")
+
             return {
                 "status": "completed",
                 "sensitivity_results": results,
+                "plots": plots,
                 "summary": {
                     "total_tests": total_tests,
                     "successful_tests": successful_tests,

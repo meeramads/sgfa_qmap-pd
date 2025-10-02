@@ -2231,15 +2231,54 @@ def run_model_comparison(config=None, **kwargs):
     experiment = ModelArchitectureComparison(exp_config, logger)
 
     # Run unified methods comparison (sparseGFA vs all traditional baselines)
-    results = experiment.run_methods_comparison(
+    result = experiment.run_methods_comparison(
         X_list, hypers, args, **kwargs
     )
 
     logger.info("🔬 Methods comparison experiments completed!")
     logger.info(f"   Methods tested: sparseGFA + {len(experiment.traditional_methods)} traditional baselines")
 
+    # Save plots and matrices to disk
+    from pathlib import Path
+    from core.config_utils import get_output_dir
+
+    output_dir = Path(get_output_dir(config_dict))
+    output_dir.mkdir(exist_ok=True, parents=True)
+
+    # Save plots
+    if result.plots:
+        logger.info(f"📊 Saving {len(result.plots)} plots...")
+        plots_dir = output_dir / "plots"
+        plots_dir.mkdir(exist_ok=True, parents=True)
+
+        import matplotlib.pyplot as plt
+        for plot_name, fig in result.plots.items():
+            if fig is not None:
+                try:
+                    # Save as PNG
+                    png_path = plots_dir / f"{plot_name}.png"
+                    fig.savefig(png_path, dpi=300, bbox_inches='tight')
+                    # Save as PDF
+                    pdf_path = plots_dir / f"{plot_name}.pdf"
+                    fig.savefig(pdf_path, bbox_inches='tight')
+                    logger.info(f"  ✅ Saved: {plot_name}")
+                    plt.close(fig)
+                except Exception as e:
+                    logger.warning(f"  ⚠️ Failed to save plot {plot_name}: {e}")
+
+    # Save matrices (W and Z)
+    if result.model_results:
+        logger.info(f"💾 Saving factor matrices...")
+        matrices_dir = output_dir / "matrices"
+        matrices_dir.mkdir(exist_ok=True, parents=True)
+
+        from experiments.framework import ExperimentFramework
+        framework = ExperimentFramework(exp_config, output_dir, logger)
+        framework._save_factor_matrices(result, output_dir)
+        logger.info(f"  ✅ Matrices saved to: {matrices_dir}")
+
     return {
-        "results": results,
+        "results": result,
         "experiment": experiment,
     }
 

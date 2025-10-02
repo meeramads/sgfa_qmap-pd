@@ -2855,9 +2855,64 @@ def run_clinical_validation(config):
             logger.info("🏥 Clinical validation completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
 
+            # Generate clinical validation plots
+            import matplotlib.pyplot as plt
+            plots = {}
+
+            try:
+                # Create clinical validation summary plot
+                fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+                fig.suptitle("Clinical Validation Summary", fontsize=16)
+
+                # Plot 1: Classification accuracy comparison
+                methods = []
+                accuracies = []
+
+                # SGFA results
+                for validation_type in validation_types:
+                    if validation_type in results and isinstance(results[validation_type], dict) and "error" not in results[validation_type]:
+                        for method_name, method_results in results[validation_type].items():
+                            if isinstance(method_results, dict) and "accuracy" in method_results:
+                                methods.append(f"SGFA_{validation_type}_{method_name}")
+                                accuracies.append(method_results["accuracy"])
+
+                # Baseline results
+                if "baseline_comparison" in results and "error" not in results["baseline_comparison"]:
+                    baseline = results["baseline_comparison"]
+                    if "pca" in baseline:
+                        for method_name, pca_res in baseline["pca"].items():
+                            methods.append(f"PCA_{method_name}")
+                            accuracies.append(pca_res.get("accuracy", 0))
+
+                if methods:
+                    axes[0].barh(methods, accuracies, color=['#1f77b4' if 'SGFA' in m else '#ff7f0e' for m in methods])
+                    axes[0].set_xlabel("Accuracy")
+                    axes[0].set_title("Classification Performance")
+                    axes[0].set_xlim([0, 1])
+                    axes[0].grid(True, alpha=0.3, axis='x')
+
+                # Plot 2: Test success summary
+                test_types = ["SGFA Factor Extraction", "Clinical Validation", "Baseline Comparison"]
+                test_success = [1 if "error" not in sgfa_result else 0,
+                               sum(1 for vt in validation_types if vt in results and "error" not in results.get(vt, {})),
+                               1 if "baseline_comparison" in results and "error" not in results.get("baseline_comparison", {}) else 0]
+                axes[1].bar(test_types, test_success, color=['green' if s > 0 else 'red' for s in test_success])
+                axes[1].set_ylabel("Successful Tests")
+                axes[1].set_title(f"Validation Tests ({successful_tests}/{total_tests} passed)")
+                axes[1].set_ylim([0, max(test_success) + 1])
+                axes[1].tick_params(axis='x', rotation=15)
+                axes[1].grid(True, alpha=0.3, axis='y')
+
+                plt.tight_layout()
+                plots["clinical_validation_summary"] = fig
+
+            except Exception as e:
+                logger.warning(f"Failed to create clinical validation plots: {e}")
+
             return {
                 "status": "completed",
                 "clinical_results": results,
+                "plots": plots,
                 "summary": {
                     "total_tests": total_tests,
                     "successful_tests": successful_tests,
