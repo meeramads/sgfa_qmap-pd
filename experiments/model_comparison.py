@@ -2266,11 +2266,19 @@ def run_model_comparison(config=None, **kwargs):
         )
     else:
         logger.info("   → Loading fresh data (no shared data available)")
-        # Fallback to dummy data for testing
-        np.random.seed(42)
-        n_subjects = 100
-        view_dims = [50, 75, 60]
-        X_list = [np.random.randn(n_subjects, dim) for dim in view_dims]
+        # Load real qMAP-PD data with preprocessing
+        from data.preprocessing_integration import integrate_preprocessing_with_pipeline
+
+        preprocessing_result, preprocessing_summary = integrate_preprocessing_with_pipeline(
+            config=config_dict
+        )
+
+        X_list = preprocessing_result["X_list"]
+        view_dims = [X.shape[1] for X in X_list]
+        n_subjects = X_list[0].shape[0]
+        logger.info(
+            f"   ✅ Loaded qMAP-PD data: {n_subjects} subjects, {len(X_list)} views with dims {view_dims}"
+        )
 
     # Use optimal SGFA parameters if available
     if optimal_sgfa_params:
