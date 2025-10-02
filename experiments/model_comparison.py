@@ -2299,7 +2299,7 @@ def run_model_comparison(config=None, **kwargs):
 
     # Create experiment configuration
     exp_config = ExperimentConfig(
-        experiment_id="methods_comparison",
+        experiment_name="methods_comparison",
         description="Compare sparseGFA against traditional baseline methods"
     )
 
