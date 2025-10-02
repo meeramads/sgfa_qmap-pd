@@ -332,6 +332,7 @@ class DataValidationExperiments(ExperimentFramework):
         self, raw_data: Dict, preprocessed_data: Dict
     ) -> Dict[str, Any]:
         """Assess various data quality metrics."""
+        logger.info("🔍 Assessing data quality metrics...")
         quality_metrics = {
             "raw_data": {},
             "preprocessed_data": {},
@@ -351,6 +352,7 @@ class DataValidationExperiments(ExperimentFramework):
 
             for view_idx, X in enumerate(X_list):
                 view_name = data.get("view_names", [f"view_{view_idx}"])[view_idx]
+                logger.info(f"   Analyzing quality metrics for {view_name} ({X.shape[0]}×{X.shape[1]})...")
 
                 # Missing data analysis
                 missing_ratio = np.isnan(X).mean()
@@ -366,16 +368,22 @@ class DataValidationExperiments(ExperimentFramework):
                 # Dynamic range analysis
                 feature_ranges = np.nanmax(X, axis=0) - np.nanmin(X, axis=0)
 
-                # Correlation analysis
+                # Correlation analysis (skip for large imaging views to avoid memory/time issues)
                 valid_mask = ~np.isnan(X).any(axis=0)
-                if np.sum(valid_mask) > 1:
+                n_valid = np.sum(valid_mask)
+
+                # Only compute correlation for views with < 1000 features (clinical data)
+                # For imaging data (>1000 features), skip correlation analysis
+                if n_valid > 1 and X.shape[1] < 1000:
+                    logger.info(f"      Computing correlation matrix for {view_name}...")
                     X_valid = X[:, valid_mask]
                     corr_matrix = np.corrcoef(X_valid.T)
                     high_corr_pairs = np.sum(np.abs(corr_matrix) > 0.95) - len(
                         corr_matrix
                     )  # Exclude diagonal
                 else:
-                    high_corr_pairs = 0
+                    # Skip correlation computation for large imaging views
+                    high_corr_pairs = -1  # -1 indicates skipped
 
                 metrics[view_name] = {
                     "missing_data_ratio": float(missing_ratio),
