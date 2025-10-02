@@ -1141,8 +1141,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 performance_metrics={m: {'execution_time': perf_quality_data[m]['execution_time']} for m in perf_quality_data.keys()},
                 quality_scores={m: perf_quality_data[m]['quality'] for m in perf_quality_data.keys()},
                 title="Performance vs Quality Tradeoff",
-                performance_metric='execution_time',
-                higher_quality_is_better=True
+                performance_metric='execution_time'
             )
             plots["performance_vs_quality"] = perf_vs_quality_fig
             self.logger.info("   ✅ Performance vs quality tradeoff plot created")
