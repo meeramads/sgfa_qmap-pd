@@ -1,0 +1,42 @@
+2025-10-02 00:52:38,367 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_clinical_validation_run_20251002_005234
+2025-10-02 00:52:40,682 - experiments.framework - INFO - Starting experiment: sgfa_parameter_comparison_20251002_005240
+2025-10-02 01:53:42,682 - experiments.framework - ERROR - Experiment failed: sgfa_parameter_comparison_20251002_005240, Error: name 'sgfa_results' is not defined
+2025-10-02 01:53:42,683 - experiments.framework - ERROR - ❌ EXPERIMENT FAILED: sgfa_parameter_comparison_20251002_005240
+2025-10-02 01:53:42,683 - experiments.framework - ERROR - ⏱️  RUNTIME BEFORE FAILURE: 1.0 hours (1m 2s)
+2025-10-02 01:53:42,683 - experiments.framework - ERROR - 💥 Error: name 'sgfa_results' is not defined
+2025-10-02 01:53:42,684 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-02 01:53:42,684 - experiments.framework - WARNING - Could not clear JAX cache: module 'jax._src.compilation_cache' has no attribute 'clear_cache'
+2025-10-02 01:53:42,735 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-02 01:53:42,890 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-02 01:53:43,891 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-02 01:53:43,895 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-02 02:04:33,641 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_clinical_validation_run_20251002_005234
+2025-10-02 02:04:33,641 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_clinical_validation_run_20251002_005234
+2025-10-02 02:04:33,646 - experiments.framework - INFO - Starting experiment: sensitivity_analysis_20251002_020433
+2025-10-02 02:04:33,646 - experiments.framework - INFO - Starting experiment: sensitivity_analysis_20251002_020433
+2025-10-02 02:15:51,478 - experiments.framework - INFO - 💾 Saving intermediate results to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_clinical_validation_run_20251002_005234/sensitivity_analysis_20251002_020433/intermediate
+2025-10-02 02:15:51,478 - experiments.framework - INFO - 💾 Saving intermediate results to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_clinical_validation_run_20251002_005234/sensitivity_analysis_20251002_020433/intermediate
+2025-10-02 02:15:51,522 - experiments.framework - INFO - ✅ Intermediate results saved successfully
+2025-10-02 02:15:51,522 - experiments.framework - INFO - ✅ Intermediate results saved successfully
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sensitivity_analysis_20251002_020433
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sensitivity_analysis_20251002_020433
+2025-10-02 02:15:51,522 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 11.3 minutes (678s)
+2025-10-02 02:15:51,522 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 11.3 minutes (678s)
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🕐 Started: 2025-10-02 02:04:33
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🕐 Started: 2025-10-02 02:04:33
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🕑 Finished: 2025-10-02 02:15:51
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🕑 Finished: 2025-10-02 02:15:51
+2025-10-02 02:15:51,522 - experiments.framework - INFO - Experiment completed successfully: sensitivity_analysis_20251002_020433
+2025-10-02 02:15:51,522 - experiments.framework - INFO - Experiment completed successfully: sensitivity_analysis_20251002_020433
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-02 02:15:51,522 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-02 02:15:51,522 - experiments.framework - WARNING - Could not clear JAX cache: module 'jax._src.compilation_cache' has no attribute 'clear_cache'
+2025-10-02 02:15:51,522 - experiments.framework - WARNING - Could not clear JAX cache: module 'jax._src.compilation_cache' has no attribute 'clear_cache'
+2025-10-02 02:15:51,571 - experiments.framework - INFO - Garbage collection freed 31 objects
+2025-10-02 02:15:51,571 - experiments.framework - INFO - Garbage collection freed 31 objects
+2025-10-02 02:15:51,715 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-02 02:15:51,715 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-02 02:15:52,717 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-02 02:15:52,717 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-02 02:15:52,720 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-02 02:15:52,720 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead

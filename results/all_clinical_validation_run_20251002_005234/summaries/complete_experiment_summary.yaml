@@ -1,0 +1,28 @@
+experiment_run_info:
+  config_used: config.yaml
+  duration_formatted: '1:23:18.187273'
+  duration_seconds: 4998.187273
+  end_time: '2025-10-02T02:15:52.724251'
+  start_time: '2025-10-02T00:52:34.536978'
+  unified_results: true
+experiments_executed:
+  data_validation:
+    duration: 0
+    experiment_id: N/A
+    status: completed
+  model_comparison:
+    duration: 0
+    experiment_id: N/A
+    status: completed
+  sensitivity_analysis:
+    duration: 677.878367
+    experiment_id: sensitivity_analysis_20251002_020433
+    status: completed
+  sgfa_parameter_comparison:
+    duration: 3662.003338
+    experiment_id: sgfa_parameter_comparison_20251002_005240
+    status: failed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 4
+  total_experiments: 4
