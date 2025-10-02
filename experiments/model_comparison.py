@@ -1081,6 +1081,66 @@ class ModelArchitectureComparison(ExperimentFramework):
             )
             plots["quality_comparison"] = quality_fig
 
+        # Plot 3: Clinical validation comparison (if available)
+        clinical_scores = {}
+        for m in successful_methods:
+            if "clinical_performance" in results[m]:
+                clinical_perf = results[m]["clinical_performance"]
+                # Get best accuracy across classifiers
+                if isinstance(clinical_perf, dict):
+                    accuracies = [v.get("accuracy", 0) for v in clinical_perf.values() if isinstance(v, dict)]
+                    if accuracies:
+                        clinical_scores[m] = max(accuracies)
+
+        if clinical_scores:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            methods_list = list(clinical_scores.keys())
+            scores_list = [clinical_scores[m] for m in methods_list]
+
+            # Color code: sparseGFA in blue, others in orange
+            colors = ['#1f77b4' if m == 'sparseGFA' else '#ff7f0e' for m in methods_list]
+
+            ax.barh(methods_list, scores_list, color=colors)
+            ax.set_xlabel('Classification Accuracy')
+            ax.set_title('Clinical Validation: PD Subtype Classification')
+            ax.set_xlim([0, 1])
+            ax.grid(True, alpha=0.3, axis='x')
+
+            # Add value labels on bars
+            for i, (method, score) in enumerate(zip(methods_list, scores_list)):
+                ax.text(score + 0.02, i, f'{score:.3f}', va='center')
+
+            plt.tight_layout()
+            plots["clinical_validation"] = fig
+            self.logger.info(f"✅ Clinical validation plot generated ({len(clinical_scores)} methods)")
+
+        # Plot 4: Performance vs Quality tradeoff
+        perf_quality_data = {}
+        for m in successful_methods:
+            if m in performance_metrics and m in quality_scores:
+                perf_quality_data[m] = {
+                    'execution_time': performance_metrics[m].get('execution_time', 0),
+                    'quality': quality_scores[m]
+                }
+
+        if perf_quality_data:
+            perf_vs_quality_fig = self.comparison_viz.plot_performance_vs_quality(
+                methods=list(perf_quality_data.keys()),
+                performance_metrics={m: {'execution_time': perf_quality_data[m]['execution_time']} for m in perf_quality_data.keys()},
+                quality_scores={m: perf_quality_data[m]['quality'] for m in perf_quality_data.keys()},
+                title="Performance vs Quality Tradeoff",
+                performance_metric='execution_time',
+                higher_quality_is_better=True
+            )
+            plots["performance_vs_quality"] = perf_vs_quality_fig
+
+        # NOTE: Additional plots removed - they depend on unimplemented features:
+        # - Method characteristics: requires NeuroImagingMetrics (README line 52, 126)
+        # - Convergence comparison: requires proper convergence diagnostics
+        # - Neuroimaging metrics: NeuroImagingMetrics NEEDS DEVELOPMENT (README line 52)
+
         return plots
 
     def _evaluate_neuroimaging_metrics(
