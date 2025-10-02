@@ -2566,7 +2566,7 @@ def run_clinical_validation(config):
         framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
-            experiment_id="clinical_validation",
+            experiment_name="clinical_validation",
             description="Clinical validation of SGFA factors for PD subtypes",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),

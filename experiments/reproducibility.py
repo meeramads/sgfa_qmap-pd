@@ -1576,7 +1576,7 @@ def run_reproducibility(config):
         framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
-            experiment_id="reproducibility_tests",
+            experiment_name="reproducibility_tests",
             description="Reproducibility and robustness testing for SGFA",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
