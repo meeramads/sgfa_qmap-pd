@@ -298,83 +298,7 @@ def qmap_pd(data: Dict, res_dir: str, args: Any, hypers: Dict, topk: int = 20):
         raise
 
 
-# === DELEGATED FUNCTIONS ===
-
-
-def plot_preprocessing_summary(
-    preprocessing_results: Dict, plot_path: str, view_names: List[str]
-):
-    """Delegate to preprocessing visualizer."""
-    config = VisualizationConfig()
-    prep_viz = PreprocessingVisualizer(config)
-    return prep_viz.plot_preprocessing_summary(
-        preprocessing_results, plot_path, view_names
-    )
-
-
-def plot_cv_results(
-    cv_results: Dict, plot_path: str, run_name: str = "cross_validation"
-):
-    """Delegate to CV visualizer."""
-    config = VisualizationConfig()
-    cv_viz = CrossValidationVisualizer(config)
-    return cv_viz.plot_cv_results(cv_results, plot_path, run_name)
-
-
-def plot_consensus_subtypes(
-    centroids_data: Dict, probabilities_data: Dict, plot_path: str
-):
-    """Delegate to CV visualizer."""
-    config = VisualizationConfig()
-    cv_viz = CrossValidationVisualizer(config)
-    return cv_viz.plot_consensus_subtypes(centroids_data, probabilities_data, plot_path)
-
-
-def create_brain_visualization_summary(
-    results_dir: str, include_reconstructions: bool = True
-):
-    """Delegate to brain visualizer."""
-    config = VisualizationConfig()
-    brain_viz = BrainVisualizer(config)
-    return brain_viz.create_brain_visualization_summary(
-        results_dir, include_reconstructions
-    )
-
-
-def create_all_visualizations(
-    results_dir: str,
-    data: Dict,
-    run_name: str,
-    cv_results: Optional[Dict] = None,
-    neuroimaging_metrics: Optional[Dict] = None,
-):
-    """
-    Create comprehensive visualizations using all available modules.
-
-    Parameters:
-    -----------
-    results_dir : str
-        Directory containing analysis results
-    data : dict
-        Analysis data
-    run_name : str
-        Name for the analysis run
-    cv_results : dict, optional
-        Cross-validation results
-    neuroimaging_metrics : dict, optional
-        Neuroimaging-specific metrics
-    """
-    logger.info(f"Creating comprehensive visualizations for {run_name}")
-
-    config = VisualizationConfig()
-    viz_manager = VisualizationManager(config)
-
-    return viz_manager.create_comprehensive_analysis(
-        results_dir, data, run_name, cv_results, neuroimaging_metrics
-    )
-
-
-# === UTILITY FUNCTIONS (kept for backward compatibility) ===
+# === UTILITY FUNCTIONS ===
 
 
 def find_bestrun(res_dir: str, args: Any, ofile: str = None) -> int:
@@ -535,29 +459,3 @@ def _plot_latent_factor_summary(
     )
 
 
-# === BACKWARD COMPATIBILITY ===
-# Keep some functions for backward compatibility but log deprecation warnings
-
-
-def plot_param(*args, **kwargs):
-    """Deprecated: Use FactorVisualizer.plot_factor_loadings instead."""
-    logger.warning(
-        "plot_param is deprecated. Use FactorVisualizer.plot_factor_loadings instead."
-    )
-    # Implement minimal backward compatibility or raise NotImplementedError
-
-
-def plot_X(*args, **kwargs):
-    """Deprecated: Use FactorVisualizer.plot_data_reconstruction instead."""
-    logger.warning(
-        "plot_X is deprecated. Use FactorVisualizer.plot_data_reconstruction instead."
-    )
-    # Implement minimal backward compatibility or raise NotImplementedError
-
-
-def plot_model_comparison(*args, **kwargs):
-    """Deprecated: Use ReportGenerator.create_model_comparison_report instead."""
-    logger.warning(
-        "plot_model_comparison is deprecated. Use ReportGenerator.create_model_comparison_report instead."
-    )
-    # Implement minimal backward compatibility or raise NotImplementedError

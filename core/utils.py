@@ -311,10 +311,13 @@ def ensure_directory(path):
     -------
     path : Path
         Resolved Path object
+
+    Note
+    ----
+    This is a convenience re-export from core.io_utils.ensure_directory
     """
-    path = Path(path)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    from core.io_utils import ensure_directory as _ensure_directory
+    return _ensure_directory(path)
 
 
 def safe_file_path(directory, filename):

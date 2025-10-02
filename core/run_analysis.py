@@ -285,9 +285,12 @@ def _save_cv_results(cv_results, cv_object, cv_res_dir, dependencies):
 
         # Create CV visualizations
         try:
-            from core.visualization import plot_cv_results
+            from core.visualization import VisualizationConfig
+            from visualization.cv_plots import CrossValidationVisualizer
 
-            plot_cv_results(cv_results, cv_res_dir, "cv_analysis")
+            config = VisualizationConfig()
+            cv_viz = CrossValidationVisualizer(config)
+            cv_viz.plot_cv_results(cv_results, cv_res_dir, "cv_analysis")
             logging.info("CV visualizations created")
         except Exception as e:
             logging.warning(f"Could not create CV visualizations: {e}")
