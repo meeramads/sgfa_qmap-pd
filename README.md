@@ -17,6 +17,9 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 - **[core/get_data.py](core/get_data.py)**: High-level interface to load datasets or generate synthetic data
 - **[core/run_analysis.py](core/run_analysis.py)**: Main script containing the SGFA model and experiment runner
 - **[core/utils.py](core/utils.py)**: Utility functions supporting the analysis pipeline
+- **[core/parameter_resolver.py](core/parameter_resolver.py)**: Multi-source parameter resolution utility **NEW**
+- **[core/logger_utils.py](core/logger_utils.py)**: Logger protocol and safe access utilities **NEW**
+- **[core/config_utils.py](core/config_utils.py)**: Type-safe configuration handling with protocols **ENHANCED**
 
 ### Data Management
 
