@@ -2268,10 +2268,14 @@ def run_model_comparison(config=None, **kwargs):
         logger.info("   → Loading fresh data (no shared data available)")
         # Load real qMAP-PD data with preprocessing
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
+        from core.config_utils import get_data_dir
 
-        preprocessing_result = apply_preprocessing_to_pipeline(config=config_dict)
+        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+            config=config_dict,
+            data_dir=get_data_dir(config_dict),
+            auto_select_strategy=True
+        )
 
-        X_list = preprocessing_result["X_list"]
         view_dims = [X.shape[1] for X in X_list]
         n_subjects = X_list[0].shape[0]
         logger.info(
