@@ -316,44 +316,56 @@ def apply_models_framework_to_pipeline(
         )
 
         if not model_type:
-            return None, None, _fallback_models_framework(config)
+            return None, None, {
+                "framework_available": False,
+                "error": "No model type selected",
+                "fallback": True
+            }
 
         # Create default hyperparameters if not provided
         if hypers is None:
             hypers = _create_default_hyperparameters(config, X_list)
 
         # Create model instance
-        model_instance, creation_info = create_model_instance(
+        creation_result = create_model_instance(
             model_type, config, hypers, data_characteristics
         )
 
-        if not model_instance:
+        if not creation_result.success:
             logger.warning("Model instance creation failed - using fallback")
-            return model_type, None, _fallback_models_framework(config, model_type)
+            return model_type, None, {
+                "framework_available": False,
+                "error": creation_result.error,
+                "fallback": True
+            }
 
         logger.info("✅ Models framework integration completed")
         logger.info(f"   Model type: {model_type}")
-        logger.info(f"   Model class: {creation_info.get('model_class', 'unknown')}")
+        logger.info(f"   Model class: {creation_result.metadata.get('model_class', 'unknown')}")
         logger.info(
-            f"   Factory method: {creation_info.get('factory_method_used', False)}"
+            f"   Factory method: {creation_result.metadata.get('factory_method_used', False)}"
         )
 
         framework_info = {
             "framework_available": True,
             "model_type": model_type,
-            "model_instance": model_instance,
+            "model_instance": creation_result.model_instance,
             "model_configuration": model_config,
-            "creation_info": creation_info,
+            "creation_info": creation_result.metadata,
             "hyperparameters": hypers,
             "models_factory_used": True,
             "structured_model_management": True,
         }
 
-        return model_type, model_instance, framework_info
+        return model_type, creation_result.model_instance, framework_info
 
     except Exception as e:
         logger.error(f"❌ Models framework integration failed: {e}")
-        return None, None, _fallback_models_framework(config)
+        return None, None, {
+            "framework_available": False,
+            "error": str(e),
+            "fallback": True
+        }
 
 
 def _create_default_hyperparameters(
