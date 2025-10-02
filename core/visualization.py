@@ -217,13 +217,16 @@ def qmap_pd(data: Dict, res_dir: str, args: Any, hypers: Dict, topk: int = 20):
     """
     logger.info(f"Creating qMAP-PD visualizations in {res_dir}")
 
-    # Create config with actual analysis parameters
+    # Create config with actual analysis parameters using ParameterResolver
+    from core.parameter_resolver import ParameterResolver
+
+    params = ParameterResolver(args, hypers)
     config = VisualizationConfig(
         dataset="qmap_pd",
-        K=getattr(args, 'K', hypers.get('K', 5)),
-        percW=getattr(args, 'percW', hypers.get('percW', 25.0)),
-        cv_type=getattr(args, 'cv_type', 'standard'),
-        cv_folds=getattr(args, 'cv_folds', 5)
+        K=params.get('K', default=5),
+        percW=params.get('percW', default=25.0),
+        cv_type=params.get('cv_type', default='standard'),
+        cv_folds=params.get('cv_folds', default=5)
     )
 
     # Initialize specialized visualizers

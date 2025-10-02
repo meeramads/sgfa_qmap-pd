@@ -42,9 +42,15 @@ def create_analysis_components(
     if not hasattr(args, 'model'):
         args.model = config_dict.get('model', 'sparseGFA')
 
-    # Create components
-    data_manager = DataManager(args)
-    model_runner = ModelRunner(args, results_dir)
+    # Create components with proper configs
+    from analysis.data_manager import DataManagerConfig
+    from analysis.model_runner import ModelRunnerConfig
+
+    dm_config = DataManagerConfig.from_object(args)
+    data_manager = DataManager(dm_config)
+
+    mr_config = ModelRunnerConfig.from_object(args)
+    model_runner = ModelRunner(mr_config, results_dir)
 
     return data_manager, model_runner
 

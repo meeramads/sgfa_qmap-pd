@@ -63,10 +63,16 @@ class ModelRunner:
         Args:
             config: ModelRunnerConfig instance
             results_dir: Optional directory for saving results
+
+        Raises:
+            TypeError: If config is not a ModelRunnerConfig instance
         """
         if not isinstance(config, ModelRunnerConfig):
-            # Auto-convert if needed (temporary for migration)
-            config = ModelRunnerConfig.from_object(config)
+            raise TypeError(
+                f"ModelRunner requires ModelRunnerConfig, got {type(config).__name__}. "
+                f"Use ModelRunnerConfig.from_object(config) or ModelRunnerConfig.from_dict(config) "
+                f"to convert your config first."
+            )
 
         self.config = config
         self.results_dir = results_dir

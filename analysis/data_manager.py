@@ -72,10 +72,16 @@ class DataManager:
 
         Args:
             config: DataManagerConfig instance
+
+        Raises:
+            TypeError: If config is not a DataManagerConfig instance
         """
         if not isinstance(config, DataManagerConfig):
-            # Auto-convert if needed (temporary for migration)
-            config = DataManagerConfig.from_object(config)
+            raise TypeError(
+                f"DataManager requires DataManagerConfig, got {type(config).__name__}. "
+                f"Use DataManagerConfig.from_object(config) or DataManagerConfig.from_dict(config) "
+                f"to convert your config first."
+            )
 
         self.config = config
         self.preprocessor = None

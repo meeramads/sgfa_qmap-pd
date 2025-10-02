@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
-from analysis.model_runner import ModelRunner
+from analysis.model_runner import ModelRunner, ModelRunnerConfig
 
 
 @pytest.mark.unit
@@ -15,7 +15,7 @@ class TestModelRunner:
 
     def test_model_runner_init(self, sample_config):
         """Test ModelRunner initialization."""
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         assert runner.config == sample_config
 
@@ -24,7 +24,7 @@ class TestModelRunner:
     ):
         """Test standard analysis with single run."""
         sample_config.num_runs = 1
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         mock_run_results = {
             "Z": np.random.normal(0, 1, (100, 50, 3)),
@@ -47,7 +47,7 @@ class TestModelRunner:
     ):
         """Test standard analysis with multiple runs."""
         sample_config.num_runs = 3
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         mock_results = [
             {"Z": np.random.normal(0, 1, (100, 50, 3)), "run_id": 1},
@@ -73,7 +73,7 @@ class TestModelRunner:
     ):
         """Test standard analysis when one run fails."""
         sample_config.num_runs = 2
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         # First run succeeds, second fails
         mock_results = [
@@ -113,7 +113,7 @@ class TestModelRunner:
         sample_config.num_chains = 2
         sample_config.num_warmup = 100
 
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         # Mock the MCMC and inference components
         mock_mcmc = Mock()
@@ -139,7 +139,7 @@ class TestModelRunner:
 
     def test_extract_robust_parameters_success(self, sample_config, mock_mcmc_results):
         """Test robust parameter extraction from MCMC results."""
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         extracted = runner._extract_robust_parameters(mock_mcmc_results)
 
@@ -155,7 +155,7 @@ class TestModelRunner:
 
     def test_extract_robust_parameters_missing_data(self, sample_config):
         """Test parameter extraction with missing data."""
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         incomplete_results = {
             "Z": np.random.normal(0, 1, (100, 50, 3))
@@ -168,7 +168,7 @@ class TestModelRunner:
 
     def test_extract_robust_parameters_invalid_shapes(self, sample_config):
         """Test parameter extraction with invalid shapes."""
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         invalid_results = {
             "Z": np.random.normal(
@@ -186,7 +186,7 @@ class TestModelRunner:
     @patch("analysis.model_runner.logger")
     def test_extract_robust_parameters_exception(self, mock_logger, sample_config):
         """Test parameter extraction with exception."""
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         # Create results that will cause an exception during processing
         bad_results = {"Z": "not_an_array"}
@@ -212,7 +212,7 @@ class TestModelRunnerIntegration:
         sample_config.num_samples = 100
         sample_config.num_chains = 1
 
-        runner = ModelRunner(sample_config)
+        runner = ModelRunner(ModelRunnerConfig.from_object(sample_config))
 
         # Mock heavy computation components
         with patch("run_analysis.run_inference") as mock_inference:

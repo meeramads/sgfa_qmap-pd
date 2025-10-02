@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from analysis.data_manager import DataManager
+from analysis.data_manager import DataManager, DataManagerConfig
 
 
 @pytest.mark.unit
@@ -13,9 +13,10 @@ class TestDataManager:
 
     def test_data_manager_init(self, sample_config):
         """Test DataManager initialization."""
-        dm = DataManager(sample_config)
+        dm = DataManager(DataManagerConfig.from_object(sample_config))
 
-        assert dm.config == sample_config
+        assert isinstance(dm.config, DataManagerConfig)
+        assert dm.config.dataset == sample_config.dataset
         assert dm.preprocessor is None
 
     def test_load_data_synthetic(self, sample_config, sample_synthetic_data):
@@ -25,7 +26,7 @@ class TestDataManager:
         with patch("analysis.data_manager.generate_synthetic_data") as mock_generate:
             mock_generate.return_value = sample_synthetic_data
 
-            dm = DataManager(sample_config)
+            dm = DataManager(DataManagerConfig.from_object(sample_config))
             result = dm.load_data()
 
             mock_generate.assert_called_once_with(
@@ -46,7 +47,7 @@ class TestDataManager:
         with patch("analysis.data_manager.load_qmap_pd") as mock_load:
             mock_load.return_value = mock_data
 
-            dm = DataManager(sample_config)
+            dm = DataManager(DataManagerConfig.from_object(sample_config))
             result = dm.load_data()
 
             mock_load.assert_called_once_with(
@@ -64,14 +65,14 @@ class TestDataManager:
         """Test error for unknown dataset."""
         sample_config.dataset = "unknown"
 
-        dm = DataManager(sample_config)
+        dm = DataManager(DataManagerConfig.from_object(sample_config))
 
         with pytest.raises(ValueError, match="Unknown dataset: unknown"):
             dm.load_data()
 
     def test_prepare_for_analysis(self, sample_config, sample_synthetic_data):
         """Test data preparation for analysis."""
-        dm = DataManager(sample_config)
+        dm = DataManager(DataManagerConfig.from_object(sample_config))
 
         X_list, hypers = dm.prepare_for_analysis(sample_synthetic_data)
 
@@ -93,7 +94,7 @@ class TestDataManager:
 
     def test_log_preprocessing_results(self, sample_config, caplog):
         """Test logging of preprocessing results."""
-        dm = DataManager(sample_config)
+        dm = DataManager(DataManagerConfig.from_object(sample_config))
 
         preprocessing = {
             "feature_reduction": {
@@ -122,7 +123,7 @@ class TestDataManagerIntegration:
         with patch("analysis.data_manager.generate_synthetic_data") as mock_generate:
             mock_generate.return_value = {"X_list": [], "dataset": "synthetic"}
 
-            dm = DataManager(sample_config)
+            dm = DataManager(DataManagerConfig.from_object(sample_config))
             dm.load_data()
 
             # Should have logged something about synthetic data
@@ -155,7 +156,7 @@ class TestDataManagerIntegration:
         with patch("analysis.data_manager.load_qmap_pd") as mock_load:
             mock_load.return_value = mock_data
 
-            dm = DataManager(sample_config)
+            dm = DataManager(DataManagerConfig.from_object(sample_config))
             dm.load_data()
 
             # Check that preprocessing params were passed

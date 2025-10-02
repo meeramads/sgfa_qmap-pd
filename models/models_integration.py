@@ -5,11 +5,60 @@ Integrates structured ModelFactory, model variants, and model management into th
 
 import argparse
 import logging
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class ModelCreationMode(Enum):
+    """Model creation modes."""
+    FACTORY = "factory"        # Full ModelFactory with structured management
+    DIRECT = "direct"          # Direct model instantiation
+    FALLBACK = "fallback"      # Fallback to basic model creation
+
+
+@dataclass
+class ModelCreationResult:
+    """Result from model creation/framework initialization.
+
+    Attributes:
+        mode: Creation mode (FACTORY, DIRECT, or FALLBACK)
+        model_type: Type of model created
+        model_instance: The created model instance (None if creation failed)
+        factory_available: Whether ModelFactory was available
+        error: Error message if creation failed
+        metadata: Additional metadata about model creation
+    """
+    mode: ModelCreationMode
+    model_type: str
+    model_instance: Optional[Any] = None
+    factory_available: bool = False
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def is_factory(self) -> bool:
+        """Check if using factory pattern."""
+        return self.mode == ModelCreationMode.FACTORY
+
+    @property
+    def is_direct(self) -> bool:
+        """Check if using direct instantiation."""
+        return self.mode == ModelCreationMode.DIRECT
+
+    @property
+    def is_fallback(self) -> bool:
+        """Check if using fallback mode."""
+        return self.mode == ModelCreationMode.FALLBACK
+
+    @property
+    def success(self) -> bool:
+        """Check if model creation was successful."""
+        return self.error is None and self.model_instance is not None
 
 
 def get_optimal_model_configuration(
@@ -105,23 +154,26 @@ def get_optimal_model_configuration(
         return None, _fallback_model_configuration(config)
 
 
-def _fallback_model_configuration(config: Dict) -> Dict:
-    """Create fallback model configuration."""
-    logger.warning("Using fallback model configuration")
+def _create_fallback_model_result(model_type: str, error_msg: str) -> ModelCreationResult:
+    """Create fallback model creation result."""
+    logger.warning(f"Using fallback model creation: {error_msg}")
 
-    return {
-        "model_type": "sparseGFA",  # Safe fallback
-        "available_models": [],
-        "model_factory_available": False,
-        "error": "model_framework_unavailable",
-        "fallback": True,
-        "configuration_strategy": "fallback",
-    }
+    return ModelCreationResult(
+        mode=ModelCreationMode.FALLBACK,
+        model_type=model_type or "sparseGFA",
+        model_instance=None,
+        factory_available=False,
+        error=error_msg,
+        metadata={
+            "available_models": [],
+            "configuration_strategy": "fallback",
+        }
+    )
 
 
 def create_model_instance(
     model_type: str, config: Dict, hypers: Dict, data_characteristics: Dict = None
-) -> Tuple[Any, Dict]:
+) -> ModelCreationResult:
     """
     Create a model instance using the ModelFactory.
 
@@ -132,7 +184,7 @@ def create_model_instance(
         data_characteristics: Optional data characteristics for model customization
 
     Returns:
-        Tuple of (model_instance, creation_info)
+        ModelCreationResult with model instance and metadata
     """
     try:
         logger.info(f"🏗️ Creating model instance: {model_type}")
@@ -155,9 +207,7 @@ def create_model_instance(
         # Create model instance
         model_instance = create_model(model_type, model_args, hypers, **model_kwargs)
 
-        creation_info = {
-            "model_created": True,
-            "model_type": model_type,
+        metadata = {
             "model_name": model_instance.get_model_name(),
             "model_class": type(model_instance).__name__,
             "spatial_info_available": "spatial_info" in model_kwargs,
@@ -166,19 +216,21 @@ def create_model_instance(
         }
 
         logger.info(f"✅ Model instance created successfully")
-        logger.info(f"   Model name: {creation_info['model_name']}")
-        logger.info(f"   Model class: {creation_info['model_class']}")
+        logger.info(f"   Model name: {metadata['model_name']}")
+        logger.info(f"   Model class: {metadata['model_class']}")
 
-        return model_instance, creation_info
+        return ModelCreationResult(
+            mode=ModelCreationMode.FACTORY,
+            model_type=model_type,
+            model_instance=model_instance,
+            factory_available=True,
+            error=None,
+            metadata=metadata
+        )
 
     except Exception as e:
         logger.error(f"Model instance creation failed: {e}")
-        return None, {
-            "model_created": False,
-            "error": str(e),
-            "model_type": model_type,
-            "fallback_needed": True,
-        }
+        return _create_fallback_model_result(model_type, f"creation_failed: {str(e)}")
 
 
 def _create_model_args_from_config(config: Dict, hypers: Dict) -> argparse.Namespace:
@@ -327,19 +379,19 @@ def _create_default_hyperparameters(
     return hypers
 
 
-def _fallback_models_framework(config: Dict, model_type: str = None) -> Dict:
-    """Create fallback models framework configuration."""
-    logger.warning("Using fallback models approach (direct core.run_analysis)")
-
-    return {
-        "framework_available": False,
-        "model_type": model_type or "sparseGFA",
-        "model_instance": None,
-        "error": "models_framework_unavailable",
-        "fallback": True,
-        "structured_model_management": False,
-        "fallback_approach": "direct_core_models",
-    }
+def _create_direct_model_result(model_instance: Any, model_type: str) -> ModelCreationResult:
+    """Create result for direct model instantiation (without factory)."""
+    return ModelCreationResult(
+        mode=ModelCreationMode.DIRECT,
+        model_type=model_type,
+        model_instance=model_instance,
+        factory_available=False,
+        error=None,
+        metadata={
+            "structured_model_management": False,
+            "creation_approach": "direct_instantiation",
+        }
+    )
 
 
 def run_model_comparison_analysis(

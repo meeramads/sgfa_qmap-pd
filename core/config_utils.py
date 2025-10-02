@@ -3,11 +3,31 @@
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Protocol, Union
 
 from .config_schema import ConfigurationValidator, ConfigValidationError
 
 logger = logging.getLogger(__name__)
+
+
+class ConfigLike(Protocol):
+    """Protocol for config objects that can be converted to dict.
+
+    Any object implementing either to_dict() or having __dict__ can be used
+    as a configuration object throughout the codebase.
+    """
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary."""
+        ...
+
+
+class DictLike(Protocol):
+    """Protocol for objects with __dict__ attribute."""
+    __dict__: Dict[str, Any]
+
+
+# Type alias for anything that can be used as config
+ConfigType = Union[Dict[str, Any], ConfigLike, DictLike]
 
 
 def safe_get(config: Dict[str, Any], *keys: str, default: Any = None) -> Any:
@@ -343,40 +363,47 @@ class ConfigHelper:
     """Utility class for standardized configuration handling across the codebase."""
 
     @staticmethod
-    def to_dict(config_or_dict) -> Dict[str, Any]:
+    def to_dict(config: ConfigType) -> Dict[str, Any]:
         """
         Convert any config object to a dictionary in a standardized way.
 
         Parameters
         ----------
-        config_or_dict : Any
-            Config object (with .to_dict() method), dictionary, or object with __dict__
+        config : ConfigType
+            Config object (Dict, ConfigLike with to_dict(), or DictLike with __dict__)
 
         Returns
         -------
         Dict[str, Any]
             Dictionary representation of the config
+
+        Examples
+        --------
+        >>> ConfigHelper.to_dict({'key': 'value'})
+        {'key': 'value'}
+        >>> class MyConfig:
+        ...     def to_dict(self): return {'foo': 'bar'}
+        >>> ConfigHelper.to_dict(MyConfig())
+        {'foo': 'bar'}
         """
-        if isinstance(config_or_dict, dict):
-            return config_or_dict
-        elif hasattr(config_or_dict, "to_dict") and callable(
-            getattr(config_or_dict, "to_dict")
-        ):
-            return config_or_dict.to_dict()
-        elif hasattr(config_or_dict, "__dict__"):
-            return config_or_dict.__dict__
+        if isinstance(config, dict):
+            return config
+        elif hasattr(config, "to_dict") and callable(getattr(config, "to_dict")):
+            return config.to_dict()
+        elif hasattr(config, "__dict__"):
+            return config.__dict__
         else:
             # If it's a simple value, wrap it
-            return {"value": config_or_dict}
+            return {"value": config}
 
     @staticmethod
-    def get_output_dir_safe(config_or_dict) -> Path:
+    def get_output_dir_safe(config: ConfigType) -> Path:
         """
         Get output directory from any config format safely.
 
         Parameters
         ----------
-        config_or_dict : Any
+        config : ConfigType
             Config object or dictionary
 
         Returns
@@ -384,17 +411,17 @@ class ConfigHelper:
         Path
             Output directory path
         """
-        config_dict = ConfigHelper.to_dict(config_or_dict)
+        config_dict = ConfigHelper.to_dict(config)
         return get_output_dir(config_dict)
 
     @staticmethod
-    def get_data_dir_safe(config_or_dict) -> Path:
+    def get_data_dir_safe(config: ConfigType) -> Path:
         """
         Get data directory from any config format safely.
 
         Parameters
         ----------
-        config_or_dict : Any
+        config : ConfigType
             Config object or dictionary
 
         Returns
@@ -402,11 +429,11 @@ class ConfigHelper:
         Path
             Data directory path
         """
-        config_dict = ConfigHelper.to_dict(config_or_dict)
+        config_dict = ConfigHelper.to_dict(config)
         return get_data_dir(config_dict)
 
     @staticmethod
-    def safe_get_from_config(config_or_dict, *keys: str, default: Any = None) -> Any:
+    def safe_get_from_config(config: ConfigType, *keys: str, default: Any = None) -> Any:
         """
         Safely get nested values from any config format.
 

@@ -230,7 +230,11 @@ def main(args):
     _initial_memory_cleanup()
 
     # Load and prepare data
-    data_manager = DataManager(args, config_manager.get_hyperparameters_dir())
+    from analysis.data_manager import DataManagerConfig
+    from analysis.model_runner import ModelRunnerConfig
+
+    dm_config = DataManagerConfig.from_object(args)
+    data_manager = DataManager(dm_config)
     X_list, data, hypers = data_manager.load_and_prepare_data(hypers)
     data_manager.estimate_memory_requirements(X_list)
 
@@ -247,7 +251,8 @@ def main(args):
 
     # Run standard MCMC analysis if requested
     if config.run_standard:
-        model_runner = ModelRunner(args, config.standard_res_dir)
+        mr_config = ModelRunnerConfig.from_object(args)
+        model_runner = ModelRunner(mr_config, config.standard_res_dir)
         model_runner.run_standard_analysis(X_list, hypers, data)
 
         # Create visualizations

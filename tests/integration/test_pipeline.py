@@ -7,8 +7,8 @@ import pytest
 
 from analysis.config_manager import ConfigManager
 from analysis.cross_validation import CVRunner
-from analysis.data_manager import DataManager
-from analysis.model_runner import ModelRunner
+from analysis.data_manager import DataManager, DataManagerConfig
+from analysis.model_runner import ModelRunner, ModelRunnerConfig
 
 
 @pytest.mark.integration
@@ -44,8 +44,8 @@ class TestFullPipeline:
         with patch("run_analysis.run_inference", return_value=mock_mcmc_results):
             # Initialize components
             config_manager = ConfigManager(args, temp_dir)
-            data_manager = DataManager(config_manager.config)
-            model_runner = ModelRunner(config_manager.config)
+            data_manager = DataManager(DataManagerConfig.from_object(config_manager.config))
+            model_runner = ModelRunner(ModelRunnerConfig.from_object(config_manager.config))
 
             # Run pipeline steps
             data = data_manager.load_data()
@@ -101,8 +101,8 @@ class TestFullPipeline:
         args.results_dir = str(temp_dir)
 
         config_manager = ConfigManager(args, temp_dir)
-        data_manager = DataManager(config_manager.config)
-        model_runner = ModelRunner(config_manager.config)
+        data_manager = DataManager(DataManagerConfig.from_object(config_manager.config))
+        model_runner = ModelRunner(ModelRunnerConfig.from_object(config_manager.config))
 
         # Load data successfully
         data = data_manager.load_data()
@@ -147,8 +147,8 @@ class TestFullPipeline:
 
             with patch("run_analysis.run_inference", return_value=mock_results):
                 config_manager = ConfigManager(base_args, temp_dir)
-                data_manager = DataManager(config_manager.config)
-                model_runner = ModelRunner(config_manager.config)
+                data_manager = DataManager(DataManagerConfig.from_object(config_manager.config))
+                model_runner = ModelRunner(ModelRunnerConfig.from_object(config_manager.config))
 
                 data = data_manager.load_data()
                 X_list, hypers = data_manager.prepare_for_analysis(data)
@@ -172,7 +172,7 @@ class TestPipelineDataFlow:
         args.results_dir = str(temp_dir)
 
         config_manager = ConfigManager(args, temp_dir)
-        data_manager = DataManager(config_manager.config)
+        data_manager = DataManager(DataManagerConfig.from_object(config_manager.config))
 
         # Load and prepare data
         data = data_manager.load_data()
@@ -186,7 +186,7 @@ class TestPipelineDataFlow:
         assert hypers["Dm"] == [X.shape[1] for X in X_list]
 
         # Verify data can be used by model runner
-        ModelRunner(config_manager.config)
+        ModelRunner(ModelRunnerConfig.from_object(config_manager.config))
 
         # This should not raise errors about data format
         assert all(isinstance(X, np.ndarray) for X in X_list)
@@ -208,8 +208,8 @@ class TestPipelineDataFlow:
         config = config_manager.config
 
         # Verify config values are accessible by all components
-        data_manager = DataManager(config)
-        model_runner = ModelRunner(config)
+        data_manager = DataManager(DataManagerConfig.from_object(config))
+        model_runner = ModelRunner(ModelRunnerConfig.from_object(config))
         cv_runner = CVRunner(config, temp_dir)
 
         # Config should be consistently accessible
@@ -232,8 +232,8 @@ class TestPipelineDataFlow:
         args.num_runs = 1
 
         config_manager = ConfigManager(args, temp_dir)
-        data_manager = DataManager(config_manager.config)
-        model_runner = ModelRunner(config_manager.config)
+        data_manager = DataManager(DataManagerConfig.from_object(config_manager.config))
+        model_runner = ModelRunner(ModelRunnerConfig.from_object(config_manager.config))
 
         # Run operations that should log
         data = data_manager.load_data()

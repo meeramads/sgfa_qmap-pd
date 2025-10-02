@@ -227,16 +227,18 @@ def apply_analysis_framework_to_pipeline(
 
         # Initialize DataManager
         logger.info("📊 Initializing DataManager...")
-        from analysis.data_manager import DataManager
+        from analysis.data_manager import DataManager, DataManagerConfig
 
-        # Create data manager with analysis args
-        data_manager = DataManager(config_manager.args)
+        # Create data manager with proper config
+        dm_config = DataManagerConfig.from_object(config_manager.args)
+        data_manager = DataManager(dm_config)
 
         # Initialize ModelRunner
         logger.info("🔄 Initializing ModelRunner...")
-        from analysis.model_runner import ModelRunner
+        from analysis.model_runner import ModelRunner, ModelRunnerConfig
 
-        model_runner = ModelRunner(config_manager.args)
+        mr_config = ModelRunnerConfig.from_object(config_manager.args)
+        model_runner = ModelRunner(mr_config)
 
         logger.info("✅ Analysis framework components initialized")
         logger.info(f"   DataManager: {type(data_manager).__name__}")
