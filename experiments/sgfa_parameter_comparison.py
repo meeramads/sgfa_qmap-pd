@@ -1896,7 +1896,7 @@ def run_sgfa_parameter_comparison(config):
                 "experiment_config": {
                     "K_values_tested": K_values[:2],
                     "percW_values_tested": percW_values[:2],
-                    "sgfa_variants_tested": list(sgfa_results.keys()),
+                    "sgfa_variants_tested": list(model_results.keys()),
                     "data_characteristics": {
                         "num_subjects": X_list[0].shape[0],
                         "num_features_per_view": [X.shape[1] for X in X_list],

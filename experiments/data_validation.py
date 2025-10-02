@@ -100,33 +100,40 @@ def run_data_validation(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Run basic data validation directly without framework
-        logger.info("Running simplified data validation...")
+        # Run full data validation with EDA plots
+        logger.info("Running comprehensive data validation with EDA plots...")
 
-        # Advanced data loading and validation with neuroimaging-aware preprocessing
-        from data.preprocessing_integration import apply_preprocessing_to_pipeline
+        # Initialize experiment framework
+        from experiments.framework import ExperimentConfig, ExperimentFramework
 
-        # Get preprocessing strategy from config
-        from core.config_utils import ConfigHelper
-        config_dict = ConfigHelper.to_dict(config)
-        preprocessing_config = config_dict.get("preprocessing", {})
-        strategy = preprocessing_config.get("strategy", "standard")
-
-        logger.info(f"🧠 Using {strategy} neuroimaging preprocessing strategy from config...")
-        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-            config=config,
+        exp_config = ExperimentConfig(
+            experiment_name="data_validation",
+            description="Data quality assessment and EDA",
+            dataset="qmap_pd",
             data_dir=get_data_dir(config),
-            auto_select_strategy=False,  # Don't auto-select, use config strategy
-            preferred_strategy=strategy,  # Use strategy from config
         )
 
-        logger.info(f"✅ Data loaded: {len(X_list)} views")
-        for i, X in enumerate(X_list):
-            logger.info(f"   View {i}: {X.shape}")
+        # Create data validation experiment instance
+        data_val_exp = DataValidationExperiments(exp_config, logger)
 
-        # Log preprocessing summary instead of full details
-        _log_preprocessing_summary(preprocessing_info)
-        logger.info("✅ Data validation completed successfully")
+        # Run comprehensive data quality assessment (includes EDA plots)
+        result = data_val_exp.run_data_quality_assessment(X_list=None)
+
+        # Save plots if they were generated
+        if result and result.plots:
+            logger.info(f"📊 Generated {len(result.plots)} EDA plots")
+            output_dir = get_output_dir(config)
+            plots_dir = Path(output_dir) / "plots"
+            plots_dir.mkdir(exist_ok=True, parents=True)
+
+            for plot_name, fig in result.plots.items():
+                if fig is not None:
+                    plot_path = plots_dir / f"{plot_name}.png"
+                    fig.savefig(plot_path, dpi=300, bbox_inches='tight')
+                    logger.info(f"  ✅ Saved: {plot_name}.png")
+                    plt.close(fig)
+
+        logger.info("✅ Data validation with EDA completed successfully")
 
         # Final memory cleanup
         jax.clear_caches()
@@ -135,13 +142,14 @@ def run_data_validation(config):
 
         return {
             "status": "completed",
-            "views": len(X_list),
-            "shapes": [X.shape for X in X_list],
-            "preprocessing": preprocessing_info,
+            "plots_generated": len(result.plots) if result and result.plots else 0,
+            "analysis": result.analysis if result else {},
         }
 
     except Exception as e:
         logger.error(f"Data validation failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
         # Cleanup memory on failure
         jax.clear_caches()
