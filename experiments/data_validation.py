@@ -200,15 +200,17 @@ class DataValidationExperiments(ExperimentFramework):
                 if hasattr(self.config, "to_dict")
                 else self.config.__dict__
             )
+            # Get data_dir directly from config (ExperimentConfig has it as top-level attr)
+            data_dir = config_dict.get("data_dir") or "./qMAP-PD_data"
             raw_data = load_qmap_pd(
-                data_dir=get_data_dir(config_dict),
+                data_dir=data_dir,
                 enable_advanced_preprocessing=False,
                 **config_dict.get("preprocessing_config", {}),
             )
 
             # Load preprocessed data for comparison
             preprocessed_data = load_qmap_pd(
-                data_dir=get_data_dir(config_dict),
+                data_dir=data_dir,
                 enable_advanced_preprocessing=True,
                 **config_dict.get("preprocessing_config", {}),
             )
@@ -925,6 +927,8 @@ class DataValidationExperiments(ExperimentFramework):
 
             # Get strategy configurations from config
             config_dict = ConfigHelper.to_dict(self.config)
+            # Get data_dir directly from config (ExperimentConfig has it as top-level attr)
+            data_dir = config_dict.get("data_dir") or "./qMAP-PD_data"
             strategies_config = config_dict.get("data_validation", {}).get("preprocessing_strategies", {})
 
             if not strategies_config:
@@ -955,7 +959,7 @@ class DataValidationExperiments(ExperimentFramework):
                     # Apply preprocessing with this strategy
                     X_list_strategy, preprocessing_info = apply_preprocessing_to_pipeline(
                         config=temp_config,
-                        data_dir=get_data_dir(config_dict),
+                        data_dir=data_dir,
                         auto_select_strategy=False,
                         preferred_strategy=strategy_params.get("strategy", strategy_name)
                     )
