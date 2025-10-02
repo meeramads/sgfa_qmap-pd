@@ -5,11 +5,59 @@ Integrates structured DataManager, ModelRunner, and ConfigManager into the pipel
 
 import argparse
 import logging
-from typing import Any, Dict, List, Tuple
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class AnalysisMode(Enum):
+    """Analysis execution modes."""
+    STRUCTURED = "structured"  # Full framework with DataManager/ModelRunner
+    FALLBACK = "fallback"      # Fallback to direct core.run_analysis
+    BASIC = "basic"            # Basic analysis without framework
+
+
+@dataclass
+class AnalysisFrameworkResult:
+    """Result from analysis framework initialization.
+
+    Attributes:
+        mode: Execution mode (STRUCTURED, FALLBACK, or BASIC)
+        data_manager: DataManager instance (None if mode != STRUCTURED)
+        model_runner: ModelRunner instance (None if mode != STRUCTURED)
+        config_manager: ConfigManager instance (None if not available)
+        error: Error message if initialization failed
+        metadata: Additional metadata about the framework setup
+    """
+    mode: AnalysisMode
+    data_manager: Optional[Any] = None
+    model_runner: Optional[Any] = None
+    config_manager: Optional[Any] = None
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = None
+
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
+
+    @property
+    def is_structured(self) -> bool:
+        """Check if using structured framework."""
+        return self.mode == AnalysisMode.STRUCTURED
+
+    @property
+    def is_fallback(self) -> bool:
+        """Check if using fallback mode."""
+        return self.mode == AnalysisMode.FALLBACK
+
+    @property
+    def success(self) -> bool:
+        """Check if initialization was successful."""
+        return self.error is None
 
 
 def get_optimal_analysis_configuration(
@@ -132,19 +180,22 @@ def _create_analysis_args_from_config(config: Dict) -> argparse.Namespace:
     return args
 
 
-def _fallback_analysis_configuration(config: Dict) -> Dict:
-    """Create fallback analysis configuration."""
-    logger.warning("Using fallback analysis configuration")
+def _create_fallback_result(error_msg: str) -> AnalysisFrameworkResult:
+    """Create fallback analysis framework result."""
+    logger.warning(f"Using fallback analysis: {error_msg}")
 
-    return {
-        "analysis_framework": False,
-        "config_manager": None,
-        "analysis_config": None,
-        "error": "analysis_framework_unavailable",
-        "fallback": True,
-        "run_standard": True,
-        "run_cv": False,
-    }
+    return AnalysisFrameworkResult(
+        mode=AnalysisMode.FALLBACK,
+        data_manager=None,
+        model_runner=None,
+        config_manager=None,
+        error=error_msg,
+        metadata={
+            "run_standard": True,
+            "run_cv": False,
+            "fallback_approach": "direct_core_analysis",
+        }
+    )
 
 
 def apply_analysis_framework_to_pipeline(
@@ -152,7 +203,7 @@ def apply_analysis_framework_to_pipeline(
     X_list: List[np.ndarray] = None,
     data_dir: str = None,
     output_dir: str = None,
-) -> Tuple[Any, Any, Dict]:
+) -> AnalysisFrameworkResult:
     """
     Apply comprehensive analysis framework to the remote workstation pipeline.
 
@@ -163,7 +214,7 @@ def apply_analysis_framework_to_pipeline(
         output_dir: Output directory for analysis results
 
     Returns:
-        Tuple of (data_manager, model_runner, framework_info)
+        AnalysisFrameworkResult with mode, components, and metadata
     """
     try:
         logger.info("🚀 === ANALYSIS FRAMEWORK INTEGRATION ===")
@@ -172,7 +223,7 @@ def apply_analysis_framework_to_pipeline(
         config_manager, config_summary = get_optimal_analysis_configuration(config)
 
         if not config_manager:
-            return None, None, _fallback_analysis_framework(config)
+            return _create_fallback_result("config_manager_unavailable")
 
         # Initialize DataManager
         logger.info("📊 Initializing DataManager...")
@@ -192,49 +243,32 @@ def apply_analysis_framework_to_pipeline(
         logger.info(f"   ModelRunner: {type(model_runner).__name__}")
         logger.info(f"   ConfigManager: {type(config_manager).__name__}")
 
-        framework_info = {
-            "framework_available": True,
-            "data_manager": data_manager,
-            "model_runner": model_runner,
-            "config_manager": config_manager,
+        metadata = {
             "config_summary": config_summary,
             "dependencies": config_summary.get("dependencies"),
             "result_directories": config_summary.get("directories", {}),
             "components_initialized": ["DataManager", "ModelRunner", "ConfigManager"],
-            "structured_analysis": True,
+            "run_standard": config_summary.get('run_standard', False),
+            "run_cv": config_summary.get('run_cv', False),
         }
 
         logger.info("✅ Analysis framework integration completed")
         logger.info(f"   Framework type: Structured analysis components")
-        logger.info(
-            f"   Standard analysis: {config_summary.get('run_standard', False)}"
-        )
-        logger.info(f"   Cross-validation: {config_summary.get('run_cv', False)}")
-        logger.info(
-            f" Dependencies available: { config_summary.get( 'dependencies', {}).cv_available if config_summary.get('dependencies') else False}"
-        )
+        logger.info(f"   Standard analysis: {metadata['run_standard']}")
+        logger.info(f"   Cross-validation: {metadata['run_cv']}")
 
-        return data_manager, model_runner, framework_info
+        return AnalysisFrameworkResult(
+            mode=AnalysisMode.STRUCTURED,
+            data_manager=data_manager,
+            model_runner=model_runner,
+            config_manager=config_manager,
+            error=None,
+            metadata=metadata
+        )
 
     except Exception as e:
         logger.error(f"❌ Analysis framework integration failed: {e}")
-        return None, None, _fallback_analysis_framework(config)
-
-
-def _fallback_analysis_framework(config: Dict) -> Dict:
-    """Create fallback analysis framework configuration."""
-    logger.warning("Using fallback analysis approach (direct core.run_analysis)")
-
-    return {
-        "framework_available": False,
-        "data_manager": None,
-        "model_runner": None,
-        "config_manager": None,
-        "error": "analysis_framework_unavailable",
-        "fallback": True,
-        "structured_analysis": False,
-        "fallback_approach": "direct_core_analysis",
-    }
+        return _create_fallback_result(f"initialization_failed: {str(e)}")
 
 
 def run_structured_mcmc_analysis(

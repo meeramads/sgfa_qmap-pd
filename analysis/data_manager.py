@@ -2,44 +2,96 @@
 """Module for data loading and preprocessing."""
 
 import logging
-from typing import Dict, List, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, List, Tuple, Optional, Any
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class DataManagerConfig:
+    """Configuration for DataManager.
+
+    Attributes:
+        dataset: Dataset name ('qmap_pd' or 'synthetic')
+        data_dir: Directory containing data files
+        clinical_rel: Relative path to clinical data
+        volumes_rel: Relative path to volumes data
+        roi_views: Whether to split ROIs into separate views
+        enable_preprocessing: Enable advanced preprocessing
+        enable_spatial_processing: Enable spatial preprocessing
+        preprocessing_params: Additional preprocessing parameters
+        num_sources: Number of sources (for synthetic data)
+        K: Number of factors (for synthetic data)
+        percW: Sparsity percentage (for synthetic data)
+    """
+    dataset: str = "qmap_pd"
+    data_dir: Optional[str] = None
+    clinical_rel: Optional[str] = None
+    volumes_rel: Optional[str] = None
+    roi_views: bool = True
+    enable_preprocessing: bool = True
+    enable_spatial_processing: bool = False
+    preprocessing_params: Dict[str, Any] = field(default_factory=dict)
+
+    # Synthetic data params
+    num_sources: int = 4
+    K: int = 10
+    percW: float = 25.0
+
+    @classmethod
+    def from_dict(cls, d: Dict) -> 'DataManagerConfig':
+        """Create config from dictionary, extracting only valid fields."""
+        valid_fields = cls.__dataclass_fields__.keys()
+        return cls(**{k: v for k, v in d.items() if k in valid_fields})
+
+    @classmethod
+    def from_object(cls, obj: Any) -> 'DataManagerConfig':
+        """Create config from object with attributes."""
+        if isinstance(obj, cls):
+            return obj
+        if isinstance(obj, dict):
+            return cls.from_dict(obj)
+
+        # Extract attributes from object
+        valid_fields = cls.__dataclass_fields__.keys()
+        kwargs = {}
+        for field_name in valid_fields:
+            if hasattr(obj, field_name):
+                kwargs[field_name] = getattr(obj, field_name)
+        return cls(**kwargs)
+
+
 class DataManager:
     """Manages data loading and preprocessing."""
 
-    def __init__(self, config_or_args, hyperparameters_dir=None):
-        # Support both old (config) and new (args, hyperparameters_dir) patterns
-        if hyperparameters_dir is not None:
-            # New pattern: DataManager(args, hyperparameters_dir)
-            self.args = config_or_args
-            self.hyperparameters_dir = hyperparameters_dir
-            # For backward compatibility
-            self.config = config_or_args
-        else:
-            # Old pattern: DataManager(config)
-            self.config = config_or_args
-            self.args = config_or_args
-            self.hyperparameters_dir = None
+    def __init__(self, config: DataManagerConfig):
+        """Initialize DataManager with proper config.
 
+        Args:
+            config: DataManagerConfig instance
+        """
+        if not isinstance(config, DataManagerConfig):
+            # Auto-convert if needed (temporary for migration)
+            config = DataManagerConfig.from_object(config)
+
+        self.config = config
         self.preprocessor = None
 
     def load_data(self) -> Dict:
         """Load data based on configuration."""
-        logger.info(f"📊 Loading dataset: {self.args.dataset}")
+        logger.info(f"📊 Loading dataset: {self.config.dataset}")
 
-        if self.args.dataset == "synthetic":
+        if self.config.dataset == "synthetic":
             logger.info("🎲 Generating synthetic data for testing")
             return self._load_synthetic_data()
-        elif self.args.dataset == "qmap_pd":
+        elif self.config.dataset == "qmap_pd":
             logger.info(f"🧠 Loading qMAP-PD data from: {self.config.data_dir}")
             return self._load_qmap_data()
         else:
-            raise ValueError(f"Unknown dataset: {self.args.dataset}")
+            raise ValueError(f"Unknown dataset: {self.config.dataset}")
 
     def _load_qmap_data(self) -> Dict:
         """Load qMAP-PD dataset with preprocessing."""
@@ -52,7 +104,7 @@ class DataManager:
             imaging_as_single_view=not self.config.roi_views,
             enable_advanced_preprocessing=self.config.enable_preprocessing,
             enable_spatial_processing=self.config.enable_spatial_processing,
-            **getattr(self.config, 'preprocessing_params', {}),
+            **self.config.preprocessing_params,
         )
 
         # Log preprocessing results if available
@@ -66,7 +118,7 @@ class DataManager:
         from data.synthetic import generate_synthetic_data
 
         return generate_synthetic_data(
-            self.args.num_sources, self.args.K, getattr(self.args, 'percW', 25.0)
+            self.config.num_sources, self.config.K, self.config.percW
         )
 
     def prepare_for_analysis(self, data: Dict) -> Tuple[List[np.ndarray], Dict]:
@@ -81,7 +133,7 @@ class DataManager:
             "nu_global": 1,
             "slab_scale": 2,
             "slab_df": 4,
-            "percW": getattr(self.args, 'percW', 25.0),
+            "percW": self.config.percW,
             "Dm": [X.shape[1] for X in X_list],
         }
 

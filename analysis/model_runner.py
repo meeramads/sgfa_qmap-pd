@@ -3,8 +3,9 @@
 
 import logging
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 
 import jax
 import numpy as np
@@ -13,24 +14,63 @@ from numpyro.infer import MCMC, NUTS
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ModelRunnerConfig:
+    """Configuration for ModelRunner.
+
+    Attributes:
+        num_runs: Number of independent MCMC runs
+        num_warmup: Number of warmup iterations
+        num_samples: Number of sampling iterations
+        num_chains: Number of parallel chains
+        model: Model name/identifier
+    """
+    num_runs: int = 1
+    num_warmup: int = 1000
+    num_samples: int = 2000
+    num_chains: int = 1
+    model: str = "sparseGFA"
+
+    @classmethod
+    def from_dict(cls, d: Dict) -> 'ModelRunnerConfig':
+        """Create config from dictionary, extracting only valid fields."""
+        valid_fields = cls.__dataclass_fields__.keys()
+        return cls(**{k: v for k, v in d.items() if k in valid_fields})
+
+    @classmethod
+    def from_object(cls, obj: Any) -> 'ModelRunnerConfig':
+        """Create config from object with attributes."""
+        if isinstance(obj, cls):
+            return obj
+        if isinstance(obj, dict):
+            return cls.from_dict(obj)
+
+        # Extract attributes from object
+        valid_fields = cls.__dataclass_fields__.keys()
+        kwargs = {}
+        for field_name in valid_fields:
+            if hasattr(obj, field_name):
+                kwargs[field_name] = getattr(obj, field_name)
+        return cls(**kwargs)
+
+
 class ModelRunner:
     """Handles MCMC model execution."""
 
-    def __init__(self, config_or_args, results_dir=None):
-        # Support both old (config) and new (args, results_dir) patterns
-        if results_dir is not None:
-            # New pattern: ModelRunner(args, results_dir)
-            self.args = config_or_args
-            self.results_dir = results_dir
-            self.output_dir = results_dir  # Fix: Add output_dir attribute
-            # For backward compatibility
-            self.config = config_or_args
-        else:
-            # Old pattern: ModelRunner(config)
-            self.config = config_or_args
-            self.args = config_or_args
-            self.results_dir = None
-            self.output_dir = None  # Fix: Add output_dir attribute
+    def __init__(self, config: ModelRunnerConfig, results_dir: Optional[Path] = None):
+        """Initialize ModelRunner with proper config.
+
+        Args:
+            config: ModelRunnerConfig instance
+            results_dir: Optional directory for saving results
+        """
+        if not isinstance(config, ModelRunnerConfig):
+            # Auto-convert if needed (temporary for migration)
+            config = ModelRunnerConfig.from_object(config)
+
+        self.config = config
+        self.results_dir = results_dir
+        self.output_dir = results_dir
 
     def run_standard_analysis(
         self, X_list: List[np.ndarray], hypers: Dict, data: Dict
