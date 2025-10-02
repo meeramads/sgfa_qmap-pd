@@ -342,6 +342,7 @@ class ExperimentFramework:
             result.convergence_diagnostics = experiment_results.get(
                 "convergence_diagnostics", {}
             )
+            result.plots = experiment_results.get("plots", {})
 
             # Save intermediate results if configured
             if config.save_intermediate_results:
