@@ -190,72 +190,71 @@ class DataValidationExperiments(ExperimentFramework):
         """
         logger.info("Running data quality assessment")
 
-        # Validate inputs if provided
-        if X_list is not None:
+        # Load data if not provided
+        if X_list is None:
+            logger.info("Loading qMAP-PD data for quality assessment...")
+
+            # Load raw data
+            config_dict = (
+                self.config.to_dict()
+                if hasattr(self.config, "to_dict")
+                else self.config.__dict__
+            )
+            raw_data = load_qmap_pd(
+                data_dir=get_data_dir(config_dict),
+                enable_advanced_preprocessing=False,
+                **config_dict.get("preprocessing_config", {}),
+            )
+
+            # Load preprocessed data for comparison
+            preprocessed_data = load_qmap_pd(
+                data_dir=get_data_dir(config_dict),
+                enable_advanced_preprocessing=True,
+                **config_dict.get("preprocessing_config", {}),
+            )
+
+            X_list = preprocessed_data["X_list"]
+        else:
+            # Validate inputs if provided
             ResultValidator.validate_data_matrices(X_list)
-            # Load data if not provided
-            if X_list is None:
-                logger.info("Loading qMAP-PD data for quality assessment...")
-
-                # Load raw data
-                config_dict = (
-                    self.config.to_dict()
-                    if hasattr(self.config, "to_dict")
-                    else self.config.__dict__
-                )
-                raw_data = load_qmap_pd(
-                    data_dir=get_data_dir(config_dict),
-                    enable_advanced_preprocessing=False,
-                    **config_dict.get("preprocessing_config", {}),
-                )
-
-                # Load preprocessed data for comparison
-                preprocessed_data = load_qmap_pd(
-                    data_dir=get_data_dir(config_dict),
-                    enable_advanced_preprocessing=True,
-                    **config_dict.get("preprocessing_config", {}),
-                )
-
-                X_list = preprocessed_data["X_list"]
-            else:
-                # Use provided data and create basic raw data structure for comparison
-                raw_data = {
-                    "X_list": X_list,
-                    "view_names": [f"view_{i}" for i in range(len(X_list))],
-                }
-                preprocessed_data = (
-                    raw_data  # For now, assume provided data is preprocessed
-                )
-
-            # Analyze data quality
-            results = {
-                "data_summary": self._analyze_data_structure(
-                    raw_data, preprocessed_data
-                ),
-                "quality_metrics": self._assess_data_quality(
-                    raw_data, preprocessed_data
-                ),
-                "preprocessing_effects": self._analyze_preprocessing_effects(
-                    raw_data, preprocessed_data
-                ),
+            # Use provided data and create basic raw data structure for comparison
+            raw_data = {
+                "X_list": X_list,
+                "view_names": [f"view_{i}" for i in range(len(X_list))],
             }
-
-            # Analyze data validation results
-            analysis = self._analyze_data_validation_results(
-                results, raw_data, preprocessed_data
+            preprocessed_data = (
+                raw_data  # For now, assume provided data is preprocessed
             )
 
-            # Generate basic plots (convert existing diagnostic plots to return figures)
-            plots = self._plot_data_validation_results(
-                raw_data, preprocessed_data, results
-            )
+        # Analyze data quality
+        results = {
+            "data_summary": self._analyze_data_structure(
+                raw_data, preprocessed_data
+            ),
+            "quality_metrics": self._assess_data_quality(
+                raw_data, preprocessed_data
+            ),
+            "preprocessing_effects": self._analyze_preprocessing_effects(
+                raw_data, preprocessed_data
+            ),
+        }
 
-            # Add comprehensive data validation visualizations (focus on preprocessing
-            # quality)
-            advanced_plots = self._create_comprehensive_data_validation_visualizations(
-                X_list, results, "data_quality_assessment"
-            )
-            plots.update(advanced_plots)
+        # Analyze data validation results
+        analysis = self._analyze_data_validation_results(
+            results, raw_data, preprocessed_data
+        )
+
+        # Generate basic plots (convert existing diagnostic plots to return figures)
+        plots = self._plot_data_validation_results(
+            raw_data, preprocessed_data, results
+        )
+
+        # Add comprehensive data validation visualizations (focus on preprocessing
+        # quality)
+        advanced_plots = self._create_comprehensive_data_validation_visualizations(
+            X_list, results, "data_quality_assessment"
+        )
+        plots.update(advanced_plots)
 
         return ExperimentResult(
             experiment_id="data_quality_assessment",
