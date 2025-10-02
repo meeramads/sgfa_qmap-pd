@@ -937,9 +937,12 @@ class ModelArchitectureComparison(ExperimentFramework):
                 method = CCA(n_components=max_components)
                 Z1, Z2 = method.fit_transform(X1, X2)
 
-                # Combine canonical variables for factor-like representation
-                Z = np.hstack([Z1, Z2])
-                W = np.vstack([method.x_weights_, method.y_weights_])  # Combined weights
+                # Use average of canonical variables for single factor representation
+                # This ensures Z and W dimensions are compatible for reconstruction
+                Z = (Z1 + Z2) / 2  # Average canonical variables
+
+                # Create combined weight matrix by concatenating view-specific weights
+                W = np.vstack([method.x_weights_, method.y_weights_])  # Shape: (total_features, n_components)
 
                 results = {
                     "Z": Z,
