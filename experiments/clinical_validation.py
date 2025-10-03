@@ -984,7 +984,11 @@ class ClinicalValidationExperiments(ExperimentFramework):
         )
 
     def _analyze_subtype_classification(self, results: Dict) -> Dict:
-        """Analyze subtype classification validation results."""
+        """Analyze subtype classification validation results.
+
+        WARNING: This function is for supervised classification with real labels.
+        If using random/mock labels, results will be meaningless.
+        """
         analysis = {
             "classification_performance": {},
             "sgfa_advantage": {},
@@ -1331,7 +1335,12 @@ class ClinicalValidationExperiments(ExperimentFramework):
     def _plot_subtype_classification(
         self, results: Dict, clinical_labels: np.ndarray
     ) -> Dict:
-        """Generate plots for subtype classification validation."""
+        """Generate plots for subtype classification validation.
+
+        WARNING: This function requires real clinical subtype labels.
+        Using random/mock labels will produce meaningless accuracy metrics.
+        Consider using pd_subtype_discovery with clustering quality metrics instead.
+        """
         plots = {}
 
         try:

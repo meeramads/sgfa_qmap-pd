@@ -1090,6 +1090,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             self.logger.info("   ✅ Quality comparison plot created")
 
         # Plot 3: Clinical validation comparison (if available)
+        # NOTE: This plot requires real clinical labels - not mock/random data
         self.logger.info("   Creating clinical validation plot...")
         clinical_scores = {}
         for m in successful_methods:
