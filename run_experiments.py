@@ -11,6 +11,7 @@ from experiments.sensitivity_analysis import run_sensitivity_analysis
 from experiments.model_comparison import run_model_comparison
 from experiments.data_validation import run_data_validation
 from experiments.clinical_validation import run_clinical_validation
+from experiments.reproducibility import run_reproducibility_analysis
 from core.config_utils import (
     check_configuration_warnings,
     ensure_directories,
@@ -107,6 +108,7 @@ def main():
             "model_comparison",
             "sensitivity_analysis",
             "clinical_validation",
+            "reproducibility",
             "neuroimaging_hyperopt",
             "neuroimaging_cv_benchmarks",
             "all",
@@ -188,7 +190,8 @@ def main():
             "sgfa_parameter_comparison": "02_sgfa_parameter_comparison",
             "model_comparison": "03_model_comparison",
             "sensitivity_analysis": "04_sensitivity_analysis",
-            "clinical_validation": "05_clinical_validation"
+            "clinical_validation": "05_clinical_validation",
+            "reproducibility": "06_reproducibility"
         }
 
         # Only create directories for experiments that are actually being run
@@ -403,6 +406,28 @@ def main():
 
         results["clinical_validation"] = run_clinical_validation(exp_config)
 
+    if "reproducibility" in experiments_to_run:
+        logger.info("🔁 Starting Reproducibility Analysis...")
+        exp_config = config.copy()
+        if pipeline_context["X_list"] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+            exp_config["_shared_data"] = {
+                "X_list": pipeline_context["X_list"],
+                "preprocessing_info": pipeline_context["preprocessing_info"],
+                "mode": "shared",
+            }
+
+            # Pass optimal SGFA parameters if available
+            if pipeline_context["optimal_sgfa_params"] is not None:
+                exp_config["_optimal_sgfa_params"] = pipeline_context[
+                    "optimal_sgfa_params"
+                ]
+                logger.info(
+                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
+                )
+
+        results["reproducibility"] = run_reproducibility_analysis(exp_config)
+
     if "neuroimaging_hyperopt" in experiments_to_run:
         logger.info("🔬 7/8 Starting Neuroimaging Hyperparameter Optimization...")
         exp_config = config.copy()
@@ -569,7 +594,8 @@ def main():
                 "sgfa_parameter_comparison": "02_sgfa_parameter_comparison/   - SGFA hyperparameter optimization",
                 "model_comparison": "03_model_comparison/   - Model architecture comparison",
                 "sensitivity_analysis": "04_sensitivity_analysis/ - Parameter sensitivity studies",
-                "clinical_validation": "05_clinical_validation/ - Clinical validation studies"
+                "clinical_validation": "05_clinical_validation/ - Clinical validation studies",
+                "reproducibility": "06_reproducibility/     - Reproducibility and stability analysis"
             }
 
             for experiment in experiments_to_run:
