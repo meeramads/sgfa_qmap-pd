@@ -171,6 +171,12 @@ class PreprocessingConfig:
     variance_threshold: float = 0.01
     missing_threshold: float = 0.5
 
+    # ROI-aware preprocessing parameters
+    roi_based_selection: bool = True
+    imaging_preserve_voxels: bool = False
+    n_top_features: Optional[int] = None
+    min_voxel_distance: float = 3.0
+
     def validate(self) -> List[str]:
         """Validate preprocessing configuration."""
         errors = []
