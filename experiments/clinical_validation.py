@@ -925,7 +925,10 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # 1. Train model on training cohort
         self.logger.info("Training SGFA model on training cohort")
-        train_result = self._run_sgfa_analysis(X_train_list, hypers, args, **kwargs)
+        # Use model_comparison's SGFA runner
+        from experiments.model_comparison import ModelArchitectureComparison
+        model_exp = ModelArchitectureComparison(self.config, self.logger)
+        train_result = model_exp._run_sgfa_analysis(X_train_list, hypers, args, **kwargs)
 
         if "error" in train_result:
             raise ValueError(f"Training failed: {train_result['error']}")
@@ -2626,8 +2629,12 @@ def run_clinical_validation(config):
             # 1. Run SGFA to extract factors
             logger.info("📊 Extracting SGFA factors...")
             try:
+                # Use model_comparison's SGFA runner
+                from experiments.model_comparison import ModelArchitectureComparison
+                model_exp = ModelArchitectureComparison(clinical_exp.config, clinical_exp.logger)
+
                 with clinical_exp.profiler.profile("sgfa_extraction") as p:
-                    sgfa_result = clinical_exp._run_sgfa_analysis(
+                    sgfa_result = model_exp._run_sgfa_analysis(
                         X_list, base_hypers, base_args
                     )
 
