@@ -242,16 +242,19 @@ sensitivity_analysis:
 clinical_validation:
   validation_types:
     - "pd_subtype_discovery"            # PD subtype discovery using unsupervised clustering
-    - "subtype_classification"          # PD subtype prediction (requires predefined labels)
-    - "disease_progression"             # Disease progression modeling
-    - "biomarker_discovery"             # Novel biomarker identification
+    # NOTE: "subtype_classification" disabled - requires real clinical subtype labels (not available in qMAP-PD)
+    # - "subtype_classification"          # PD subtype prediction (requires predefined labels)
+    # - "disease_progression"             # Disease progression modeling (placeholder - not implemented)
+    # - "biomarker_discovery"             # Novel biomarker identification (placeholder - not implemented)
 
+  # NOTE: Classification metrics only applicable if real clinical labels are available
+  # For unsupervised subtype discovery, use clustering metrics instead (silhouette, stability, etc.)
   classification_metrics:
-    - "accuracy"                        # Classification accuracy
-    - "precision"                       # Precision score
-    - "recall"                          # Recall score
-    - "f1_score"                        # F1 score
-    - "roc_auc"                         # ROC AUC
+    - "accuracy"                        # Classification accuracy (requires labels)
+    - "precision"                       # Precision score (requires labels)
+    - "recall"                          # Recall score (requires labels)
+    - "f1_score"                        # F1 score (requires labels)
+    - "roc_auc"                         # ROC AUC (requires labels)
 
   cross_validation:
     n_folds: 10                         # Robust CV for clinical validation
