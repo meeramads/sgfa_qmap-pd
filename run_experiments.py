@@ -11,7 +11,7 @@ from experiments.sensitivity_analysis import run_sensitivity_analysis
 from experiments.model_comparison import run_model_comparison
 from experiments.data_validation import run_data_validation
 from experiments.clinical_validation import run_clinical_validation
-from experiments.reproducibility import run_reproducibility_analysis
+from experiments.reproducibility import run_reproducibility
 from core.config_utils import (
     check_configuration_warnings,
     ensure_directories,
@@ -426,7 +426,7 @@ def main():
                     f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
                 )
 
-        results["reproducibility"] = run_reproducibility_analysis(exp_config)
+        results["reproducibility"] = run_reproducibility(exp_config)
 
     if "neuroimaging_hyperopt" in experiments_to_run:
         logger.info("🔬 7/8 Starting Neuroimaging Hyperparameter Optimization...")
