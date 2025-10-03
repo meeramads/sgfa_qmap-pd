@@ -2681,7 +2681,7 @@ def run_clinical_validation(config):
                 logger.info(f"📊 Testing {validation_type}...")
                 try:
                     if validation_type == "subtype_classification":
-                        classification_results = clinical_exp._test_factor_classification(
+                        classification_results = clinical_exp.classifier.test_factor_classification(
                             Z_sgfa, clinical_labels, "sgfa_factors"
                         )
                         results[validation_type] = classification_results
@@ -2824,12 +2824,12 @@ def run_clinical_validation(config):
                 pca = PCA(n_components=Z_sgfa.shape[1])
                 Z_pca = pca.fit_transform(X_concat)
 
-                pca_results = clinical_exp._test_factor_classification(
+                pca_results = clinical_exp.classifier.test_factor_classification(
                     Z_pca, clinical_labels, "pca_features"
                 )
 
                 # Raw data comparison
-                raw_results = clinical_exp._test_factor_classification(
+                raw_results = clinical_exp.classifier.test_factor_classification(
                     X_concat, clinical_labels, "raw_data"
                 )
 
