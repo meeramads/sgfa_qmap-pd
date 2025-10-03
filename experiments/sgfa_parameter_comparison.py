@@ -820,6 +820,7 @@ class SGFAParameterComparison(ExperimentFramework):
             "variant_summary": {},
             "performance_ranking": {},
             "convergence_analysis": {},
+            "roi_specificity_analysis": {},
             "recommendations": [],
         }
 
@@ -827,13 +828,41 @@ class SGFAParameterComparison(ExperimentFramework):
         for variant_name, result in results.items():
             metrics = performance_metrics[variant_name]
 
-            analysis["variant_summary"][variant_name] = {
+            variant_summary = {
                 "converged": result.get("convergence", False),
                 "log_likelihood": result.get("log_likelihood", 0),
                 "execution_time": metrics["execution_time"],
                 "memory_usage": metrics["peak_memory_gb"],
                 "iterations": metrics["convergence_iterations"],
             }
+
+            # Calculate ROI specificity if W_list is available
+            if "W" in result and isinstance(result["W"], list):
+                try:
+                    from analysis.cross_validation_library import NeuroImagingMetrics
+                    W_list = result["W"]
+                    view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+
+                    roi_specificity = NeuroImagingMetrics.roi_specificity_score(
+                        W_list, view_names=view_names
+                    )
+
+                    variant_summary["roi_specificity"] = {
+                        "n_specific_factors": roi_specificity["n_specific_factors"],
+                        "specificity_rate": roi_specificity["specificity_rate"],
+                        "mean_specificity": roi_specificity["mean_specificity"],
+                    }
+
+                    analysis["roi_specificity_analysis"][variant_name] = roi_specificity
+
+                    self.logger.info(f"ROI Specificity for {variant_name}:")
+                    self.logger.info(f"  - {roi_specificity['n_specific_factors']} factors are view-specific")
+                    self.logger.info(f"  - Mean specificity: {roi_specificity['mean_specificity']:.2f}")
+
+                except Exception as e:
+                    self.logger.debug(f"Could not calculate ROI specificity for {variant_name}: {e}")
+
+            analysis["variant_summary"][variant_name] = variant_summary
 
         # Performance ranking
         time_ranking = sorted(
@@ -961,6 +990,50 @@ class SGFAParameterComparison(ExperimentFramework):
             )
             plots["sgfa_variant_quality"] = quality_fig
             self.logger.info("   ✅ Quality comparison plot created")
+
+            # ROI Specificity comparison across variants
+            self.logger.info("   Creating ROI specificity comparison plot...")
+            roi_spec_data = {}
+            for variant_name, result in results.items():
+                if "W" in result and isinstance(result["W"], list):
+                    try:
+                        from analysis.cross_validation_library import NeuroImagingMetrics
+                        W_list = result["W"]
+                        view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+                        roi_spec = NeuroImagingMetrics.roi_specificity_score(W_list, view_names=view_names)
+                        roi_spec_data[variant_name] = roi_spec
+                    except Exception as e:
+                        self.logger.debug(f"Could not calculate ROI specificity for {variant_name}: {e}")
+
+            if roi_spec_data:
+                import matplotlib.pyplot as plt
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+                # Plot 1: Specificity rate bar chart
+                variant_names = list(roi_spec_data.keys())
+                specificity_rates = [roi_spec_data[v]["specificity_rate"] for v in variant_names]
+                mean_specificities = [roi_spec_data[v]["mean_specificity"] for v in variant_names]
+
+                ax1.bar(range(len(variant_names)), specificity_rates, color='steelblue', alpha=0.7)
+                ax1.set_xticks(range(len(variant_names)))
+                ax1.set_xticklabels(variant_names, rotation=45, ha='right')
+                ax1.set_ylabel('View-Specific Factor Rate')
+                ax1.set_title('ROI Specificity Rate by SGFA Variant')
+                ax1.set_ylim([0, 1])
+                ax1.grid(True, alpha=0.3, axis='y')
+
+                # Plot 2: Mean specificity
+                ax2.bar(range(len(variant_names)), mean_specificities, color='coral', alpha=0.7)
+                ax2.set_xticks(range(len(variant_names)))
+                ax2.set_xticklabels(variant_names, rotation=45, ha='right')
+                ax2.set_ylabel('Mean Factor Specificity')
+                ax2.set_title('Mean ROI Specificity by SGFA Variant')
+                ax2.set_ylim([0, 1])
+                ax2.grid(True, alpha=0.3, axis='y')
+
+                plt.tight_layout()
+                plots["roi_specificity_comparison"] = fig
+                self.logger.info(f"   ✅ ROI specificity comparison plot created ({len(roi_spec_data)} variants)")
 
         except Exception as e:
             self.logger.warning(f"Failed to create SGFA comparison plots: {str(e)}")

@@ -591,6 +591,7 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             "optimal_values": {},
             "stability_assessment": {},
             "performance_impact": {},
+            "roi_specificity_trends": {},
         }
 
         sensitivity_scores = {}
@@ -601,9 +602,10 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
 
             param_metrics = performance_metrics[param_name]
 
-            # Extract log likelihoods
+            # Extract log likelihoods and ROI specificity
             likelihoods = []
             param_values = []
+            roi_specificities = []
 
             for param_value, result in param_results.items():
                 if "error" not in result:
@@ -611,6 +613,25 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                     if not np.isnan(likelihood):
                         likelihoods.append(likelihood)
                         param_values.append(param_value)
+
+                        # Calculate ROI specificity if W_list available
+                        if "W" in result and isinstance(result["W"], list):
+                            try:
+                                from analysis.cross_validation_library import NeuroImagingMetrics
+                                W_list = result["W"]
+                                view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+
+                                roi_spec = NeuroImagingMetrics.roi_specificity_score(
+                                    W_list, view_names=view_names
+                                )
+                                roi_specificities.append({
+                                    "param_value": param_value,
+                                    "mean_specificity": roi_spec["mean_specificity"],
+                                    "specificity_rate": roi_spec["specificity_rate"],
+                                    "n_specific_factors": roi_spec["n_specific_factors"]
+                                })
+                            except Exception as e:
+                                self.logger.debug(f"Could not calculate ROI specificity for {param_name}={param_value}: {e}")
 
             if len(likelihoods) > 1:
                 # Calculate sensitivity as range of log likelihoods
@@ -647,6 +668,17 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
                     "time_range": max(execution_times) - min(execution_times),
                     "memory_range": max(memory_usages) - min(memory_usages),
                 }
+
+                # Store ROI specificity trends if available
+                if roi_specificities:
+                    analysis["roi_specificity_trends"][param_name] = roi_specificities
+                    self.logger.info(f"ROI Specificity trend for {param_name}:")
+                    for spec in roi_specificities:
+                        self.logger.info(
+                            f"  {param_name}={spec['param_value']}: "
+                            f"{spec['n_specific_factors']} specific factors, "
+                            f"mean={spec['mean_specificity']:.2f}"
+                        )
 
         # Rank parameters by sensitivity
         sorted_sensitivity = sorted(
@@ -958,6 +990,41 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             plt.tight_layout()
             plots["univariate_sensitivity"] = fig
             self.logger.info("   ✅ Univariate sensitivity plot created")
+
+            # Create ROI specificity trend plot if data available
+            self.logger.info("   Creating ROI specificity trend plot...")
+            roi_spec_trends = {}
+            for param_name, param_results in results.items():
+                param_specs = []
+                param_vals = []
+                for param_value, result in param_results.items():
+                    if "W" in result and isinstance(result["W"], list):
+                        try:
+                            from analysis.cross_validation_library import NeuroImagingMetrics
+                            W_list = result["W"]
+                            view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+                            roi_spec = NeuroImagingMetrics.roi_specificity_score(W_list, view_names=view_names)
+                            param_vals.append(param_value)
+                            param_specs.append(roi_spec["mean_specificity"])
+                        except:
+                            pass
+                if param_vals:
+                    roi_spec_trends[param_name] = (param_vals, param_specs)
+
+            if roi_spec_trends:
+                fig_roi, ax_roi = plt.subplots(1, 1, figsize=(10, 6))
+                for i, (param_name, (vals, specs)) in enumerate(roi_spec_trends.items()):
+                    ax_roi.plot(vals, specs, 'o-', label=param_name, color=colors[i % len(colors)])
+
+                ax_roi.set_xlabel("Parameter Value")
+                ax_roi.set_ylabel("Mean ROI Specificity")
+                ax_roi.set_title("ROI Specificity vs Parameter Values")
+                ax_roi.legend()
+                ax_roi.grid(True, alpha=0.3)
+                ax_roi.set_ylim([0, 1])
+                plt.tight_layout()
+                plots["roi_specificity_trends"] = fig_roi
+                self.logger.info(f"   ✅ ROI specificity trend plot created ({len(roi_spec_trends)} parameters)")
 
         except Exception as e:
             self.logger.warning(

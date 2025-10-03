@@ -1025,15 +1025,33 @@ class ModelArchitectureComparison(ExperimentFramework):
                         mse = np.mean((X_view - X_recon) ** 2)
                         recon_errors.append(mse)
                     mean_recon_error = np.mean(recon_errors)
+
+                    # Calculate ROI specificity for multi-view models
+                    try:
+                        view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+                        roi_specificity = self.neuroimaging_metrics.roi_specificity_score(
+                            W_list, view_names=view_names
+                        )
+                        self.logger.info(f"ROI Specificity for {method_name}:")
+                        self.logger.info(f"  - {roi_specificity['n_specific_factors']}/{len(W_list[0][0])} factors are view-specific")
+                        self.logger.info(f"  - Mean specificity: {roi_specificity['mean_specificity']:.2f}")
+                    except Exception as e:
+                        self.logger.warning(f"Could not calculate ROI specificity: {e}")
+                        roi_specificity = None
                 else:
                     # For traditional methods, use combined data
                     X_recon = Z @ W.T
                     mean_recon_error = np.mean((X_combined - X_recon) ** 2)
+                    roi_specificity = None  # Traditional methods don't have multi-view structure
 
                 analysis["quality_comparison"][method_name] = {
                     "reconstruction_error": mean_recon_error,
                     "log_likelihood": result.get("log_likelihood", np.nan),
                 }
+
+                # Add ROI specificity if available
+                if roi_specificity is not None:
+                    analysis["quality_comparison"][method_name]["roi_specificity"] = roi_specificity
 
         return analysis
 
@@ -1147,10 +1165,54 @@ class ModelArchitectureComparison(ExperimentFramework):
             plots["performance_vs_quality"] = perf_vs_quality_fig
             self.logger.info("   ✅ Performance vs quality tradeoff plot created")
 
-        # NOTE: Additional plots removed - they depend on unimplemented features:
-        # - Method characteristics: requires NeuroImagingMetrics (README line 52, 126)
-        # - Convergence comparison: requires proper convergence diagnostics
-        # - Neuroimaging metrics: NeuroImagingMetrics NEEDS DEVELOPMENT (README line 52)
+        # Plot 5: ROI Specificity Heatmap (for multi-view models)
+        self.logger.info("   Creating ROI specificity heatmap...")
+        roi_spec_data = {}
+        for m in successful_methods:
+            if m in analysis["quality_comparison"]:
+                roi_spec = analysis["quality_comparison"][m].get("roi_specificity")
+                if roi_spec and "view_loadings" in roi_spec:
+                    roi_spec_data[m] = roi_spec
+
+        if roi_spec_data:
+            try:
+                import matplotlib.pyplot as plt
+                import seaborn as sns
+
+                # Create heatmap for each model
+                n_models = len(roi_spec_data)
+                fig, axes = plt.subplots(1, n_models, figsize=(6 * n_models, 6))
+                if n_models == 1:
+                    axes = [axes]
+
+                for idx, (model_name, roi_spec) in enumerate(roi_spec_data.items()):
+                    ax = axes[idx]
+                    view_loadings = roi_spec["view_loadings"]
+                    view_names = roi_spec.get("dominant_view_names",
+                                             [f"View_{i}" for i in range(view_loadings.shape[1])])
+
+                    # Create heatmap
+                    sns.heatmap(
+                        view_loadings.T,
+                        annot=True,
+                        fmt=".2f",
+                        cmap="YlOrRd",
+                        xticklabels=[f"F{i+1}" for i in range(view_loadings.shape[0])],
+                        yticklabels=view_names,
+                        cbar_kws={"label": "Loading Proportion"},
+                        vmin=0,
+                        vmax=1,
+                        ax=ax
+                    )
+                    ax.set_title(f"{model_name}\nROI Specificity:\n{roi_spec['specificity_rate']*100:.1f}% view-specific")
+                    ax.set_xlabel("Factors")
+                    ax.set_ylabel("Views/ROIs")
+
+                plt.tight_layout()
+                plots["roi_specificity_heatmap"] = fig
+                self.logger.info(f"   ✅ ROI specificity heatmap created ({len(roi_spec_data)} models)")
+            except Exception as e:
+                self.logger.warning(f"Could not create ROI specificity plot: {e}")
 
         self.logger.info(f"📊 Unified model comparison plots completed: {len(plots)} plots generated")
         return plots

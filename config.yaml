@@ -51,12 +51,20 @@ model:
 # Controls data preprocessing and feature selection
 preprocessing:
   strategy: "differentiated_imaging_clinical"  # TEST: differentiated preprocessing for imaging vs clinical
-  enable_advanced_preprocessing: false  # Disable to preserve spatial integrity
-  enable_spatial_processing: false      # CRITICAL: Disabled to preserve voxel spatial mapping
+  enable_advanced_preprocessing: true   # Enable smart preprocessing for speed
+  enable_spatial_processing: false      # Keep disabled to preserve voxel spatial mapping
   imputation_strategy: "median"         # Handle missing values without removing voxels
-  feature_selection_method: "none"      # CRITICAL: no feature removal to preserve spatial mapping
-  variance_threshold: 0.0               # Don't remove any voxels based on variance
-  missing_threshold: 1.0                # Don't remove any voxels based on missing data
+
+  # Feature selection - ROI-aware for interpretability
+  feature_selection_method: "variance"  # Use variance-based selection
+  variance_threshold: 0.02              # Remove voxels with <2% variance (flat/noisy voxels)
+  missing_threshold: 0.8                # Remove voxels with >80% missing data
+
+  # ROI-aware selection (preserves proportional representation from each brain region)
+  roi_based_selection: true             # Enable ROI-aware feature selection
+  imaging_preserve_voxels: false        # Allow dropping low-variance voxels for speed
+  n_top_features: 10000                 # Optional: Keep top 10K voxels total (faster runs)
+  min_voxel_distance: 3.0               # Minimum distance between selected voxels (spatial distribution)
 
 # Cross-Validation Configuration (OPTIONAL)
 # Configures model evaluation and validation

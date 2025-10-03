@@ -386,6 +386,111 @@ class NeuroImagingMetrics:
 
         return scores
 
+    @staticmethod
+    def roi_specificity_score(
+        W_list: List[np.ndarray],
+        view_names: Optional[List[str]] = None,
+        threshold: float = 0.7
+    ) -> Dict[str, Any]:
+        """
+        Calculate ROI/view specificity for each factor.
+
+        Measures what percentage of each factor's loading comes from each view/ROI.
+        High specificity (>70%) means factor is specific to one ROI - more interpretable.
+        Low specificity means factor loads across multiple ROIs - potentially interesting
+        cross-region pattern but harder to interpret anatomically.
+
+        Parameters
+        ----------
+        W_list : List[np.ndarray]
+            List of factor loading matrices, one per view/ROI.
+            W_list[m].shape = (features_in_view_m, n_factors)
+        view_names : Optional[List[str]]
+            Names of views/ROIs for reporting
+        threshold : float
+            Threshold for considering a factor "specific" to a view (default: 0.7)
+
+        Returns
+        -------
+        Dict[str, Any]
+            - 'factor_specificity': Array of shape (n_factors,) with max specificity per factor
+            - 'factor_dominant_view': Array of dominant view index per factor
+            - 'n_specific_factors': Number of factors above threshold
+            - 'specificity_rate': Percentage of factors that are view-specific
+            - 'view_loadings': Matrix (n_factors, n_views) of loading proportions
+            - 'interpretation': Text interpretation of results
+        """
+        if not W_list:
+            return {
+                'error': 'Empty W_list provided',
+                'n_specific_factors': 0,
+                'specificity_rate': 0.0
+            }
+
+        n_factors = W_list[0].shape[1]
+        n_views = len(W_list)
+
+        if view_names is None:
+            view_names = [f"View_{i}" for i in range(n_views)]
+
+        # Calculate total loading per view per factor
+        view_loadings = np.zeros((n_factors, n_views))
+
+        for factor_idx in range(n_factors):
+            total_loading = 0.0
+
+            # Sum absolute loadings across all views
+            for view_idx, W in enumerate(W_list):
+                view_loading = np.sum(np.abs(W[:, factor_idx]))
+                view_loadings[factor_idx, view_idx] = view_loading
+                total_loading += view_loading
+
+            # Normalize to get proportions
+            if total_loading > 0:
+                view_loadings[factor_idx, :] /= total_loading
+
+        # Calculate specificity metrics
+        factor_specificity = np.max(view_loadings, axis=1)
+        factor_dominant_view = np.argmax(view_loadings, axis=1)
+        n_specific_factors = np.sum(factor_specificity >= threshold)
+        specificity_rate = n_specific_factors / n_factors if n_factors > 0 else 0.0
+
+        # Create interpretation
+        interpretation_lines = []
+        interpretation_lines.append(f"ROI Specificity Analysis ({n_factors} factors across {n_views} views):")
+        interpretation_lines.append(f"  - {n_specific_factors}/{n_factors} factors are view-specific (>{threshold*100:.0f}% loading)")
+        interpretation_lines.append(f"  - Specificity rate: {specificity_rate*100:.1f}%")
+        interpretation_lines.append("")
+        interpretation_lines.append("Factor-View Breakdown:")
+
+        for factor_idx in range(n_factors):
+            dominant_view = factor_dominant_view[factor_idx]
+            specificity = factor_specificity[factor_idx]
+            specific_label = "✓ Specific" if specificity >= threshold else "  Mixed"
+
+            # Show loading distribution
+            loading_str = ", ".join([
+                f"{view_names[v]}: {view_loadings[factor_idx, v]*100:.1f}%"
+                for v in range(n_views)
+            ])
+
+            interpretation_lines.append(
+                f"  Factor {factor_idx+1}: [{specific_label}] "
+                f"Dominant={view_names[dominant_view]} ({specificity*100:.1f}%) | {loading_str}"
+            )
+
+        return {
+            'factor_specificity': factor_specificity,
+            'factor_dominant_view': factor_dominant_view,
+            'dominant_view_names': [view_names[idx] for idx in factor_dominant_view],
+            'n_specific_factors': int(n_specific_factors),
+            'specificity_rate': float(specificity_rate),
+            'view_loadings': view_loadings,
+            'mean_specificity': float(np.mean(factor_specificity)),
+            'interpretation': '\n'.join(interpretation_lines),
+            'threshold': threshold
+        }
+
 
 # == ADVANCED CV SPLITTERS ==
 
