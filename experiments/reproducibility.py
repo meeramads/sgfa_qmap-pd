@@ -563,7 +563,9 @@ class ReproducibilityExperiments(ExperimentFramework):
         from numpyro.infer import MCMC, NUTS
 
         # Check cache first
-        results_cache = self.config.config.get("experiments", {}).get("results_cache")
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(self.config)
+        results_cache = config_dict.get("experiments", {}).get("results_cache")
         if results_cache:
             cached_result = results_cache.get(X_list, hypers, args)
             if cached_result is not None:
