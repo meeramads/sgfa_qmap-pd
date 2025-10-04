@@ -265,7 +265,7 @@ def main():
 
     # Run experiments sequentially, passing context through config
     if "data_validation" in experiments_to_run:
-        logger.info("🔍 Starting Data Validation Experiment...")
+        logger.info("🔍 1/6 Starting Data Validation Experiment...")
         results["data_validation"] = run_data_validation(config)
 
         # Update pipeline context with results from data validation
@@ -294,7 +294,7 @@ def main():
             )
 
     if "sgfa_parameter_comparison" in experiments_to_run:
-        logger.info("🔬 2/6 Starting SGFA Parameter Comparison Experiment...")
+        logger.info("🔬 3/6 Starting SGFA Parameter Comparison Experiment...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from data_validation")
@@ -353,7 +353,7 @@ def main():
                 pipeline_context["optimal_sgfa_params"] = None
 
     if "model_comparison" in experiments_to_run:
-        logger.info("🧠 3/6 Starting Model Architecture Comparison Experiment...")
+        logger.info("🧠 2/6 Starting Model Architecture Comparison Experiment...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -376,7 +376,7 @@ def main():
 
 
     if "sensitivity_analysis" in experiments_to_run:
-        logger.info("📊 4/5 Starting Sensitivity Analysis Experiment...")
+        logger.info("📊 4/6 Starting Sensitivity Analysis Experiment...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -398,7 +398,7 @@ def main():
         results["sensitivity_analysis"] = run_sensitivity_analysis(exp_config)
 
     if "clinical_validation" in experiments_to_run:
-        logger.info("🏥 6/8 Starting Clinical Validation with Neuroimaging CV...")
+        logger.info("🏥 5/6 Starting Clinical Validation with Neuroimaging CV...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -420,7 +420,7 @@ def main():
         results["clinical_validation"] = run_clinical_validation(exp_config)
 
     if "reproducibility" in experiments_to_run:
-        logger.info("🔁 Starting Reproducibility Analysis...")
+        logger.info("🔁 6/6 Starting Reproducibility Analysis...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
