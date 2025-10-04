@@ -28,12 +28,25 @@ import yaml
 # Add project root to path
 sys.path.insert(0, ".")
 
+
+# Custom FileHandler that handles stale file handles on network filesystems
+class ResilientFileHandler(logging.FileHandler):
+    """FileHandler that silently ignores OSError on flush (e.g., stale NFS handles)."""
+
+    def flush(self):
+        try:
+            super().flush()
+        except OSError:
+            # Silently ignore stale file handle errors on network filesystems
+            pass
+
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("logs/remote_workstation_experiments.log"),
+        ResilientFileHandler("logs/remote_workstation_experiments.log"),
         logging.StreamHandler(sys.stdout),
     ],
 )
@@ -594,6 +607,7 @@ def main():
         summary_path = (
             get_output_dir(config) / "summaries" / "complete_experiment_summary.yaml"
         )
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
         with open(summary_path, "w") as f:
             yaml.dump(summary, f, default_flow_style=False)
 

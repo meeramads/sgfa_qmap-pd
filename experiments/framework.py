@@ -21,6 +21,18 @@ from optimization.config import auto_configure_for_system
 logger = logging.getLogger(__name__)
 
 
+# Custom FileHandler that handles stale file handles on network filesystems
+class ResilientFileHandler(logging.FileHandler):
+    """FileHandler that silently ignores OSError on flush (e.g., stale NFS handles)."""
+
+    def flush(self):
+        try:
+            super().flush()
+        except OSError:
+            # Silently ignore stale file handle errors on network filesystems
+            pass
+
+
 def safe_log(log_func, message, *args, **kwargs):
     """
     Safely log a message, catching OSError (stale file handle) from network filesystems.
@@ -279,7 +291,7 @@ class ExperimentFramework:
         log_file = self.base_output_dir / "experiments.log"
 
         # Create file handler
-        file_handler = logging.FileHandler(log_file)
+        file_handler = ResilientFileHandler(log_file)
         file_handler.setLevel(logging.INFO)
 
         # Create formatter
