@@ -1491,6 +1491,16 @@ class DataValidationExperiments(ExperimentFramework):
             viz_manager.plot_dir = viz_manager._setup_plot_directory()
 
             # Prepare data validation structure for visualizations
+            # Transform preprocessing_effects into feature_reduction format for visualizer
+            feature_reduction = {}
+            if "preprocessing_effects" in results and "dimensionality_reduction" in results["preprocessing_effects"]:
+                for view_name, dims in results["preprocessing_effects"]["dimensionality_reduction"].items():
+                    feature_reduction[view_name] = {
+                        "original": dims.get("original_features", 0),
+                        "processed": dims.get("processed_features", 0),
+                        "reduction_ratio": dims.get("processed_features", 0) / dims.get("original_features", 1) if dims.get("original_features", 0) > 0 else 1.0
+                    }
+
             data = {
                 "X_list": X_list,
                 "view_names": [f"view_{i}" for i in range(len(X_list))],
@@ -1500,6 +1510,7 @@ class DataValidationExperiments(ExperimentFramework):
                     "status": "completed",
                     "strategy": "comprehensive_validation",
                     "quality_results": results,
+                    "feature_reduction": feature_reduction,  # Add transformed data
                 },
             }
 
