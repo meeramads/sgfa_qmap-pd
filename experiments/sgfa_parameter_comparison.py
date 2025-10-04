@@ -1035,6 +1035,67 @@ class SGFAParameterComparison(ExperimentFramework):
                 plots["roi_specificity_comparison"] = fig
                 self.logger.info(f"   ✅ ROI specificity comparison plot created ({len(roi_spec_data)} variants)")
 
+            # Identify best-performing configuration based on log-likelihood
+            self.logger.info("   Identifying best-performing configuration...")
+            best_variant = max(results.items(), key=lambda x: x[1].get("log_likelihood", float("-inf")))
+            best_name, best_result = best_variant
+            self.logger.info(f"   Best configuration: {best_name} (LL={best_result.get('log_likelihood', 0):.2f})")
+
+            # Generate factor visualizations for best configuration
+            if "W" in best_result and "Z" in best_result:
+                self.logger.info(f"   Creating factor visualizations for best config: {best_name}...")
+
+                # Factor loadings heatmap
+                try:
+                    import matplotlib.pyplot as plt
+                    import numpy as np
+
+                    W_list = best_result["W"]
+                    Z_mean = best_result["Z"]
+                    view_names = best_result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+
+                    # Create combined weight matrix
+                    W_combined = np.vstack(W_list)
+                    n_factors = W_combined.shape[1]
+
+                    # Plot 1: Factor loadings heatmap
+                    fig1, ax1 = plt.subplots(figsize=(12, 8))
+                    im = ax1.imshow(W_combined.T, aspect='auto', cmap='RdBu_r',
+                                   vmin=-np.abs(W_combined).max(), vmax=np.abs(W_combined).max())
+                    ax1.set_xlabel('Features (across all views)')
+                    ax1.set_ylabel('Factors')
+                    ax1.set_title(f'Factor Loadings (W) - Best Config: {best_name}')
+
+                    # Add view boundaries
+                    cumsum = 0
+                    for i, W_view in enumerate(W_list[:-1]):
+                        cumsum += W_view.shape[0]
+                        ax1.axvline(cumsum - 0.5, color='white', linewidth=2, linestyle='--')
+                        if i < len(view_names) - 1:
+                            ax1.text(cumsum - W_view.shape[0]/2, -0.5, view_names[i],
+                                   ha='center', va='top', fontsize=10, fontweight='bold')
+                    ax1.text(cumsum + W_list[-1].shape[0]/2, -0.5, view_names[-1],
+                           ha='center', va='top', fontsize=10, fontweight='bold')
+
+                    plt.colorbar(im, ax=ax1, label='Loading Weight')
+                    plt.tight_layout()
+                    plots["best_factor_loadings"] = fig1
+                    self.logger.info(f"   ✅ Factor loadings heatmap created")
+
+                    # Plot 2: Factor scores
+                    fig2, ax2 = plt.subplots(figsize=(10, 6))
+                    im2 = ax2.imshow(Z_mean.T, aspect='auto', cmap='viridis')
+                    ax2.set_xlabel('Subjects')
+                    ax2.set_ylabel('Factors')
+                    ax2.set_title(f'Factor Scores (Z) - Best Config: {best_name}')
+                    plt.colorbar(im2, ax=ax2, label='Factor Score')
+                    plt.tight_layout()
+                    plots["best_factor_scores"] = fig2
+                    self.logger.info(f"   ✅ Factor scores visualization created")
+
+                except Exception as e:
+                    self.logger.warning(f"Failed to create factor visualizations for best config: {e}")
+
         except Exception as e:
             self.logger.warning(f"Failed to create SGFA comparison plots: {str(e)}")
 
