@@ -123,11 +123,15 @@ def get_optimal_model_configuration(
         # Validate model availability
         from models import ModelFactory
 
-        available_models = ModelFactory.list_models()
+        # Include both Bayesian models and traditional baselines
+        bayesian_models = ModelFactory.list_models()
+        baseline_methods = ["PCA", "ICA", "FactorAnalysis", "NMF", "KMeans", "CCA"]
+        available_models = bayesian_models + baseline_methods
 
-        if model_type not in available_models:
-            logger.warning(f"Requested model '{model_type}' not available")
-            logger.info(f"Available models: {available_models}")
+        if model_type not in bayesian_models:
+            logger.warning(f"Requested model '{model_type}' not available in Bayesian models")
+            logger.info(f"Available Bayesian models: {bayesian_models}")
+            logger.info(f"Available baseline methods: {baseline_methods}")
             model_type = "sparseGFA"  # Fallback to default
             logger.info(f"Falling back to: {model_type}")
 
@@ -674,14 +678,17 @@ def integrate_models_with_pipeline(
             try:
                 from models import ModelFactory
 
-                available_models = ModelFactory.list_models()
+                # Include both Bayesian models and traditional baselines
+                bayesian_models = ModelFactory.list_models()
+                baseline_methods = ["PCA", "ICA", "FactorAnalysis", "NMF", "KMeans", "CCA"]
+                available_models = bayesian_models + baseline_methods
 
-                if len(available_models) > 1 and config.get("model", {}).get(
+                if len(bayesian_models) > 1 and config.get("model", {}).get(
                     "enable_comparison", False
                 ):
                     logger.info("Running model comparison analysis...")
                     comparison_results = run_model_comparison_analysis(
-                        available_models, config, X_list or [], hypers or {}
+                        bayesian_models, config, X_list or [], hypers or {}
                     )
                     integration_summary["model_comparison"] = comparison_results
                     integration_summary["comparison_completed"] = True
@@ -785,10 +792,11 @@ class ModelsFrameworkWrapper:
         try:
             from models import ModelFactory
 
-            available_models = ModelFactory.list_models()
+            # Only compare Bayesian models (baselines handled separately in model_comparison experiment)
+            bayesian_models = ModelFactory.list_models()
 
             return run_model_comparison_analysis(
-                available_models, config, X_list, hypers
+                bayesian_models, config, X_list, hypers
             )
         except Exception as e:
             logger.error(f"Model comparison failed: {e}")
