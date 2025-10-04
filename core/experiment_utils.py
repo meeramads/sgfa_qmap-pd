@@ -110,6 +110,7 @@ class SGFARunner:
                 nuts_kernel,
                 num_warmup=args.get("num_warmup", 1000),
                 num_samples=args.get("num_samples", 2000),
+                progress_bar=False,  # Disable verbose progress bar
                 **kwargs,
             )
 

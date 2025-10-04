@@ -3,6 +3,7 @@
 import gc
 import logging
 import time
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -27,6 +28,9 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.svm import SVC
+
+# Suppress sklearn's UndefinedMetricWarning for precision with no predicted samples
+warnings.filterwarnings('ignore', category=UserWarning, module='sklearn.metrics._classification')
 
 from core.config_utils import get_data_dir, get_output_dir
 from core.experiment_utils import experiment_handler

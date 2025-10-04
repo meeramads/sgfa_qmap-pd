@@ -182,6 +182,7 @@ def run_inference(model, args, rng_key, X_list, hypers):
         num_warmup=args.num_warmup,
         num_samples=args.num_samples,
         num_chains=args.num_chains,
+        progress_bar=False,  # Disable verbose progress bar
     )
     mcmc.run(rng_key, X_list, hypers, args, extra_fields=("potential_energy",))
     return mcmc

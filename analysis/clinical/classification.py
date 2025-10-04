@@ -117,11 +117,11 @@ class ClinicalClassifier:
                 )
 
                 accuracy = accuracy_score(all_true_labels, all_predictions)
-                f1 = f1_score(all_true_labels, all_predictions, average='weighted')
+                f1 = f1_score(all_true_labels, all_predictions, average='weighted', zero_division=0)
                 precision = precision_score(
-                    all_true_labels, all_predictions, average='weighted'
+                    all_true_labels, all_predictions, average='weighted', zero_division=0
                 )
-                recall = recall_score(all_true_labels, all_predictions, average='weighted')
+                recall = recall_score(all_true_labels, all_predictions, average='weighted', zero_division=0)
 
                 return {
                     "accuracy": accuracy,
