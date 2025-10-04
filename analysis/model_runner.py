@@ -136,7 +136,6 @@ class ModelRunner:
             num_warmup=self.config.num_warmup,
             num_samples=self.config.num_samples,
             num_chains=self.config.num_chains,
-            progress_bar=False,  # Disable verbose progress bar
         )
 
         # Run inference

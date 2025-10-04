@@ -2145,6 +2145,14 @@ class ModelArchitectureComparison(ExperimentFramework):
         import jax
         from numpyro.infer import MCMC, NUTS
 
+        # Check cache first
+        results_cache = self.config.config.get("experiments", {}).get("results_cache")
+        if results_cache:
+            cached_result = results_cache.get(X_list, hypers, args)
+            if cached_result is not None:
+                self.logger.info("♻️  Using cached SGFA results")
+                return cached_result
+
         try:
             K = hypers.get("K", 5)
             self.logger.debug(
@@ -2233,7 +2241,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 W_list.append(W_mean[start_idx:end_idx, :])
                 start_idx = end_idx
 
-            return {
+            result = {
                 "W": W_list,
                 "Z": Z_mean,
                 "log_likelihood": float(log_likelihood),
@@ -2250,6 +2258,12 @@ class ModelArchitectureComparison(ExperimentFramework):
                     "num_chains": num_chains,
                 },
             }
+
+            # Cache the result for reuse by later experiments
+            if results_cache:
+                results_cache.put(X_list, hypers, args, result)
+
+            return result
 
         except Exception as e:
             self.logger.error(f"SGFA benchmark analysis failed: {str(e)}")

@@ -209,6 +209,17 @@ def main():
     # Setup environment
     setup_environment(config)
 
+    # Initialize SGFA results cache for sharing across experiments
+    from core.results_cache import SGFAResultsCache
+    output_dir = get_output_dir(config)
+    cache_dir = output_dir / ".sgfa_cache"
+    results_cache = SGFAResultsCache(cache_dir=cache_dir)
+
+    # Add cache to config so experiments can access it
+    if "experiments" not in config:
+        config["experiments"] = {}
+    config["experiments"]["results_cache"] = results_cache
+
     # Track results
     results = {}
     start_time = datetime.now()
@@ -221,9 +232,11 @@ def main():
     if "all" in experiments_to_run:
         experiments_to_run = [
             "data_validation",
-            "sgfa_parameter_comparison",
             "model_comparison",
+            "sgfa_parameter_comparison",
             "sensitivity_analysis",
+            "clinical_validation",
+            "reproducibility",
         ]
 
     # Determine execution mode
@@ -484,6 +497,13 @@ def main():
     # Summary
     end_time = datetime.now()
     duration = end_time - start_time
+
+    # Clear SGFA results cache
+    if results_cache:
+        cache_stats = results_cache.get_stats()
+        logger.info(f"📊 Cache statistics: {cache_stats['memory_entries']} memory entries, {cache_stats['disk_entries']} disk entries")
+        results_cache.clear()
+        logger.info("🗑️  SGFA results cache cleared")
 
     logger.info(f" All experiments completed!")
     logger.info(f"  Total duration: {duration}")
