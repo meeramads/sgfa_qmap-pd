@@ -1487,6 +1487,9 @@ class DataValidationExperiments(ExperimentFramework):
             # Initialize visualization manager
             viz_manager = VisualizationManager(viz_config)
 
+            # Setup plot directory before using it
+            viz_manager.plot_dir = viz_manager._setup_plot_directory()
+
             # Prepare data validation structure for visualizations
             data = {
                 "X_list": X_list,
