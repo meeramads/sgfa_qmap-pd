@@ -32,6 +32,12 @@ class PreprocessingVisualizer:
                 preprocessing_results["feature_reduction"], save_dir
             )
 
+        # Variance distribution plot (shows why features were retained/removed)
+        if "variance_analysis" in preprocessing_results:
+            self._plot_variance_distribution(
+                preprocessing_results["variance_analysis"], save_dir
+            )
+
         # Source validation plot
         if "source_validation" in preprocessing_results:
             self._plot_source_validation(
@@ -96,6 +102,50 @@ class PreprocessingVisualizer:
 
         # Save
         save_path = save_dir / "feature_reduction.png"
+        save_plot(save_path)
+        logger.info(f"Saved: {save_path}")
+
+    def _plot_variance_distribution(self, variance_analysis: Dict, save_dir: Path):
+        """Plot feature variance distributions to show why features were retained/removed."""
+        n_views = len(variance_analysis)
+        fig, axes = plt.subplots(1, n_views, figsize=(6 * n_views, 5))
+
+        if n_views == 1:
+            axes = [axes]
+
+        for ax, (view_name, var_data) in zip(axes, variance_analysis.items()):
+            variances = var_data["variances"]
+            threshold = var_data.get("threshold", 0.0)
+            n_retained = var_data.get("n_retained", len(variances))
+            n_total = len(variances)
+
+            # Create histogram
+            ax.hist(variances, bins=50, alpha=0.7, edgecolor='black')
+
+            # Add threshold line if present
+            if threshold > 0:
+                ax.axvline(threshold, color='r', linestyle='--', linewidth=2,
+                          label=f'Threshold: {threshold:.3f}')
+
+            # Add text annotation
+            retention_pct = (n_retained / n_total) * 100
+            ax.text(0.95, 0.95, f'{n_retained}/{n_total}\nfeatures retained\n({retention_pct:.1f}%)',
+                   transform=ax.transAxes, ha='right', va='top',
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+            ax.set_xlabel('Feature Variance')
+            ax.set_ylabel('Count')
+            ax.set_title(f'{view_name}\nVariance Distribution')
+            ax.grid(True, alpha=0.3)
+            if threshold > 0:
+                ax.legend()
+
+        plt.suptitle('Feature Variance Analysis - Why Features Were Retained/Removed',
+                    fontsize=14, fontweight='bold')
+        plt.tight_layout()
+
+        # Save
+        save_path = save_dir / "variance_distribution.png"
         save_plot(save_path)
         logger.info(f"Saved: {save_path}")
 

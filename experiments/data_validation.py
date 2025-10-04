@@ -1501,6 +1501,22 @@ class DataValidationExperiments(ExperimentFramework):
                         "reduction_ratio": dims.get("processed_features", 0) / dims.get("original_features", 1) if dims.get("original_features", 0) > 0 else 1.0
                     }
 
+            # Collect variance analysis for visualization
+            variance_analysis = {}
+            variance_threshold = getattr(self.config.preprocessing_config, 'variance_threshold', 0.0)
+
+            for view_idx, X in enumerate(X_list):
+                view_name = results.get("data_summary", {}).get("view_names", [f"view_{view_idx}"])[view_idx] if view_idx < len(results.get("data_summary", {}).get("view_names", [])) else f"view_{view_idx}"
+                feature_variances = np.nanvar(X, axis=0)
+                n_retained = np.sum(feature_variances >= variance_threshold) if variance_threshold > 0 else len(feature_variances)
+
+                variance_analysis[view_name] = {
+                    "variances": feature_variances,
+                    "threshold": variance_threshold,
+                    "n_retained": n_retained,
+                    "n_total": len(feature_variances)
+                }
+
             data = {
                 "X_list": X_list,
                 "view_names": [f"view_{i}" for i in range(len(X_list))],
@@ -1511,6 +1527,7 @@ class DataValidationExperiments(ExperimentFramework):
                     "strategy": "comprehensive_validation",
                     "quality_results": results,
                     "feature_reduction": feature_reduction,  # Add transformed data
+                    "variance_analysis": variance_analysis,  # Add variance data
                 },
             }
 
