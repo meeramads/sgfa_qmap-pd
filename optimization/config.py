@@ -339,6 +339,9 @@ class PerformanceConfig:
             self.mcmc.enable_adaptive_batching = True
             self.mcmc.use_diagonal_mass = True
 
+        # Always enable checkpointing for MCMC (protects against interruptions)
+        self.mcmc.enable_checkpointing = True
+
         # Optimize threading
         self.num_threads = min(cpu_count, 8)  # Cap at 8 to avoid overhead
 
@@ -346,7 +349,6 @@ class PerformanceConfig:
         if available_gb < 8.0:
             self.memory.enable_aggressive_cleanup = True
             self.memory.enable_dtype_optimization = True
-            self.mcmc.enable_checkpointing = True
 
         logger.info(
             f"Configuration optimized for system: "

@@ -1867,12 +1867,6 @@ def run_sgfa_parameter_comparison(config):
             logger.info(
                 f" Model instance: { models_summary.get( 'integration_summary', {}).get( 'model_instance', 'unknown')}"
             )
-            logger.info(
-                f" Available models: { ', '.join( models_summary.get( 'integration_summary', {}).get( 'available_models', []))}"
-            )
-            logger.info(
-                f" Features: {', '.join([f'{k}={v}' for k, v in models_summary.get( 'integration_summary', {}).get('features', {}).items()])}"
-            )
 
             logger.info("📊 ANALYSIS FRAMEWORK SUMMARY:")
             logger.info(
