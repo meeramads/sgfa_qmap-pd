@@ -357,15 +357,18 @@ def integrate_analysis_with_pipeline(
         logger.info("🚀 === ANALYSIS FRAMEWORK PIPELINE INTEGRATION ===")
 
         # Apply comprehensive analysis framework
-        data_manager, model_runner, framework_info = (
-            apply_analysis_framework_to_pipeline(config, X_list, data_dir, output_dir)
-        )
+        result = apply_analysis_framework_to_pipeline(config, X_list, data_dir, output_dir)
+
+        # Extract components from result
+        data_manager = result.data_manager
+        model_runner = result.model_runner
+        framework_info = result.metadata or {}
 
         # Create integration summary
         integration_summary = {
             "analysis_integration_enabled": True,
-            "framework_available": framework_info.get("framework_available", False),
-            "structured_analysis": framework_info.get("structured_analysis", False),
+            "framework_available": result.is_structured,
+            "structured_analysis": result.is_structured,
             "components_available": framework_info.get("components_initialized", []),
             "dependencies_checked": framework_info.get("dependencies") is not None,
             "result_directories_setup": bool(
