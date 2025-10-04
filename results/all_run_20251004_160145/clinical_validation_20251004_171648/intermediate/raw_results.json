@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "error": "SGFA extraction failed",
+  "results": {
+    "sgfa_extraction": {
+      "error": "'ExperimentConfig' object has no attribute 'config'"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+experiment_run_info:
+  config_used: config.yaml
+  duration_formatted: '1:15:12.998642'
+  duration_seconds: 4512.998642
+  end_time: '2025-10-04T17:16:58.347061'
+  start_time: '2025-10-04T16:01:45.348419'
+  unified_results: true
+experiments_executed:
+  clinical_validation:
+    duration: 0.19722
+    experiment_id: clinical_validation_20251004_171648
+    status: completed
+  data_validation:
+    duration: 0
+    experiment_id: N/A
+    status: completed
+  model_comparison:
+    duration: 790.979057
+    experiment_id: methods_comparison_20251004_170322
+    future_work_models: []
+    implemented_models:
+    - sparseGFA
+    - pca
+    - ica
+    - fa
+    - nmf
+    - kmeans
+    - cca
+    status: completed
+  reproducibility:
+    duration: 1.840865
+    experiment_id: reproducibility_tests_20251004_171654
+    status: completed
+  sensitivity_analysis:
+    duration: 1.855358
+    experiment_id: sensitivity_analysis_20251004_171639
+    status: completed
+  sgfa_parameter_comparison:
+    duration: 3633.338145
+    experiment_id: sgfa_parameter_comparison_20251004_160153
+    sgfa_variants:
+    - K3_percW10
+    - K3_percW33
+    - K5_percW10
+    - K5_percW33
+    status: completed
+    successful_variants: 0
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 6
+  total_experiments: 6

@@ -1,2 +1,0 @@
-experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
-sgfa_parameter_comparison_20251002_005240,sgfa_parameter_comparison,failed,3662.003338,1.0 hours (1m 2s),2025-10-02 00:52:40,2025-10-02 01:53:42,2000,4,"[5, 10, 15]",5

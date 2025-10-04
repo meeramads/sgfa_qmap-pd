@@ -1,0 +1,56 @@
+{
+  "status": "completed",
+  "sensitivity_results": {
+    "K_sensitivity": {
+      "K5": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      },
+      "K10": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      },
+      "K15": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      }
+    },
+    "sparsity_sensitivity": {
+      "percW20": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      },
+      "percW33": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      },
+      "percW50": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      }
+    },
+    "mcmc_sensitivity": {
+      "fast": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      },
+      "standard": {
+        "error": "'ExperimentConfig' object has no attribute 'config'"
+      }
+    }
+  },
+  "plots": {},
+  "summary": {
+    "total_tests": 8,
+    "successful_tests": 0,
+    "success_rate": 0.0,
+    "parameters_tested": [
+      "K",
+      "percW",
+      "mcmc_config"
+    ],
+    "data_characteristics": {
+      "n_subjects": 86,
+      "n_views": 4,
+      "view_dimensions": [
+        1794,
+        21444,
+        7201,
+        17
+      ]
+    }
+  }
+}
