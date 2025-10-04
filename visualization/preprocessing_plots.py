@@ -69,8 +69,9 @@ class PreprocessingVisualizer:
         ax1.grid(True, alpha=0.3)
 
         # Retention ratio plot
+        x_pos = np.arange(len(views))
         ax2.bar(
-            views,
+            x_pos,
             retention,
             alpha=0.7,
             color=["green" if r > 0.5 else "orange" for r in retention],
@@ -80,6 +81,7 @@ class PreprocessingVisualizer:
         ax2.set_title("Feature Retention Ratios")
         ax2.set_ylim(0, 1.1)
         ax2.axhline(y=0.5, color="r", linestyle="--", alpha=0.5)
+        ax2.set_xticks(x_pos)
         ax2.set_xticklabels(views, rotation=45, ha="right")
         ax2.grid(True, alpha=0.3)
 
