@@ -89,6 +89,7 @@ class ExperimentConfig:
     save_intermediate_results: bool = True
     save_samples: bool = False  # Can be large
     save_diagnostics: bool = True
+    save_numpy_arrays: bool = False  # Disable to save disk space
     output_formats: List[str] = field(default_factory=lambda: ["json", "csv"])
 
     # Reproducibility
@@ -586,12 +587,13 @@ class ExperimentFramework:
             if param_value is not None:
                 try:
                     if hasattr(param_value, "shape"):
-                        # Save as numpy array
-                        save_numpy(
-                            param_value,
-                            matrices_dir / f"{variant_name}_{param_name}.npy",
-                        )
-                        saved_params.append(param_name)
+                        # Save as numpy array (if enabled)
+                        if config.save_numpy_arrays:
+                            save_numpy(
+                                param_value,
+                                matrices_dir / f"{variant_name}_{param_name}.npy",
+                            )
+                            saved_params.append(param_name)
 
                         # Save smaller parameters as CSV for readability
                         if (
@@ -606,7 +608,7 @@ class ExperimentFramework:
                     elif isinstance(param_value, dict):
                         # Handle dictionary of parameters (e.g., MCMC samples)
                         self._save_parameter_dict(
-                            param_value, matrices_dir, f"{variant_name}_{param_name}"
+                            param_value, matrices_dir, f"{variant_name}_{param_name}", config
                         )
                         saved_params.append(f"{param_name} (dict)")
                 except Exception as e:
@@ -657,28 +659,29 @@ class ExperimentFramework:
                     f"Warning: Could not save parameter summary for {variant_name}: {e}"
                 )
 
-    def _save_parameter_dict(self, param_dict: dict, matrices_dir: Path, prefix: str):
+    def _save_parameter_dict(self, param_dict: dict, matrices_dir: Path, prefix: str, config: ExperimentConfig):
         """Save dictionary of parameters (e.g., MCMC samples)."""
         import numpy as np
 
         for key, value in param_dict.items():
             try:
                 if hasattr(value, "shape"):
-                    save_numpy(value, matrices_dir / f"{prefix}_{key}.npy")
-                    # Save summary statistics for large sample arrays
-                    if value.ndim > 2:  # Likely MCMC samples
-                        summary_stats = {
-                            "mean": np.mean(value, axis=0),
-                            "std": np.std(value, axis=0),
-                            "median": np.median(value, axis=0),
-                            "q025": np.percentile(value, 2.5, axis=0),
-                            "q975": np.percentile(value, 97.5, axis=0),
-                        }
-                        for stat_name, stat_value in summary_stats.items():
-                            save_numpy(
-                                stat_value,
-                                matrices_dir / f"{prefix}_{key}_{stat_name}.npy",
-                            )
+                    if config.save_numpy_arrays:
+                        save_numpy(value, matrices_dir / f"{prefix}_{key}.npy")
+                        # Save summary statistics for large sample arrays
+                        if value.ndim > 2:  # Likely MCMC samples
+                            summary_stats = {
+                                "mean": np.mean(value, axis=0),
+                                "std": np.std(value, axis=0),
+                                "median": np.median(value, axis=0),
+                                "q025": np.percentile(value, 2.5, axis=0),
+                                "q975": np.percentile(value, 97.5, axis=0),
+                            }
+                            for stat_name, stat_value in summary_stats.items():
+                                save_numpy(
+                                    stat_value,
+                                    matrices_dir / f"{prefix}_{key}_{stat_name}.npy",
+                                )
             except Exception as e:
                 print(f"Warning: Could not save parameter {key} from {prefix}: {e}")
 
