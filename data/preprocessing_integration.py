@@ -307,20 +307,18 @@ def get_optimal_preprocessing_strategy(
 
         logger.info(f"Available strategies: {strategy_names}")
 
-        # Strategy selection logic
+        # Strategy selection logic (uses only strategies defined in config)
         if avg_missing_pct > 20:
-            optimal_strategy = "aggressive"  # KNN imputation for high missing data
-            reason = f"High missing data ({ avg_missing_pct:.1f}%) requires robust imputation"
+            optimal_strategy = "combined"  # Combined feature selection for high missing data
+            reason = f"High missing data ({avg_missing_pct:.1f}%) requires robust feature selection"
         elif total_features > 5000 and has_imaging_views:
-            optimal_strategy = (
-                "aggressive"  # Feature selection needed for high-dimensional imaging
-            )
-            reason = f"High-dimensional imaging data ({total_features} features) requires feature selection"
+            optimal_strategy = "differentiated_imaging_clinical"  # Preserve imaging, select clinical
+            reason = f"High-dimensional imaging data ({total_features} features) benefits from differentiated preprocessing"
         elif has_imaging_views:
-            optimal_strategy = "clinical_focused"  # Scanner harmonization for imaging
-            reason = "Neuroimaging data benefits from scanner harmonization"
+            optimal_strategy = "differentiated_imaging_clinical"  # Best for neuroimaging + clinical
+            reason = "Neuroimaging data with clinical data benefits from differentiated preprocessing"
         elif n_subjects < 100:
-            optimal_strategy = "standard"  # Conservative for small samples
+            optimal_strategy = "minimal"  # Conservative for small samples
             reason = (
                 f"Small sample size ({n_subjects}) requires conservative preprocessing"
             )
@@ -328,10 +326,24 @@ def get_optimal_preprocessing_strategy(
             optimal_strategy = "standard"  # Default
             reason = "Standard preprocessing appropriate for dataset characteristics"
 
-        # Ensure selected strategy exists
+        # Ensure selected strategy exists, fallback if needed
         if optimal_strategy not in strategies:
-            optimal_strategy = "standard"
-            reason = f"Fallback to standard (original strategy not available)"
+            logger.warning(f"Selected strategy '{optimal_strategy}' not found in config")
+            # Try fallback strategies in order of preference
+            fallback_order = ["differentiated_imaging_clinical", "standard", "minimal"]
+            for fallback in fallback_order:
+                if fallback in strategies:
+                    optimal_strategy = fallback
+                    reason = f"Fallback to {fallback} (original strategy not available)"
+                    break
+            else:
+                # If no predefined strategies exist, use first available
+                if strategies:
+                    optimal_strategy = list(strategies.keys())[0]
+                    reason = f"Using first available strategy: {optimal_strategy}"
+                else:
+                    optimal_strategy = "standard"
+                    reason = "Using hardcoded standard (no strategies in config)"
 
         strategy_evaluation = {
             "selected_strategy": optimal_strategy,

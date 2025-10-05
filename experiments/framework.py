@@ -86,7 +86,7 @@ class ExperimentConfig:
     max_memory_gb: Optional[float] = None  # Auto-detected if None
 
     # Output configuration
-    save_intermediate_results: bool = True
+    save_intermediate_results: bool = False  # Align with config.yaml default
     save_samples: bool = False  # Can be large
     save_diagnostics: bool = True
     save_numpy_arrays: bool = False  # Disable to save disk space

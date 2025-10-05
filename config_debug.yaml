@@ -119,8 +119,8 @@ model_comparison:
 
   evaluation_metrics:
     - "reconstruction_error"              # Traditional SGFA metric
-    - "subtype_discovery_quality"         # NEW: How well does model discover PD subtypes
-    - "clinical_correlation"              # NEW: Correlation with clinical measures
+    # - "subtype_discovery_quality"       # NOT YET IMPLEMENTED - placeholder for future
+    # - "clinical_correlation"            # NOT YET IMPLEMENTED - placeholder for future
 
   # Comparative Benchmarks (moved from performance_benchmarks)
   comparative_benchmarks:
@@ -185,34 +185,34 @@ clinical_validation:
   classification_metrics:
     - "accuracy"                          # Basic metric for supervised validation
 
-  # PD subtype discovery specific settings
-  subtype_discovery_settings:
-    max_subtypes: 4                       # Test 2-4 subtypes (common in PD research)
-    clustering_methods: ["kmeans"]        # Just KMeans for debug speed
-    stability_runs: 2                     # Minimal stability testing
+  # PD subtype discovery specific settings (NOT YET IMPLEMENTED - placeholder for future)
+  # subtype_discovery_settings:
+  #   max_subtypes: 4                       # Test 2-4 subtypes (common in PD research)
+  #   clustering_methods: ["kmeans"]        # Just KMeans for debug speed
+  #   stability_runs: 2                     # Minimal stability testing
 
   cross_validation:
     n_folds: 2                            # Minimal folds
     stratified: true
 
-  # Integrated SGFA + Clinical Optimization (moved from performance_benchmarks, debug version)
-  integrated_sgfa_clinical_optimization:
-    sgfa_performance_metrics:
-      - "training_time"                     # Basic SGFA timing
-      - "memory_usage"                      # Memory consumption
-
-    pd_subtype_discovery_metrics:
-      - "subtype_stability_time"            # Time for stable clustering
-      - "clustering_quality_score"          # Silhouette scores
-
-    clinical_translation_metrics:
-      - "clinical_validation_speed"         # Speed of clinical validation
-      - "subtype_clinical_separation"       # Clinical difference between subtypes
-
-    # Performance-Discovery trade-off analysis (debug version)
-    trade_off_analysis:
-      - "speed_vs_subtype_quality"          # SGFA speed vs clustering quality
-      - "memory_vs_stability"               # Memory usage vs reproducibility
+  # Integrated SGFA + Clinical Optimization (NOT YET IMPLEMENTED - placeholder for future)
+  # integrated_sgfa_clinical_optimization:
+  #   sgfa_performance_metrics:
+  #     - "training_time"                     # Basic SGFA timing
+  #     - "memory_usage"                      # Memory consumption
+  #
+  #   pd_subtype_discovery_metrics:
+  #     - "subtype_stability_time"            # Time for stable clustering
+  #     - "clustering_quality_score"          # Silhouette scores
+  #
+  #   clinical_translation_metrics:
+  #     - "clinical_validation_speed"         # Speed of clinical validation
+  #     - "subtype_clinical_separation"       # Clinical difference between subtypes
+  #
+  #   # Performance-Discovery trade-off analysis (debug version)
+  #   trade_off_analysis:
+  #     - "speed_vs_subtype_quality"          # SGFA speed vs clustering quality
+  #     - "memory_vs_stability"               # Memory usage vs reproducibility
 
 # Reproducibility Experiment - minimal testing
 reproducibility:

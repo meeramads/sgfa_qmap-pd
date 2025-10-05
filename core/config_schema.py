@@ -67,9 +67,9 @@ class ExperimentsConfig:
     """Experiments configuration schema."""
 
     base_output_dir: str
-    save_intermediate: bool = True
+    save_intermediate: bool = False  # Align with config.yaml default
     generate_plots: bool = True
-    enable_spatial_analysis: bool = True
+    enable_spatial_analysis: bool = False  # Align with config.yaml default (requires MRI reference)
     save_pickle_results: bool = False
     max_parallel_jobs: int = 1
 
