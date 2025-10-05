@@ -580,6 +580,60 @@ class ModelArchitectureComparison(ExperimentFramework):
                 results[method_name] = {"error": str(e)}
                 performance_metrics[method_name] = {"error": str(e)}
 
+        # === Part 2.5: Compute Advanced Metrics (Optional but Recommended) ===
+        enable_cv = self.config.__dict__.get('enable_cv_metrics', True)  # Default to True
+        enable_stability = self.config.__dict__.get('enable_stability_metrics', True)  # Default to True
+
+        if enable_cv:
+            self.logger.info("\n=== Computing Cross-Validated Metrics ===")
+            self.logger.info("NOTE: CV adds ~5x runtime but provides fairer comparison")
+
+            for method_name in list(results.keys()):
+                if "error" not in results[method_name]:
+                    try:
+                        cv_error = self._compute_cv_reconstruction_error(
+                            X_list, method_name, n_components, n_folds=3  # 3 folds for speed
+                        )
+                        results[method_name]["cv_reconstruction_error"] = cv_error
+                    except Exception as e:
+                        self.logger.warning(f"CV computation failed for {method_name}: {e}")
+
+        # Compute Information Criteria (AIC/BIC)
+        self.logger.info("\n=== Computing Information Criteria ===")
+        for method_name in list(results.keys()):
+            if "error" not in results[method_name] and "W" in results[method_name]:
+                try:
+                    result = results[method_name]
+                    W = result["W"]
+                    if isinstance(W, list):
+                        W = np.vstack(W)  # Combine multi-view W for parameter count
+
+                    log_likelihood = result.get("log_likelihood", np.nan)
+                    if np.isfinite(log_likelihood):
+                        is_sparse = "sparse" in method_name.lower() or "sgfa" in method_name.lower()
+                        ic_metrics = self._compute_information_criteria(
+                            log_likelihood, W, n_samples=X_list[0].shape[0], is_sparse=is_sparse
+                        )
+                        results[method_name]["information_criteria"] = ic_metrics
+                        self.logger.info(f"  {method_name}: AIC={ic_metrics['aic']:.1f}, BIC={ic_metrics['bic']:.1f}")
+                except Exception as e:
+                    self.logger.warning(f"IC computation failed for {method_name}: {e}")
+
+        # Compute Factor Stability
+        if enable_stability:
+            self.logger.info("\n=== Computing Factor Stability ===")
+            self.logger.info("NOTE: Stability adds ~10x runtime (bootstrap resampling)")
+
+            for method_name in list(results.keys()):
+                if "error" not in results[method_name]:
+                    try:
+                        stability_metrics = self._compute_factor_stability(
+                            X_list, method_name, n_components, n_bootstraps=5  # 5 bootstraps for speed
+                        )
+                        results[method_name]["factor_stability"] = stability_metrics
+                    except Exception as e:
+                        self.logger.warning(f"Stability computation failed for {method_name}: {e}")
+
         # === Part 3: Analyze and Compare ===
         self.logger.info("\n=== Analyzing Results ===")
         analysis = self._analyze_unified_comparison(results, performance_metrics, X_list, X_combined)
@@ -844,6 +898,296 @@ class ModelArchitectureComparison(ExperimentFramework):
                 "model_type": args.get("model", "unknown"),
             }
 
+    def _compute_cv_reconstruction_error(
+        self, X_list: List[np.ndarray], method_name: str, n_components: int, n_folds: int = 5
+    ) -> float:
+        """
+        Compute cross-validated reconstruction error (held-out test data).
+        This is a fairer metric than training error as it tests generalization.
+        """
+        from sklearn.model_selection import KFold
+
+        self.logger.info(f"Computing {n_folds}-fold CV reconstruction for {method_name}...")
+
+        n_samples = X_list[0].shape[0]
+        kf = KFold(n_splits=n_folds, shuffle=True, random_state=42)
+        cv_errors = []
+
+        for fold_idx, (train_idx, test_idx) in enumerate(kf.split(range(n_samples))):
+            try:
+                # Split data
+                X_train_list = [X[train_idx] for X in X_list]
+                X_test_list = [X[test_idx] for X in X_list]
+
+                # Train model on training fold
+                if method_name == "sparseGFA":
+                    # For SGFA, use multi-view
+                    from core.run_analysis import models
+                    import jax
+                    from numpyro.infer import MCMC, NUTS
+
+                    # Simplified SGFA for CV (fewer samples for speed)
+                    args_dict = {
+                        'K': n_components,
+                        'num_sources': len(X_train_list),
+                        'model': 'sparseGFA',
+                        'reghsZ': False,
+                        'target_accept_prob': 0.8
+                    }
+
+                    hypers = {
+                        'Dm': [X.shape[1] for X in X_train_list],
+                        'percW': 80,
+                        'a_sigma': 1.0,
+                        'b_sigma': 1.0,
+                    }
+
+                    # Minimal MCMC for CV (fast)
+                    kernel = NUTS(models, target_accept_prob=0.8)
+                    mcmc = MCMC(kernel, num_warmup=100, num_samples=200, num_chains=1, progress_bar=False)
+
+                    rng_key = jax.random.PRNGKey(fold_idx)
+                    args_obj = type('Args', (), args_dict)()
+                    mcmc.run(rng_key, X_train_list, hypers, args_obj)
+
+                    samples = mcmc.get_samples()
+                    W_mean = np.mean(samples["W"], axis=0)
+                    Z_mean = np.mean(samples["Z"], axis=0)
+
+                    # Split W into views
+                    W_list = []
+                    start_idx = 0
+                    for X in X_train_list:
+                        end_idx = start_idx + X.shape[1]
+                        W_list.append(W_mean[start_idx:end_idx, :])
+                        start_idx = end_idx
+
+                    # Get test factors (project test data onto learned loadings)
+                    # Z_test ≈ X_test @ W @ (W.T @ W)^-1
+                    Z_test_list = []
+                    for X_test, W_view in zip(X_test_list, W_list):
+                        WtW_inv = np.linalg.pinv(W_view.T @ W_view)
+                        Z_test_view = X_test @ W_view @ WtW_inv
+                        Z_test_list.append(Z_test_view)
+                    Z_test = np.mean(Z_test_list, axis=0)
+
+                    # Compute reconstruction error on test data
+                    test_errors = []
+                    for X_test, W_view in zip(X_test_list, W_list):
+                        X_recon = Z_test @ W_view.T
+                        mse = np.mean((X_test - X_recon) ** 2)
+                        test_errors.append(mse)
+                    fold_error = np.mean(test_errors)
+
+                else:
+                    # Traditional methods on concatenated data
+                    from sklearn.decomposition import PCA, FastICA, FactorAnalysis, NMF
+                    from sklearn.cluster import KMeans
+                    from sklearn.cross_decomposition import CCA
+
+                    X_train = np.hstack(X_train_list)
+                    X_test = np.hstack(X_test_list)
+
+                    if method_name == "pca":
+                        model = PCA(n_components=n_components)
+                    elif method_name == "ica":
+                        model = FastICA(n_components=n_components, max_iter=500)
+                    elif method_name == "fa":
+                        model = FactorAnalysis(n_components=n_components)
+                    elif method_name == "nmf":
+                        model = NMF(n_components=n_components, max_iter=500)
+                        X_train = np.abs(X_train)  # NMF requires non-negative
+                        X_test = np.abs(X_test)
+                    elif method_name == "kmeans":
+                        model = KMeans(n_clusters=n_components, n_init=10)
+                        Z_train = model.fit_transform(X_train)
+                        Z_test = model.transform(X_test)
+                        # Pseudo-reconstruction via cluster centers
+                        fold_error = np.mean((X_test - model.cluster_centers_[model.predict(X_test)]) ** 2)
+                        cv_errors.append(fold_error)
+                        continue
+                    elif method_name == "cca":
+                        # CCA needs two views
+                        n_features_1 = X_train.shape[1] // 2
+                        X1_train = X_train[:, :n_features_1]
+                        X2_train = X_train[:, n_features_1:]
+                        X1_test = X_test[:, :n_features_1]
+                        X2_test = X_test[:, n_features_1:]
+
+                        model = CCA(n_components=min(n_components, X1_train.shape[1], X2_train.shape[1]))
+                        model.fit(X1_train, X2_train)
+
+                        # Reconstruction via canonical correlates
+                        Z1_test, Z2_test = model.transform(X1_test, X2_test)
+                        # Can't easily reconstruct, use correlation as proxy
+                        fold_error = 1 - np.mean([np.corrcoef(Z1_test[:, i], Z2_test[:, i])[0, 1]
+                                                   for i in range(Z1_test.shape[1])])
+                        cv_errors.append(fold_error)
+                        continue
+                    else:
+                        continue
+
+                    # Fit and transform
+                    Z_train = model.fit_transform(X_train)
+                    W = model.components_.T if hasattr(model, 'components_') else model.transform(X_train.T).T
+
+                    # Project test data
+                    Z_test = model.transform(X_test)
+
+                    # Reconstruction error
+                    X_recon = Z_test @ W.T
+                    fold_error = np.mean((X_test - X_recon) ** 2)
+
+                # Normalize by variance
+                data_variance = np.mean([np.var(X) for X in X_test_list]) if isinstance(X_test_list, list) else np.var(X_test)
+                normalized_error = fold_error / data_variance if data_variance > 0 else fold_error
+
+                cv_errors.append(normalized_error)
+                self.logger.debug(f"  Fold {fold_idx+1}: CV error = {normalized_error:.4f}")
+
+            except Exception as e:
+                self.logger.warning(f"  Fold {fold_idx+1} failed: {e}")
+                continue
+
+        if cv_errors:
+            mean_cv_error = np.mean(cv_errors)
+            self.logger.info(f"  {method_name} mean CV error: {mean_cv_error:.4f} (±{np.std(cv_errors):.4f})")
+            return mean_cv_error
+        else:
+            self.logger.warning(f"  All CV folds failed for {method_name}")
+            return float('inf')
+
+    def _compute_information_criteria(
+        self, log_likelihood: float, W: np.ndarray, n_samples: int, is_sparse: bool = False
+    ) -> Dict[str, float]:
+        """
+        Compute AIC and BIC information criteria.
+        Lower values are better (penalize model complexity).
+
+        For sparse models, count effective parameters (non-zero elements).
+        """
+        if is_sparse:
+            # Count non-zero parameters
+            threshold = 0.01 * np.std(W)
+            n_params = np.sum(np.abs(W) > threshold)
+            self.logger.debug(f"  Effective parameters (sparse): {n_params} / {W.size}")
+        else:
+            # All parameters count
+            n_params = W.size
+
+        # AIC = -2*log(L) + 2*k
+        aic = -2 * log_likelihood + 2 * n_params
+
+        # BIC = -2*log(L) + k*log(n)
+        bic = -2 * log_likelihood + n_params * np.log(n_samples)
+
+        return {
+            'aic': aic,
+            'bic': bic,
+            'n_params': n_params,
+            'n_params_total': W.size
+        }
+
+    def _compute_factor_stability(
+        self, X_list: List[np.ndarray], method_name: str, n_components: int, n_bootstraps: int = 10
+    ) -> Dict[str, float]:
+        """
+        Measure factor stability via bootstrap resampling.
+        Higher correlation = more reproducible factors.
+        """
+        from scipy.stats import pearsonr
+
+        self.logger.info(f"Computing factor stability for {method_name} ({n_bootstraps} bootstraps)...")
+
+        # Get reference model
+        if method_name == "sparseGFA":
+            # Too expensive for SGFA, skip for now
+            self.logger.warning(f"  Skipping stability for {method_name} (too computationally expensive)")
+            return {'mean_stability': np.nan, 'per_factor_stability': []}
+
+        # Traditional methods
+        from sklearn.decomposition import PCA, FastICA, FactorAnalysis, NMF
+        X_combined = np.hstack(X_list)
+        n_samples = X_combined.shape[0]
+
+        # Fit reference model
+        if method_name == "pca":
+            ref_model = PCA(n_components=n_components)
+        elif method_name == "ica":
+            ref_model = FastICA(n_components=n_components, max_iter=500, random_state=42)
+        elif method_name == "fa":
+            ref_model = FactorAnalysis(n_components=n_components, random_state=42)
+        elif method_name == "nmf":
+            ref_model = NMF(n_components=n_components, max_iter=500, random_state=42)
+            X_combined = np.abs(X_combined)
+        else:
+            return {'mean_stability': np.nan, 'per_factor_stability': []}
+
+        ref_model.fit(X_combined)
+        ref_W = ref_model.components_.T if hasattr(ref_model, 'components_') else None
+
+        if ref_W is None:
+            return {'mean_stability': np.nan, 'per_factor_stability': []}
+
+        # Bootstrap resampling
+        factor_correlations = []
+
+        for b in range(n_bootstraps):
+            try:
+                # Resample with replacement
+                idx = np.random.choice(n_samples, n_samples, replace=True)
+                X_boot = X_combined[idx]
+
+                # Fit model on bootstrap sample
+                if method_name == "pca":
+                    boot_model = PCA(n_components=n_components)
+                elif method_name == "ica":
+                    boot_model = FastICA(n_components=n_components, max_iter=500, random_state=b)
+                elif method_name == "fa":
+                    boot_model = FactorAnalysis(n_components=n_components, random_state=b)
+                elif method_name == "nmf":
+                    boot_model = NMF(n_components=n_components, max_iter=500, random_state=b)
+
+                boot_model.fit(X_boot)
+                boot_W = boot_model.components_.T if hasattr(boot_model, 'components_') else None
+
+                if boot_W is None:
+                    continue
+
+                # Correlate factors (handle sign ambiguity and permutation)
+                best_corrs = []
+                for k in range(min(ref_W.shape[1], boot_W.shape[1])):
+                    # Find best matching factor in bootstrap sample
+                    corrs = []
+                    for j in range(boot_W.shape[1]):
+                        try:
+                            corr = abs(pearsonr(ref_W[:, k], boot_W[:, j])[0])
+                            if not np.isnan(corr):
+                                corrs.append(corr)
+                        except:
+                            pass
+
+                    if corrs:
+                        best_corrs.append(max(corrs))
+
+                if best_corrs:
+                    factor_correlations.append(np.mean(best_corrs))
+
+            except Exception as e:
+                self.logger.debug(f"  Bootstrap {b+1} failed: {e}")
+                continue
+
+        if factor_correlations:
+            mean_stability = np.mean(factor_correlations)
+            self.logger.info(f"  {method_name} factor stability: {mean_stability:.3f}")
+            return {
+                'mean_stability': mean_stability,
+                'std_stability': np.std(factor_correlations),
+                'per_bootstrap_stability': factor_correlations
+            }
+        else:
+            return {'mean_stability': np.nan, 'per_factor_stability': []}
+
     def _run_traditional_method(
         self, X: np.ndarray, method_name: str, n_components: int, **kwargs
     ) -> Dict:
@@ -1060,9 +1404,14 @@ class ModelArchitectureComparison(ExperimentFramework):
                     roi_specificity = None  # Traditional methods don't have multi-view structure
 
                 analysis["quality_comparison"][method_name] = {
-                    "reconstruction_error": mean_recon_error,
+                    "reconstruction_error_train": mean_recon_error,  # Training error (biased toward dense models)
                     "log_likelihood": result.get("log_likelihood", np.nan),
                 }
+
+                # Add cross-validated error if available (more fair metric)
+                if "cv_reconstruction_error" in result:
+                    analysis["quality_comparison"][method_name]["reconstruction_error_cv"] = result["cv_reconstruction_error"]
+                    self.logger.info(f"{method_name} CV reconstruction error: {result['cv_reconstruction_error']:.4f}")
 
                 # Add ROI specificity if available
                 if roi_specificity is not None:
@@ -1102,14 +1451,22 @@ class ModelArchitectureComparison(ExperimentFramework):
         plots["performance_comparison"] = perf_fig
         self.logger.info("   ✅ Performance comparison plot created")
 
-        # Plot 2: Quality comparison - Reconstruction Error (raw, no adjustments)
+        # Plot 2: Quality comparison - Reconstruction Error (prefer CV if available)
         self.logger.info("   Creating reconstruction quality plot...")
         reconstruction_scores = {}
         sparsity_scores = {}
+        using_cv = False
 
         for m in successful_methods:
             if m in analysis["quality_comparison"]:
-                recon_error = analysis["quality_comparison"][m]["reconstruction_error"]
+                # Prefer cross-validated error (fairer) over training error
+                if "reconstruction_error_cv" in analysis["quality_comparison"][m]:
+                    recon_error = analysis["quality_comparison"][m]["reconstruction_error_cv"]
+                    using_cv = True
+                else:
+                    recon_error = analysis["quality_comparison"][m].get("reconstruction_error_train",
+                                                                         analysis["quality_comparison"][m].get("reconstruction_error", 0))
+
                 # Convert to quality score (lower error = higher score)
                 reconstruction_scores[m] = 1.0 / (1.0 + recon_error)
 
@@ -1122,15 +1479,16 @@ class ModelArchitectureComparison(ExperimentFramework):
                             sparsity_scores[m] = sparsity_data.get("mean_sparsity", 0.0)
 
         if reconstruction_scores:
+            title = "Reconstruction Quality (Cross-Validated)" if using_cv else "Reconstruction Quality (Training Data)"
             quality_fig = self.comparison_viz.plot_quality_comparison(
                 methods=list(reconstruction_scores.keys()),
                 quality_scores=reconstruction_scores,
-                title="Reconstruction Quality (Variance-Normalized MSE)",
+                title=title,
                 ylabel="Reconstruction Quality (higher is better)",
                 higher_is_better=True,
             )
             plots["reconstruction_quality"] = quality_fig
-            self.logger.info("   ✅ Reconstruction quality plot created")
+            self.logger.info(f"   ✅ Reconstruction quality plot created (using {'CV' if using_cv else 'training'} error)")
 
         # Plot 2b: Sparsity comparison (for models that support it)
         if sparsity_scores:
@@ -1144,6 +1502,39 @@ class ModelArchitectureComparison(ExperimentFramework):
             )
             plots["sparsity_comparison"] = sparsity_fig
             self.logger.info("   ✅ Sparsity comparison plot created")
+
+        # Plot 2c: Information Criteria (AIC/BIC) comparison
+        self.logger.info("   Creating information criteria comparison plot...")
+        ic_metrics_dict = {}
+        for m in successful_methods:
+            if m in results and "information_criteria" in results[m]:
+                ic_metrics_dict[m] = results[m]["information_criteria"]
+
+        if ic_metrics_dict:
+            ic_fig = self.comparison_viz.plot_information_criteria_comparison(
+                methods=list(ic_metrics_dict.keys()),
+                ic_metrics=ic_metrics_dict,
+                title="Model Selection: Information Criteria (Complexity-Adjusted)",
+                criteria=['aic', 'bic']
+            )
+            plots["information_criteria"] = ic_fig
+            self.logger.info("   ✅ Information criteria plot created")
+
+        # Plot 2d: Factor Stability comparison
+        self.logger.info("   Creating factor stability comparison plot...")
+        stability_metrics_dict = {}
+        for m in successful_methods:
+            if m in results and "factor_stability" in results[m]:
+                stability_metrics_dict[m] = results[m]["factor_stability"]
+
+        if stability_metrics_dict:
+            stability_fig = self.comparison_viz.plot_stability_comparison(
+                methods=list(stability_metrics_dict.keys()),
+                stability_metrics=stability_metrics_dict,
+                title="Factor Stability (Bootstrap Reproducibility)"
+            )
+            plots["factor_stability"] = stability_fig
+            self.logger.info("   ✅ Factor stability plot created")
 
         # Plot 3: Clinical validation comparison (if available)
         # NOTE: This plot requires real clinical labels - not mock/random data
@@ -1203,22 +1594,52 @@ class ModelArchitectureComparison(ExperimentFramework):
             plots["performance_vs_quality"] = perf_vs_quality_fig
             self.logger.info("   ✅ Performance vs quality tradeoff plot created")
 
-        # Create summary table of all metrics
-        self.logger.info("\n" + "=" * 80)
-        self.logger.info("MODEL COMPARISON SUMMARY")
-        self.logger.info("=" * 80)
-        self.logger.info(f"{'Method':<15} {'Recon Quality':<15} {'Sparsity':<12} {'Time (s)':<12} {'Memory (GB)':<12}")
-        self.logger.info("-" * 80)
+        # Create comprehensive summary table
+        self.logger.info("\n" + "=" * 120)
+        self.logger.info("COMPREHENSIVE MODEL COMPARISON SUMMARY")
+        self.logger.info("=" * 120)
+        metric_type = "CV Quality" if using_cv else "Train Quality"
+        self.logger.info(f"{'Method':<12} {metric_type:<12} {'Sparsity':<10} {'Stability':<10} {'BIC':<12} {'Time(s)':<10} {'Mem(GB)':<10}")
+        self.logger.info("-" * 120)
+
         for m in sorted(successful_methods):
             recon = f"{reconstruction_scores.get(m, 0.0):.4f}" if m in reconstruction_scores else "N/A"
             sparsity = f"{sparsity_scores.get(m, 0.0):.4f}" if m in sparsity_scores else "N/A"
+
+            # Stability
+            if m in results and "factor_stability" in results[m]:
+                stab = results[m]["factor_stability"].get("mean_stability", np.nan)
+                stability = f"{stab:.4f}" if not np.isnan(stab) else "N/A"
+            else:
+                stability = "N/A"
+
+            # BIC (lower is better)
+            if m in results and "information_criteria" in results[m]:
+                bic = results[m]["information_criteria"].get("bic", np.nan)
+                bic_str = f"{bic:.1f}" if np.isfinite(bic) else "N/A"
+            else:
+                bic_str = "N/A"
+
             time = f"{performance_metrics[m].get('execution_time', 0):.2f}" if m in performance_metrics else "N/A"
             mem = f"{performance_metrics[m].get('peak_memory_gb', 0):.2f}" if m in performance_metrics else "N/A"
-            self.logger.info(f"{m:<15} {recon:<15} {sparsity:<12} {time:<12} {mem:<12}")
-        self.logger.info("=" * 80)
-        self.logger.info("Note: Higher reconstruction quality = better fit to data")
-        self.logger.info("      Higher sparsity = more interpretable/sparse loadings")
-        self.logger.info("      Sparse models trade reconstruction for interpretability\n")
+
+            self.logger.info(f"{m:<12} {recon:<12} {sparsity:<10} {stability:<10} {bic_str:<12} {time:<10} {mem:<10}")
+
+        self.logger.info("=" * 120)
+        self.logger.info("METRIC GUIDE:")
+        if using_cv:
+            self.logger.info("  CV Quality    : Cross-validated reconstruction quality (higher=better, tests generalization)")
+        else:
+            self.logger.info("  Train Quality : Training reconstruction quality (higher=better, may overfit)")
+        self.logger.info("  Sparsity      : Fraction of near-zero weights (higher=more interpretable)")
+        self.logger.info("  Stability     : Bootstrap factor correlation (higher=more reproducible)")
+        self.logger.info("  BIC           : Bayesian Information Criterion (LOWER=better, penalizes complexity)")
+        self.logger.info("  Time/Memory   : Computational cost (lower=faster/cheaper)")
+        self.logger.info("\nKEY INSIGHTS:")
+        self.logger.info("  - Sparse models trade reconstruction for interpretability + generalization")
+        self.logger.info("  - CV metrics are fairer than training metrics (test generalization)")
+        self.logger.info("  - Stability matters for reproducible science")
+        self.logger.info("  - BIC accounts for model complexity (fairer to sparse models)\n")
 
         # Plot 5: ROI Specificity Heatmap (for multi-view models)
         self.logger.info("   Creating ROI specificity heatmap...")

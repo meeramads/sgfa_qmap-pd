@@ -444,6 +444,137 @@ class ComparisonVisualizer:
         plt.tight_layout()
         return fig
 
+    def plot_information_criteria_comparison(
+        self,
+        methods: List[str],
+        ic_metrics: Dict[str, Dict],
+        title: str = "Model Selection: Information Criteria",
+        criteria: List[str] = None,
+    ) -> Figure:
+        """Create bar plots comparing AIC/BIC across methods.
+
+        Parameters
+        ----------
+        methods : List[str]
+            List of method names
+        ic_metrics : Dict[str, Dict]
+            Dictionary mapping method names to IC metrics (aic, bic)
+        title : str
+            Plot title
+        criteria : List[str], optional
+            Which criteria to plot. Defaults to ['aic', 'bic']
+
+        Returns
+        -------
+        Figure
+            Matplotlib figure with IC comparison
+        """
+        if criteria is None:
+            criteria = ['aic', 'bic']
+
+        n_criteria = len(criteria)
+        fig, axes = plt.subplots(1, n_criteria, figsize=(6 * n_criteria, 5))
+        if n_criteria == 1:
+            axes = [axes]
+
+        fig.suptitle(title, fontsize=16)
+
+        for idx, criterion in enumerate(criteria):
+            values = []
+            valid_methods = []
+
+            for method in methods:
+                if method in ic_metrics and criterion in ic_metrics[method]:
+                    val = ic_metrics[method][criterion]
+                    if np.isfinite(val):
+                        values.append(val)
+                        valid_methods.append(method)
+
+            if valid_methods:
+                # Color code: lower is better
+                norm_values = np.array(values)
+                min_val = np.min(norm_values)
+                colors = ['green' if v == min_val else 'skyblue' for v in values]
+
+                axes[idx].bar(valid_methods, values, color=colors, alpha=0.8)
+                axes[idx].set_title(f"{criterion.upper()} (lower = better)")
+                axes[idx].set_ylabel(criterion.upper())
+                axes[idx].tick_params(axis='x', rotation=45)
+                axes[idx].grid(axis='y', alpha=0.3)
+
+                # Highlight best model
+                best_idx = np.argmin(values)
+                axes[idx].axhline(y=values[best_idx], color='green',
+                                 linestyle='--', alpha=0.5, label='Best model')
+                axes[idx].legend()
+
+        plt.tight_layout()
+        return fig
+
+    def plot_stability_comparison(
+        self,
+        methods: List[str],
+        stability_metrics: Dict[str, Dict],
+        title: str = "Factor Stability (Reproducibility)",
+    ) -> Figure:
+        """Create bar plot comparing factor stability across methods.
+
+        Parameters
+        ----------
+        methods : List[str]
+            List of method names
+        stability_metrics : Dict[str, Dict]
+            Dictionary mapping method names to stability metrics
+        title : str
+            Plot title
+
+        Returns
+        -------
+        Figure
+            Matplotlib figure with stability comparison
+        """
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        values = []
+        errors = []
+        valid_methods = []
+
+        for method in methods:
+            if method in stability_metrics:
+                mean_stab = stability_metrics[method].get('mean_stability', np.nan)
+                std_stab = stability_metrics[method].get('std_stability', 0)
+
+                if not np.isnan(mean_stab):
+                    values.append(mean_stab)
+                    errors.append(std_stab)
+                    valid_methods.append(method)
+
+        if valid_methods:
+            # Color code: higher is better
+            norm_values = np.array(values)
+            max_val = np.max(norm_values)
+            colors = ['green' if v == max_val else 'skyblue' for v in values]
+
+            bars = ax.bar(valid_methods, values, yerr=errors, color=colors,
+                         alpha=0.8, capsize=5, error_kw={'elinewidth': 2})
+
+            ax.set_title(title, fontsize=14)
+            ax.set_ylabel("Mean Factor Correlation (higher = more stable)")
+            ax.set_ylim([0, 1.1])
+            ax.tick_params(axis='x', rotation=45)
+            ax.grid(axis='y', alpha=0.3)
+            ax.axhline(y=0.7, color='orange', linestyle='--',
+                      alpha=0.5, label='Good stability threshold')
+            ax.legend()
+
+            # Add value labels
+            for bar, val in zip(bars, values):
+                ax.text(bar.get_x() + bar.get_width()/2., val + 0.05,
+                       f'{val:.3f}', ha='center', va='bottom', fontsize=10)
+
+        plt.tight_layout()
+        return fig
+
     def _format_metric_name(self, metric_name: str) -> str:
         """Format metric name for display."""
         return metric_name.replace('_', ' ').title()
