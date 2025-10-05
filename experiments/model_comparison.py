@@ -1024,7 +1024,15 @@ class ModelArchitectureComparison(ExperimentFramework):
                         X_recon = Z @ W_view.T
                         mse = np.mean((X_view - X_recon) ** 2)
                         recon_errors.append(mse)
+                        self.logger.debug(f"  View {i}: MSE={mse:.4f}, X shape={X_view.shape}, W shape={W_view.shape}")
                     mean_recon_error = np.mean(recon_errors)
+
+                    # Normalize by data variance for fair comparison across methods
+                    data_variance = np.mean([np.var(X) for X in X_list])
+                    normalized_error = mean_recon_error / data_variance if data_variance > 0 else mean_recon_error
+
+                    self.logger.info(f"sparseGFA reconstruction error: {mean_recon_error:.4f} (normalized: {normalized_error:.4f})")
+                    mean_recon_error = normalized_error  # Use normalized for fair comparison
 
                     # Calculate ROI specificity for multi-view models
                     try:
@@ -1041,7 +1049,14 @@ class ModelArchitectureComparison(ExperimentFramework):
                 else:
                     # For traditional methods, use combined data
                     X_recon = Z @ W.T
-                    mean_recon_error = np.mean((X_combined - X_recon) ** 2)
+                    mse = np.mean((X_combined - X_recon) ** 2)
+
+                    # Normalize by data variance for fair comparison
+                    data_variance = np.var(X_combined)
+                    normalized_error = mse / data_variance if data_variance > 0 else mse
+
+                    self.logger.info(f"{method_name} reconstruction error: {mse:.4f} (normalized: {normalized_error:.4f})")
+                    mean_recon_error = normalized_error  # Use normalized for fair comparison
                     roi_specificity = None  # Traditional methods don't have multi-view structure
 
                 analysis["quality_comparison"][method_name] = {
@@ -1087,25 +1102,48 @@ class ModelArchitectureComparison(ExperimentFramework):
         plots["performance_comparison"] = perf_fig
         self.logger.info("   ✅ Performance comparison plot created")
 
-        # Plot 2: Quality comparison (reconstruction error)
-        self.logger.info("   Creating quality comparison plot...")
-        quality_scores = {}
+        # Plot 2: Quality comparison - Reconstruction Error (raw, no adjustments)
+        self.logger.info("   Creating reconstruction quality plot...")
+        reconstruction_scores = {}
+        sparsity_scores = {}
+
         for m in successful_methods:
             if m in analysis["quality_comparison"]:
-                # Convert reconstruction error to quality score (lower is better → invert)
                 recon_error = analysis["quality_comparison"][m]["reconstruction_error"]
-                quality_scores[m] = 1.0 / (1.0 + recon_error)
+                # Convert to quality score (lower error = higher score)
+                reconstruction_scores[m] = 1.0 / (1.0 + recon_error)
 
-        if quality_scores:
+                # Extract sparsity for sparse models
+                if m in results and "neuroimaging_metrics" in results[m]:
+                    neuro_metrics = results[m]["neuroimaging_metrics"]
+                    if isinstance(neuro_metrics, dict) and "sparsity_score" in neuro_metrics:
+                        sparsity_data = neuro_metrics["sparsity_score"]
+                        if isinstance(sparsity_data, dict):
+                            sparsity_scores[m] = sparsity_data.get("mean_sparsity", 0.0)
+
+        if reconstruction_scores:
             quality_fig = self.comparison_viz.plot_quality_comparison(
-                methods=list(quality_scores.keys()),
-                quality_scores=quality_scores,
-                title="sparseGFA vs Traditional Methods: Reconstruction Quality",
-                ylabel="Quality Score (higher is better)",
+                methods=list(reconstruction_scores.keys()),
+                quality_scores=reconstruction_scores,
+                title="Reconstruction Quality (Variance-Normalized MSE)",
+                ylabel="Reconstruction Quality (higher is better)",
                 higher_is_better=True,
             )
-            plots["quality_comparison"] = quality_fig
-            self.logger.info("   ✅ Quality comparison plot created")
+            plots["reconstruction_quality"] = quality_fig
+            self.logger.info("   ✅ Reconstruction quality plot created")
+
+        # Plot 2b: Sparsity comparison (for models that support it)
+        if sparsity_scores:
+            self.logger.info("   Creating sparsity comparison plot...")
+            sparsity_fig = self.comparison_viz.plot_quality_comparison(
+                methods=list(sparsity_scores.keys()),
+                quality_scores=sparsity_scores,
+                title="Model Sparsity (Interpretability)",
+                ylabel="Sparsity Score (higher = more sparse/interpretable)",
+                higher_is_better=True,
+            )
+            plots["sparsity_comparison"] = sparsity_fig
+            self.logger.info("   ✅ Sparsity comparison plot created")
 
         # Plot 3: Clinical validation comparison (if available)
         # NOTE: This plot requires real clinical labels - not mock/random data
@@ -1148,10 +1186,10 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.logger.info("   Creating performance vs quality tradeoff plot...")
         perf_quality_data = {}
         for m in successful_methods:
-            if m in performance_metrics and m in quality_scores:
+            if m in performance_metrics and m in reconstruction_scores:
                 perf_quality_data[m] = {
                     'execution_time': performance_metrics[m].get('execution_time', 0),
-                    'quality': quality_scores[m]
+                    'quality': reconstruction_scores[m]
                 }
 
         if perf_quality_data:
@@ -1164,6 +1202,23 @@ class ModelArchitectureComparison(ExperimentFramework):
             )
             plots["performance_vs_quality"] = perf_vs_quality_fig
             self.logger.info("   ✅ Performance vs quality tradeoff plot created")
+
+        # Create summary table of all metrics
+        self.logger.info("\n" + "=" * 80)
+        self.logger.info("MODEL COMPARISON SUMMARY")
+        self.logger.info("=" * 80)
+        self.logger.info(f"{'Method':<15} {'Recon Quality':<15} {'Sparsity':<12} {'Time (s)':<12} {'Memory (GB)':<12}")
+        self.logger.info("-" * 80)
+        for m in sorted(successful_methods):
+            recon = f"{reconstruction_scores.get(m, 0.0):.4f}" if m in reconstruction_scores else "N/A"
+            sparsity = f"{sparsity_scores.get(m, 0.0):.4f}" if m in sparsity_scores else "N/A"
+            time = f"{performance_metrics[m].get('execution_time', 0):.2f}" if m in performance_metrics else "N/A"
+            mem = f"{performance_metrics[m].get('peak_memory_gb', 0):.2f}" if m in performance_metrics else "N/A"
+            self.logger.info(f"{m:<15} {recon:<15} {sparsity:<12} {time:<12} {mem:<12}")
+        self.logger.info("=" * 80)
+        self.logger.info("Note: Higher reconstruction quality = better fit to data")
+        self.logger.info("      Higher sparsity = more interpretable/sparse loadings")
+        self.logger.info("      Sparse models trade reconstruction for interpretability\n")
 
         # Plot 5: ROI Specificity Heatmap (for multi-view models)
         self.logger.info("   Creating ROI specificity heatmap...")
