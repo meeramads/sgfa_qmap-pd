@@ -1,0 +1,71 @@
+{
+  "experiment_id": "reproducibility_tests_20251005_125702",
+  "config": {
+    "experiment_name": "reproducibility_tests",
+    "description": "Reproducibility and robustness testing for SGFA",
+    "version": "1.0",
+    "dataset": "qmap_pd",
+    "data_dir": "/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/qMAP-PD_data",
+    "preprocessing_config": {},
+    "K_values": [
+      5,
+      10,
+      15
+    ],
+    "num_sources": 3,
+    "percW_values": [
+      25.0,
+      33.0,
+      50.0
+    ],
+    "num_samples": 2000,
+    "num_chains": 4,
+    "num_warmup": 1000,
+    "num_runs_per_config": 3,
+    "cv_folds": 5,
+    "cv_strategy": "stratified",
+    "cv_target_variable": null,
+    "cv_group_variable": null,
+    "performance_config": {},
+    "enable_memory_optimization": true,
+    "enable_profiling": true,
+    "auto_configure_system": true,
+    "max_memory_gb": null,
+    "save_intermediate_results": true,
+    "save_samples": false,
+    "save_diagnostics": true,
+    "save_numpy_arrays": false,
+    "output_formats": [
+      "json",
+      "csv"
+    ],
+    "random_seeds": [
+      42,
+      123,
+      456
+    ]
+  },
+  "start_time": "2025-10-05T12:57:02.414248",
+  "end_time": "2025-10-05T13:09:14.241559",
+  "status": "completed",
+  "error_message": null,
+  "model_results": {},
+  "cv_results": {},
+  "performance_metrics": {
+    "total_runtime_seconds": 731.827311,
+    "total_runtime_formatted": "12.2 minutes (732s)"
+  },
+  "diagnostics": {},
+  "plots": {
+    "reproducibility_summary": {
+      "type": "matplotlib_figure",
+      "saved": true,
+      "files": [
+        "reproducibility_summary.png",
+        "reproducibility_summary.pdf"
+      ]
+    }
+  },
+  "data_summary": {},
+  "convergence_diagnostics": {}
+}

@@ -1,0 +1,39 @@
+K_values:
+- 5
+- 10
+- 15
+auto_configure_system: true
+cv_folds: 5
+cv_group_variable: null
+cv_strategy: stratified
+cv_target_variable: null
+data_dir: null
+dataset: qmap_pd
+description: Compare sparseGFA against traditional baseline methods
+enable_memory_optimization: true
+enable_profiling: true
+experiment_name: methods_comparison
+max_memory_gb: null
+num_chains: 4
+num_runs_per_config: 3
+num_samples: 2000
+num_sources: 3
+num_warmup: 1000
+output_formats:
+- json
+- csv
+percW_values:
+- 25.0
+- 33.0
+- 50.0
+performance_config: {}
+preprocessing_config: {}
+random_seeds:
+- 42
+- 123
+- 456
+save_diagnostics: true
+save_intermediate_results: true
+save_numpy_arrays: false
+save_samples: false
+version: '1.0'
