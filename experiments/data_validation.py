@@ -113,39 +113,45 @@ def run_data_validation(config):
             data_dir=get_data_dir(config),
         )
 
-        # Create data validation experiment instance
-        data_val_exp = DataValidationExperiments(exp_config, logger)
+        # Initialize experiment framework
+        framework = ExperimentFramework(get_output_dir(config))
 
-        # Run comprehensive data quality assessment (includes EDA plots)
-        result = data_val_exp.run_data_quality_assessment(X_list=None)
+        # Define the experiment function (similar to other experiments)
+        def data_validation_experiment(config, output_dir, **kwargs):
+            logger.info("Running comprehensive data validation...")
 
-        # Save plots if they were generated
-        if result and result.plots:
-            logger.info(f"📊 Generated {len(result.plots)} EDA plots")
-            output_dir = get_output_dir(config)
-            plots_dir = Path(output_dir) / "plots"
-            plots_dir.mkdir(exist_ok=True, parents=True)
+            # Create data validation experiment instance
+            data_val_exp = DataValidationExperiments(exp_config, logger)
 
-            import matplotlib.pyplot as plt
-            for plot_name, fig in result.plots.items():
-                if fig is not None:
-                    plot_path = plots_dir / f"{plot_name}.png"
-                    fig.savefig(plot_path, dpi=300, bbox_inches='tight')
-                    logger.info(f"  ✅ Saved: {plot_name}.png")
-                    plt.close(fig)
+            # Run comprehensive data quality assessment (includes EDA plots)
+            assessment_result = data_val_exp.run_data_quality_assessment(X_list=None)
 
-        logger.info("✅ Data validation with EDA completed successfully")
+            logger.info("✅ Data validation with EDA completed!")
+            logger.info(f"   Plots generated: {len(assessment_result.plots) if assessment_result.plots else 0}")
+
+            # Return results in framework-compatible format
+            return {
+                "status": "completed",
+                "model_results": assessment_result.model_results,
+                "diagnostics": assessment_result.diagnostics,
+                "plots": assessment_result.plots,
+            }
+
+        # Run experiment using framework (auto-saves plots and results)
+        result = framework.run_experiment(
+            experiment_function=data_validation_experiment,
+            config=exp_config,
+            model_results={},
+        )
+
+        logger.info("✅ Data validation completed successfully")
 
         # Final memory cleanup
         jax.clear_caches()
         gc.collect()
         logger.info("🧹 Memory cleanup completed")
 
-        return {
-            "status": "completed",
-            "plots_generated": len(result.plots) if result and result.plots else 0,
-            "analysis": result.diagnostics if result else {},
-        }
+        return result
 
     except Exception as e:
         logger.error(f"Data validation failed: {e}")
