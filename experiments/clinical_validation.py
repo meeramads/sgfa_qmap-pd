@@ -2893,17 +2893,24 @@ def run_clinical_validation(config):
                 for validation_type in validation_types:
                     if validation_type in results and isinstance(results[validation_type], dict) and "error" not in results[validation_type]:
                         for method_name, method_results in results[validation_type].items():
-                            if isinstance(method_results, dict) and "accuracy" in method_results:
-                                methods.append(f"SGFA_{validation_type}_{method_name}")
-                                accuracies.append(method_results["accuracy"])
+                            if isinstance(method_results, dict) and "error" not in method_results:
+                                # Extract accuracy from nested structure
+                                if "cross_validation" in method_results and "accuracy" in method_results["cross_validation"]:
+                                    acc = method_results["cross_validation"]["accuracy"].get("mean", 0)
+                                    methods.append(f"SGFA_{validation_type}_{method_name}")
+                                    accuracies.append(acc)
 
                 # Baseline results
                 if "baseline_comparison" in results and "error" not in results["baseline_comparison"]:
                     baseline = results["baseline_comparison"]
                     if "pca" in baseline:
                         for method_name, pca_res in baseline["pca"].items():
-                            methods.append(f"PCA_{method_name}")
-                            accuracies.append(pca_res.get("accuracy", 0))
+                            if isinstance(pca_res, dict) and "error" not in pca_res:
+                                # Extract accuracy from nested structure
+                                if "cross_validation" in pca_res and "accuracy" in pca_res["cross_validation"]:
+                                    acc = pca_res["cross_validation"]["accuracy"].get("mean", 0)
+                                    methods.append(f"PCA_{method_name}")
+                                    accuracies.append(acc)
 
                 if methods:
                     axes[0].barh(methods, accuracies, color=['#1f77b4' if 'SGFA' in m else '#ff7f0e' for m in methods])
