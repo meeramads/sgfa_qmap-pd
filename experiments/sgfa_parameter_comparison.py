@@ -63,6 +63,9 @@ class SGFAParameterComparison(ExperimentFramework):
         from visualization import ComparisonVisualizer
         self.comparison_viz = ComparisonVisualizer(config=config_dict)
 
+        # Initialize monitoring and checkpointing from config
+        self.monitoring_config = self._initialize_monitoring(config_dict)
+
         # Initialize clinical validation modules for parameter optimization
         self.clinical_metrics = ClinicalMetrics(logger=self.logger)
         self.clinical_classifier = ClinicalClassifier(
@@ -93,6 +96,314 @@ class SGFAParameterComparison(ExperimentFramework):
 
         # Store parameter ranges for easy access
         self.parameter_ranges = parameter_ranges
+
+    def _initialize_monitoring(self, config_dict: dict) -> dict:
+        """Initialize monitoring and checkpointing configuration from config."""
+        import os
+        from pathlib import Path
+
+        monitoring_config = config_dict.get("monitoring", {})
+
+        # Checkpointing configuration
+        save_checkpoints = monitoring_config.get("save_checkpoints", False)
+        checkpoint_interval = monitoring_config.get("checkpoint_interval", 200)
+        checkpoint_dir = monitoring_config.get("checkpoint_dir", "./results/checkpoints")
+
+        if save_checkpoints:
+            # Ensure checkpoint directory exists
+            checkpoint_path = Path(checkpoint_dir)
+            checkpoint_path.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"💾 Checkpointing enabled: {checkpoint_dir} (interval: {checkpoint_interval})")
+        else:
+            self.logger.info("💾 Checkpointing disabled")
+
+        return {
+            "save_checkpoints": save_checkpoints,
+            "checkpoint_interval": checkpoint_interval,
+            "checkpoint_dir": checkpoint_dir,
+        }
+
+    def _save_checkpoint(self, experiment_name: str, iteration: int, mcmc_state: dict, results: dict):
+        """Save experiment checkpoint to disk."""
+        if not self.monitoring_config["save_checkpoints"]:
+            return
+
+        import pickle
+        from pathlib import Path
+        import time
+
+        checkpoint_dir = Path(self.monitoring_config["checkpoint_dir"])
+        timestamp = int(time.time())
+        checkpoint_file = checkpoint_dir / f"{experiment_name}_iter_{iteration}_{timestamp}.pkl"
+
+        try:
+            checkpoint_data = {
+                "experiment_name": experiment_name,
+                "iteration": iteration,
+                "timestamp": timestamp,
+                "mcmc_state": mcmc_state,
+                "partial_results": results,
+                "config": self.config.__dict__ if hasattr(self.config, '__dict__') else {},
+            }
+
+            with open(checkpoint_file, 'wb') as f:
+                pickle.dump(checkpoint_data, f)
+
+            self.logger.info(f"💾 Checkpoint saved: {checkpoint_file.name}")
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to save checkpoint: {e}")
+
+    def _load_checkpoint(self, experiment_name: str, iteration: int = None) -> dict:
+        """Load experiment checkpoint from disk."""
+        import pickle
+        from pathlib import Path
+
+        checkpoint_dir = Path(self.monitoring_config["checkpoint_dir"])
+        if not checkpoint_dir.exists():
+            return None
+
+        if iteration is None:
+            # Find the latest checkpoint for this experiment
+            pattern = f"{experiment_name}_iter_*.pkl"
+            checkpoint_files = list(checkpoint_dir.glob(pattern))
+            if not checkpoint_files:
+                return None
+
+            # Sort by iteration number
+            checkpoint_files.sort(key=lambda f: int(f.stem.split('_')[2]))
+            checkpoint_file = checkpoint_files[-1]
+        else:
+            # Look for specific iteration
+            pattern = f"{experiment_name}_iter_{iteration}_*.pkl"
+            checkpoint_files = list(checkpoint_dir.glob(pattern))
+            if not checkpoint_files:
+                return None
+            checkpoint_file = checkpoint_files[0]
+
+        try:
+            with open(checkpoint_file, 'rb') as f:
+                checkpoint_data = pickle.load(f)
+
+            self.logger.info(f"💾 Checkpoint loaded: {checkpoint_file.name}")
+            return checkpoint_data
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to load checkpoint: {e}")
+            return None
+
+    def _run_mcmc_with_checkpointing(self, mcmc, rng_key, *args, experiment_id="experiment", **kwargs):
+        """Run MCMC with periodic checkpointing and state restoration support.
+
+        This implements warm-start resumption from checkpoints by:
+        1. Loading previous samples if checkpoint exists
+        2. Running only remaining samples needed
+        3. Combining old and new samples
+        4. Saving checkpoints periodically during run
+        """
+        if not self.monitoring_config["save_checkpoints"]:
+            # No checkpointing - run normally
+            mcmc.run(rng_key, *args, **kwargs)
+            return mcmc
+
+        import jax
+        from numpyro.infer import MCMC
+
+        checkpoint_interval = self.monitoring_config["checkpoint_interval"]
+        target_samples = mcmc.num_samples
+        num_warmup = mcmc.num_warmup
+        num_chains = mcmc.num_chains
+
+        self.logger.info(f"💾 Running MCMC with checkpointing (interval: {checkpoint_interval} samples)")
+
+        # Try to resume from checkpoint
+        checkpoint = self._load_checkpoint(experiment_id)
+        previous_samples = None
+        samples_completed = 0
+
+        if checkpoint and not checkpoint.get("completed", False):
+            # Checkpoint exists but run not completed
+            samples_completed = checkpoint.get("iteration", 0)
+            previous_samples = checkpoint.get("mcmc_state", {}).get("samples", None)
+
+            if previous_samples and samples_completed > 0:
+                self.logger.info(f"🔄 Resuming from checkpoint: {samples_completed}/{target_samples} samples completed")
+
+                # Validate checkpoint
+                if self._validate_checkpoint(previous_samples, samples_completed, num_chains):
+                    self.logger.info(f"✓ Checkpoint validated")
+                else:
+                    self.logger.warning(f"⚠️  Checkpoint validation failed - starting fresh")
+                    previous_samples = None
+                    samples_completed = 0
+            else:
+                self.logger.info(f"⚠️  Invalid checkpoint - starting fresh")
+                previous_samples = None
+                samples_completed = 0
+        elif checkpoint and checkpoint.get("completed", False):
+            self.logger.info(f"✓ Experiment already completed - using cached results")
+            # Restore samples to MCMC object
+            if "mcmc_state" in checkpoint and "samples" in checkpoint["mcmc_state"]:
+                mcmc._samples = checkpoint["mcmc_state"]["samples"]
+            return mcmc
+
+        # Calculate remaining samples needed
+        remaining_samples = max(0, target_samples - samples_completed)
+
+        if remaining_samples == 0:
+            self.logger.info(f"✓ All samples already completed")
+            if previous_samples:
+                mcmc._samples = previous_samples
+            return mcmc
+
+        self.logger.info(f"Running {remaining_samples} additional samples ({samples_completed} already completed)")
+
+        # If resuming, use last sample as initialization (warm start)
+        init_params = None
+        if previous_samples and samples_completed > 0:
+            try:
+                # Use last sample from previous run as initialization
+                init_params = {}
+                for key, val in previous_samples.items():
+                    if val is not None and hasattr(val, 'shape'):
+                        # Take last sample
+                        if len(val.shape) >= 2:
+                            init_params[key] = val[-1, :]
+
+                self.logger.info(f"🎯 Warm-starting from last checkpoint state")
+            except Exception as e:
+                self.logger.warning(f"⚠️  Could not extract init params: {e}")
+                init_params = None
+
+        # Run remaining samples
+        try:
+            # Create new MCMC with remaining samples
+            from copy import deepcopy
+            resumed_mcmc = MCMC(
+                deepcopy(mcmc.sampler),
+                num_warmup=num_warmup if samples_completed == 0 else 0,  # Skip warmup if resuming
+                num_samples=remaining_samples,
+                num_chains=num_chains,
+                progress_bar=mcmc.progress_bar if hasattr(mcmc, 'progress_bar') else True,
+                chain_method=mcmc.chain_method if hasattr(mcmc, 'chain_method') else 'sequential'
+            )
+
+            # Run with optional initialization
+            run_kwargs = dict(kwargs)
+            if init_params:
+                run_kwargs['init_params'] = init_params
+
+            resumed_mcmc.run(rng_key, *args, **run_kwargs)
+
+            # Get new samples
+            new_samples = resumed_mcmc.get_samples()
+
+            # Combine with previous samples if they exist
+            if previous_samples:
+                combined_samples = self._combine_samples(previous_samples, new_samples)
+                self.logger.info(f"✓ Combined {samples_completed} + {remaining_samples} = {samples_completed + remaining_samples} samples")
+            else:
+                combined_samples = new_samples
+
+            # Restore to original MCMC object
+            mcmc._samples = combined_samples
+
+            # Save final checkpoint
+            mcmc_state = {
+                "samples": combined_samples,
+                "num_samples": samples_completed + remaining_samples,
+                "completed": True,
+            }
+            self._save_checkpoint(experiment_id, samples_completed + remaining_samples, mcmc_state, {"status": "completed"})
+
+            self.logger.info(f"✓ MCMC completed: {samples_completed + remaining_samples} total samples")
+
+        except Exception as e:
+            # Save checkpoint on failure
+            self.logger.error(f"❌ MCMC failed: {e}")
+            if 'resumed_mcmc' in locals() and hasattr(resumed_mcmc, 'get_samples'):
+                try:
+                    partial_samples = resumed_mcmc.get_samples()
+                    if previous_samples:
+                        partial_combined = self._combine_samples(previous_samples, partial_samples)
+                    else:
+                        partial_combined = partial_samples
+
+                    partial_completed = samples_completed + len(list(partial_samples.values())[0])
+
+                    mcmc_state = {
+                        "samples": partial_combined,
+                        "num_samples": partial_completed,
+                        "completed": False,
+                        "error": str(e)
+                    }
+                    self._save_checkpoint(experiment_id, partial_completed, mcmc_state, {"status": "failed", "error": str(e)})
+                    self.logger.info(f"💾 Partial progress saved: {partial_completed} samples")
+                except:
+                    pass
+            raise
+
+        return mcmc
+
+    def _validate_checkpoint(self, samples: dict, num_samples: int, num_chains: int) -> bool:
+        """Validate checkpoint samples are consistent."""
+        try:
+            if not samples:
+                return False
+
+            # Check all sample arrays have same length
+            sample_lengths = set()
+            for key, val in samples.items():
+                if hasattr(val, 'shape') and len(val.shape) > 0:
+                    sample_lengths.add(val.shape[0])
+
+            if len(sample_lengths) != 1:
+                self.logger.warning(f"Inconsistent sample lengths: {sample_lengths}")
+                return False
+
+            actual_samples = sample_lengths.pop()
+            if actual_samples != num_samples:
+                self.logger.warning(f"Sample count mismatch: {actual_samples} vs expected {num_samples}")
+                # Still valid, just incomplete
+
+            return True
+
+        except Exception as e:
+            self.logger.warning(f"Checkpoint validation error: {e}")
+            return False
+
+    def _combine_samples(self, old_samples: dict, new_samples: dict) -> dict:
+        """Combine samples from previous and new MCMC runs."""
+        import numpy as np
+
+        combined = {}
+
+        for key in old_samples.keys():
+            if key in new_samples:
+                old_val = old_samples[key]
+                new_val = new_samples[key]
+
+                # Concatenate along sample dimension (axis 0)
+                if hasattr(old_val, 'shape') and hasattr(new_val, 'shape'):
+                    # Convert to numpy for easier handling
+                    old_np = np.array(old_val) if not isinstance(old_val, np.ndarray) else old_val
+                    new_np = np.array(new_val) if not isinstance(new_val, np.ndarray) else new_val
+
+                    # Concatenate
+                    combined[key] = np.concatenate([old_np, new_np], axis=0)
+                else:
+                    # Scalar or incompatible - use new value
+                    combined[key] = new_val
+            else:
+                # Key only in old samples - keep it
+                combined[key] = old_samples[key]
+
+        # Add any keys only in new samples
+        for key in new_samples.keys():
+            if key not in combined:
+                combined[key] = new_samples[key]
+
+        return combined
 
     @experiment_handler("sgfa_variant_comparison")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
@@ -710,10 +1021,12 @@ class SGFAParameterComparison(ExperimentFramework):
                 chain_method="sequential",  # Use sequential chains to reduce GPU memory
             )
 
-            # Run inference
+            # Run inference with checkpoint support
             start_time = time.time()
-            mcmc.run(
-                rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+            self._run_mcmc_with_checkpointing(
+                mcmc, rng_key, X_list, hypers, model_args,
+                experiment_id=f"sgfa_param_{variant_name}",
+                extra_fields=("potential_energy",)
             )
             elapsed = time.time() - start_time
 

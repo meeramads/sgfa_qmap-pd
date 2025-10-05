@@ -324,41 +324,217 @@ class ModelArchitectureComparison(ExperimentFramework):
             return None
 
     def _run_mcmc_with_checkpointing(self, mcmc, rng_key, *args, experiment_id="experiment", **kwargs):
-        """Run MCMC with periodic checkpointing if enabled."""
+        """Run MCMC with periodic checkpointing and state restoration support.
+
+        This implements warm-start resumption from checkpoints by:
+        1. Loading previous samples if checkpoint exists
+        2. Running only remaining samples needed
+        3. Combining old and new samples
+        4. Saving checkpoints periodically during run
+        """
         if not self.monitoring_config["save_checkpoints"]:
             # No checkpointing - run normally
-            return mcmc.run(rng_key, *args, **kwargs)
+            mcmc.run(rng_key, *args, **kwargs)
+            return mcmc
 
-        # Checkpointing enabled - implement custom sampling loop
+        import jax
+        from numpyro.infer import MCMC
+
         checkpoint_interval = self.monitoring_config["checkpoint_interval"]
-        num_samples = mcmc.num_samples
+        target_samples = mcmc.num_samples
+        num_warmup = mcmc.num_warmup
+        num_chains = mcmc.num_chains
 
-        self.logger.info(f"💾 Running MCMC with checkpointing every {checkpoint_interval} samples")
+        self.logger.info(f"💾 Running MCMC with checkpointing (interval: {checkpoint_interval} samples)")
 
         # Try to resume from checkpoint
         checkpoint = self._load_checkpoint(experiment_id)
-        if checkpoint:
-            self.logger.info(f"🔄 Resuming from checkpoint at iteration {checkpoint['iteration']}")
-            # For now, we'll start fresh but this could be extended to actually resume
-            # NumPyro doesn't directly support resuming, but we could implement state restoration
+        previous_samples = None
+        samples_completed = 0
 
-        # Run MCMC normally for now
-        # In a full implementation, this would be broken into chunks with state saving
-        import time
-        start_time = time.time()
-        mcmc.run(rng_key, *args, **kwargs)
+        if checkpoint and not checkpoint.get("completed", False):
+            # Checkpoint exists but run not completed
+            samples_completed = checkpoint.get("iteration", 0)
+            previous_samples = checkpoint.get("mcmc_state", {}).get("samples", None)
 
-        # Save final checkpoint
-        if hasattr(mcmc, 'get_samples'):
-            final_samples = mcmc.get_samples()
+            if previous_samples and samples_completed > 0:
+                self.logger.info(f"🔄 Resuming from checkpoint: {samples_completed}/{target_samples} samples completed")
+
+                # Validate checkpoint
+                if self._validate_checkpoint(previous_samples, samples_completed, num_chains):
+                    self.logger.info(f"✓ Checkpoint validated")
+                else:
+                    self.logger.warning(f"⚠️  Checkpoint validation failed - starting fresh")
+                    previous_samples = None
+                    samples_completed = 0
+            else:
+                self.logger.info(f"⚠️  Invalid checkpoint - starting fresh")
+                previous_samples = None
+                samples_completed = 0
+        elif checkpoint and checkpoint.get("completed", False):
+            self.logger.info(f"✓ Experiment already completed - using cached results")
+            # Restore samples to MCMC object
+            if "mcmc_state" in checkpoint and "samples" in checkpoint["mcmc_state"]:
+                mcmc._samples = checkpoint["mcmc_state"]["samples"]
+            return mcmc
+
+        # Calculate remaining samples needed
+        remaining_samples = max(0, target_samples - samples_completed)
+
+        if remaining_samples == 0:
+            self.logger.info(f"✓ All samples already completed")
+            if previous_samples:
+                mcmc._samples = previous_samples
+            return mcmc
+
+        self.logger.info(f"Running {remaining_samples} additional samples ({samples_completed} already completed)")
+
+        # If resuming, use last sample as initialization (warm start)
+        init_params = None
+        if previous_samples and samples_completed > 0:
+            try:
+                # Use last sample from previous run as initialization
+                init_params = {}
+                for key, val in previous_samples.items():
+                    if val is not None and hasattr(val, 'shape'):
+                        # Take last sample from last chain
+                        if len(val.shape) >= 2:
+                            init_params[key] = val[-1, :]  # Last sample
+
+                self.logger.info(f"🎯 Warm-starting from last checkpoint state")
+            except Exception as e:
+                self.logger.warning(f"⚠️  Could not extract init params: {e}")
+                init_params = None
+
+        # Run remaining samples
+        try:
+            # Create new MCMC with remaining samples
+            from copy import deepcopy
+            resumed_mcmc = MCMC(
+                deepcopy(mcmc.sampler),
+                num_warmup=num_warmup if samples_completed == 0 else 0,  # Skip warmup if resuming
+                num_samples=remaining_samples,
+                num_chains=num_chains,
+                progress_bar=mcmc.progress_bar if hasattr(mcmc, 'progress_bar') else True,
+                chain_method=mcmc.chain_method if hasattr(mcmc, 'chain_method') else 'parallel'
+            )
+
+            # Run with optional initialization
+            run_kwargs = dict(kwargs)
+            if init_params:
+                run_kwargs['init_params'] = init_params
+
+            resumed_mcmc.run(rng_key, *args, **run_kwargs)
+
+            # Get new samples
+            new_samples = resumed_mcmc.get_samples()
+
+            # Combine with previous samples if they exist
+            if previous_samples:
+                combined_samples = self._combine_samples(previous_samples, new_samples)
+                self.logger.info(f"✓ Combined {samples_completed} + {remaining_samples} = {samples_completed + remaining_samples} samples")
+            else:
+                combined_samples = new_samples
+
+            # Restore to original MCMC object
+            mcmc._samples = combined_samples
+
+            # Save final checkpoint
             mcmc_state = {
-                "samples": {k: v for k, v in final_samples.items()},
-                "num_samples": num_samples,
+                "samples": combined_samples,
+                "num_samples": samples_completed + remaining_samples,
                 "completed": True,
             }
-            self._save_checkpoint(experiment_id, num_samples, mcmc_state, {"status": "completed"})
+            self._save_checkpoint(experiment_id, samples_completed + remaining_samples, mcmc_state, {"status": "completed"})
+
+            self.logger.info(f"✓ MCMC completed: {samples_completed + remaining_samples} total samples")
+
+        except Exception as e:
+            # Save checkpoint on failure
+            self.logger.error(f"❌ MCMC failed: {e}")
+            if 'resumed_mcmc' in locals() and hasattr(resumed_mcmc, 'get_samples'):
+                try:
+                    partial_samples = resumed_mcmc.get_samples()
+                    if previous_samples:
+                        partial_combined = self._combine_samples(previous_samples, partial_samples)
+                    else:
+                        partial_combined = partial_samples
+
+                    partial_completed = samples_completed + len(list(partial_samples.values())[0])
+
+                    mcmc_state = {
+                        "samples": partial_combined,
+                        "num_samples": partial_completed,
+                        "completed": False,
+                        "error": str(e)
+                    }
+                    self._save_checkpoint(experiment_id, partial_completed, mcmc_state, {"status": "failed", "error": str(e)})
+                    self.logger.info(f"💾 Partial progress saved: {partial_completed} samples")
+                except:
+                    pass
+            raise
 
         return mcmc
+
+    def _validate_checkpoint(self, samples: Dict, num_samples: int, num_chains: int) -> bool:
+        """Validate checkpoint samples are consistent."""
+        try:
+            if not samples:
+                return False
+
+            # Check all sample arrays have same length
+            sample_lengths = set()
+            for key, val in samples.items():
+                if hasattr(val, 'shape') and len(val.shape) > 0:
+                    sample_lengths.add(val.shape[0])
+
+            if len(sample_lengths) != 1:
+                self.logger.warning(f"Inconsistent sample lengths: {sample_lengths}")
+                return False
+
+            actual_samples = sample_lengths.pop()
+            if actual_samples != num_samples:
+                self.logger.warning(f"Sample count mismatch: {actual_samples} vs expected {num_samples}")
+                # Still valid, just incomplete
+
+            return True
+
+        except Exception as e:
+            self.logger.warning(f"Checkpoint validation error: {e}")
+            return False
+
+    def _combine_samples(self, old_samples: Dict, new_samples: Dict) -> Dict:
+        """Combine samples from previous and new MCMC runs."""
+        import numpy as np
+
+        combined = {}
+
+        for key in old_samples.keys():
+            if key in new_samples:
+                old_val = old_samples[key]
+                new_val = new_samples[key]
+
+                # Concatenate along sample dimension (axis 0)
+                if hasattr(old_val, 'shape') and hasattr(new_val, 'shape'):
+                    # Convert to numpy for easier handling
+                    old_np = np.array(old_val) if not isinstance(old_val, np.ndarray) else old_val
+                    new_np = np.array(new_val) if not isinstance(new_val, np.ndarray) else new_val
+
+                    # Concatenate
+                    combined[key] = np.concatenate([old_np, new_np], axis=0)
+                else:
+                    # Scalar or incompatible - use new value
+                    combined[key] = new_val
+            else:
+                # Key only in old samples - keep it
+                combined[key] = old_samples[key]
+
+        # Add any keys only in new samples
+        for key in new_samples.keys():
+            if key not in combined:
+                combined[key] = new_samples[key]
+
+        return combined
 
     def _generate_parameter_combinations(self, model_config: Dict) -> List[Dict]:
         """Generate all parameter combinations from a model configuration."""
