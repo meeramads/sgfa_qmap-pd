@@ -706,7 +706,7 @@ class SGFAParameterComparison(ExperimentFramework):
                 num_samples=num_samples,
                 num_chains=num_chains,
                 # Memory efficiency options
-                progress_bar=False,  # Reduces memory usage
+                progress_bar=True,  # Show progress for visibility
                 chain_method="sequential",  # Use sequential chains to reduce GPU memory
             )
 
