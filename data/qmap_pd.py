@@ -22,7 +22,6 @@ def load_qmap_pd(
     imaging_as_single_view: bool = False,
     drop_constant_clinical: bool = True,
     id_col: str = "sid",
-    exclude_clinical_features: Optional[List[str]] = None,
     select_rois: Optional[List[str]] = None,
     # Preprocessing parameters
     enable_advanced_preprocessing: bool = False,
@@ -61,9 +60,6 @@ def load_qmap_pd(
         Whether to drop constant clinical features
     id_col : str
         Name of ID column in clinical data
-    exclude_clinical_features : List[str], optional
-        List of clinical feature names to exclude (e.g., ['age', 'sex', 'tiv'])
-        Useful for removing demographic/anatomical covariates that may add noise
     select_rois : List[str], optional
         List of specific ROI files to load (e.g., ['volume_sn_voxels.tsv'])
         If None, loads default ROIs (sn, putamen, lentiform) or fallback (bg-all)
@@ -141,13 +137,6 @@ def load_qmap_pd(
         logging.info(f"Using {scanner_info_col} for scanner harmonization")
 
     clin_X = clin.drop(columns=[id_col]).copy()
-
-    # Exclude specified clinical features (e.g., demographics)
-    if exclude_clinical_features:
-        features_to_exclude = [f for f in exclude_clinical_features if f in clin_X.columns]
-        if features_to_exclude:
-            logging.info(f"Excluding clinical features: {features_to_exclude}")
-            clin_X = clin_X.drop(columns=features_to_exclude)
 
     # Handle constant clinical features
     if drop_constant_clinical and clin_X.shape[1] > 0:

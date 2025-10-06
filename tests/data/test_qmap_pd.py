@@ -168,105 +168,33 @@ class TestROISelection:
             pass
 
 
-class TestClinicalFeatureExclusion:
-    """Test clinical feature exclusion functionality."""
-    
-    def test_exclude_single_feature(self, mock_data_dir):
-        """Test excluding a single clinical feature."""
-        from data.qmap_pd import load_qmap_pd
-        
-        # Load without exclusion
-        data_full = load_qmap_pd(data_dir=mock_data_dir)
-        clinical_idx = data_full['view_names'].index('clinical')
-        n_features_full = data_full['X_list'][clinical_idx].shape[1]
-        
-        # Load with exclusion
-        data_excl = load_qmap_pd(
-            data_dir=mock_data_dir,
-            exclude_clinical_features=['age']
-        )
-        clinical_idx_excl = data_excl['view_names'].index('clinical')
-        n_features_excl = data_excl['X_list'][clinical_idx_excl].shape[1]
-        
-        # Should have one fewer feature
-        assert n_features_excl == n_features_full - 1
-    
-    def test_exclude_multiple_features(self, mock_data_dir):
-        """Test excluding multiple clinical features."""
-        from data.qmap_pd import load_qmap_pd
-        
-        # Load without exclusion
-        data_full = load_qmap_pd(data_dir=mock_data_dir)
-        clinical_idx = data_full['view_names'].index('clinical')
-        n_features_full = data_full['X_list'][clinical_idx].shape[1]
-        
-        # Load with exclusion of 3 features
-        data_excl = load_qmap_pd(
-            data_dir=mock_data_dir,
-            exclude_clinical_features=['age', 'sex', 'tiv']
-        )
-        clinical_idx_excl = data_excl['view_names'].index('clinical')
-        n_features_excl = data_excl['X_list'][clinical_idx_excl].shape[1]
-        
-        # Should have 3 fewer features
-        assert n_features_excl == n_features_full - 3
-    
-    def test_exclude_nonexistent_feature(self, mock_data_dir):
-        """Test handling of nonexistent feature names."""
-        from data.qmap_pd import load_qmap_pd
-        
-        # Should either ignore or warn, but not crash
-        data = load_qmap_pd(
-            data_dir=mock_data_dir,
-            exclude_clinical_features=['nonexistent_feature']
-        )
-        
-        assert 'X_list' in data
-        assert len(data['X_list']) > 0
-    
-    def test_feature_names_updated(self, mock_data_dir):
-        """Test that feature names are updated after exclusion."""
-        from data.qmap_pd import load_qmap_pd
-        
-        data = load_qmap_pd(
-            data_dir=mock_data_dir,
-            exclude_clinical_features=['age']
-        )
-        
-        if 'feature_names' in data and 'clinical' in data['feature_names']:
-            clinical_features = data['feature_names']['clinical']
-            assert 'age' not in clinical_features
-
-
 class TestCombinedOptions:
-    """Test combining ROI selection and clinical exclusion."""
-    
-    def test_select_roi_and_exclude_clinical(self, mock_data_dir):
-        """Test using both ROI selection and clinical exclusion."""
+    """Test combining multiple ROI selections."""
+
+    def test_select_single_roi(self, mock_data_dir):
+        """Test selecting a single ROI."""
         from data.qmap_pd import load_qmap_pd
-        
+
         data = load_qmap_pd(
             data_dir=mock_data_dir,
             select_rois=['volume_sn_voxels.tsv'],
-            exclude_clinical_features=['age', 'sex', 'tiv'],
             imaging_as_single_view=False
         )
-        
-        # Should have: clinical (reduced) + sn = 2 views
+
+        # Should have: clinical + sn = 2 views
         assert len(data['X_list']) == 2
         assert all(X.shape[0] == 3 for X in data['X_list'])  # 3 subjects
-    
-    def test_multiple_rois_and_exclusions(self, mock_data_dir):
-        """Test multiple ROIs with multiple clinical exclusions."""
+
+    def test_multiple_rois(self, mock_data_dir):
+        """Test multiple ROI selections."""
         from data.qmap_pd import load_qmap_pd
-        
+
         data = load_qmap_pd(
             data_dir=mock_data_dir,
             select_rois=['volume_sn_voxels.tsv', 'volume_putamen_voxels.tsv'],
-            exclude_clinical_features=['age', 'sex'],
             imaging_as_single_view=False
         )
-        
+
         # Should have: clinical (reduced) + sn + putamen = 3 views
         assert len(data['X_list']) == 3
 
@@ -317,15 +245,14 @@ class TestIntegration:
     def test_complete_workflow(self, mock_data_dir):
         """Test complete data loading workflow."""
         from data.qmap_pd import load_qmap_pd
-        
-        # Load with all options
+
+        # Load with ROI selection
         data = load_qmap_pd(
             data_dir=mock_data_dir,
             select_rois=['volume_sn_voxels.tsv'],
-            exclude_clinical_features=['age', 'sex', 'tiv'],
             imaging_as_single_view=False
         )
-        
+
         # Verify complete structure
         assert 'X_list' in data
         assert 'view_names' in data

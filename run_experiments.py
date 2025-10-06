@@ -154,11 +154,6 @@ def main():
         help="Select specific ROIs to load (e.g., --select-rois volume_sn_voxels.tsv)",
     )
     parser.add_argument(
-        "--exclude-clinical",
-        nargs="+",
-        help="Exclude specific clinical features (e.g., --exclude-clinical age sex tiv)",
-    )
-    parser.add_argument(
         "--test-k",
         nargs="+",
         type=int,
@@ -198,13 +193,6 @@ def main():
         config["preprocessing"]["select_rois"] = args.select_rois
         logger.info(f"Selecting ROIs: {args.select_rois}")
 
-    # Configure clinical feature exclusion if provided
-    if args.exclude_clinical:
-        if "preprocessing" not in config:
-            config["preprocessing"] = {}
-        config["preprocessing"]["exclude_clinical_features"] = args.exclude_clinical
-        logger.info(f"Excluding clinical features: {args.exclude_clinical}")
-
     # Configure K values for parameter comparison if provided
     if args.test_k:
         if "sgfa_hyperparameter_tuning" not in config:
@@ -231,10 +219,6 @@ def main():
                 roi_name = roi.replace('.tsv', '').replace('volume_', '').replace('_voxels', '')
                 roi_names.append(roi_name)
             config_suffix += f"_rois-{'+'.join(roi_names)}"
-
-        # Add clinical exclusion info
-        if args.exclude_clinical:
-            config_suffix += f"_excl-{'+'.join(args.exclude_clinical)}"
 
         # Add K values info
         if args.test_k:

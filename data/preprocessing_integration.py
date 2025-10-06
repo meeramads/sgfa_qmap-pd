@@ -79,14 +79,12 @@ def get_advanced_preprocessing_data(
         from data.qmap_pd import load_qmap_pd
 
         logger.info("Loading basic qMAP-PD data...")
-        # Extract ROI selection and clinical exclusion from config if present
+        # Extract ROI selection from config if present
         select_rois = strategy_config.get("select_rois")
-        exclude_clinical_features = strategy_config.get("exclude_clinical_features")
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
-            select_rois=select_rois,
-            exclude_clinical_features=exclude_clinical_features
+            select_rois=select_rois
         )
         X_list_raw = basic_data["X_list"]
         view_names = basic_data.get(
@@ -118,14 +116,12 @@ def get_advanced_preprocessing_data(
         # Fallback to basic loading
         from data.qmap_pd import load_qmap_pd
 
-        # Extract ROI selection and clinical exclusion from config if present
+        # Extract ROI selection from config if present
         select_rois = config.get("preprocessing", {}).get("select_rois")
-        exclude_clinical_features = config.get("preprocessing", {}).get("exclude_clinical_features")
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
-            select_rois=select_rois,
-            exclude_clinical_features=exclude_clinical_features
+            select_rois=select_rois
         )
         preprocessing_info = {
             "status": "fallback_basic",
@@ -408,14 +404,12 @@ def apply_preprocessing_to_pipeline(
         # Load basic data for analysis
         from data.qmap_pd import load_qmap_pd
 
-        # Extract ROI selection and clinical exclusion from config if present
+        # Extract ROI selection from config if present
         select_rois = config.get("preprocessing", {}).get("select_rois")
-        exclude_clinical_features = config.get("preprocessing", {}).get("exclude_clinical_features")
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
-            select_rois=select_rois,
-            exclude_clinical_features=exclude_clinical_features
+            select_rois=select_rois
         )
         X_list_raw = basic_data["X_list"]
 
@@ -461,14 +455,12 @@ def apply_preprocessing_to_pipeline(
         # Fallback to basic loading
         from data.qmap_pd import load_qmap_pd
 
-        # Extract ROI selection and clinical exclusion from config if present
+        # Extract ROI selection from config if present
         select_rois = config.get("preprocessing", {}).get("select_rois")
-        exclude_clinical_features = config.get("preprocessing", {}).get("exclude_clinical_features")
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
-            select_rois=select_rois,
-            exclude_clinical_features=exclude_clinical_features
+            select_rois=select_rois
         )
         fallback_info = {
             "preprocessing_integration": False,
