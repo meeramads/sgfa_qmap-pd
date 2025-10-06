@@ -3,6 +3,11 @@
 This module provides utilities for analyzing disease progression patterns,
 including cross-sectional correlations, longitudinal analysis, and prediction
 of clinical milestones.
+
+⚠️  IMPORTANT: This module is FUTURE WORK and not implemented in the current project scope.
+While longitudinal data for the qMAP-PD dataset exists, access has not been granted due to
+time constraints. This infrastructure is provided for future development when longitudinal
+data becomes accessible.
 """
 
 import logging

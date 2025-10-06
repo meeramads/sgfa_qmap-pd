@@ -2,6 +2,12 @@
 
 This module provides utilities for validating models across different cohorts
 and analyzing the transferability of learned representations.
+
+⚠️  IMPORTANT: This module is FUTURE WORK and not implemented in the current project scope.
+External validation requires PD datasets with similar multimodal data (qMRI/imaging + clinical).
+Many widely-available PD datasets lack quantitative MRI or other imaging data, which are the
+focus of this project for PD subtyping (traditionally done with clinical data alone). This
+infrastructure is provided for future external validation when suitable datasets become available.
 """
 
 import logging

@@ -2,6 +2,10 @@
 
 This module provides utilities for discovering and validating biomarkers
 using SGFA-derived factors and clinical outcomes.
+
+⚠️  IMPORTANT: This module is FUTURE WORK and not implemented in the current project scope.
+The current qMAP-PD dataset does not include biomarker data. This infrastructure is provided
+for future development when biomarker data becomes available.
 """
 
 import logging
