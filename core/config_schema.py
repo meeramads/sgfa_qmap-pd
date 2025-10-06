@@ -71,6 +71,7 @@ class ExperimentsConfig:
     generate_plots: bool = True
     enable_spatial_analysis: bool = False  # Align with config.yaml default (requires MRI reference)
     save_pickle_results: bool = False
+    save_numpy_arrays: bool = False  # Save numpy arrays to disk
     max_parallel_jobs: int = 1
 
     def validate(self) -> List[str]:
