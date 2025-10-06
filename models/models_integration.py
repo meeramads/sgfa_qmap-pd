@@ -220,7 +220,7 @@ def create_model_instance(
         }
 
         logger.info(f"✅ Model instance created successfully")
-        logger.info(f"   Model name: {metadata['model_name']}")
+        logger.info(f"   Model type: {model_type}")
         logger.info(f"   Model class: {metadata['model_class']}")
 
         return ModelCreationResult(
@@ -759,7 +759,7 @@ class ModelsFrameworkWrapper:
         """
         if self.model_instance:
             logger.info(f"📊 Using structured model: {self.model_type}")
-            logger.info(f"   Model name: {self.model_instance.get_model_name()}")
+            logger.info(f"   Model family: {self.model_instance.__class__.__name__}")
             return self.model_instance
         else:
             logger.warning(
