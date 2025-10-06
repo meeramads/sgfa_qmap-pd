@@ -204,13 +204,30 @@ def main():
         # Create single timestamped directory for all experiments
         run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = get_output_dir(config)
+
+        # Build configuration suffix for directory name
+        config_suffix = ""
+
+        # Add ROI selection info
+        if args.select_rois:
+            # Extract ROI names (remove .tsv extension and volume_ prefix if present)
+            roi_names = []
+            for roi in args.select_rois:
+                roi_name = roi.replace('.tsv', '').replace('volume_', '').replace('_voxels', '')
+                roi_names.append(roi_name)
+            config_suffix += f"_rois-{'+'.join(roi_names)}"
+
+        # Add clinical exclusion info
+        if args.exclude_clinical:
+            config_suffix += f"_excl-{'+'.join(args.exclude_clinical)}"
+
         # Create directory name based on what's actually running
         if len(args.experiments) == 1:
-            unified_dir = output_dir / f"{args.experiments[0]}_run_{run_timestamp}"
+            unified_dir = output_dir / f"{args.experiments[0]}{config_suffix}_run_{run_timestamp}"
         elif len(args.experiments) < 5:
-            unified_dir = output_dir / f"{'_'.join(args.experiments)}_run_{run_timestamp}"
+            unified_dir = output_dir / f"{'_'.join(args.experiments)}{config_suffix}_run_{run_timestamp}"
         else:
-            unified_dir = output_dir / f"complete_run_{run_timestamp}"
+            unified_dir = output_dir / f"complete_run{config_suffix}_{run_timestamp}"
         unified_dir.mkdir(parents=True, exist_ok=True)
 
         # Update config to use unified directory

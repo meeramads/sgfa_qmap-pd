@@ -206,8 +206,8 @@ model_comparison:
 # SGFA Parameter Comparison Experiment
 sgfa_parameter_comparison:
   parameter_ranges:
-    n_factors: [3, 5, 8, 10, 12]        # Range of factor numbers
-    sparsity_lambda: [0.01, 0.1, 0.5, 1.0]  # Range of sparsity values
+    n_factors: [2, 3, 4, 5]             # Range of factor numbers (tailored for 2-4 view experiments)
+    sparsity_lambda: [0.1, 0.25, 0.33]  # Range of sparsity values (percW: 10%, 25%, 33%) - focused on interpretable range
     group_lambda: [0.1, 0.5, 1.0]      # Group sparsity options
     # learning_rate: [0.005, 0.01, 0.05]  # NOT APPLICABLE - NumPyro uses automatic step size adaptation
 

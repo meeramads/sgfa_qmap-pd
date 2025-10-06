@@ -2315,8 +2315,8 @@ def run_sgfa_parameter_comparison(config):
             model_results = {}
             performance_metrics = {}
 
-            for K in K_values[:2]:  # Limit to first 2 K values for faster testing
-                for percW in percW_values[:2]:  # Limit to first 2 percW values
+            for K in K_values:  # Test all K values from config
+                for percW in percW_values:  # Test all percW values from config
                     variant_name = f"K{K}_percW{int(percW)}"
                     logger.info(f"Testing SGFA variant: {variant_name}")
 
