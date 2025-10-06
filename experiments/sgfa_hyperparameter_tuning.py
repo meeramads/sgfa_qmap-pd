@@ -2376,6 +2376,15 @@ def run_sgfa_hyperparameter_tuning(config):
                                 X_list, variant_hypers, variant_args
                             )
 
+                        # CRITICAL: Remove large sample arrays to prevent memory leak
+                        # These are only needed during training, not for final results
+                        if "W_samples" in variant_result:
+                            del variant_result["W_samples"]
+                        if "Z_samples" in variant_result:
+                            del variant_result["Z_samples"]
+                        if "samples" in variant_result:
+                            del variant_result["samples"]
+
                         model_results[variant_name] = variant_result
 
                         # Store performance metrics
