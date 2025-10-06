@@ -4,6 +4,10 @@ Factory for creating model instances.
 
 This module provides a unified interface for creating different GFA model types
 with proper configuration, validation, and extensibility.
+
+Note: This project primarily uses Sparse GFA (sparseGFA/sparse_gfa).
+Standard GFA and LCA models are registered for completeness but are NOT actively
+used due to memory constraints with high-dimensional neuroimaging data.
 """
 
 from __future__ import annotations
@@ -57,15 +61,17 @@ class ModelFactory:
         },
         "GFA": {
             "class": StandardGFAModel,
-            "description": "Standard Group Factor Analysis",
+            "description": "Standard Group Factor Analysis (NOT USED - memory intensive)",
             "required_params": ["K"],
             "optional_params": [],
+            "warnings": ["Not used in this project due to memory constraints"],
         },
         "standard_gfa": {  # Alias for compatibility
             "class": StandardGFAModel,
-            "description": "Standard Group Factor Analysis (snake_case alias)",
+            "description": "Standard Group Factor Analysis (NOT USED - memory intensive)",
             "required_params": ["K"],
             "optional_params": [],
+            "warnings": ["Not used in this project due to memory constraints"],
         },
         "neuroGFA": {
             "class": NeuroimagingGFAModel,
@@ -75,10 +81,13 @@ class ModelFactory:
         },
         "LCA": {
             "class": LatentClassAnalysisModel,
-            "description": "Latent Class Analysis (high memory usage)",
+            "description": "Latent Class Analysis (NOT USED - very high memory usage)",
             "required_params": ["K"],
             "optional_params": [],
-            "warnings": ["High memory usage for large datasets"],
+            "warnings": [
+                "Not used in this project due to very high memory usage",
+                "Memory requirements exceed available resources for neuroimaging data"
+            ],
         },
     }
 
