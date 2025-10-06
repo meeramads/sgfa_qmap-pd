@@ -2695,8 +2695,24 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
         except Exception as e:
             logger.debug(f"Could not check GPU memory: {e}")
 
+        # CRITICAL: Force device synchronization BEFORE clearing caches
+        # This ensures all GPU operations are complete before cleanup
+        try:
+            for device in jax.devices():
+                if device.platform == 'gpu':
+                    device.synchronize_all_activity()
+        except Exception:
+            pass
+
         # Clear all JAX caches - most important for GPU memory
         jax.clear_caches()
+
+        # Clear JAX device buffers explicitly with defragmentation
+        try:
+            import jax.lib.xla_bridge as xb
+            xb.get_backend().defragment()
+        except Exception:
+            pass
 
         # Clear JAX compilation cache between iterations
         try:
@@ -2705,12 +2721,27 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
         except Exception:
             pass
 
-        # Force garbage collection multiple times
-        for _ in range(5):  # Increased from 3 to 5
+        # Clear XLA backend cache
+        try:
+            from jax._src.lib import xla_bridge
+            xla_bridge.get_backend.cache_clear()
+        except Exception:
+            pass
+
+        # Clear dispatch cache
+        try:
+            from jax._src import dispatch
+            if hasattr(dispatch, '_xla_callable'):
+                dispatch._xla_callable.cache_clear()
+        except Exception:
+            pass
+
+        # Force garbage collection multiple times (increased for memory leak)
+        for _ in range(10):  # Increased from 5 to 10
             gc.collect()
 
-        # Longer delay to allow GPU memory to be released
-        time.sleep(2.0)  # Increased from 1.0 to 2.0
+        # Longer delay to allow GPU memory to be released (3 seconds)
+        time.sleep(3.0)
 
         # Check GPU memory after cleanup
         try:
@@ -2724,9 +2755,11 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
                         pct_used = (bytes_in_use / bytes_limit) * 100 if bytes_limit > 0 else 0
                         logger.info(f"  GPU memory after cleanup: {bytes_in_use / 1e9:.2f}GB / {bytes_limit / 1e9:.2f}GB ({pct_used:.1f}%)")
 
-                        # Warn if memory usage is still high
+                        # Warn if memory usage is growing (earlier detection of leak)
+                        if pct_used > 20:
+                            logger.warning(f"⚠️ GPU memory usage above baseline ({pct_used:.1f}%) - potential memory leak!")
                         if pct_used > 80:
-                            logger.warning(f"⚠️ GPU memory usage still high ({pct_used:.1f}%) after cleanup!")
+                            logger.warning(f"⚠️ GPU memory usage critically high ({pct_used:.1f}%) after cleanup!")
         except Exception as e:
             logger.debug(f"Could not check GPU memory: {e}")
 
