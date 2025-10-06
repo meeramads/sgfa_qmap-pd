@@ -3,7 +3,7 @@
 This document describes the overall architecture and code organization after the comprehensive refactoring (October 2025).
 
 **Last Updated**: October 6, 2025
-**Architectural Issues Resolved**: 23 of 50 (46%)
+**Architectural Issues Resolved**: 28 of 50 (56%)
 
 ## Code Quality Metrics
 
