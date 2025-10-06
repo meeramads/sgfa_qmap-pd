@@ -1,0 +1,14 @@
+{
+  "experiment_name": "data_validation",
+  "timestamp": 1759704958,
+  "config_summary": {
+    "num_samples": 2000,
+    "num_chains": 4,
+    "K_values": [
+      5,
+      10,
+      15
+    ]
+  },
+  "data_shapes": {}
+}

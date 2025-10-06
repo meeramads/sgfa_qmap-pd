@@ -1,0 +1,2 @@
+experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
+sgfa_parameter_comparison_20251006_014051,sgfa_parameter_comparison,completed,3475.256064,57.9 minutes (3475s),2025-10-06 01:40:51,2025-10-06 02:38:46,2000,4,"[5, 10, 15]",5

@@ -1,0 +1,14 @@
+{
+  "experiment_name": "methods_comparison",
+  "timestamp": 1759705811,
+  "config_summary": {
+    "num_samples": 2000,
+    "num_chains": 4,
+    "K_values": [
+      5,
+      10,
+      15
+    ]
+  },
+  "data_shapes": {}
+}
