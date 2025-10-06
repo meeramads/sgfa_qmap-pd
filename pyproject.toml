@@ -146,3 +146,7 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests", "results", "qMAP-PD_data", ".venv", "venv"]
+skips = ["B101", "B601"]  # Skip assert_used and paramiko (common in scientific code)
