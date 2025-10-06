@@ -2307,9 +2307,9 @@ def run_sgfa_hyperparameter_tuning(config):
             parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
             # Extract K values, percW values, and group_lambda values from proper config section
-            K_values = parameter_ranges.get("n_factors", [2, 3, 4, 5])
-            percW_values = parameter_ranges.get("sparsity_lambda", [0.1, 0.25, 0.33])
-            group_lambda_values = parameter_ranges.get("group_lambda", [0.1, 0.5, 1.0])
+            K_values = sorted(parameter_ranges.get("n_factors", [2, 3, 4]))
+            percW_values = sorted(parameter_ranges.get("sparsity_lambda", [0.1, 0.25, 0.33]))
+            group_lambda_values = sorted(parameter_ranges.get("group_lambda", [0.0, 0.05, 0.1, 0.2]))
 
             # Convert sparsity_lambda (0-1 range) to percW (percentage)
             percW_values = [val * 100 if val <= 1.0 else val for val in percW_values]
