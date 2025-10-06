@@ -62,6 +62,10 @@ docs/_build/
 docs/_static/
 docs/_templates/
 
+# Internal planning documents
+docs/REMAINING_ISSUES.md
+docs/REFACTOR_PLAN.md
+
 # --- allow tracked data for this project ---
 !qMAP-PD_data/
 !qMAP-PD_data/**/*.tsv
