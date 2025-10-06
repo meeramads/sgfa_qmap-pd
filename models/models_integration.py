@@ -460,7 +460,6 @@ def run_model_comparison_analysis(
                     model_result = {
                         "model_type": model_type,
                         "creation_successful": True,
-                        "model_name": creation_info.get("model_name", "unknown"),
                         "model_class": creation_info.get("model_class", "unknown"),
                         "spatial_info_used": creation_info.get(
                             "spatial_info_available", False
@@ -471,7 +470,7 @@ def run_model_comparison_analysis(
                         "recommended_use_cases": _get_model_use_cases(model_type),
                     }
 
-                    logger.info(f"   ✅ {model_type}: {model_result['model_name']}")
+                    logger.info(f"   ✅ {model_type}: {model_result['model_class']}")
                     logger.info(
                         f" Suitability: { model_result['suitable_for_data']['score']:.2f}"
                     )
