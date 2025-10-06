@@ -523,12 +523,6 @@ def run_model_comparison_debug():
         raise
 
 
-def run_performance_benchmarks_debug():
-    """Run integrated SGFA performance + PD subtype discovery benchmarks (now in clinical_validation)."""
-    logger.info("⚡ Running DEBUG: Integrated SGFA Performance + PD Subtype Discovery Benchmarks (redirected to clinical_validation)")
-
-    # Redirect to clinical validation since that's where the integrated functionality moved
-    return run_clinical_validation_debug()
 def run_sensitivity_analysis_debug():
     """Run minimal sensitivity analysis."""
     logger.info("📊 Running DEBUG: Sensitivity Analysis")

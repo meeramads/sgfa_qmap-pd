@@ -305,8 +305,8 @@ def main():
     if "all" in experiments_to_run:
         experiments_to_run = [
             "data_validation",
-            "model_comparison",
             "sgfa_hyperparameter_tuning",
+            "model_comparison",
             "sensitivity_analysis",
             "clinical_validation",
             "reproducibility",
@@ -367,7 +367,7 @@ def main():
             )
 
     if "sgfa_hyperparameter_tuning" in experiments_to_run:
-        logger.info("🔬 3/6 Starting SGFA Hyperparameter Tuning Experiment...")
+        logger.info("🔬 2/6 Starting SGFA Hyperparameter Tuning Experiment...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from data_validation")
@@ -426,7 +426,7 @@ def main():
                 pipeline_context["optimal_sgfa_params"] = None
 
     if "model_comparison" in experiments_to_run:
-        logger.info("🧠 2/6 Starting Model Architecture Comparison Experiment...")
+        logger.info("🧠 3/6 Starting Model Architecture Comparison Experiment...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -446,7 +446,6 @@ def main():
                 )
 
         results["model_comparison"] = run_model_comparison(exp_config)
-
 
     if "sensitivity_analysis" in experiments_to_run:
         logger.info("📊 4/6 Starting Sensitivity Analysis Experiment...")
