@@ -476,13 +476,18 @@ class ExperimentFramework:
         # Check for matrices in model_results
         model_results = result.model_results
 
+        # Extract view names from data_summary if available
+        view_names = None
+        if result.data_summary and "view_names" in result.data_summary:
+            view_names = result.data_summary["view_names"]
+
         # Save SGFA matrices if available
         if "sgfa_variants" in model_results:
             sgfa_results = model_results["sgfa_variants"]
             for variant_name, variant_result in sgfa_results.items():
                 if variant_result and isinstance(variant_result, dict):
                     self._save_matrices_for_variant(
-                        variant_result, matrices_dir, f"sgfa_{variant_name}"
+                        variant_result, matrices_dir, f"sgfa_{variant_name}", view_names
                     )
 
         # Save other method matrices if available
@@ -491,7 +496,7 @@ class ExperimentFramework:
             for method_name, method_result in trad_results.items():
                 if method_result and isinstance(method_result, dict):
                     self._save_matrices_for_variant(
-                        method_result, matrices_dir, f"traditional_{method_name}"
+                        method_result, matrices_dir, f"traditional_{method_name}", view_names
                     )
 
         # Save main result matrices if available (for single-method experiments)
@@ -510,10 +515,10 @@ class ExperimentFramework:
                 Z = model_results["Z"]
 
             if W is not None or Z is not None:
-                self._save_matrices_for_variant({"W": W, "Z": Z}, matrices_dir, "main")
+                self._save_matrices_for_variant({"W": W, "Z": Z}, matrices_dir, "main", view_names)
 
     def _save_matrices_for_variant(
-        self, result_dict: dict, matrices_dir: Path, variant_name: str
+        self, result_dict: dict, matrices_dir: Path, variant_name: str, view_names: Optional[List[str]] = None
     ):
         """Save W, Z matrices and all model parameters for a specific variant/method."""
         import pandas as pd
@@ -528,17 +533,23 @@ class ExperimentFramework:
                     # Multi-view case: save each view separately
                     for view_idx, W_view in enumerate(W):
                         if hasattr(W_view, "shape"):
+                            # Get view name (use index if not available)
+                            if view_names and view_idx < len(view_names):
+                                view_label = view_names[view_idx].replace(" ", "_").replace("/", "_")
+                            else:
+                                view_label = f"view{view_idx}"
+
                             # Save as numpy
                             # save_numpy(
                             #     W_view,
                             #     matrices_dir
-                            #     / f"{variant_name}_factor_loadings_view{view_idx}.npy",
+                            #     / f"{variant_name}_factor_loadings_{view_label}.npy",
                             # )
                             # Save as CSV for readability
                             save_csv(
                                 pd.DataFrame(W_view),
                                 matrices_dir
-                                / f"{variant_name}_factor_loadings_view{view_idx}.csv",
+                                / f"{variant_name}_factor_loadings_{view_label}.csv",
                                 index=False,
                             )
                 else:
