@@ -88,6 +88,15 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             with self.profiler.profile(f"seed_{seed}") as p:
                 result = self._run_sgfa_analysis(X_list, hypers, seed_args, **kwargs)
+
+                # CRITICAL: Remove large sample arrays to prevent memory leak
+                if "W_samples" in result:
+                    del result["W_samples"]
+                if "Z_samples" in result:
+                    del result["Z_samples"]
+                if "samples" in result:
+                    del result["samples"]
+
                 results[seed] = result
 
                 # Store performance metrics
@@ -196,6 +205,15 @@ class ReproducibilityExperiments(ExperimentFramework):
                         result = self._run_sgfa_analysis(
                             X_perturbed, hypers, args, **kwargs
                         )
+
+                        # CRITICAL: Remove large sample arrays to prevent memory leak
+                        if "W_samples" in result:
+                            del result["W_samples"]
+                        if "Z_samples" in result:
+                            del result["Z_samples"]
+                        if "samples" in result:
+                            del result["samples"]
+
                         level_results.append(
                             {
                                 "trial": trial,
@@ -376,6 +394,15 @@ class ReproducibilityExperiments(ExperimentFramework):
             run_args["random_seed"] = fixed_seed
 
             result = self._run_sgfa_analysis(X_list, hypers, run_args, **kwargs)
+
+            # CRITICAL: Remove large sample arrays to prevent memory leak
+            if "W_samples" in result:
+                del result["W_samples"]
+            if "Z_samples" in result:
+                del result["Z_samples"]
+            if "samples" in result:
+                del result["samples"]
+
             exact_results.append(result)
 
             # Cleanup memory after each exact reproducibility run
@@ -489,6 +516,15 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             try:
                 result = self._run_sgfa_analysis(X_dtype, hypers, args, **kwargs)
+
+                # CRITICAL: Remove large sample arrays to prevent memory leak
+                if "W_samples" in result:
+                    del result["W_samples"]
+                if "Z_samples" in result:
+                    del result["Z_samples"]
+                if "samples" in result:
+                    del result["samples"]
+
                 stability_results[str(dtype)] = result
 
             except Exception as e:
@@ -521,6 +557,15 @@ class ReproducibilityExperiments(ExperimentFramework):
                     # In practice, you would set PCG64 RNG
 
                 result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+
+                # CRITICAL: Remove large sample arrays to prevent memory leak
+                if "W_samples" in result:
+                    del result["W_samples"]
+                if "Z_samples" in result:
+                    del result["Z_samples"]
+                if "samples" in result:
+                    del result["samples"]
+
                 consistency_results[rng_state] = result
 
             except Exception as e:
