@@ -1,10 +1,13 @@
 # SGFA qMAP-PD Benchmarking Suite
 
-Performance and memory benchmarks for the SGFA qMAP-PD framework.
+**Standalone performance and memory benchmarking utilities for development and profiling.**
+
+> ⚠️ **Note**: These are **NOT** part of the main experiment pipeline (`run_experiments.py`). The main experiments already measure performance during hyperparameter tuning and model comparison. These utilities are for **manual** development/profiling use only.
 
 ## Overview
 
 This directory contains benchmarking scripts to measure:
+
 - **Performance**: Execution time across configurations
 - **Memory**: Memory consumption and optimization
 - **Scalability**: How performance scales with data size
@@ -12,38 +15,46 @@ This directory contains benchmarking scripts to measure:
 ## Benchmark Scripts
 
 ### 1. SGFA Performance Benchmarks
+
 **[benchmark_sgfa.py](benchmark_sgfa.py)** - Core SGFA performance benchmarks
 
 **Tests:**
+
 - K scaling (number of factors)
 - Sample size scaling
 - Sparsity level performance
 - MCMC parameter effects
 
 **Usage:**
+
 ```bash
 python benchmarks/benchmark_sgfa.py
 ```
 
 **Output:**
+
 - Console output with timing results
 - `benchmark_results/benchmark_results.json`
 
 ### 2. Memory Benchmarks
+
 **[benchmark_memory.py](benchmark_memory.py)** - Memory usage benchmarks
 
 **Tests:**
+
 - Data loading memory
 - Array optimization savings
 - Preprocessing memory
 - Peak memory by operation
 
 **Usage:**
+
 ```bash
 python benchmarks/benchmark_memory.py
 ```
 
 **Output:**
+
 - Console output with memory usage
 - `benchmark_results/memory_benchmark_results.json`
 
@@ -88,12 +99,14 @@ Results are saved to `benchmark_results/` in JSON format:
 ### Typical Performance (CPU mode)
 
 **K Scaling (n=100, 2 views):**
+
 - K=2: ~20-30s
 - K=3: ~30-40s
 - K=5: ~40-60s
 - K=8: ~60-90s
 
 **Sample Size Scaling (K=3, 2 views):**
+
 - n=50: ~15-20s
 - n=100: ~30-40s
 - n=200: ~50-70s
@@ -102,11 +115,13 @@ Results are saved to `benchmark_results/` in JSON format:
 ### Memory Usage
 
 **Data Loading:**
+
 - 100 subjects: ~50-100 MB
 - 200 subjects: ~100-200 MB
 - 500 subjects: ~250-500 MB
 
 **Array Optimization:**
+
 - float64 → float32: ~50% memory savings
 
 ## Interpreting Results
@@ -153,6 +168,7 @@ class MyBenchmark(SGFABenchmark):
 ### Modify Configuration
 
 Edit the benchmark scripts to test different:
+
 - Data sizes
 - K values
 - MCMC parameters
@@ -210,18 +226,21 @@ print(df.groupby('K')['duration_s'].mean())
 For detailed profiling beyond benchmarks:
 
 ### CPU Profiling
+
 ```bash
 python -m cProfile -o profile.stats benchmarks/benchmark_sgfa.py
 python -m pstats profile.stats
 ```
 
 ### Memory Profiling
+
 ```bash
 pip install memory-profiler
 python -m memory_profiler benchmarks/benchmark_memory.py
 ```
 
 ### Line-by-Line Profiling
+
 ```bash
 pip install line-profiler
 kernprof -l -v benchmarks/benchmark_sgfa.py
