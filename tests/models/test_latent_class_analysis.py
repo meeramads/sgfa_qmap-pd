@@ -1,4 +1,10 @@
-"""Tests for Latent Class Analysis model."""
+"""Tests for Latent Class Analysis model.
+
+⚠️  FUTURE WORK: LCA is implemented and tested but not actively used in this project
+due to significant memory and computational requirements with high-dimensional neuroimaging data.
+These tests ensure the implementation is correct for future use when larger computational
+resources (e.g., GPU clusters, high-memory systems) become available.
+"""
 
 from unittest.mock import Mock
 

@@ -1,4 +1,9 @@
-"""Tests for Sparse GFA model implementation."""
+"""Tests for Sparse GFA model implementation.
+
+✅ PRIMARY MODEL: Sparse GFA is the main model actively used in this project.
+It provides memory-efficient factor analysis with sparsity constraints, making it
+suitable for high-dimensional neuroimaging data with limited computational resources.
+"""
 
 import numpy as np
 import pytest

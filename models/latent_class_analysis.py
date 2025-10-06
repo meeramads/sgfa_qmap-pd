@@ -1,5 +1,11 @@
 # models/latent_class_analysis.py
-"""Latent Class Analysis model with discrete latent variables."""
+"""Latent Class Analysis model with discrete latent variables.
+
+⚠️  FUTURE WORK: LCA is implemented but not actively used in this project due to
+significant memory and computational requirements with high-dimensional neuroimaging data.
+Available for future use when larger computational resources (e.g., GPU clusters,
+high-memory systems) become available.
+"""
 
 from typing import Dict, List
 
@@ -14,9 +20,10 @@ class LatentClassAnalysisModel(BaseGFAModel):
     """
     Latent Class Analysis (LCA) with discrete latent variables.
 
-    Note: This implementation is computationally intensive and may exceed
-    available GPU memory limits. It is provided for research completeness
-    but is not recommended for routine use without substantial computational resources.
+    ⚠️  FUTURE WORK: This implementation is computationally intensive and may exceed
+    available GPU memory limits. Not currently used in this project due to memory
+    and time constraints. Implementation provided for future research when substantial
+    computational resources become available.
     """
 
     def __init__(self, config, hypers: Dict):

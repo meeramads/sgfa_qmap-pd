@@ -1,5 +1,11 @@
 # models/sparse_gfa.py
-"""Sparse GFA model with regularized horseshoe priors."""
+"""Sparse GFA model with regularized horseshoe priors.
+
+✅ PRIMARY MODEL: This is the main model actively used in the project.
+Sparse GFA provides memory-efficient group factor analysis with automatic
+relevance determination and sparsity-inducing priors, making it suitable
+for high-dimensional neuroimaging data with limited computational resources.
+"""
 
 from typing import Dict, List
 
@@ -12,7 +18,11 @@ from .base import BaseGFAModel
 
 
 class SparseGFAModel(BaseGFAModel):
-    """Sparse GFA with regularized horseshoe priors."""
+    """Sparse GFA with regularized horseshoe priors.
+
+    This is the primary model used in the project for multi-view factor analysis
+    of neuroimaging and clinical data.
+    """
 
     def __init__(self, config, hypers: Dict):
         super().__init__(config, hypers)

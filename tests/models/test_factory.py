@@ -1,4 +1,10 @@
-"""Tests for model factory implementation."""
+"""Tests for model factory implementation.
+
+This tests the ModelFactory which provides access to all implemented models:
+- ✅ Sparse GFA: Primary model actively used in the project
+- ⚠️  Standard GFA: Available but not used due to memory constraints
+- ⚠️  LCA: Available but not used due to memory/computational constraints
+"""
 
 import numpy as np
 import pytest

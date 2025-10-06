@@ -1,4 +1,10 @@
-"""Tests for Standard GFA model implementation."""
+"""Tests for Standard GFA model implementation.
+
+⚠️  FUTURE WORK: Standard GFA is implemented and tested but not actively used in this project
+due to memory constraints with high-dimensional neuroimaging data. It is computationally more
+intensive than Sparse GFA. These tests ensure the implementation is correct for future use
+when larger memory resources become available.
+"""
 
 import numpy as np
 import pytest

@@ -1,5 +1,11 @@
 # models/standard_gfa.py
-"""Standard GFA model with ARD prior."""
+"""Standard GFA model with ARD prior.
+
+⚠️  FUTURE WORK: Standard GFA is implemented but not actively used in this project
+due to memory constraints with high-dimensional neuroimaging data. It is computationally
+more intensive than Sparse GFA. Available for future use when larger memory resources
+become available.
+"""
 
 from typing import Dict, List
 
@@ -12,7 +18,11 @@ from .base import BaseGFAModel
 
 
 class StandardGFAModel(BaseGFAModel):
-    """Standard GFA with Automatic Relevance Determination (ARD) prior."""
+    """Standard GFA with Automatic Relevance Determination (ARD) prior.
+
+    ⚠️  Note: Not currently used due to memory constraints. Implementation
+    available for future work with larger computational resources.
+    """
 
     def __init__(self, config, hypers: Dict):
         super().__init__(config, hypers)
