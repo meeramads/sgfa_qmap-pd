@@ -187,16 +187,16 @@ def main():
 
     # Configure ROI selection if provided
     if args.select_rois:
-        if "data" not in config:
-            config["data"] = {}
-        config["data"]["select_rois"] = args.select_rois
+        if "preprocessing" not in config:
+            config["preprocessing"] = {}
+        config["preprocessing"]["select_rois"] = args.select_rois
         logger.info(f"Selecting ROIs: {args.select_rois}")
 
     # Configure clinical feature exclusion if provided
     if args.exclude_clinical:
-        if "data" not in config:
-            config["data"] = {}
-        config["data"]["exclude_clinical_features"] = args.exclude_clinical
+        if "preprocessing" not in config:
+            config["preprocessing"] = {}
+        config["preprocessing"]["exclude_clinical_features"] = args.exclude_clinical
         logger.info(f"Excluding clinical features: {args.exclude_clinical}")
 
     # Setup unified results directory if requested
