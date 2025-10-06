@@ -22,6 +22,8 @@ def load_qmap_pd(
     imaging_as_single_view: bool = False,
     drop_constant_clinical: bool = True,
     id_col: str = "sid",
+    exclude_clinical_features: Optional[List[str]] = None,
+    select_rois: Optional[List[str]] = None,
     # Preprocessing parameters
     enable_advanced_preprocessing: bool = False,
     enable_spatial_processing: bool = False,
@@ -59,6 +61,13 @@ def load_qmap_pd(
         Whether to drop constant clinical features
     id_col : str
         Name of ID column in clinical data
+    exclude_clinical_features : List[str], optional
+        List of clinical feature names to exclude (e.g., ['age', 'sex', 'tiv'])
+        Useful for removing demographic/anatomical covariates that may add noise
+    select_rois : List[str], optional
+        List of specific ROI files to load (e.g., ['volume_sn_voxels.tsv'])
+        If None, loads default ROIs (sn, putamen, lentiform) or fallback (bg-all)
+        Use this to analyze one ROI at a time
     enable_advanced_preprocessing : bool
         Enable advanced preprocessing pipeline
     enable_spatial_processing : bool
@@ -133,6 +142,13 @@ def load_qmap_pd(
 
     clin_X = clin.drop(columns=[id_col]).copy()
 
+    # Exclude specified clinical features (e.g., demographics)
+    if exclude_clinical_features:
+        features_to_exclude = [f for f in exclude_clinical_features if f in clin_X.columns]
+        if features_to_exclude:
+            logging.info(f"Excluding clinical features: {features_to_exclude}")
+            clin_X = clin_X.drop(columns=features_to_exclude)
+
     # Handle constant clinical features
     if drop_constant_clinical and clin_X.shape[1] > 0:
         nunique = clin_X.nunique(axis=0)
@@ -147,22 +163,37 @@ def load_qmap_pd(
         raise FileNotFoundError(f"No TSVs found in {volumes_rel}")
 
     name_map = {p.name: p for p in roi_files_all}
-    want = [
-        "volume_sn_voxels.tsv",
-        "volume_putamen_voxels.tsv",
-        "volume_lentiform_voxels.tsv",
-    ]
 
-    if all(n in name_map for n in want):
-        roi_files = [name_map[n] for n in want]  # fixed order
+    # Determine which ROIs to load
+    if select_rois is not None:
+        # User specified which ROIs to load
+        roi_files = []
+        for roi_name in select_rois:
+            if roi_name in name_map:
+                roi_files.append(name_map[roi_name])
+            else:
+                raise FileNotFoundError(
+                    f"Requested ROI '{roi_name}' not found. Available: {list(name_map.keys())}"
+                )
+        logging.info(f"Loading selected ROIs: {select_rois}")
     else:
-        bg = name_map.get("volume_bg-all_voxels.tsv")
-        if not bg:
-            missing = [n for n in want if n not in name_map]
-            raise FileNotFoundError(
-                f"Missing ROI TSVs: {missing} and no 'volume_bg-all_voxels.tsv' fallback found."
-            )
-        roi_files = [bg]
+        # Default behavior: load standard ROIs or fallback
+        want = [
+            "volume_sn_voxels.tsv",
+            "volume_putamen_voxels.tsv",
+            "volume_lentiform_voxels.tsv",
+        ]
+
+        if all(n in name_map for n in want):
+            roi_files = [name_map[n] for n in want]  # fixed order
+        else:
+            bg = name_map.get("volume_bg-all_voxels.tsv")
+            if not bg:
+                missing = [n for n in want if n not in name_map]
+                raise FileNotFoundError(
+                    f"Missing ROI TSVs: {missing} and no 'volume_bg-all_voxels.tsv' fallback found."
+                )
+            roi_files = [bg]
 
     imaging_blocks: List[pd.DataFrame] = []
     block_names: List[str] = []

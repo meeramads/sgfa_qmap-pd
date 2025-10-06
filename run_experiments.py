@@ -148,6 +148,16 @@ def main():
         default=False,
         help="Force independent data loading for troubleshooting (overrides shared data mode)",
     )
+    parser.add_argument(
+        "--select-rois",
+        nargs="+",
+        help="Select specific ROIs to load (e.g., --select-rois volume_sn_voxels.tsv)",
+    )
+    parser.add_argument(
+        "--exclude-clinical",
+        nargs="+",
+        help="Exclude specific clinical features (e.g., --exclude-clinical age sex tiv)",
+    )
 
     args = parser.parse_args()
 
@@ -174,6 +184,20 @@ def main():
             config["data"] = {}
         config["data"]["data_dir"] = args.data_dir
         logger.info(f"Using data directory: {args.data_dir}")
+
+    # Configure ROI selection if provided
+    if args.select_rois:
+        if "data" not in config:
+            config["data"] = {}
+        config["data"]["select_rois"] = args.select_rois
+        logger.info(f"Selecting ROIs: {args.select_rois}")
+
+    # Configure clinical feature exclusion if provided
+    if args.exclude_clinical:
+        if "data" not in config:
+            config["data"] = {}
+        config["data"]["exclude_clinical_features"] = args.exclude_clinical
+        logger.info(f"Excluding clinical features: {args.exclude_clinical}")
 
     # Setup unified results directory if requested
     if args.unified_results:
