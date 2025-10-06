@@ -7,7 +7,7 @@ name = "sgfa-qmap-pd"
 version = "0.1.0"
 description = "Sparse Group Factor Analysis for quantitative MRI Parkinson's Disease subtyping"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "SGFA qMAP-PD Research Team"},
 ]
