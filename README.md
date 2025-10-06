@@ -5,10 +5,13 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 ## Features
 
 - **Multi-view Factor Analysis**: Handles multiple neuroimaging modalities simultaneously
-- **Sparsity & Grouping**: Implements both sparse and group penalties for interpretable results
+- **Two-Level Sparsity**:
+  - **Element-wise sparsity** (percW): Controls sparsity within each factor's loadings
+  - **Group sparsity** (group_lambda): Encourages entire features to be zero across all factors for feature-level selection
 - **Computational Optimization**: Memory-efficient processing with automatic system optimization and performance mixins
 - **Comprehensive Testing**: Extensive experimental validation framework
 - **Clinical Validation**: Built-in tools for clinical subtype analysis and biomarker discovery
+- **3D Hyperparameter Tuning**: Grid search across K (factors) × percW (element sparsity) × group_lambda (group sparsity)
 
 ## Project Structure
 
@@ -617,7 +620,18 @@ python run_experiments.py --experiments sgfa_hyperparameter_tuning \
 - `--select-rois`: Select specific ROI files to load (space-separated list)
 - `--exclude-clinical`: Exclude specific clinical features from analysis (space-separated list)
 - `--test-k`: Specify K (number of factors) values to test in parameter comparison (space-separated integers)
-- Results directories automatically include configuration in their names for easy identification
+- Results directories automatically include configuration in their names (e.g., `results/20250106_rois-sn+putamen/`)
+
+**Hyperparameter Configuration:**
+
+The SGFA hyperparameter tuning explores a 3D grid defined in `config.yaml`:
+- **K (n_factors)**: [2, 3, 4] - Number of latent factors
+- **percW (sparsity_lambda)**: [10%, 25%, 33%] - Element-wise sparsity within factors
+- **group_lambda**: [0.0, 0.05, 0.1, 0.2] - Group-level feature selection across factors
+  - 0.0 = baseline (no group sparsity)
+  - Higher values = stronger feature-level elimination
+
+Results are saved with naming: `K{K}_percW{percW}_grp{group_lambda}` (e.g., `K3_percW25_grp0.1`)
 
 #### Debug Experiments
 
