@@ -35,9 +35,9 @@ experiments_executed:
     duration: 734.633964
     experiment_id: sensitivity_analysis_20251006_025413
     status: completed
-  sgfa_parameter_comparison:
+  sgfa_hyperparameter_tuning:
     duration: 3475.256064
-    experiment_id: sgfa_parameter_comparison_20251006_014051
+    experiment_id: sgfa_hyperparameter_tuning_20251006_014051
     sgfa_variants:
     - K3_percW10
     - K3_percW33

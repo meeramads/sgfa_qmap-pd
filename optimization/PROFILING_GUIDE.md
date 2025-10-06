@@ -184,7 +184,7 @@ INFO:root:Completed: SGFA training (Memory: 2345.6 MB, Change: +1111.1 MB)
 
 ```
          ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-          1      0.001    0.001   125.678  125.678 sgfa_parameter_comparison.py:100(run_parameter_sweep)
+          1      0.001    0.001   125.678  125.678 sgfa_hyperparameter_tuning.py:100(run_parameter_sweep)
          12      0.023    0.002   115.234    9.603 sparse_gfa.py:50(fit)
        1200      98.456   0.082    98.456    0.082 {built-in method jax...}
 ```

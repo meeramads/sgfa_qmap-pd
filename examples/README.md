@@ -86,7 +86,7 @@ python examples/experiment_configuration.py  # Read examples
 
 # Run with your configuration
 python run_experiments.py \
-    --experiments sgfa_parameter_comparison \
+    --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv \
     --exclude-clinical age sex tiv \
     --test-k 2 3
@@ -148,7 +148,7 @@ python run_experiments.py --experiments data_validation \
     --select-rois volume_sn_voxels.tsv
 
 # 3. Optimize parameters
-python run_experiments.py --experiments sgfa_parameter_comparison \
+python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv \
     --exclude-clinical age sex tiv \
     --test-k 2 3
@@ -163,7 +163,7 @@ python run_experiments.py --experiments clinical_validation \
 
 ```bash
 # 1. Configure for 4 views (clinical + 3 ROIs)
-python run_experiments.py --experiments sgfa_parameter_comparison \
+python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv volume_lentiform_voxels.tsv \
     --test-k 3 4 5
 

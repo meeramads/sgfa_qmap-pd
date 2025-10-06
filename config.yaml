@@ -203,8 +203,8 @@ model_comparison:
       - "success_rate"                  # Method reliability comparison
       - "performance_efficiency"       # Time vs memory trade-offs
 
-# SGFA Parameter Comparison Experiment
-sgfa_parameter_comparison:
+# SGFA Hyperparameter Tuning Experiment
+sgfa_hyperparameter_tuning:
   parameter_ranges:
     n_factors: [2, 3, 4, 5]             # Range of factor numbers (tailored for 2-4 view experiments)
     sparsity_lambda: [0.1, 0.25, 0.33]  # Range of sparsity values (percW: 10%, 25%, 33%) - focused on interpretable range

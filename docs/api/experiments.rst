@@ -44,9 +44,9 @@ experiments.reproducibility
    :undoc-members:
    :show-inheritance:
 
-experiments.sgfa_parameter_comparison
+experiments.sgfa_hyperparameter_tuning
 -------------------------------------
-.. automodule:: experiments.sgfa_parameter_comparison
+.. automodule:: experiments.sgfa_hyperparameter_tuning
    :members:
    :undoc-members:
    :show-inheritance:

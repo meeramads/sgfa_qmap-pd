@@ -2,7 +2,7 @@
 
 This module provides reusable plotting functions for experiment comparisons,
 benchmarking, and performance analysis. Used across model_comparison,
-sgfa_parameter_comparison, and clinical_validation experiments.
+sgfa_hyperparameter_tuning, and clinical_validation experiments.
 """
 
 import logging

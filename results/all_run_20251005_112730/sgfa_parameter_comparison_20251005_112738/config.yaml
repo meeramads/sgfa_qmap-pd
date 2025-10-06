@@ -21,7 +21,7 @@ dataset: qmap_pd
 description: Compare SGFA model parameter variants
 enable_memory_optimization: true
 enable_profiling: true
-experiment_name: sgfa_parameter_comparison
+experiment_name: sgfa_hyperparameter_tuning
 max_memory_gb: null
 num_chains: 4
 num_runs_per_config: 3

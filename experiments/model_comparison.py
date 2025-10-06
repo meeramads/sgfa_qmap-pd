@@ -11,7 +11,7 @@ Traditional methods cover different analysis approaches:
 - KMeans: Clustering-based analysis
 - CCA: Multi-view canonical correlation analysis
 
-For optimizing hyperparameters within sparseGFA, see experiments/sgfa_parameter_comparison.py.
+For optimizing hyperparameters within sparseGFA, see experiments/sgfa_hyperparameter_tuning.py.
 """
 
 import gc

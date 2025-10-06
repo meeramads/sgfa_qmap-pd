@@ -1,4 +1,4 @@
-"""Tests for SGFA parameter comparison experiments."""
+"""Tests for SGFA hyperparameter tuning experiments."""
 
 import tempfile
 from pathlib import Path
@@ -8,14 +8,14 @@ import pytest
 
 from data import generate_synthetic_data
 from experiments.framework import ExperimentConfig
-from experiments.sgfa_parameter_comparison import (
-    SGFAParameterComparison,
-    run_sgfa_parameter_comparison,  # Main entry point for SGFA parameter optimization
+from experiments.sgfa_hyperparameter_tuning import (
+    SGFAHyperparameterTuning,
+    run_sgfa_hyperparameter_tuning,  # Main entry point for SGFA hyperparameter optimization
 )
 
 
-class TestSGFAParameterComparison:
-    """Test SGFA parameter comparison experiments."""
+class TestSGFAHyperparameterTuning:
+    """Test SGFA hyperparameter tuning experiments."""
 
     @pytest.fixture
     def sample_data(self):
@@ -40,8 +40,8 @@ class TestSGFAParameterComparison:
                     "alpha_w": 1.0,
                     "alpha_z": 1.0,
                 },
-                # Add the new sgfa_parameter_comparison configuration section
-                sgfa_parameter_comparison={
+                # Add the new sgfa_hyperparameter_tuning configuration section
+                sgfa_hyperparameter_tuning={
                     "parameter_ranges": {
                         "n_factors": [3, 4, 5],
                         "sparsity_lambda": [0.1, 0.3, 0.5],
@@ -55,9 +55,9 @@ class TestSGFAParameterComparison:
             )
             yield config
 
-    def test_sgfa_parameter_comparison_init(self, config):
-        """Test SGFAParameterComparison initialization."""
-        comparison = SGFAParameterComparison(config)
+    def test_sgfa_hyperparameter_tuning_init(self, config):
+        """Test SGFAHyperparameterTuning initialization."""
+        comparison = SGFAHyperparameterTuning(config)
 
         assert comparison.config == config
         assert hasattr(comparison, "sgfa_variants")
@@ -68,7 +68,7 @@ class TestSGFAParameterComparison:
 
     def test_run_sgfa_variant_comparison(self, sample_data, config):
         """Test running SGFA variant comparison."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         # Run with minimal parameters for testing
         result = comparison.run_sgfa_variant_comparison(
@@ -91,7 +91,7 @@ class TestSGFAParameterComparison:
 
     def test_run_comprehensive_sgfa_scalability_analysis(self, sample_data, config):
         """Test running comprehensive SGFA scalability analysis."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         # Prepare minimal args for scalability testing
         hypers = {
@@ -120,7 +120,7 @@ class TestSGFAParameterComparison:
 
     def test_run_multiview_capability_assessment(self, sample_data, config):
         """Test running multiview capability assessment."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         # Run multiview assessment
         result = comparison.run_multiview_capability_assessment(X_list=sample_data)
@@ -137,7 +137,7 @@ class TestSGFAParameterComparison:
 
     def test_run_scalability_comparison(self, sample_data, config):
         """Test running scalability comparison."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         # Define test sample and feature sizes
         sample_sizes = [10, 20]
@@ -160,7 +160,7 @@ class TestSGFAParameterComparison:
 
     def test_sgfa_variant_comparison_with_invalid_data(self, config):
         """Test SGFA variant comparison with invalid data."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         # Test with empty data list
         with pytest.raises(ValueError):
@@ -172,7 +172,7 @@ class TestSGFAParameterComparison:
         self, sample_data, config
     ):
         """Test SGFA variant comparison with invalid hyperparameters."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         # Test with invalid K value
         with pytest.raises(ValueError):
@@ -184,7 +184,7 @@ class TestSGFAParameterComparison:
 
     def test_scalability_comparison_parameter_validation(self, sample_data, config):
         """Test scalability comparison parameter validation."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         # Test with invalid sample sizes
         with pytest.raises(ValueError):
@@ -204,7 +204,7 @@ class TestSGFAParameterComparison:
 
     def test_performance_profiling(self, sample_data, config):
         """Test that performance profiling is enabled."""
-        comparison = SGFAParameterComparison(config)
+        comparison = SGFAHyperparameterTuning(config)
 
         result = comparison.run_sgfa_variant_comparison(
             X_list=sample_data,
@@ -220,11 +220,11 @@ class TestSGFAParameterComparison:
         )
 
 
-class TestSGFAParameterComparisonStandalone:
+class TestSGFAHyperparameterTuningStandalone:
     """Test standalone SGFA parameter comparison function."""
 
-    def test_run_sgfa_parameter_comparison_function(self):
-        """Test the standalone run_sgfa_parameter_comparison function."""
+    def test_run_sgfa_hyperparameter_tuning_function(self):
+        """Test the standalone run_sgfa_hyperparameter_tuning function."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Generate test data
             data = generate_synthetic_data(
@@ -238,8 +238,8 @@ class TestSGFAParameterComparisonStandalone:
                 "model": {"K": 3, "num_samples": 50, "num_warmup": 25, "num_chains": 1},
             }
 
-            # Add sgfa_parameter_comparison config section
-            config["sgfa_parameter_comparison"] = {
+            # Add sgfa_hyperparameter_tuning config section
+            config["sgfa_hyperparameter_tuning"] = {
                 "parameter_ranges": {
                     "n_factors": [3, 4],
                     "sparsity_lambda": [0.1, 0.3],
@@ -251,12 +251,12 @@ class TestSGFAParameterComparisonStandalone:
             }
 
             # Run SGFA parameter comparison
-            result = run_sgfa_parameter_comparison(config)
+            result = run_sgfa_hyperparameter_tuning(config)
 
             # Check that function completes
             assert result is not None
 
-    def test_run_sgfa_parameter_comparison_with_custom_data(self):
+    def test_run_sgfa_hyperparameter_tuning_with_custom_data(self):
         """Test SGFA parameter comparison with custom data."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Generate custom test data
@@ -267,7 +267,7 @@ class TestSGFAParameterComparisonStandalone:
                 "experiments": {"base_output_dir": tmpdir},
                 "data": {"data_dir": tmpdir},
                 "model": {"K": 2, "num_samples": 50, "num_warmup": 25},
-                "sgfa_parameter_comparison": {
+                "sgfa_hyperparameter_tuning": {
                     "parameter_ranges": {
                         "n_factors": [2, 3],
                         "sparsity_lambda": [0.2, 0.4],
@@ -280,14 +280,14 @@ class TestSGFAParameterComparisonStandalone:
             }
 
             # Should handle custom data
-            result = run_sgfa_parameter_comparison(config)
+            result = run_sgfa_hyperparameter_tuning(config)
             assert result is not None
 
 
-class TestSGFAParameterComparisonIntegration:
+class TestSGFAHyperparameterTuningIntegration:
     """Integration tests for SGFA parameter comparison."""
 
-    def test_full_sgfa_parameter_comparison_workflow(self):
+    def test_full_sgfa_hyperparameter_tuning_workflow(self):
         """Test complete SGFA parameter comparison workflow."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create realistic test configuration
@@ -311,7 +311,7 @@ class TestSGFAParameterComparisonIntegration:
             X_list = [data["X1"], data["X2"]]
 
             # Initialize comparison
-            comparison = SGFAParameterComparison(config)
+            comparison = SGFAHyperparameterTuning(config)
 
             # Run SGFA variant comparison
             variant_result = comparison.run_sgfa_variant_comparison(
@@ -356,7 +356,7 @@ class TestSGFAParameterComparisonIntegration:
             )
             X_list = [data["X1"], data["X2"]]
 
-            comparison = SGFAParameterComparison(config)
+            comparison = SGFAHyperparameterTuning(config)
 
             # Test different K values
             for K in [2, 3, 4]:
@@ -381,7 +381,7 @@ class TestSGFAParameterComparisonIntegration:
             # Generate problematic data
             X_problematic = [np.array([[np.inf, 1, 2], [3, 4, 5]])]  # Contains infinity
 
-            comparison = SGFAParameterComparison(config)
+            comparison = SGFAHyperparameterTuning(config)
 
             # Should handle problematic data gracefully
             result = comparison.run_sgfa_variant_comparison(

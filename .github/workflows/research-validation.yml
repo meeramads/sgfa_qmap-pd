@@ -112,7 +112,7 @@ jobs:
         # Test all experimental modules can be imported
         modules_to_test = [
             'experiments.data_validation',
-            'experiments.sgfa_parameter_comparison',
+            'experiments.sgfa_hyperparameter_tuning',
             'experiments.model_comparison',
             'experiments.sensitivity_analysis',
             'experiments.reproducibility',

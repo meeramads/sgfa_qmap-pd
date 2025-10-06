@@ -202,7 +202,7 @@ log_parameter_summary(args)
 ### Files Using Memory Functions (3):
 - `core/run_analysis.py`
 - `analysis/model_runner.py`
-- `experiments/sgfa_parameter_comparison.py`
+- `experiments/sgfa_hyperparameter_tuning.py`
 
 ### Files Using File Operations (8):
 - `core/run_analysis.py`

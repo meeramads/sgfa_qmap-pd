@@ -162,7 +162,7 @@ Reusable utilities for common patterns:
 - `framework.py` - Experiment orchestration (1358 lines)
 - `data_validation.py` - Data quality checks
 - `model_comparison.py` - Method comparison
-- `sgfa_parameter_comparison.py` - Hyperparameter tuning
+- `sgfa_hyperparameter_tuning.py` - Hyperparameter tuning
 - `clinical_validation.py` - Clinical validation
 
 **Dependencies**: analysis, core, models
@@ -243,7 +243,7 @@ visualization (presentation)
 1. ✅ **Name Collisions**: Renamed DataManager → FileOperationManager, experiment_utils → component_factory
 2. ✅ **Circular Dependencies**: Created model_interface.py abstraction layer
 3. ✅ **Direct Model Imports**: Migrated 6 files to use model_interface
-4. ✅ **Undefined Variables**: Fixed variant_name in sgfa_parameter_comparison
+4. ✅ **Undefined Variables**: Fixed variant_name in sgfa_hyperparameter_tuning
 5. ✅ **Framework Mismatches**: Fixed parameter order, VisualizationManager
 
 #### Medium Priority (13/~23 = 57%)

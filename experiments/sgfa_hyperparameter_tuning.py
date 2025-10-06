@@ -32,8 +32,8 @@ from analysis.clinical import ClinicalMetrics, ClinicalClassifier
 
 
 @performance_optimized_experiment()
-class SGFAParameterComparison(ExperimentFramework):
-    """SGFA parameter comparison experiments for K and percW optimization."""
+class SGFAHyperparameterTuning(ExperimentFramework):
+    """SGFA hyperparameter tuning experiments for K and percW optimization."""
 
     def __init__(
         self, config: ExperimentConfig, logger: Optional[logging.Logger] = None
@@ -85,7 +85,7 @@ class SGFAParameterComparison(ExperimentFramework):
         # Traditional methods moved to model_comparison.py
 
         # Load scalability test ranges from config
-        sgfa_config = config_dict.get("sgfa_parameter_comparison", {})
+        sgfa_config = config_dict.get("sgfa_hyperparameter_tuning", {})
         scalability_config = sgfa_config.get("scalability_analysis", {})
         parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
@@ -2050,7 +2050,7 @@ class SGFAParameterComparison(ExperimentFramework):
         return plots
 
 
-def run_sgfa_parameter_comparison(config):
+def run_sgfa_hyperparameter_tuning(config):
     """Run SGFA parameter comparison experiments with remote workstation integration."""
     logger = logging.getLogger(__name__)
     logger.info("Starting SGFA Parameter Comparison Experiments")
@@ -2083,7 +2083,7 @@ def run_sgfa_parameter_comparison(config):
         framework = ExperimentFramework(config_accessor.output_dir)
 
         exp_config = ExperimentConfig(
-            experiment_name="sgfa_parameter_comparison",
+            experiment_name="sgfa_hyperparameter_tuning",
             description="Compare SGFA model parameter variants",
             dataset="qmap_pd",
             data_dir=config_accessor.data_dir,
@@ -2288,7 +2288,7 @@ def run_sgfa_parameter_comparison(config):
             logger.info("🔬 Starting SGFA parameter comparison experiments...")
 
             # Create SGFA parameter comparison experiment instance
-            method_exp = SGFAParameterComparison(exp_config, logger)
+            method_exp = SGFAHyperparameterTuning(exp_config, logger)
 
             # Setup hyperparameters for comparison
             comparison_hypers = {
@@ -2301,8 +2301,8 @@ def run_sgfa_parameter_comparison(config):
             }
 
             # Test different K values for comparison
-            # Get configuration from sgfa_parameter_comparison config section
-            sgfa_config = config_dict.get("sgfa_parameter_comparison", {})
+            # Get configuration from sgfa_hyperparameter_tuning config section
+            sgfa_config = config_dict.get("sgfa_hyperparameter_tuning", {})
             parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
             # Extract K values and percW values from proper config section

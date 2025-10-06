@@ -134,8 +134,8 @@ model_comparison:
       - "execution_time"
       - "memory_usage"
 
-# SGFA Parameter Comparison Experiment - debug version
-sgfa_parameter_comparison:
+# SGFA Hyperparameter Tuning Experiment - debug version
+sgfa_hyperparameter_tuning:
   parameter_ranges:
     n_factors: [2, 3]                     # Minimal range for debug
     sparsity_lambda: [0.05, 0.1]          # Two values only

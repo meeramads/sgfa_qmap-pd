@@ -53,7 +53,7 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 - **[experiments/](experiments/)**: Comprehensive experimental framework with advanced neuroimaging CV
   - `data_validation.py`: Data quality and preprocessing validation **IMPLEMENTED AND TESTED**
   - `model_comparison.py`: SGFA vs traditional method comparison **IMPLEMENTED AND TESTED** + **NeuroImagingMetrics NEEDS DEVELOPMENT**
-  - `sgfa_parameter_comparison.py`: SGFA variant comparison **IMPLEMENTED AND TESTED** + **HyperOptimizer NEEDS DEVELOPMENT**
+  - `sgfa_hyperparameter_tuning.py`: SGFA variant comparison **IMPLEMENTED AND TESTED** + **HyperOptimizer NEEDS DEVELOPMENT**
   - `sensitivity_analysis.py`: Hyperparameter sensitivity testing **IMPLEMENTED AND TESTED**
   - `reproducibility.py`: Reproducibility and robustness validation **IMPLEMENTED AND TESTED**
   - `clinical_validation.py`: Clinical subtype validation + basic SGFA benchmarks **IMPLEMENTED AND TESTED** + **Advanced neuroimaging CV NEEDS DEVELOPMENT**
@@ -289,7 +289,7 @@ For rapid validation and development testing, use the debug experiment runner:
 ```bash
 # Individual debug experiments (reduced MCMC parameters for speed)
 python debug_experiments.py data_validation
-python debug_experiments.py sgfa_parameter_comparison
+python debug_experiments.py sgfa_hyperparameter_tuning
 python debug_experiments.py model_comparison
 python debug_experiments.py sensitivity_analysis
 python debug_experiments.py clinical_validation
@@ -359,7 +359,7 @@ from experiments import (
     ExperimentConfig,
     DataValidationExperiments,
     ModelArchitectureComparison,
-    SGFAParameterComparison,
+    SGFAHyperparameterTuning,
     SensitivityAnalysisExperiments,
     ReproducibilityExperiments,
     PerformanceBenchmarkExperiments,
@@ -378,7 +378,7 @@ model_comparison = ModelArchitectureComparison(config)
 comparison_results = model_comparison.run_full_comparison(X_list)
 
 # Run SGFA parameter optimization
-sgfa_optimizer = SGFAParameterComparison(config)
+sgfa_optimizer = SGFAHyperparameterTuning(config)
 param_results = sgfa_optimizer.run_parameter_sweep(X_list)
 
 # Run sensitivity analysis
@@ -422,10 +422,10 @@ validation_results = clinical_validator.run_sgfa_clinical_validation(
     X_base=X_list, hypers={"percW": 25.0}, args={"K": 5, "model": "sparseGFA"}
 )
 
-# For pure SGFA scalability analysis, use sgfa_parameter_comparison:
-from experiments.sgfa_parameter_comparison import SGFAParameterComparison
+# For pure SGFA scalability analysis, use sgfa_hyperparameter_tuning:
+from experiments.sgfa_hyperparameter_tuning import SGFAHyperparameterTuning
 
-sgfa_analyzer = SGFAParameterComparison(config)
+sgfa_analyzer = SGFAHyperparameterTuning(config)
 scalability_results = sgfa_analyzer.run_comprehensive_sgfa_scalability_analysis(
     X_list=X_list, hypers={"percW": 25.0}, args={"K": 5}
 )
@@ -441,9 +441,9 @@ cv_results = clinical_validator.run_sgfa_clinical_validation(
 )
 
 # Neuroimaging hyperparameter optimization
-from experiments.sgfa_parameter_comparison import SGFAParameterComparison
+from experiments.sgfa_hyperparameter_tuning import SGFAHyperparameterTuning
 
-sgfa_exp = SGFAParameterComparison(config)
+sgfa_exp = SGFAHyperparameterTuning(config)
 # This will fail - NeuroImagingHyperOptimizer not implemented
 hyperopt_results = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
     X_list=X_list,
@@ -593,7 +593,7 @@ python run_experiments.py --config config.yaml --experiments data_validation mod
 python run_experiments.py --config config.yaml --data-dir /path/to/data
 
 # Select specific ROIs for imaging data
-python run_experiments.py --experiments sgfa_parameter_comparison \
+python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv
 
 # Exclude specific clinical features (e.g., demographics)
@@ -601,12 +601,12 @@ python run_experiments.py --experiments model_comparison \
     --exclude-clinical age sex tiv
 
 # Specify K values to test in parameter comparison
-python run_experiments.py --experiments sgfa_parameter_comparison \
+python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv \
     --test-k 2 3
 
 # Combine multiple options
-python run_experiments.py --experiments sgfa_parameter_comparison \
+python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv volume_lentiform_voxels.tsv \
     --exclude-clinical age sex education \
     --test-k 3 4 5
@@ -626,7 +626,7 @@ python run_experiments.py --experiments sgfa_parameter_comparison \
 python debug_experiments.py all
 
 # Run specific debug experiments
-python debug_experiments.py sgfa_parameter_comparison
+python debug_experiments.py sgfa_hyperparameter_tuning
 python debug_experiments.py model_comparison
 ```
 
@@ -635,7 +635,7 @@ python debug_experiments.py model_comparison
 **FULLY IMPLEMENTED AND TESTED:**
 
 - `data_validation`: Data quality and preprocessing validation
-- `sgfa_parameter_comparison`: SGFA parameter optimization and scalability analysis
+- `sgfa_hyperparameter_tuning`: SGFA parameter optimization and scalability analysis
 - `model_comparison`: SGFA vs traditional methods (PCA, ICA, FA)
 - `sensitivity_analysis`: Hyperparameter sensitivity testing
 - `reproducibility`: Reproducibility and robustness validation
