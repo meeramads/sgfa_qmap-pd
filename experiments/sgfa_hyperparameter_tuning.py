@@ -2317,10 +2317,37 @@ def run_sgfa_hyperparameter_tuning(config):
             model_results = {}
             performance_metrics = {}
 
+            # Try to load existing checkpoint to resume from
+            checkpoint_dir = output_dir / "hyperparameter_tuning_checkpoints"
+            checkpoint_file = checkpoint_dir / "progress_latest.json"
+            completed_variants_set = set()
+
+            if checkpoint_file.exists():
+                try:
+                    import json
+                    with open(checkpoint_file, 'r') as f:
+                        checkpoint_data = json.load(f)
+
+                    completed_variants_set = set(checkpoint_data.get("completed_variants", []))
+                    logger.info(f"📂 Resuming from checkpoint: {len(completed_variants_set)} variants already completed")
+                    logger.info(f"   Last completed: {checkpoint_data.get('last_completed_variant', 'unknown')}")
+
+                    # Note: We load the summary but can't restore full model_results (W, Z matrices are too large)
+                    # We'll skip already-completed variants instead
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not load checkpoint: {e}")
+                    completed_variants_set = set()
+
             for K in K_values:  # Test all K values from config
                 for percW in percW_values:  # Test all percW values from config
                     for group_lambda in group_lambda_values:  # Test all group_lambda values from config
                         variant_name = f"K{K}_percW{int(percW)}_grp{group_lambda}"
+
+                        # Skip if already completed
+                        if variant_name in completed_variants_set:
+                            logger.info(f"⏭️  Skipping {variant_name} (already completed)")
+                            continue
+
                         logger.info(f"Testing SGFA variant: {variant_name}")
 
                         # Setup args for this variant
@@ -2361,6 +2388,35 @@ def run_sgfa_hyperparameter_tuning(config):
                             f"✅ {variant_name}: {metrics.execution_time:.1f}s, "
                             f"LL={variant_result.get('log_likelihood', 0):.3f}"
                         )
+
+                        # Save rolling checkpoint (single file, overwritten each time)
+                        try:
+                            checkpoint_dir = output_dir / "hyperparameter_tuning_checkpoints"
+                            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+                            checkpoint_file = checkpoint_dir / "progress_latest.json"
+
+                            import json
+                            checkpoint_data = {
+                                "last_completed_variant": variant_name,
+                                "completed_variants": list(model_results.keys()),
+                                "num_completed": len(model_results),
+                                "total_variants": len(K_values) * len(percW_values) * len(group_lambda_values),
+                                "results_summary": {
+                                    name: {
+                                        "convergence": res.get("convergence", False),
+                                        "log_likelihood": res.get("log_likelihood", float("-inf")),
+                                    }
+                                    for name, res in model_results.items()
+                                },
+                                "performance_metrics": performance_metrics,
+                            }
+
+                            with open(checkpoint_file, 'w') as f:
+                                json.dump(checkpoint_data, f, indent=2)
+
+                            logger.debug(f"💾 Progress: {len(model_results)}/{checkpoint_data['total_variants']} variants")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to save progress checkpoint: {e}")
 
                         # Critical: Memory cleanup between parameter iterations
                         _iteration_memory_cleanup_standalone(variant_name, logger)
@@ -2618,6 +2674,10 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
         logger.info(f"🧹 Memory cleanup after {variant_name}...")
         import gc
         import jax
+        import time
+
+        # Clear all JAX caches - most important for GPU memory
+        jax.clear_caches()
 
         # Clear JAX compilation cache between iterations
         try:
@@ -2626,21 +2686,12 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
         except Exception:
             pass
 
-        # Force garbage collection
+        # Force garbage collection multiple times
         for _ in range(3):
             gc.collect()
 
-        # Try to clear GPU memory if available
-        try:
-            for device in jax.devices():
-                if device.platform == 'gpu':
-                    device.memory_stats()
-        except Exception:
-            pass
-
-        # Brief delay for cleanup
-        import time
-        time.sleep(0.5)
+        # Brief delay to allow GPU memory to be released
+        time.sleep(1.0)
 
     except Exception as e:
         logger.warning(f"Iteration cleanup failed: {e}")

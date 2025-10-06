@@ -40,7 +40,7 @@ model:
   # MCMC Parameters (OPTIONAL with defaults)
   num_samples: 2000                      # MCMC samples (10-50000, default: 1000)
   num_warmup: 1000                       # MCMC warmup steps (default: 500)
-  num_chains: 4                          # MCMC chains (1-8, default: 2)
+  num_chains: 1                          # MCMC chains (1-8, default: 2) - reduced to 1 for GPU memory
 
   # Sparsity Parameters (REQUIRED for sparse_gfa)
   sparsity_lambda: 0.05                  # Sparsity penalty (≥0, typically 0.01-1.0)
