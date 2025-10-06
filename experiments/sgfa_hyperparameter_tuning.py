@@ -935,9 +935,14 @@ class SGFAHyperparameterTuning(ExperimentFramework):
         from numpyro.infer import MCMC, NUTS
 
         try:
+            # Check JAX backend and devices
+            backend = jax.default_backend()
+            devices = jax.devices()
+            device_info = f"{backend.upper()}: {[str(d.device_kind) for d in devices]}"
+
             # Clear GPU memory before starting
             jax.clear_caches()
-            if jax.default_backend() == "gpu":
+            if backend == "gpu":
                 # Force garbage collection
                 gc.collect()
                 # Clear JAX device arrays
@@ -958,6 +963,7 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             self.logger.info(
                 f"Training SGFA model with K={args.get('K', 10)}, percW={hypers.get('percW', 33)}, group_lambda={hypers.get('group_lambda', 0.0)}"
             )
+            self.logger.info(f"JAX backend: {device_info}")
 
             # Import the SGFA model function via interface
             from core.model_interface import get_model_function
@@ -2230,6 +2236,13 @@ def run_sgfa_hyperparameter_tuning(config):
             ),
             "preprocessing_info": preprocessing_info,
         }
+
+        # Check JAX/GPU availability before starting experiments
+        import jax
+        logger.info(f"🖥️  JAX Configuration:")
+        logger.info(f"   Default backend: {jax.default_backend()}")
+        logger.info(f"   Available devices: {jax.devices()}")
+        logger.info(f"   Device count: {jax.device_count()}")
 
         # Run the experiment
         def method_comparison_experiment(config, output_dir, **kwargs):
