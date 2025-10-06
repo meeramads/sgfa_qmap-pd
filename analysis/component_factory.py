@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+# Standard library imports
 import argparse
 import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
+# Third-party imports
 import numpy as np
 
+# Local imports
 from .data_manager import DataManager
 from .model_runner import ModelRunner
 
@@ -61,13 +64,18 @@ class AnalysisComponents:
         """Load and prepare data using DataManager."""
         from core.error_handling import log_and_return_error
 
+        # Check if DataManager is available
         if not self.data_manager:
             return [], {"data_loaded": False, "error": "DataManager not available"}
 
         try:
+            # Load raw data using DataManager
             data = self.data_manager.load_data()
+
+            # Prepare data for analysis (compute hyperparameters, apply preprocessing)
             X_list, hypers = self.data_manager.prepare_for_analysis(data)
 
+            # Return data with comprehensive metadata for debugging/logging
             return X_list, {
                 "data_loaded": True,
                 "loader": "DataManager",
@@ -81,6 +89,7 @@ class AnalysisComponents:
                 },
             }
         except Exception as e:
+            # Use standardized error handling
             error_result = log_and_return_error(
                 e, logger, "Structured data loading",
                 additional_fields={"data_loaded": False}
@@ -91,6 +100,7 @@ class AnalysisComponents:
         """Run analysis using ModelRunner."""
         from core.error_handling import create_error_result, log_and_return_error
 
+        # Validate that required components are available
         if not self.model_runner or not self.data_manager:
             return create_error_result(
                 ValueError("Components not available"),
@@ -98,9 +108,13 @@ class AnalysisComponents:
             )
 
         try:
+            # Prepare data and compute hyperparameters
             X_prepared, hypers = self.data_manager.prepare_for_analysis({"X_list": X_list})
+
+            # Execute MCMC analysis using ModelRunner
             results = self.model_runner.run_standard_analysis(X_prepared, hypers, {"X_list": X_prepared})
 
+            # Return standardized success result
             return {
                 "status": "completed",
                 "analysis_type": "structured_mcmc",
@@ -110,6 +124,7 @@ class AnalysisComponents:
                 "structured_framework": True,
             }
         except Exception as e:
+            # Use standardized error handling
             return log_and_return_error(
                 e, logger, "Structured MCMC analysis",
                 additional_fields={"analysis_type": "structured_mcmc"}

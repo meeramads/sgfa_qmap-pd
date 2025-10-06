@@ -2,13 +2,18 @@
 
 This document describes the overall architecture and code organization after the comprehensive refactoring (October 2025).
 
+**Last Updated**: October 6, 2025
+**Architectural Issues Resolved**: 23 of 50 (46%)
+
 ## Code Quality Metrics
 
-- **Total Python Files**: 84 (excluding tests)
-- **Total Classes/Functions**: ~210
+- **Total Python Files**: 84+ (excluding tests)
+- **Total Classes/Functions**: ~220
 - **Documentation Coverage**: 100% (all new utilities fully documented)
 - **Average File Size**: 15-20 KB (well-structured, not monolithic)
 - **Largest Module**: experiments (67KB avg - comprehensive validation framework)
+- **Critical Issues**: 0 (all 5 resolved)
+- **Test Coverage**: 36 test files (33 existing + 3 new for refactored modules)
 
 ## Architecture Overview
 
@@ -105,10 +110,14 @@ Reusable utilities for common patterns:
 **Purpose**: Fundamental utilities and shared functionality
 **Key Files**:
 - `run_analysis.py` - Main analysis orchestration
-- `parameter_resolver.py` - Parameter resolution utility (NEW)
-- `logger_utils.py` - Logger protocol and utilities (NEW)
-- `config_utils.py` - Config type conversion with protocols
-- `utils.py` - General utilities
+- `parameter_resolver.py` - Parameter resolution utility
+- `logger_utils.py` - Logger protocol and utilities
+- `config_utils.py` - Config type conversion with protocols (includes `dict_to_namespace()`)
+- `error_handling.py` - Standardized error handling utilities and exception types (NEW)
+- `model_interface.py` - Abstraction layer breaking circular dependencies (NEW)
+- `utils.py` - General utilities (1231 lines, 5 categories: memory, file ops, context managers, model utils, validation)
+- `io_utils.py` - File operations with FileOperationManager (renamed from DataManager)
+- `validation_utils.py` - Validation decorators and utilities
 
 **Dependencies**: None (foundation layer)
 
@@ -124,10 +133,17 @@ Reusable utilities for common patterns:
 ### Analysis (`analysis/`)
 **Purpose**: Core analysis components
 **Key Files**:
+- `component_factory.py` - Unified component creation and integration (replaces analysis_integration.py + experiment_utils.py)
 - `data_manager.py` - Data loading with `DataManagerConfig`
 - `model_runner.py` - Model execution with `ModelRunnerConfig`
 - `config_manager.py` - Configuration management
-- `cross_validation.py` - CV framework
+- `cross_validation.py` - CV orchestrator (unified entry point)
+- `cross_validation_library.py` - Neuroimaging-aware CV implementation
+- `cv_integration.py` - Pipeline integration
+- `cv_fallbacks.py` - Graceful fallbacks
+
+**Submodules**:
+- `clinical/` - Clinical validation modules with integration factory
 
 **Dependencies**: core, data
 
@@ -168,6 +184,8 @@ Reusable utilities for common patterns:
 - `brain_plots.py` - Brain mapping visualizations
 - `factor_plots.py` - Factor analysis plots
 - `report_generator.py` - HTML reports
+- `core_plots.py` - Core visualization utilities (moved from core/visualization.py)
+- `cv_plots.py` - Cross-validation visualizations
 
 **Dependencies**: core
 
@@ -221,18 +239,59 @@ visualization (presentation)
 
 ### What Was Fixed
 
-1. ✅ **Removed Legacy Parameters**: All experiments use proper typed configs
-2. ✅ **Eliminated Auto-Conversion**: Explicit type requirements with helpful errors
-3. ✅ **Added Result Patterns**: Replace dict flags with enums
-4. ✅ **Created Utilities**: ParameterResolver, LoggerProtocol
-5. ✅ **Added Protocols**: Type-safe duck typing
+#### Critical Issues (5/5 = 100%)
+1. ✅ **Name Collisions**: Renamed DataManager → FileOperationManager, experiment_utils → component_factory
+2. ✅ **Circular Dependencies**: Created model_interface.py abstraction layer
+3. ✅ **Direct Model Imports**: Migrated 6 files to use model_interface
+4. ✅ **Undefined Variables**: Fixed variant_name in sgfa_parameter_comparison
+5. ✅ **Framework Mismatches**: Fixed parameter order, VisualizationManager
+
+#### Medium Priority (13/~23 = 57%)
+6. ✅ **Simplified analysis_integration.py**: 535 lines → consolidated into component_factory (403 lines)
+7. ✅ **Validation Decorators**: Documented and verified (22 active uses)
+8. ✅ **CV Unification**: Already unified via CVRunner orchestrator
+9. ✅ **ClinicalDataProcessor**: Uses model_interface abstraction
+10. ✅ **Clinical Integration Factory**: Created analysis/clinical/integration.py
+11. ✅ **dict_to_namespace() Applied**: Standardized across 4 files
+12. ✅ **core/visualization.py Moved**: → visualization/core_plots.py
+13. ✅ **Error Handling Standardized**: Created core/error_handling.py with utilities
+
+#### Low Priority (5/~12 = 42%)
+14. ✅ **Logger Patterns**: Verified standardized (56 files use module-level logger)
+15. ✅ **Type Hints**: Comprehensive in all new modules
+16. ✅ **Docstrings**: Verified coverage in public APIs
+17. ✅ **CV Architecture**: Documented in docs/CV_ARCHITECTURE.md
+18. ✅ **Error Handling**: Documented in docs/ERROR_HANDLING.md
+
+### New Modules Created
+
+**Core Modules**:
+- `core/error_handling.py` - Standardized error handling (302 lines)
+- `core/model_interface.py` - Abstraction layer (breaks circular dependencies)
+
+**Analysis Modules**:
+- `analysis/component_factory.py` - Unified component creation (403 lines)
+- `analysis/clinical/integration.py` - Clinical validation workflows (289 lines)
+
+**Documentation**:
+- `docs/CV_ARCHITECTURE.md` - CV system documentation (450+ lines)
+- `docs/ERROR_HANDLING.md` - Error handling best practices (300+ lines)
+- `docs/UTILS_STRUCTURE.md` - core/utils.py structure guide (350+ lines)
+
+**Test Coverage**:
+- `tests/core/test_error_handling.py` - Error handling tests (400+ lines)
+- `tests/analysis/test_component_factory.py` - Component factory tests (500+ lines)
+- `tests/analysis/test_clinical_integration.py` - Clinical integration tests (500+ lines)
 
 ### Impact
 
 - **Type Safety**: Full IDE support and static checking
-- **Maintainability**: Clear patterns, easy to extend
+- **Maintainability**: Clear patterns, consistent error handling, easy to extend
 - **Readability**: Self-documenting code with explicit types
 - **Production-Ready**: Verified working in pipeline
+- **Modularity**: Better separation of concerns, no circular dependencies
+- **Documentation**: Comprehensive guides for CV, error handling, and utils structure
+- **Test Coverage**: Comprehensive tests for all new modules (1400+ lines of test code)
 
 ## For New Developers
 

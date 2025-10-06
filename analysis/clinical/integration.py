@@ -7,12 +7,15 @@ coordinating the clinical analysis modules.
 
 from __future__ import annotations
 
+# Standard library imports
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+# Third-party imports
 import numpy as np
 
+# Local imports
 from .biomarker_analysis import BiomarkerAnalyzer
 from .classification import ClinicalClassifier
 from .data_processing import ClinicalDataProcessor

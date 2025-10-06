@@ -6,6 +6,7 @@ Provides utilities and decorators for consistent error handling across modules.
 
 from __future__ import annotations
 
+# Standard library imports
 import functools
 import logging
 import traceback
@@ -170,36 +171,47 @@ def handle_errors(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Try to find logger in kwargs or args
+            # Step 1: Try to locate a logger instance
+            # First check kwargs for explicit logger parameter
             logger_instance = kwargs.get('logger')
+
+            # If not in kwargs, check if first arg is a class instance with logger
             if not logger_instance and len(args) > 0:
-                # Check if first arg has a logger attribute
                 if hasattr(args[0], 'logger'):
                     logger_instance = args[0].logger
 
+            # Fall back to module logger if no logger found
             if not logger_instance:
                 logger_instance = logger
 
             try:
+                # Step 2: Execute the wrapped function
                 return func(*args, **kwargs)
+
             except Exception as e:
-                # Log the error
+                # Step 3: Handle the exception
+                # Create context string identifying where error occurred
                 context = f"{func.__module__}.{func.__name__}"
 
+                # Log the error with appropriate level and detail
                 if include_traceback:
+                    # Full traceback for debugging
                     logger_instance.log(
                         getattr(logging, log_level.upper()),
                         f"❌ {context} failed: {e}\n{traceback.format_exc()}"
                     )
                 else:
+                    # Brief error message
                     logger_instance.log(
                         getattr(logging, log_level.upper()),
                         f"❌ {context} failed: {e}"
                     )
 
+                # Step 4: Optionally re-raise the exception
                 if reraise:
                     raise
 
+                # Step 5: Return appropriate error result
                 if return_dict:
                     return create_error_result(e, context)
                 else:
