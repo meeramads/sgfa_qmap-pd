@@ -2355,7 +2355,7 @@ def run_sgfa_hyperparameter_tuning(config):
                             "K": K,
                             "num_warmup": 300,  # Reduced for faster testing
                             "num_samples": 600,  # Reduced for faster testing
-                            "num_chains": 2,
+                            "num_chains": 1,  # Single chain to avoid GPU OOM
                             "target_accept_prob": 0.8,
                             "reghsZ": True,
                         }
@@ -2669,12 +2669,26 @@ def run_sgfa_hyperparameter_tuning(config):
 
 
 def _iteration_memory_cleanup_standalone(variant_name: str, logger):
-    """Standalone memory cleanup function."""
+    """Standalone memory cleanup function with GPU memory monitoring."""
     try:
         logger.info(f"🧹 Memory cleanup after {variant_name}...")
         import gc
         import jax
         import time
+
+        # Check GPU memory before cleanup
+        try:
+            devices = jax.devices()
+            for device in devices:
+                if device.platform == 'gpu':
+                    stats = device.memory_stats()
+                    if stats:
+                        bytes_in_use = stats.get('bytes_in_use', 0)
+                        bytes_limit = stats.get('bytes_limit', 1)
+                        pct_used = (bytes_in_use / bytes_limit) * 100 if bytes_limit > 0 else 0
+                        logger.info(f"  GPU memory before cleanup: {bytes_in_use / 1e9:.2f}GB / {bytes_limit / 1e9:.2f}GB ({pct_used:.1f}%)")
+        except Exception as e:
+            logger.debug(f"Could not check GPU memory: {e}")
 
         # Clear all JAX caches - most important for GPU memory
         jax.clear_caches()
@@ -2687,11 +2701,29 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
             pass
 
         # Force garbage collection multiple times
-        for _ in range(3):
+        for _ in range(5):  # Increased from 3 to 5
             gc.collect()
 
-        # Brief delay to allow GPU memory to be released
-        time.sleep(1.0)
+        # Longer delay to allow GPU memory to be released
+        time.sleep(2.0)  # Increased from 1.0 to 2.0
+
+        # Check GPU memory after cleanup
+        try:
+            devices = jax.devices()
+            for device in devices:
+                if device.platform == 'gpu':
+                    stats = device.memory_stats()
+                    if stats:
+                        bytes_in_use = stats.get('bytes_in_use', 0)
+                        bytes_limit = stats.get('bytes_limit', 1)
+                        pct_used = (bytes_in_use / bytes_limit) * 100 if bytes_limit > 0 else 0
+                        logger.info(f"  GPU memory after cleanup: {bytes_in_use / 1e9:.2f}GB / {bytes_limit / 1e9:.2f}GB ({pct_used:.1f}%)")
+
+                        # Warn if memory usage is still high
+                        if pct_used > 80:
+                            logger.warning(f"⚠️ GPU memory usage still high ({pct_used:.1f}%) after cleanup!")
+        except Exception as e:
+            logger.debug(f"Could not check GPU memory: {e}")
 
     except Exception as e:
         logger.warning(f"Iteration cleanup failed: {e}")
