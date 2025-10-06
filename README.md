@@ -591,7 +591,33 @@ python run_experiments.py --config config.yaml --experiments data_validation mod
 
 # Run with custom data directory
 python run_experiments.py --config config.yaml --data-dir /path/to/data
+
+# Select specific ROIs for imaging data
+python run_experiments.py --experiments sgfa_parameter_comparison \
+    --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv
+
+# Exclude specific clinical features (e.g., demographics)
+python run_experiments.py --experiments model_comparison \
+    --exclude-clinical age sex tiv
+
+# Specify K values to test in parameter comparison
+python run_experiments.py --experiments sgfa_parameter_comparison \
+    --select-rois volume_sn_voxels.tsv \
+    --test-k 2 3
+
+# Combine multiple options
+python run_experiments.py --experiments sgfa_parameter_comparison \
+    --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv volume_lentiform_voxels.tsv \
+    --exclude-clinical age sex education \
+    --test-k 3 4 5
 ```
+
+**Command-line Options:**
+
+- `--select-rois`: Select specific ROI files to load (space-separated list)
+- `--exclude-clinical`: Exclude specific clinical features from analysis (space-separated list)
+- `--test-k`: Specify K (number of factors) values to test in parameter comparison (space-separated integers)
+- Results directories automatically include configuration in their names for easy identification
 
 #### Debug Experiments
 
