@@ -325,7 +325,7 @@ def safe_filename(filename: str, replacement: str = "_") -> str:
     return safe_name.strip(replacement)
 
 
-class DataManager:
+class FileOperationManager:
     """
     Context manager for handling multiple file operations safely.
 
@@ -372,3 +372,7 @@ class DataManager:
         save_plot(filepath, **kwargs)
         self.files_created.append(filepath)
         return filepath
+
+
+# Backward compatibility alias (DEPRECATED - use FileOperationManager)
+DataManager = FileOperationManager

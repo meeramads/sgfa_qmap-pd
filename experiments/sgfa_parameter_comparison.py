@@ -959,12 +959,16 @@ class SGFAParameterComparison(ExperimentFramework):
                 f"Training SGFA model with K={ args.get( 'K', 10)}, percW={ hypers.get( 'percW', 33)}"
             )
 
-            # Import the actual SGFA model function
-            from core.run_analysis import models
+            # Import the SGFA model function via interface
+            from core.model_interface import get_model_function
+            models = get_model_function()
 
             # Setup MCMC configuration with memory-aware adjustments
             K = args.get("K", 10)
             percW = hypers.get("percW", 33)
+
+            # Create variant name for checkpoint identification
+            variant_name = f"K{K}_percW{int(percW)}"
 
             # Reduce sampling parameters for high memory variants
             if K >= 10 and percW >= 33:
@@ -2094,7 +2098,7 @@ def run_sgfa_parameter_comparison(config):
         )
 
         # COMPREHENSIVE ANALYSIS FRAMEWORK INTEGRATION
-        from analysis.analysis_integration import integrate_analysis_with_pipeline
+        from analysis import integrate_analysis_with_pipeline, AnalysisComponents
 
         logger.info("📊 Integrating comprehensive analysis framework...")
         data_manager, model_runner, analysis_summary = integrate_analysis_with_pipeline(
@@ -2118,11 +2122,14 @@ def run_sgfa_parameter_comparison(config):
             "structured_analysis", False
         ):
             logger.info("📊 Using structured DataManager for data loading...")
-            from analysis.analysis_integration import _wrap_analysis_framework
+            from analysis import AnalysisMode
 
             # Use structured data loading
-            analysis_wrapper = _wrap_analysis_framework(
-                data_manager, model_runner, analysis_summary
+            analysis_wrapper = AnalysisComponents(
+                mode=AnalysisMode.STRUCTURED,
+                data_manager=data_manager,
+                model_runner=model_runner,
+                metadata=analysis_summary,
             )
             X_list, structured_data_info = analysis_wrapper.load_and_prepare_data()
 
@@ -2146,12 +2153,14 @@ def run_sgfa_parameter_comparison(config):
                     "⚠️ Structured data loading failed - falling back to preprocessing integration"
                 )
                 # Fall back to preprocessing integration
+                from core.config_utils import ConfigHelper
                 from data.preprocessing_integration import (
                     apply_preprocessing_to_pipeline,
                 )
 
+                config_dict = ConfigHelper.to_dict(config)
                 X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-                    config=config,
+                    config=config_dict,
                     data_dir=config_accessor.data_dir,
                     auto_select_strategy=True,
                 )
@@ -2169,7 +2178,7 @@ def run_sgfa_parameter_comparison(config):
             strategy = preprocessing_config.get("strategy", "standard")
 
             X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-                config=config,
+                config=config_dict,
                 data_dir=config_accessor.data_dir,
                 auto_select_strategy=False,
                 preferred_strategy=strategy,  # Use strategy from config
@@ -2503,7 +2512,7 @@ def run_sgfa_parameter_comparison(config):
         result = framework.run_experiment(
             experiment_function=method_comparison_experiment,
             config=exp_config,
-            data=data,
+            model_results=data,
         )
 
         # Immediate memory cleanup after framework completion

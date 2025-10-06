@@ -2031,7 +2031,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
                 # Create all comprehensive visualizations with clinical focus
                 viz_manager.create_all_visualizations(
-                    model_results=data, analysis_results=analysis_results, cv_results=cv_results
+                    data=data, analysis_results=analysis_results, cv_results=cv_results
                 )
 
                 # Extract the generated plots and convert to matplotlib figures
@@ -2531,8 +2531,8 @@ def run_clinical_validation(config):
                                      preprocessing_config.get("strategy", "clinical_focused"))
 
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-            config=config,
-            data_dir=get_data_dir(config),
+            config=config_dict,
+            data_dir=get_data_dir(config_dict),
             auto_select_strategy=False,
             preferred_strategy=strategy,  # Use strategy from config
         )

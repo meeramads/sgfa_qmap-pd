@@ -67,18 +67,19 @@ def apply_comprehensive_cv_framework(
             "view_names": [f"view_{i}" for i in range(len(X_list))],
         }
 
-        # Create dummy args object with required attributes
-        import argparse
+        # Create args object with defaults
+        from core.config_utils import dict_to_namespace
 
-        args = argparse.Namespace(
-            model="sparseGFA",
-            K=optimal_params.get("K", 10),
-            percW=optimal_params.get("percW", 33),
-            num_samples=optimal_params.get("num_samples", 2000),
-            num_warmup=optimal_params.get("num_warmup", 1000),
-            num_chains=optimal_params.get("num_chains", 4),
-            target_accept_prob=optimal_params.get("target_accept_prob", 0.8),
-        )
+        defaults = {
+            "model": "sparseGFA",
+            "K": 10,
+            "percW": 33,
+            "num_samples": 2000,
+            "num_warmup": 1000,
+            "num_chains": 4,
+            "target_accept_prob": 0.8,
+        }
+        args = dict_to_namespace(optimal_params, defaults)
 
         # Convert parameter space to hyperparameter dict
         hypers = {

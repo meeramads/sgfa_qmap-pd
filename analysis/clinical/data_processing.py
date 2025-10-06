@@ -82,21 +82,25 @@ class ClinicalDataProcessor:
 
             self.logger.info(f"🏭 Clinical validation using model: {model_type}")
 
-            # Import SGFA model for execution
-            from core.run_analysis import models
+            # Import SGFA model via interface
+            from core.model_interface import get_model_function
+            models = get_model_function()
 
             # Setup MCMC
             num_warmup = args.get("num_warmup", 200)
             num_samples = args.get("num_samples", 300)
             num_chains = args.get("num_chains", 1)
 
-            # Create args object
-            model_args = argparse.Namespace(
-                model=args.get("model", "sparseGFA"),
-                K=args.get("K", 5),
-                num_sources=len(X_train),
-                reghsZ=args.get("reghsZ", True),
-            )
+            # Create args object with defaults
+            from core.config_utils import dict_to_namespace
+
+            defaults = {
+                "model": "sparseGFA",
+                "K": 5,
+                "num_sources": len(X_train),
+                "reghsZ": True,
+            }
+            model_args = dict_to_namespace(args, defaults)
 
             # Run MCMC
             rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
@@ -285,21 +289,25 @@ class ClinicalDataProcessor:
             )
             self.logger.info(f"🏭 Model factory configured: {model_type}")
 
-            # Import the actual SGFA model function for execution
-            from core.run_analysis import models
+            # Import the SGFA model function via interface
+            from core.model_interface import get_model_function
+            models = get_model_function()
 
             # Setup MCMC configuration for clinical validation
             num_warmup = args.get("num_warmup", 100)
             num_samples = args.get("num_samples", 300)
             num_chains = args.get("num_chains", 1)
 
-            # Create args object for model
-            model_args = argparse.Namespace(
-                model="sparseGFA",
-                K=K,
-                num_sources=len(X_list),
-                reghsZ=args.get("reghsZ", True),
-            )
+            # Create args object for model with defaults
+            from core.config_utils import dict_to_namespace
+
+            defaults = {
+                "model": "sparseGFA",
+                "K": K,
+                "num_sources": len(X_list),
+                "reghsZ": True,
+            }
+            model_args = dict_to_namespace(args, defaults)
 
             # Setup MCMC
             rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))

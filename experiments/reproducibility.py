@@ -598,8 +598,9 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             self.logger.info(f"🏭 Reproducibility test using model: {model_type}")
 
-            # Import the actual SGFA model function for execution
-            from core.run_analysis import models
+            # Import the SGFA model function via interface
+            from core.model_interface import get_model_function
+            models = get_model_function()
 
             # Setup MCMC configuration for reproducibility testing
             num_warmup = args.get("num_warmup", 50)
@@ -1398,7 +1399,7 @@ class ReproducibilityExperiments(ExperimentFramework):
 
                 # Create comprehensive visualizations with reproducibility focus
                 viz_manager.create_all_visualizations(
-                    model_results=data, analysis_results=analysis_results, cv_results=cv_results
+                    data=data, analysis_results=analysis_results, cv_results=cv_results
                 )
 
                 # Extract and process generated plots
@@ -1578,8 +1579,8 @@ def run_reproducibility(config):
         strategy = preprocessing_config.get("strategy", "standard")
 
         X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-            config=config,
-            data_dir=get_data_dir(config),
+            config=config_dict,
+            data_dir=get_data_dir(config_dict),
             auto_select_strategy=False,
             preferred_strategy=strategy,  # Use strategy from config
         )

@@ -286,7 +286,7 @@ def _save_cv_results(cv_results, cv_object, cv_res_dir, dependencies):
 
         # Create CV visualizations
         try:
-            from core.visualization import VisualizationConfig
+            from visualization.core_plots import VisualizationConfig
             from visualization.cv_plots import CrossValidationVisualizer
 
             config = VisualizationConfig()
@@ -310,14 +310,14 @@ def _create_visualizations(args, results_dir, data, hypers):
                 )
                 if true_params:
                     # Import visualization module locally to avoid circular imports
-                    from core import visualization
-                    visualization.synthetic_data(
+                    from visualization import core_plots
+                    core_plots.synthetic_data(
                         str(results_dir), true_params, args, hypers
                     )
             else:
                 # Import visualization module locally to avoid circular imports
-                from core import visualization
-                visualization.qmap_pd(data, str(results_dir), args, hypers)
+                from visualization import core_plots
+                core_plots.qmap_pd(data, str(results_dir), args, hypers)
     except Exception as e:
         logging.error(f"Visualization failed: {e}")
 

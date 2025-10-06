@@ -323,17 +323,17 @@ class ExperimentFramework:
             return exp_dir
 
     def run_experiment(
-        self, config: ExperimentConfig, experiment_function: Callable, **kwargs
+        self, experiment_function: Callable, config: ExperimentConfig, **kwargs
     ) -> ExperimentResult:
         """
         Run a single experiment.
 
         Parameters
         ----------
-        config : ExperimentConfig
-            Experiment configuration.
         experiment_function : Callable
             Function that runs the actual experiment.
+        config : ExperimentConfig
+            Experiment configuration.
         **kwargs
             Additional arguments for experiment function.
 

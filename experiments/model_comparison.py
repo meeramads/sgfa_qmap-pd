@@ -879,13 +879,15 @@ class ModelArchitectureComparison(ExperimentFramework):
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
                 config={"model": {"type": args.get("model", "sparseGFA")}},
                 X_list=X_list,
-                data_characteristics=data_characteristics
+                data_characteristics=data_characteristics,
+                hypers=hypers
             )
 
             self.logger.info(f"🏭 Model factory selected: {model_type}")
 
-            # Use the standard models function from core.run_analysis for execution
-            from core.run_analysis import models
+            # Use the standard models function via interface
+            from core.model_interface import get_model_function
+            models = get_model_function()
 
             # Setup MCMC configuration with resource-adjusted parameters
             adjusted_args = self._adjust_mcmc_params_for_resources(args)
@@ -1098,7 +1100,8 @@ class ModelArchitectureComparison(ExperimentFramework):
                 # Train model on training fold
                 if method_name == "sparseGFA":
                     # For SGFA, use multi-view
-                    from core.run_analysis import models
+                    from core.model_interface import get_model_function
+                    models = get_model_function()
                     import jax
                     from numpyro.infer import MCMC, NUTS
 
@@ -2235,7 +2238,7 @@ class ModelArchitectureComparison(ExperimentFramework):
 
                 # Create all comprehensive visualizations
                 viz_manager.create_all_visualizations(
-                    model_results=data, analysis_results=analysis_results
+                    data=data, analysis_results=analysis_results
                 )
 
                 # Extract the generated plots and create matplotlib figures for the
@@ -2833,8 +2836,9 @@ class ModelArchitectureComparison(ExperimentFramework):
 
             self.logger.info(f"🏭 Performance benchmark using model: {model_type}")
 
-            # Import the actual SGFA model function for execution
-            from core.run_analysis import models
+            # Import the SGFA model function via interface
+            from core.model_interface import get_model_function
+            models = get_model_function()
 
             # Setup MCMC configuration for benchmarking (reduced for speed)
             num_warmup = args.get("num_warmup", 100)  # Reduced for benchmarking
@@ -2958,7 +2962,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             self.logger.warning(f"Memory cleanup failed: {e}")
 
 
-def run_model_comparison(config=None, **kwargs):
+def run_model_comparison(config, **kwargs):
     """
     Run comprehensive model architecture comparison experiments.
 

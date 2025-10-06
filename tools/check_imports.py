@@ -213,7 +213,7 @@ class ImportChecker:
             "utils": "core.utils",
             "get_data": "core.get_data",
             "run_analysis": "core.run_analysis",
-            "visualization": "core.visualization",
+            "visualization": "visualization.core_plots",
         }
 
         if module_name in fixes:

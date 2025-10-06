@@ -97,6 +97,47 @@ def get_output_dir(config: Dict[str, Any]) -> Path:
     return safe_get_path(config, "experiments", "base_output_dir", default="./results")
 
 
+def dict_to_namespace(config_dict: Dict[str, Any], defaults: Dict[str, Any] = None) -> Any:
+    """
+    Convert a configuration dict to an argparse.Namespace with consistent defaults.
+
+    This standardizes the pattern used across the codebase for converting config dicts
+    to Namespace objects, ensuring consistent handling of missing attributes.
+
+    Parameters
+    ----------
+    config_dict : Dict[str, Any]
+        Configuration dictionary to convert
+    defaults : Dict[str, Any], optional
+        Default values for missing keys
+
+    Returns
+    -------
+    argparse.Namespace
+        Namespace object with all config values and defaults applied
+
+    Example
+    -------
+    >>> config = {"K": 5, "num_warmup": 1000}
+    >>> defaults = {"model": "sparseGFA", "K": 10, "num_chains": 4}
+    >>> args = dict_to_namespace(config, defaults)
+    >>> args.K  # 5 (from config)
+    >>> args.model  # "sparseGFA" (from defaults)
+    >>> args.num_chains  # 4 (from defaults)
+    """
+    import argparse
+
+    # Start with defaults if provided
+    if defaults is None:
+        defaults = {}
+
+    # Merge config on top of defaults
+    merged = {**defaults, **config_dict}
+
+    # Create namespace
+    return argparse.Namespace(**merged)
+
+
 def get_checkpoint_dir(config: Dict[str, Any]) -> Path:
     """Get checkpoint directory from config with safe fallback."""
     return safe_get_path(
