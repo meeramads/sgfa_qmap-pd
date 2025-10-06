@@ -104,12 +104,23 @@ def models(X_list, hypers, args):
     # sample W
     W = numpyro.sample("W", dist.Normal(0, 1), sample_shape=(D, K))
     if "sparseGFA" in args.model:
-        # Implement regularised horseshoe prior over W
-        # sample lambda W
+        # Implement regularised horseshoe prior over W with optional group sparsity
+        # Element-wise sparsity: sample lambda W (per-element local shrinkage)
         lmbW = numpyro.sample(
             "lmbW", dist.TruncatedCauchy(scale=1), sample_shape=(D, K)
         )
-        # sample cW
+
+        # Group sparsity: sample lambda W_group (per-row global shrinkage across factors)
+        # This encourages entire rows of W to be zero (i.e., entire features to be inactive)
+        group_lambda = hypers.get("group_lambda", 0.0)  # 0.0 means no group sparsity
+        if group_lambda > 0:
+            lmbW_group = numpyro.sample(
+                "lmbW_group", dist.TruncatedCauchy(scale=group_lambda), sample_shape=(D,)
+            )
+        else:
+            lmbW_group = jnp.ones(D)  # No group-level shrinkage
+
+        # sample cW (per-view shrinkage parameter)
         cWtmp = numpyro.sample(
             "cW",
             dist.InverseGamma(0.5 * hypers["slab_df"], 0.5 * hypers["slab_df"]),
@@ -123,21 +134,25 @@ def models(X_list, hypers, args):
         for m in range(M):
             X_m = jnp.asarray(X_list[m])
             scaleW = pW[m] / ((Dm[m] - pW[m]) * jnp.sqrt(N))
-            # sample tau W
+            # sample tau W (view-specific global shrinkage)
             tauW = numpyro.sample(
                 f"tauW{m + 1}",
                 dist.TruncatedCauchy(scale=scaleW * 1 / jnp.sqrt(sigma[0, m])),
             )
             width = int(Dm_np[m])
             lmbW_chunk = lax.dynamic_slice(lmbW, (d, 0), (width, K))
+            lmbW_group_chunk = lax.dynamic_slice(lmbW_group, (d,), (width,))
 
+            # Apply element-wise regularized horseshoe
             lmbW_sqr = jnp.square(lmbW_chunk)
             lmbW_tilde = jnp.sqrt(
                 cW[m, :] ** 2 * lmbW_sqr / (cW[m, :] ** 2 + tauW**2 * lmbW_sqr)
             )
             W_chunk = lax.dynamic_slice(W, (d, 0), (width, K))
 
-            W_chunk = W_chunk * lmbW_tilde * tauW
+            # Apply element-wise and group-level shrinkage
+            # Group shrinkage is broadcast across all K factors for each feature (row)
+            W_chunk = W_chunk * lmbW_tilde * tauW * lmbW_group_chunk[:, jnp.newaxis]
 
             W = lax.dynamic_update_slice(W, W_chunk, (d, 0))
             # sample X

@@ -138,8 +138,8 @@ model_comparison:
 sgfa_hyperparameter_tuning:
   parameter_ranges:
     n_factors: [2, 3]                     # Minimal range for debug
-    sparsity_lambda: [0.05, 0.1]          # Two values only
-    group_lambda: [0.1]                   # Single value for debug
+    sparsity_lambda: [0.05, 0.1]          # Element-wise sparsity - two values only
+    group_lambda: [0.0, 0.1]              # Group sparsity - two values for debug (0.0 = no group sparsity, higher = more shrinkage)
     learning_rate: [0.01]                 # Single value
 
   # Minimal Scalability Analysis for debug

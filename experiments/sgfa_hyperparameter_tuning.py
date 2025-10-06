@@ -956,7 +956,7 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             )
 
             self.logger.info(
-                f"Training SGFA model with K={ args.get( 'K', 10)}, percW={ hypers.get( 'percW', 33)}"
+                f"Training SGFA model with K={args.get('K', 10)}, percW={hypers.get('percW', 33)}, group_lambda={hypers.get('group_lambda', 0.0)}"
             )
 
             # Import the SGFA model function via interface
@@ -966,9 +966,10 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             # Setup MCMC configuration with memory-aware adjustments
             K = args.get("K", 10)
             percW = hypers.get("percW", 33)
+            group_lambda = hypers.get("group_lambda", 0.0)
 
-            # Create variant name for checkpoint identification
-            variant_name = f"K{K}_percW{int(percW)}"
+            # Create variant name for checkpoint identification (includes group_lambda)
+            variant_name = f"K{K}_percW{int(percW)}_grp{group_lambda}"
 
             # Reduce sampling parameters for high memory variants
             if K >= 10 and percW >= 33:
@@ -1089,7 +1090,7 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             if "clinical_labels" in kwargs and kwargs["clinical_labels"] is not None:
                 try:
                     clinical_perf = self.clinical_classifier.test_factor_classification(
-                        Z_mean, kwargs["clinical_labels"], f"SGFA_K{K}_percW{percW}"
+                        Z_mean, kwargs["clinical_labels"], f"SGFA_K{K}_percW{percW}_grp{group_lambda}"
                     )
                     result["clinical_performance"] = clinical_perf
                     self.logger.info(f"  Clinical validation: {len(clinical_perf)} classifiers tested")
@@ -2305,9 +2306,10 @@ def run_sgfa_hyperparameter_tuning(config):
             sgfa_config = config_dict.get("sgfa_hyperparameter_tuning", {})
             parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
-            # Extract K values and percW values from proper config section
+            # Extract K values, percW values, and group_lambda values from proper config section
             K_values = parameter_ranges.get("n_factors", [2, 3, 4, 5])
             percW_values = parameter_ranges.get("sparsity_lambda", [0.1, 0.25, 0.33])
+            group_lambda_values = parameter_ranges.get("group_lambda", [0.1, 0.5, 1.0])
 
             # Convert sparsity_lambda (0-1 range) to percW (percentage)
             percW_values = [val * 100 if val <= 1.0 else val for val in percW_values]
@@ -2317,49 +2319,51 @@ def run_sgfa_hyperparameter_tuning(config):
 
             for K in K_values:  # Test all K values from config
                 for percW in percW_values:  # Test all percW values from config
-                    variant_name = f"K{K}_percW{int(percW)}"
-                    logger.info(f"Testing SGFA variant: {variant_name}")
+                    for group_lambda in group_lambda_values:  # Test all group_lambda values from config
+                        variant_name = f"K{K}_percW{int(percW)}_grp{group_lambda}"
+                        logger.info(f"Testing SGFA variant: {variant_name}")
 
-                    # Setup args for this variant
-                    variant_args = {
-                        "K": K,
-                        "num_warmup": 300,  # Reduced for faster testing
-                        "num_samples": 600,  # Reduced for faster testing
-                        "num_chains": 2,
-                        "target_accept_prob": 0.8,
-                        "reghsZ": True,
-                    }
+                        # Setup args for this variant
+                        variant_args = {
+                            "K": K,
+                            "num_warmup": 300,  # Reduced for faster testing
+                            "num_samples": 600,  # Reduced for faster testing
+                            "num_chains": 2,
+                            "target_accept_prob": 0.8,
+                            "reghsZ": True,
+                        }
 
-                    # Update hyperparameters
-                    variant_hypers = comparison_hypers.copy()
-                    variant_hypers["percW"] = percW
+                        # Update hyperparameters
+                        variant_hypers = comparison_hypers.copy()
+                        variant_hypers["percW"] = percW
+                        variant_hypers["group_lambda"] = group_lambda
 
-                    # Run SGFA variant
-                    with method_exp.profiler.profile(f"sgfa_{variant_name}"):
-                        variant_result = method_exp._run_sgfa_variant(
-                            X_list, variant_hypers, variant_args
+                        # Run SGFA variant
+                        with method_exp.profiler.profile(f"sgfa_{variant_name}"):
+                            variant_result = method_exp._run_sgfa_variant(
+                                X_list, variant_hypers, variant_args
+                            )
+
+                        model_results[variant_name] = variant_result
+
+                        # Store performance metrics
+                        metrics = method_exp.profiler.get_current_metrics()
+                        performance_metrics[variant_name] = {
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                            "convergence": variant_result.get("convergence", False),
+                            "log_likelihood": variant_result.get(
+                                "log_likelihood", float("-inf")
+                            ),
+                        }
+
+                        logger.info(
+                            f"✅ {variant_name}: {metrics.execution_time:.1f}s, "
+                            f"LL={variant_result.get('log_likelihood', 0):.3f}"
                         )
 
-                    model_results[variant_name] = variant_result
-
-                    # Store performance metrics
-                    metrics = method_exp.profiler.get_current_metrics()
-                    performance_metrics[variant_name] = {
-                        "execution_time": metrics.execution_time,
-                        "peak_memory_gb": metrics.peak_memory_gb,
-                        "convergence": variant_result.get("convergence", False),
-                        "log_likelihood": variant_result.get(
-                            "log_likelihood", float("-inf")
-                        ),
-                    }
-
-                    logger.info(
-                        f"✅ {variant_name}: {metrics.execution_time:.1f}s, "
-                        f"LL={variant_result.get('log_likelihood', 0):.3f}"
-                    )
-
-                    # Critical: Memory cleanup between parameter iterations
-                    _iteration_memory_cleanup_standalone(variant_name, logger)
+                        # Critical: Memory cleanup between parameter iterations
+                        _iteration_memory_cleanup_standalone(variant_name, logger)
 
             # Traditional method comparison removed - available in model_comparison.py
             # This experiment focuses purely on SGFA hyperparameter optimization
@@ -2383,80 +2387,120 @@ def run_sgfa_hyperparameter_tuning(config):
             # Add detailed parameter grid plot
             import matplotlib.pyplot as plt
             try:
-                fig, axes = plt.subplots(2, 2, figsize=(14, 12))
-                fig.suptitle("SGFA Parameter Grid Search Results", fontsize=16)
+                # Create larger figure for 3D hyperparameter space
+                fig = plt.figure(figsize=(20, 12))
+                fig.suptitle("SGFA 3D Hyperparameter Grid Search Results (K × percW × group_λ)", fontsize=18)
 
-                # Extract K and percW values from variant names
+                # Extract K, percW, and group_lambda values from variant names
                 variants = list(model_results.keys())
                 K_vals = []
                 percW_vals = []
+                grp_vals = []
                 lls = []
                 times = []
 
                 for variant_name in variants:
-                    # Parse variant name (e.g., "K3_percW10")
+                    # Parse variant name (e.g., "K3_percW10_grp0.1")
                     parts = variant_name.split('_')
                     K = int(parts[0].replace('K', ''))
                     percW = int(parts[1].replace('percW', ''))
+                    # Extract group_lambda if present (for grouping in plots)
+                    grp_lambda = float(parts[2].replace('grp', '')) if len(parts) > 2 else 0.0
                     K_vals.append(K)
                     percW_vals.append(percW)
+                    grp_vals.append(grp_lambda)
                     lls.append(model_results[variant_name].get('log_likelihood', float('-inf')))
                     times.append(performance_metrics[variant_name]['execution_time'])
 
-                # Plot 1: Log-likelihood by K
-                unique_K = sorted(set(K_vals))
-                for percW in sorted(set(percW_vals)):
-                    K_for_percW = [K_vals[i] for i in range(len(K_vals)) if percW_vals[i] == percW]
-                    ll_for_percW = [lls[i] for i in range(len(lls)) if percW_vals[i] == percW]
-                    axes[0, 0].plot(K_for_percW, ll_for_percW, 'o-', label=f'percW={percW}', linewidth=2, markersize=8)
-                axes[0, 0].set_xlabel('Number of Factors (K)')
-                axes[0, 0].set_ylabel('Log Likelihood')
-                axes[0, 0].set_title('Effect of K on Model Quality')
-                axes[0, 0].legend()
-                axes[0, 0].grid(True, alpha=0.3)
-
-                # Plot 2: Log-likelihood by percW
-                for K in unique_K:
-                    percW_for_K = [percW_vals[i] for i in range(len(percW_vals)) if K_vals[i] == K]
-                    ll_for_K = [lls[i] for i in range(len(lls)) if K_vals[i] == K]
-                    axes[0, 1].plot(percW_for_K, ll_for_K, 's-', label=f'K={K}', linewidth=2, markersize=8)
-                axes[0, 1].set_xlabel('Sparsity (percW %)')
-                axes[0, 1].set_ylabel('Log Likelihood')
-                axes[0, 1].set_title('Effect of Sparsity on Model Quality')
-                axes[0, 1].legend()
-                axes[0, 1].grid(True, alpha=0.3)
-
-                # Plot 3: Execution time by K
-                for percW in sorted(set(percW_vals)):
-                    K_for_percW = [K_vals[i] for i in range(len(K_vals)) if percW_vals[i] == percW]
-                    time_for_percW = [times[i] for i in range(len(times)) if percW_vals[i] == percW]
-                    axes[1, 0].plot(K_for_percW, time_for_percW, 'o-', label=f'percW={percW}', linewidth=2, markersize=8)
-                axes[1, 0].set_xlabel('Number of Factors (K)')
-                axes[1, 0].set_ylabel('Execution Time (s)')
-                axes[1, 0].set_title('Computational Cost vs K')
-                axes[1, 0].legend()
-                axes[1, 0].grid(True, alpha=0.3)
-
-                # Plot 4: 2D heatmap of log-likelihood (K vs percW)
                 import numpy as np
-                K_unique = sorted(set(K_vals))
-                percW_unique = sorted(set(percW_vals))
-                ll_grid = np.full((len(K_unique), len(percW_unique)), np.nan)
-                for i, K in enumerate(K_unique):
-                    for j, percW in enumerate(percW_unique):
-                        idx = [idx for idx, (k, p) in enumerate(zip(K_vals, percW_vals)) if k == K and p == percW]
-                        if idx:
-                            ll_grid[i, j] = lls[idx[0]]
+                unique_K = sorted(set(K_vals))
+                unique_percW = sorted(set(percW_vals))
+                unique_grp = sorted(set(grp_vals))
 
-                im = axes[1, 1].imshow(ll_grid, aspect='auto', cmap='viridis', origin='lower')
-                axes[1, 1].set_xticks(range(len(percW_unique)))
-                axes[1, 1].set_yticks(range(len(K_unique)))
-                axes[1, 1].set_xticklabels(percW_unique)
-                axes[1, 1].set_yticklabels(K_unique)
-                axes[1, 1].set_xlabel('Sparsity (percW %)')
-                axes[1, 1].set_ylabel('Number of Factors (K)')
-                axes[1, 1].set_title('Parameter Grid Heatmap')
-                plt.colorbar(im, ax=axes[1, 1], label='Log Likelihood')
+                # Create 2x3 subplot grid
+                gs = fig.add_gridspec(2, 3, hspace=0.3, wspace=0.3)
+
+                # Plot 1: Log-likelihood by K (grouped by group_lambda)
+                ax1 = fig.add_subplot(gs[0, 0])
+                for grp in unique_grp:
+                    K_for_grp = [K_vals[i] for i in range(len(K_vals)) if grp_vals[i] == grp]
+                    ll_for_grp = [lls[i] for i in range(len(lls)) if grp_vals[i] == grp]
+                    ax1.plot(K_for_grp, ll_for_grp, 'o-', label=f'grp_λ={grp}', linewidth=2, markersize=6, alpha=0.7)
+                ax1.set_xlabel('Number of Factors (K)', fontsize=11)
+                ax1.set_ylabel('Log Likelihood', fontsize=11)
+                ax1.set_title('Effect of K (by Group Sparsity)', fontsize=12)
+                ax1.legend(fontsize=9)
+                ax1.grid(True, alpha=0.3)
+
+                # Plot 2: Log-likelihood by percW (grouped by group_lambda)
+                ax2 = fig.add_subplot(gs[0, 1])
+                for grp in unique_grp:
+                    percW_for_grp = [percW_vals[i] for i in range(len(percW_vals)) if grp_vals[i] == grp]
+                    ll_for_grp = [lls[i] for i in range(len(lls)) if grp_vals[i] == grp]
+                    ax2.plot(percW_for_grp, ll_for_grp, 's-', label=f'grp_λ={grp}', linewidth=2, markersize=6, alpha=0.7)
+                ax2.set_xlabel('Element-wise Sparsity (percW %)', fontsize=11)
+                ax2.set_ylabel('Log Likelihood', fontsize=11)
+                ax2.set_title('Effect of percW (by Group Sparsity)', fontsize=12)
+                ax2.legend(fontsize=9)
+                ax2.grid(True, alpha=0.3)
+
+                # Plot 3: Log-likelihood by group_lambda (grouped by K)
+                ax3 = fig.add_subplot(gs[0, 2])
+                for K in unique_K:
+                    grp_for_K = [grp_vals[i] for i in range(len(grp_vals)) if K_vals[i] == K]
+                    ll_for_K = [lls[i] for i in range(len(lls)) if K_vals[i] == K]
+                    ax3.plot(grp_for_K, ll_for_K, '^-', label=f'K={K}', linewidth=2, markersize=6, alpha=0.7)
+                ax3.set_xlabel('Group Sparsity (λ)', fontsize=11)
+                ax3.set_ylabel('Log Likelihood', fontsize=11)
+                ax3.set_title('Effect of Group Sparsity (by K)', fontsize=12)
+                ax3.legend(fontsize=9)
+                ax3.grid(True, alpha=0.3)
+
+                # Plot 4: Heatmap for each group_lambda value (K vs percW)
+                # Show multiple heatmaps side by side for different group_lambda values
+                if len(unique_grp) <= 3:
+                    # If 3 or fewer group_lambda values, show them all
+                    for idx, grp in enumerate(unique_grp):
+                        ax = fig.add_subplot(gs[1, idx])
+                        ll_grid = np.full((len(unique_K), len(unique_percW)), np.nan)
+                        for i, K in enumerate(unique_K):
+                            for j, percW in enumerate(unique_percW):
+                                matches = [lls[k] for k in range(len(lls))
+                                          if K_vals[k] == K and percW_vals[k] == percW and grp_vals[k] == grp]
+                                if matches:
+                                    ll_grid[i, j] = matches[0]
+
+                        im = ax.imshow(ll_grid, aspect='auto', cmap='viridis', origin='lower')
+                        ax.set_xticks(range(len(unique_percW)))
+                        ax.set_yticks(range(len(unique_K)))
+                        ax.set_xticklabels(unique_percW, fontsize=9)
+                        ax.set_yticklabels(unique_K, fontsize=9)
+                        ax.set_xlabel('percW %', fontsize=10)
+                        ax.set_ylabel('K', fontsize=10)
+                        ax.set_title(f'K×percW Heatmap (grp_λ={grp})', fontsize=11)
+                        plt.colorbar(im, ax=ax, label='Log Likelihood')
+                else:
+                    # If more than 3 group_lambda values, show best/worst/middle
+                    selected_grps = [unique_grp[0], unique_grp[len(unique_grp)//2], unique_grp[-1]]
+                    for idx, grp in enumerate(selected_grps):
+                        ax = fig.add_subplot(gs[1, idx])
+                        ll_grid = np.full((len(unique_K), len(unique_percW)), np.nan)
+                        for i, K in enumerate(unique_K):
+                            for j, percW in enumerate(unique_percW):
+                                matches = [lls[k] for k in range(len(lls))
+                                          if K_vals[k] == K and percW_vals[k] == percW and grp_vals[k] == grp]
+                                if matches:
+                                    ll_grid[i, j] = matches[0]
+
+                        im = ax.imshow(ll_grid, aspect='auto', cmap='viridis', origin='lower')
+                        ax.set_xticks(range(len(unique_percW)))
+                        ax.set_yticks(range(len(unique_K)))
+                        ax.set_xticklabels(unique_percW, fontsize=9)
+                        ax.set_yticklabels(unique_K, fontsize=9)
+                        ax.set_xlabel('percW %', fontsize=10)
+                        ax.set_ylabel('K', fontsize=10)
+                        ax.set_title(f'K×percW (grp_λ={grp})', fontsize=11)
+                        plt.colorbar(im, ax=ax, label='LL')
 
                 plt.tight_layout()
                 plots["parameter_grid_search"] = fig
@@ -2475,8 +2519,9 @@ def run_sgfa_hyperparameter_tuning(config):
                 "analysis_summary": analysis_summary,
                 "performance_summary": performance_summary,
                 "experiment_config": {
-                    "K_values_tested": K_values[:2],
-                    "percW_values_tested": percW_values[:2],
+                    "K_values_tested": K_values,
+                    "percW_values_tested": percW_values,
+                    "group_lambda_values_tested": group_lambda_values,
                     "sgfa_variants_tested": list(model_results.keys()),
                     "data_characteristics": {
                         "num_subjects": X_list[0].shape[0],
