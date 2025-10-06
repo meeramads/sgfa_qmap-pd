@@ -24,12 +24,16 @@ class ModelRunnerConfig:
         num_samples: Number of sampling iterations
         num_chains: Number of parallel chains
         model: Model name/identifier
+        enable_memory_optimization: Enable automatic memory optimization
+        memory_limit_gb: Memory limit in GB for optimization
     """
     num_runs: int = 1
     num_warmup: int = 1000
     num_samples: int = 2000
     num_chains: int = 1
     model: str = "sparseGFA"
+    enable_memory_optimization: bool = False
+    memory_limit_gb: float = 16.0
 
     @classmethod
     def from_dict(cls, d: Dict) -> 'ModelRunnerConfig':
@@ -125,6 +129,10 @@ class ModelRunner:
         if run_id > 1:  # Skip for first run
             self._pre_run_memory_cleanup(run_id)
 
+        # Use memory-optimized execution if enabled
+        if self.config.enable_memory_optimization:
+            return self._run_single_mcmc_optimized(X_list, hypers, run_id)
+
         # Initialize model
         model = SparseGFAModel(self.config, hypers)
 
@@ -147,6 +155,71 @@ class ModelRunner:
         samples = mcmc.get_samples()
         samples["elapsed_time"] = elapsed
         samples["run_id"] = run_id
+
+        return samples
+
+    def _run_single_mcmc_optimized(
+        self, X_list: List[np.ndarray], hypers: Dict, run_id: int
+    ) -> Dict:
+        """
+        Execute a single MCMC run with memory optimization.
+
+        This method uses the memory-optimized execution path through
+        core.model_interface.execute_sgfa_model(), which automatically
+        adjusts MCMC parameters based on available memory.
+
+        Args:
+            X_list: List of data matrices
+            hypers: Hyperparameters dictionary
+            run_id: Run identifier
+
+        Returns:
+            Dictionary with samples and metadata
+        """
+        from core.model_interface import execute_sgfa_model
+
+        # Prepare MCMC config
+        mcmc_config = {
+            "num_warmup": self.config.num_warmup,
+            "num_samples": self.config.num_samples,
+            "num_chains": self.config.num_chains,
+            "random_seed": np.random.randint(0, 10000),
+            "target_accept_prob": 0.9,
+            "max_tree_depth": 12,
+        }
+
+        # Prepare model args (convert config to namespace-like object)
+        import argparse
+        model_args = argparse.Namespace(
+            model=self.config.model,
+            K=hypers.get("K", 10),
+        )
+
+        # Run with memory optimization
+        start_time = time.time()
+        result = execute_sgfa_model(
+            X_list,
+            hypers,
+            model_args,
+            mcmc_config=mcmc_config,
+            enable_memory_optimization=True,
+            memory_limit_gb=self.config.memory_limit_gb,
+        )
+        elapsed = time.time() - start_time
+
+        # Extract samples and add metadata
+        samples = result["samples"]
+        samples["elapsed_time"] = elapsed
+        samples["run_id"] = run_id
+
+        # Log optimization info if available
+        if "optimization_info" in result:
+            opt_info = result["optimization_info"]
+            if opt_info.get("memory_optimized"):
+                logger.info(
+                    f"Run {run_id}: Memory optimization applied. "
+                    f"Limit: {opt_info['memory_limit_gb']}GB"
+                )
 
         return samples
 

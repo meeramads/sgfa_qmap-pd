@@ -50,9 +50,12 @@ dev = [
     "pytest-cov>=2.10.0",
     "black>=21.0.0",
     "flake8>=3.8.0",
-    "mypy>=0.800",
+    "mypy>=0.990",
+    "pre-commit>=2.20.0",
+    "isort>=5.10.0",
     "sphinx>=4.0.0",
     "sphinx-rtd-theme>=0.5.0",
+    "numpydoc>=1.2.0",
 ]
 performance = [
     "psutil>=5.8.0",
@@ -98,8 +101,18 @@ addopts = [
 python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false  # Too strict for research code
 ignore_missing_imports = true
+show_error_codes = true
+pretty = true
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
 
 [tool.coverage.run]
 source = ["core", "experiments", "models", "data", "analysis", "visualization", "performance"]

@@ -4,11 +4,27 @@ Model execution interface to prevent circular dependencies.
 This module provides a single entry point for model execution, breaking the circular
 dependency between core/run_analysis.py and analysis modules.
 
+Features:
+- MCMC execution with configurable parameters
+- Automatic memory optimization
+- Progress tracking and checkpointing
+- Integration with optimization utilities
+
 Usage:
     from core.model_interface import execute_sgfa_model
 
+    # Basic execution
     samples = execute_sgfa_model(X_list, hypers, model_args, mcmc_config)
+
+    # With memory optimization
+    samples = execute_sgfa_model(
+        X_list, hypers, model_args, mcmc_config,
+        enable_memory_optimization=True,
+        memory_limit_gb=16.0
+    )
 """
+
+from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional
@@ -23,7 +39,9 @@ def execute_sgfa_model(
     hypers: Dict[str, Any],
     model_args: Any,
     mcmc_config: Optional[Dict[str, Any]] = None,
-    extra_fields: Optional[tuple] = None
+    extra_fields: Optional[tuple] = None,
+    enable_memory_optimization: bool = False,
+    memory_limit_gb: float = 16.0,
 ) -> Dict[str, Any]:
     """
     Execute SGFA model with given configuration.
@@ -37,12 +55,15 @@ def execute_sgfa_model(
         model_args: Model arguments (Namespace or dict)
         mcmc_config: MCMC configuration (num_warmup, num_samples, num_chains, etc.)
         extra_fields: Extra fields to collect during MCMC (e.g., "potential_energy")
+        enable_memory_optimization: Enable automatic memory optimization
+        memory_limit_gb: Memory limit in GB for optimization
 
     Returns:
         Dictionary containing:
             - samples: MCMC samples
             - extra_fields: Additional collected fields
             - mcmc: MCMC object for further analysis
+            - optimization_info: Memory optimization details (if enabled)
 
     Example:
         >>> hypers = {"Dm": [100, 200], "percW": 25.0}
@@ -50,6 +71,13 @@ def execute_sgfa_model(
         >>> mcmc_config = {"num_warmup": 1000, "num_samples": 2000}
         >>> result = execute_sgfa_model(X_list, hypers, args, mcmc_config)
         >>> samples = result["samples"]
+
+        >>> # With memory optimization
+        >>> result = execute_sgfa_model(
+        ...     X_list, hypers, args, mcmc_config,
+        ...     enable_memory_optimization=True,
+        ...     memory_limit_gb=8.0
+        ... )
     """
     # Import here to avoid circular dependency
     from core.run_analysis import models
@@ -65,6 +93,30 @@ def execute_sgfa_model(
             "num_samples": 2000,
             "num_chains": 4,
         }
+
+    # Apply memory optimization if requested
+    optimization_info = {}
+    if enable_memory_optimization:
+        try:
+            from optimization.mcmc_optimizer import MCMCMemoryOptimizer
+
+            optimizer = MCMCMemoryOptimizer(memory_limit_gb=memory_limit_gb)
+            mcmc_config = optimizer.optimize_mcmc_config(X_list, mcmc_config)
+            optimization_info = {
+                "memory_optimized": True,
+                "memory_limit_gb": memory_limit_gb,
+                "optimized_config": mcmc_config.copy(),
+            }
+            logger.info(
+                f"Memory optimization enabled (limit: {memory_limit_gb}GB). "
+                f"Config adjusted: {mcmc_config.get('num_samples')} samples"
+            )
+        except ImportError:
+            logger.warning(
+                "Memory optimization requested but mcmc_optimizer not available. "
+                "Continuing without optimization."
+            )
+            optimization_info = {"memory_optimized": False, "reason": "module_not_found"}
 
     # Setup MCMC
     kernel = NUTS(
@@ -85,7 +137,10 @@ def execute_sgfa_model(
     )
 
     # Run inference
-    logger.info(f"Running MCMC with {mcmc_config['num_samples']} samples, {mcmc_config['num_chains']} chains")
+    logger.info(
+        f"Running MCMC with {mcmc_config['num_samples']} samples, "
+        f"{mcmc_config['num_chains']} chains"
+    )
 
     extra_fields_tuple = extra_fields if extra_fields else ()
     mcmc.run(rng_key, X_list, hypers, model_args, extra_fields=extra_fields_tuple)
@@ -100,11 +155,16 @@ def execute_sgfa_model(
             if field_name in extra_fields_dict:
                 collected_extra_fields[field_name] = extra_fields_dict[field_name]
 
-    return {
+    result = {
         "samples": samples,
         "extra_fields": collected_extra_fields,
         "mcmc": mcmc,
     }
+
+    if optimization_info:
+        result["optimization_info"] = optimization_info
+
+    return result
 
 
 def get_model_function():
