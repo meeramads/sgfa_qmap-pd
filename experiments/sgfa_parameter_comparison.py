@@ -591,8 +591,8 @@ class SGFAParameterComparison(ExperimentFramework):
             clinical_data = self._generate_synthetic_clinical_data(X_list[0].shape[0])
 
         # Define hyperparameter search space from config
-        n_factors_range = self.parameter_ranges.get("n_factors", [3, 5, 8, 10, 12])
-        sparsity_range = self.parameter_ranges.get("sparsity_lambda", [0.01, 0.1, 0.5, 1.0])
+        n_factors_range = self.parameter_ranges.get("n_factors", [2, 3, 4, 5])
+        sparsity_range = self.parameter_ranges.get("sparsity_lambda", [0.1, 0.25, 0.33])
 
         # Convert sparsity range to percentage for percW
         percW_range = [val * 100 if val <= 1.0 else val for val in sparsity_range]
@@ -2306,8 +2306,8 @@ def run_sgfa_parameter_comparison(config):
             parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
             # Extract K values and percW values from proper config section
-            K_values = parameter_ranges.get("n_factors", [3, 5, 8, 10])
-            percW_values = parameter_ranges.get("sparsity_lambda", [0.1, 0.33, 0.5])
+            K_values = parameter_ranges.get("n_factors", [2, 3, 4, 5])
+            percW_values = parameter_ranges.get("sparsity_lambda", [0.1, 0.25, 0.33])
 
             # Convert sparsity_lambda (0-1 range) to percW (percentage)
             percW_values = [val * 100 if val <= 1.0 else val for val in percW_values]
