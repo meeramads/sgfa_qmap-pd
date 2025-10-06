@@ -1,0 +1,37 @@
+# Include important documentation files
+include README.md
+include LICENSE
+include pyproject.toml
+include requirements.txt
+include requirements-dev.txt
+
+# Include configuration files
+include config.yaml
+include config_debug.yaml
+include .flake8
+include .codecov.yml
+
+# Include documentation
+recursive-include docs *.rst *.md *.py
+recursive-include docs/_static *
+prune docs/_build
+
+# Include tests
+recursive-include tests *.py
+
+# Include examples
+recursive-include examples *.py *.md
+
+# Exclude build artifacts and caches
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude .DS_Store
+global-exclude *.so
+
+# Exclude results and data directories
+prune results
+prune qMAP-PD_data
+prune .git
+prune .pytest_cache
+prune .mypy_cache
