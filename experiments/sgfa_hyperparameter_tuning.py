@@ -996,22 +996,26 @@ class SGFAHyperparameterTuning(ExperimentFramework):
                 reghsZ=args.get("reghsZ", True),
             )
 
+            # Memory-conscious NUTS configuration for all variants
+            # Use reduced max_tree_depth to prevent GPU OOM
+            target_accept = args.get("target_accept_prob", 0.8)
+
             # Additional memory optimization for high memory variants
             if K >= 10 and percW >= 33:
-                # Apply more aggressive memory management
+                # Apply more aggressive memory management for large models
                 import gc
-
                 gc.collect()
                 jax.clear_caches()
 
-                # Use lower target accept probability and tree depth to reduce memory
-                kernel = NUTS(models, target_accept_prob=0.6, max_tree_depth=8)
+                kernel = NUTS(models, target_accept_prob=0.6, max_tree_depth=6)
                 self.logger.info(
-                    "Applied aggressive memory optimizations: lower target_accept_prob and max_tree_depth"
+                    f"High-memory config (K={K}, percW={percW}): max_tree_depth=6, target_accept_prob=0.6"
                 )
             else:
-                kernel = NUTS(
-                    models, target_accept_prob=args.get("target_accept_prob", 0.8)
+                # Standard memory optimization for all other variants
+                kernel = NUTS(models, target_accept_prob=target_accept, max_tree_depth=8)
+                self.logger.info(
+                    f"Standard config (K={K}, percW={percW}): max_tree_depth=8, target_accept_prob={target_accept}"
                 )
 
             # Setup MCMC
@@ -2350,13 +2354,14 @@ def run_sgfa_hyperparameter_tuning(config):
 
                         logger.info(f"Testing SGFA variant: {variant_name}")
 
-                        # Setup args for this variant
+                        # Setup args for this variant (memory-conservative settings)
                         variant_args = {
                             "K": K,
                             "num_warmup": 300,  # Reduced for faster testing
                             "num_samples": 600,  # Reduced for faster testing
                             "num_chains": 1,  # Single chain to avoid GPU OOM
                             "target_accept_prob": 0.8,
+                            "max_tree_depth": 8,  # Reduced from default 10 to save GPU memory
                             "reghsZ": True,
                         }
 
