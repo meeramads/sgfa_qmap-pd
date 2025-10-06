@@ -599,6 +599,10 @@ python run_experiments.py --config config.yaml --data-dir /path/to/data
 python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv
 
+# Regress out confound variables (demographics/covariates)
+python run_experiments.py --experiments model_comparison \
+    --regress-confounds age sex tiv
+
 # Specify K values to test in parameter comparison
 python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv \
@@ -607,14 +611,18 @@ python run_experiments.py --experiments sgfa_hyperparameter_tuning \
 # Combine multiple options
 python run_experiments.py --experiments sgfa_hyperparameter_tuning \
     --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv volume_lentiform_voxels.tsv \
+    --regress-confounds age sex tiv \
     --test-k 3 4 5
 ```
 
 **Command-line Options:**
 
 - `--select-rois`: Select specific ROI files to load (space-separated list)
+- `--regress-confounds`: Regress out confound variables from ALL views (space-separated list, e.g., age sex tiv)
+  - Uses residualization: removes variance explained by confounds while preserving signal
+  - More principled than dropping features - removes confound effects from all imaging and clinical data
 - `--test-k`: Specify K (number of factors) values to test in parameter comparison (space-separated integers)
-- Results directories automatically include configuration in their names (e.g., `results/20250106_rois-sn+putamen/`)
+- Results directories automatically include configuration in their names (e.g., `results/20250106_rois-sn+putamen_conf-age+sex+tiv/`)
 
 **Hyperparameter Configuration:**
 

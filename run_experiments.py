@@ -154,6 +154,11 @@ def main():
         help="Select specific ROIs to load (e.g., --select-rois volume_sn_voxels.tsv)",
     )
     parser.add_argument(
+        "--regress-confounds",
+        nargs="+",
+        help="Regress out confound variables from all views (e.g., --regress-confounds age sex tiv)",
+    )
+    parser.add_argument(
         "--test-k",
         nargs="+",
         type=int,
@@ -193,6 +198,13 @@ def main():
         config["preprocessing"]["select_rois"] = args.select_rois
         logger.info(f"Selecting ROIs: {args.select_rois}")
 
+    # Configure confound regression if provided
+    if args.regress_confounds:
+        if "preprocessing" not in config:
+            config["preprocessing"] = {}
+        config["preprocessing"]["regress_confounds"] = args.regress_confounds
+        logger.info(f"Regressing confounds: {args.regress_confounds}")
+
     # Configure K values for parameter comparison if provided
     if args.test_k:
         if "sgfa_hyperparameter_tuning" not in config:
@@ -219,6 +231,10 @@ def main():
                 roi_name = roi.replace('.tsv', '').replace('volume_', '').replace('_voxels', '')
                 roi_names.append(roi_name)
             config_suffix += f"_rois-{'+'.join(roi_names)}"
+
+        # Add confound regression info
+        if args.regress_confounds:
+            config_suffix += f"_conf-{'+'.join(args.regress_confounds)}"
 
         # Add K values info
         if args.test_k:

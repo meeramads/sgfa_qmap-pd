@@ -23,6 +23,7 @@ def load_qmap_pd(
     drop_constant_clinical: bool = True,
     id_col: str = "sid",
     select_rois: Optional[List[str]] = None,
+    regress_confounds: Optional[List[str]] = None,
     # Preprocessing parameters
     enable_advanced_preprocessing: bool = False,
     enable_spatial_processing: bool = False,
@@ -64,6 +65,10 @@ def load_qmap_pd(
         List of specific ROI files to load (e.g., ['volume_sn_voxels.tsv'])
         If None, loads default ROIs (sn, putamen, lentiform) or fallback (bg-all)
         Use this to analyze one ROI at a time
+    regress_confounds : List[str], optional
+        List of clinical features to regress out from all views (e.g., ['age', 'sex', 'tiv'])
+        Uses residualization: removes variance explained by confounds while preserving signal
+        More principled than dropping features - removes confound effects from ALL data
     enable_advanced_preprocessing : bool
         Enable advanced preprocessing pipeline
     enable_spatial_processing : bool
@@ -467,6 +472,52 @@ def load_qmap_pd(
                     "min_voxel_distance": min_voxel_distance,
                 }
             )
+
+    # === CONFOUND REGRESSION ===
+    if regress_confounds:
+        logging.info(f"Regressing out confounds: {regress_confounds}")
+
+        # Extract confound variables from clinical data
+        confounds_to_regress = [c for c in regress_confounds if c in clin_X.columns]
+        if not confounds_to_regress:
+            logging.warning(f"No valid confounds found in clinical data. Requested: {regress_confounds}")
+        else:
+            import numpy as np
+            from sklearn.linear_model import LinearRegression
+
+            # Get confound matrix
+            confound_matrix = clin_X[confounds_to_regress].values
+
+            # Check for missing values in confounds
+            if np.isnan(confound_matrix).any():
+                logging.warning("Confounds contain missing values. Imputing with mean.")
+                from sklearn.impute import SimpleImputer
+                imputer = SimpleImputer(strategy='mean')
+                confound_matrix = imputer.fit_transform(confound_matrix)
+
+            # Add intercept
+            confound_matrix_with_intercept = np.column_stack([np.ones(confound_matrix.shape[0]), confound_matrix])
+
+            # Regress confounds from each view
+            X_list_deconfounded = []
+            for i, (X, view_name) in enumerate(zip(X_list, view_names)):
+                # Fit linear model: X = confounds * beta + residuals
+                lr = LinearRegression(fit_intercept=False)  # We already added intercept
+                lr.fit(confound_matrix_with_intercept, X)
+
+                # Get residuals (data with confounds regressed out)
+                X_deconfounded = X - lr.predict(confound_matrix_with_intercept)
+
+                X_list_deconfounded.append(X_deconfounded)
+                logging.info(f"  Regressed confounds from {view_name}: {confounds_to_regress}")
+
+            X_list = X_list_deconfounded
+
+            # Store confound regression info in meta
+            meta["confound_regression"] = {
+                "confounds_regressed": confounds_to_regress,
+                "confound_matrix_shape": confound_matrix.shape,
+            }
 
     # === CONSTRUCT RESULT ===
     result = {
