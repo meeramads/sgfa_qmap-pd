@@ -158,6 +158,12 @@ def main():
         nargs="+",
         help="Exclude specific clinical features (e.g., --exclude-clinical age sex tiv)",
     )
+    parser.add_argument(
+        "--test-k",
+        nargs="+",
+        type=int,
+        help="Specify K values to test in parameter comparison (e.g., --test-k 2 3)",
+    )
 
     args = parser.parse_args()
 
@@ -199,6 +205,15 @@ def main():
         config["preprocessing"]["exclude_clinical_features"] = args.exclude_clinical
         logger.info(f"Excluding clinical features: {args.exclude_clinical}")
 
+    # Configure K values for parameter comparison if provided
+    if args.test_k:
+        if "sgfa_parameter_comparison" not in config:
+            config["sgfa_parameter_comparison"] = {}
+        if "parameter_ranges" not in config["sgfa_parameter_comparison"]:
+            config["sgfa_parameter_comparison"]["parameter_ranges"] = {}
+        config["sgfa_parameter_comparison"]["parameter_ranges"]["n_factors"] = args.test_k
+        logger.info(f"Testing K values: {args.test_k}")
+
     # Setup unified results directory if requested
     if args.unified_results:
         # Create single timestamped directory for all experiments
@@ -220,6 +235,10 @@ def main():
         # Add clinical exclusion info
         if args.exclude_clinical:
             config_suffix += f"_excl-{'+'.join(args.exclude_clinical)}"
+
+        # Add K values info
+        if args.test_k:
+            config_suffix += f"_K-{'+'.join(map(str, args.test_k))}"
 
         # Create directory name based on what's actually running
         if len(args.experiments) == 1:
