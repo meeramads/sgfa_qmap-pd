@@ -2693,14 +2693,23 @@ def _iteration_memory_cleanup_standalone(variant_name: str, logger):
         # Check GPU memory before cleanup
         try:
             devices = jax.devices()
+            logger.debug(f"  Available devices: {[str(d) for d in devices]}")
+
+            gpu_found = False
             for device in devices:
                 if device.platform == 'gpu':
+                    gpu_found = True
                     stats = device.memory_stats()
                     if stats:
                         bytes_in_use = stats.get('bytes_in_use', 0)
                         bytes_limit = stats.get('bytes_limit', 1)
                         pct_used = (bytes_in_use / bytes_limit) * 100 if bytes_limit > 0 else 0
                         logger.info(f"  GPU memory before cleanup: {bytes_in_use / 1e9:.2f}GB / {bytes_limit / 1e9:.2f}GB ({pct_used:.1f}%)")
+                    else:
+                        logger.warning(f"  GPU device found but memory_stats() returned None")
+
+            if not gpu_found:
+                logger.info(f"  No GPU detected - using {devices[0].platform.upper()}: {devices[0].device_kind}")
         except Exception as e:
             logger.debug(f"Could not check GPU memory: {e}")
 
