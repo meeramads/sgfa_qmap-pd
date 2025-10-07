@@ -143,8 +143,10 @@ class ComparisonVisualizer:
         colors = [self.default_colors[1]] * len(valid_methods)
         if higher_is_better:
             best_idx = np.argmax(valid_scores)
+            best_score = valid_scores[best_idx]
         else:
             best_idx = np.argmin(valid_scores)
+            best_score = valid_scores[best_idx]
         colors[best_idx] = 'gold'
 
         bars = ax.bar(valid_methods, valid_scores, color=colors, alpha=0.8)
@@ -153,12 +155,9 @@ class ComparisonVisualizer:
         ax.set_xticklabels(valid_methods, rotation=45, ha='right')
         ax.grid(axis='y', alpha=0.3)
 
-        # Add value labels on bars
-        for bar, score in zip(bars, valid_scores):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{score:.3f}' if abs(score) < 100 else f'{score:.1f}',
-                   ha='center', va='bottom', fontsize=9)
+        # Add legend showing best log likelihood value
+        best_label = f'Best {ylabel} = {best_score:.2f}'
+        ax.legend([bars[best_idx]], [best_label], loc='best', framealpha=0.9)
 
         plt.tight_layout()
         return fig

@@ -1428,11 +1428,24 @@ class SGFAHyperparameterTuning(ExperimentFramework):
                     self.logger.info(f"   ✅ Factor loadings heatmap created")
 
                     # Plot 2: Factor scores
+                    # Parse hyperparameters from best_name (e.g., "K2_percW33_grp0.0")
+                    import re
+                    match = re.match(r"K(\d+)_percW([\d.]+)(?:_grp([\d.]+))?", best_name)
+                    if match:
+                        K_val = match.group(1)
+                        percW_val = match.group(2)
+                        grp_val = match.group(3) if match.group(3) else "0.0"
+                        subtitle = f"Best Config: {K_val} factors, {percW_val}% sparsity, {grp_val} group sparsity"
+                    else:
+                        subtitle = f"Best Config: {best_name}"
+
                     fig2, ax2 = plt.subplots(figsize=(10, 6))
                     im2 = ax2.imshow(Z_mean.T, aspect='auto', cmap='viridis')
                     ax2.set_xlabel('Subjects')
                     ax2.set_ylabel('Factors')
-                    ax2.set_title(f'Factor Scores (Z) - Best Config: {best_name}')
+                    ax2.set_title('Factor Scores (Z)', fontsize=14, fontweight='bold')
+                    ax2.text(0.5, 1.02, subtitle, transform=ax2.transAxes,
+                            ha='center', va='bottom', fontsize=10, style='italic')
                     plt.colorbar(im2, ax=ax2, label='Factor Score')
                     plt.tight_layout()
                     plots["best_factor_scores"] = fig2
