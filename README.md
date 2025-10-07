@@ -627,6 +627,7 @@ python run_experiments.py --experiments sgfa_hyperparameter_tuning \
 **Hyperparameter Configuration:**
 
 The SGFA hyperparameter tuning explores a 3D grid defined in `config.yaml`:
+
 - **K (n_factors)**: [2, 3, 4] - Number of latent factors
 - **percW (sparsity_lambda)**: [10%, 25%, 33%] - Element-wise sparsity within factors
 - **group_lambda**: [0.0, 0.05, 0.1, 0.2] - Group-level feature selection across factors
