@@ -1,0 +1,74 @@
+experiment_run_info:
+  config_used: config.yaml
+  duration_formatted: '7:52:39.520626'
+  duration_seconds: 28359.520626
+  end_time: '2025-10-07T23:23:06.863760'
+  start_time: '2025-10-07T15:30:27.343134'
+  unified_results: true
+experiments_executed:
+  clinical_validation:
+    duration: 74.58698
+    experiment_id: clinical_validation_20251007_231520
+    status: completed
+  data_validation:
+    duration: 6.631751
+    experiment_id: data_validation_20251007_153027
+    status: completed
+  model_comparison:
+    duration: 409.73486
+    experiment_id: methods_comparison_20251007_225706
+    status: completed
+  reproducibility:
+    duration: 386.885431
+    experiment_id: reproducibility_tests_20251007_231637
+    status: completed
+  sensitivity_analysis:
+    duration: 675.028104
+    experiment_id: sensitivity_analysis_20251007_230359
+    status: completed
+  sgfa_hyperparameter_tuning:
+    duration: 26771.564431
+    experiment_id: sgfa_hyperparameter_tuning_20251007_153041
+    sgfa_variants:
+    - K2_percW10_grp0.0
+    - K2_percW10_grp0.05
+    - K2_percW10_grp0.1
+    - K2_percW10_grp0.2
+    - K2_percW25_grp0.0
+    - K2_percW25_grp0.05
+    - K2_percW25_grp0.1
+    - K2_percW25_grp0.2
+    - K2_percW33_grp0.0
+    - K2_percW33_grp0.05
+    - K2_percW33_grp0.1
+    - K2_percW33_grp0.2
+    - K3_percW10_grp0.0
+    - K3_percW10_grp0.05
+    - K3_percW10_grp0.1
+    - K3_percW10_grp0.2
+    - K3_percW25_grp0.0
+    - K3_percW25_grp0.05
+    - K3_percW25_grp0.1
+    - K3_percW25_grp0.2
+    - K3_percW33_grp0.0
+    - K3_percW33_grp0.05
+    - K3_percW33_grp0.1
+    - K3_percW33_grp0.2
+    - K4_percW10_grp0.0
+    - K4_percW10_grp0.05
+    - K4_percW10_grp0.1
+    - K4_percW10_grp0.2
+    - K4_percW25_grp0.0
+    - K4_percW25_grp0.05
+    - K4_percW25_grp0.1
+    - K4_percW25_grp0.2
+    - K4_percW33_grp0.0
+    - K4_percW33_grp0.05
+    - K4_percW33_grp0.1
+    - K4_percW33_grp0.2
+    status: completed
+    successful_variants: 0
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 6
+  total_experiments: 6

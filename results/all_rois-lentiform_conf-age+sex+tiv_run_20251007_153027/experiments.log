@@ -1,0 +1,390 @@
+2025-10-07 15:30:27,344 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 15:30:27,347 - experiments.framework - INFO - Starting experiment: data_validation_20251007_153027
+2025-10-07 15:30:33,976 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251007_153027
+2025-10-07 15:30:33,976 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.6 seconds
+2025-10-07 15:30:33,976 - experiments.framework - INFO - 🕐 Started: 2025-10-07 15:30:27
+2025-10-07 15:30:33,976 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 15:30:33
+2025-10-07 15:30:33,977 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251007_153027
+2025-10-07 15:30:33,977 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 15:30:34,020 - experiments.framework - INFO - Garbage collection freed 31925 objects
+2025-10-07 15:30:34,147 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 15:30:35,149 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 15:30:35,221 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 15:30:35,228 - experiments.framework - INFO - Saving 3 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/data_validation_20251007_153027/plots
+2025-10-07 15:30:36,888 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-07 15:30:37,947 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-07 15:30:38,302 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-07 15:30:38,302 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/data_validation_20251007_153027/plots
+2025-10-07 15:30:38,350 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 15:30:38,350 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 15:30:41,534 - experiments.framework - INFO - Starting experiment: sgfa_hyperparameter_tuning_20251007_153041
+2025-10-07 15:30:41,534 - experiments.framework - INFO - Starting experiment: sgfa_hyperparameter_tuning_20251007_153041
+2025-10-07 22:56:53,096 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sgfa_hyperparameter_tuning_20251007_153041
+2025-10-07 22:56:53,096 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sgfa_hyperparameter_tuning_20251007_153041
+2025-10-07 22:56:53,098 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 7.4 hours (26m 12s)
+2025-10-07 22:56:53,098 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 7.4 hours (26m 12s)
+2025-10-07 22:56:53,099 - experiments.framework - INFO - 🕐 Started: 2025-10-07 15:30:41
+2025-10-07 22:56:53,099 - experiments.framework - INFO - 🕐 Started: 2025-10-07 15:30:41
+2025-10-07 22:56:53,099 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 22:56:53
+2025-10-07 22:56:53,099 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 22:56:53
+2025-10-07 22:56:53,099 - experiments.framework - INFO - Experiment completed successfully: sgfa_hyperparameter_tuning_20251007_153041
+2025-10-07 22:56:53,099 - experiments.framework - INFO - Experiment completed successfully: sgfa_hyperparameter_tuning_20251007_153041
+2025-10-07 22:56:53,099 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 22:56:53,099 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 22:56:53,149 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-07 22:56:53,149 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-07 22:56:53,350 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 22:56:53,350 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 22:56:54,352 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 22:56:54,352 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 22:56:54,720 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 22:56:54,720 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 22:56:54,769 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.0 factor scores Z shape: (86, 2)
+2025-10-07 22:56:54,769 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.0 factor scores Z shape: (86, 2)
+2025-10-07 22:56:54,821 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.05 factor scores Z shape: (86, 2)
+2025-10-07 22:56:54,821 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.05 factor scores Z shape: (86, 2)
+2025-10-07 22:56:54,905 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.1 factor scores Z shape: (86, 2)
+2025-10-07 22:56:54,905 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.1 factor scores Z shape: (86, 2)
+2025-10-07 22:56:54,951 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.2 factor scores Z shape: (86, 2)
+2025-10-07 22:56:54,951 - experiments.framework - INFO - Saving sgfa_K2_percW10_grp0.2 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,000 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.0 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,000 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.0 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,044 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.05 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,044 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.05 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,090 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.1 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,090 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.1 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,136 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.2 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,136 - experiments.framework - INFO - Saving sgfa_K2_percW25_grp0.2 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,179 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.0 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,179 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.0 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,225 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.05 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,225 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.05 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,269 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.1 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,269 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.1 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,314 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.2 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,314 - experiments.framework - INFO - Saving sgfa_K2_percW33_grp0.2 factor scores Z shape: (86, 2)
+2025-10-07 22:56:55,372 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.0 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,372 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.0 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,431 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.05 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,431 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.05 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,489 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.1 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,489 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.1 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,547 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.2 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,547 - experiments.framework - INFO - Saving sgfa_K3_percW10_grp0.2 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,604 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.0 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,604 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.0 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,661 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.05 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,661 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.05 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,722 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.1 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,722 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.1 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,782 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.2 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,782 - experiments.framework - INFO - Saving sgfa_K3_percW25_grp0.2 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,842 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.0 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,842 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.0 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,902 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.05 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,902 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.05 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,959 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.1 factor scores Z shape: (86, 3)
+2025-10-07 22:56:55,959 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.1 factor scores Z shape: (86, 3)
+2025-10-07 22:56:56,015 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.2 factor scores Z shape: (86, 3)
+2025-10-07 22:56:56,015 - experiments.framework - INFO - Saving sgfa_K3_percW33_grp0.2 factor scores Z shape: (86, 3)
+2025-10-07 22:56:56,086 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.0 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,086 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.0 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,156 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.05 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,156 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.05 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,227 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.1 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,227 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.1 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,296 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.2 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,296 - experiments.framework - INFO - Saving sgfa_K4_percW10_grp0.2 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,366 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.0 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,366 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.0 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,438 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.05 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,438 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.05 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,510 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.1 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,510 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.1 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,580 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.2 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,580 - experiments.framework - INFO - Saving sgfa_K4_percW25_grp0.2 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,651 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.0 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,651 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.0 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,728 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.05 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,728 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.05 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,797 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.1 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,797 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.1 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,869 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.2 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,869 - experiments.framework - INFO - Saving sgfa_K4_percW33_grp0.2 factor scores Z shape: (86, 4)
+2025-10-07 22:56:56,873 - experiments.framework - INFO - Saving 6 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sgfa_hyperparameter_tuning_20251007_153041/plots
+2025-10-07 22:56:56,873 - experiments.framework - INFO - Saving 6 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sgfa_hyperparameter_tuning_20251007_153041/plots
+2025-10-07 22:56:57,982 - experiments.framework - INFO -   ✅ Saved plot: sgfa_variant_performance
+2025-10-07 22:56:57,982 - experiments.framework - INFO -   ✅ Saved plot: sgfa_variant_performance
+2025-10-07 22:56:59,240 - experiments.framework - INFO -   ✅ Saved plot: sgfa_variant_quality
+2025-10-07 22:56:59,240 - experiments.framework - INFO -   ✅ Saved plot: sgfa_variant_quality
+2025-10-07 22:56:59,781 - experiments.framework - INFO -   ✅ Saved plot: best_factor_loadings
+2025-10-07 22:56:59,781 - experiments.framework - INFO -   ✅ Saved plot: best_factor_loadings
+2025-10-07 22:57:03,856 - experiments.framework - INFO -   ✅ Saved plot: best_factor_scores
+2025-10-07 22:57:03,856 - experiments.framework - INFO -   ✅ Saved plot: best_factor_scores
+2025-10-07 22:57:04,260 - experiments.framework - INFO -   ✅ Saved plot: parameter_grid_search
+2025-10-07 22:57:04,260 - experiments.framework - INFO -   ✅ Saved plot: parameter_grid_search
+2025-10-07 22:57:04,855 - experiments.framework - INFO -   ✅ Saved plot: parameter_heatmaps
+2025-10-07 22:57:04,855 - experiments.framework - INFO -   ✅ Saved plot: parameter_heatmaps
+2025-10-07 22:57:04,855 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sgfa_hyperparameter_tuning_20251007_153041/plots
+2025-10-07 22:57:04,855 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sgfa_hyperparameter_tuning_20251007_153041/plots
+2025-10-07 22:57:06,982 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 22:57:06,982 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 22:57:06,982 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 22:57:06,986 - experiments.framework - INFO - Starting experiment: methods_comparison_20251007_225706
+2025-10-07 22:57:06,986 - experiments.framework - INFO - Starting experiment: methods_comparison_20251007_225706
+2025-10-07 22:57:06,986 - experiments.framework - INFO - Starting experiment: methods_comparison_20251007_225706
+2025-10-07 23:03:56,718 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: methods_comparison_20251007_225706
+2025-10-07 23:03:56,718 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: methods_comparison_20251007_225706
+2025-10-07 23:03:56,718 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: methods_comparison_20251007_225706
+2025-10-07 23:03:56,719 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.8 minutes (410s)
+2025-10-07 23:03:56,719 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.8 minutes (410s)
+2025-10-07 23:03:56,719 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.8 minutes (410s)
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🕐 Started: 2025-10-07 22:57:06
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🕐 Started: 2025-10-07 22:57:06
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🕐 Started: 2025-10-07 22:57:06
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:03:56
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:03:56
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:03:56
+2025-10-07 23:03:56,719 - experiments.framework - INFO - Experiment completed successfully: methods_comparison_20251007_225706
+2025-10-07 23:03:56,719 - experiments.framework - INFO - Experiment completed successfully: methods_comparison_20251007_225706
+2025-10-07 23:03:56,719 - experiments.framework - INFO - Experiment completed successfully: methods_comparison_20251007_225706
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:03:56,719 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:03:56,789 - experiments.framework - INFO - Garbage collection freed 91 objects
+2025-10-07 23:03:56,789 - experiments.framework - INFO - Garbage collection freed 91 objects
+2025-10-07 23:03:56,789 - experiments.framework - INFO - Garbage collection freed 91 objects
+2025-10-07 23:03:57,011 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:03:57,011 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:03:57,011 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:03:58,012 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:03:58,012 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:03:58,012 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:03:58,018 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:03:58,018 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:03:58,018 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:03:59,204 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:03:59,204 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:03:59,204 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:03:59,204 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:03:59,212 - experiments.framework - INFO - Starting experiment: sensitivity_analysis_20251007_230359
+2025-10-07 23:03:59,212 - experiments.framework - INFO - Starting experiment: sensitivity_analysis_20251007_230359
+2025-10-07 23:03:59,212 - experiments.framework - INFO - Starting experiment: sensitivity_analysis_20251007_230359
+2025-10-07 23:03:59,212 - experiments.framework - INFO - Starting experiment: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,235 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,235 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,235 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,235 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,236 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 11.3 minutes (675s)
+2025-10-07 23:15:14,236 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 11.3 minutes (675s)
+2025-10-07 23:15:14,236 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 11.3 minutes (675s)
+2025-10-07 23:15:14,236 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 11.3 minutes (675s)
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:03:59
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:03:59
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:03:59
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:03:59
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:15:14
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:15:14
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:15:14
+2025-10-07 23:15:14,236 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:15:14
+2025-10-07 23:15:14,236 - experiments.framework - INFO - Experiment completed successfully: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,236 - experiments.framework - INFO - Experiment completed successfully: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,236 - experiments.framework - INFO - Experiment completed successfully: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,236 - experiments.framework - INFO - Experiment completed successfully: sensitivity_analysis_20251007_230359
+2025-10-07 23:15:14,237 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:15:14,237 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:15:14,237 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:15:14,237 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:15:14,298 - experiments.framework - INFO - Garbage collection freed 70 objects
+2025-10-07 23:15:14,298 - experiments.framework - INFO - Garbage collection freed 70 objects
+2025-10-07 23:15:14,298 - experiments.framework - INFO - Garbage collection freed 70 objects
+2025-10-07 23:15:14,298 - experiments.framework - INFO - Garbage collection freed 70 objects
+2025-10-07 23:15:14,531 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:15:14,531 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:15:14,531 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:15:14,531 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:15:15,533 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:15:15,533 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:15:15,533 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:15:15,533 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:15:15,592 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:15:15,592 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:15:15,592 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:15:15,592 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:15:15,596 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:15,596 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:15,596 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:15,596 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:16,587 - experiments.framework - INFO -   ✅ Saved plot: parameter_sensitivity_summary
+2025-10-07 23:15:16,587 - experiments.framework - INFO -   ✅ Saved plot: parameter_sensitivity_summary
+2025-10-07 23:15:16,587 - experiments.framework - INFO -   ✅ Saved plot: parameter_sensitivity_summary
+2025-10-07 23:15:16,587 - experiments.framework - INFO -   ✅ Saved plot: parameter_sensitivity_summary
+2025-10-07 23:15:16,587 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:16,587 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:16,587 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:16,587 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/sensitivity_analysis_20251007_230359/plots
+2025-10-07 23:15:20,015 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:15:20,015 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:15:20,015 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:15:20,015 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:15:20,015 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:15:20,021 - experiments.framework - INFO - Starting experiment: clinical_validation_20251007_231520
+2025-10-07 23:15:20,021 - experiments.framework - INFO - Starting experiment: clinical_validation_20251007_231520
+2025-10-07 23:15:20,021 - experiments.framework - INFO - Starting experiment: clinical_validation_20251007_231520
+2025-10-07 23:15:20,021 - experiments.framework - INFO - Starting experiment: clinical_validation_20251007_231520
+2025-10-07 23:15:20,021 - experiments.framework - INFO - Starting experiment: clinical_validation_20251007_231520
+2025-10-07 23:16:34,606 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: clinical_validation_20251007_231520
+2025-10-07 23:16:34,606 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: clinical_validation_20251007_231520
+2025-10-07 23:16:34,606 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: clinical_validation_20251007_231520
+2025-10-07 23:16:34,606 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: clinical_validation_20251007_231520
+2025-10-07 23:16:34,606 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: clinical_validation_20251007_231520
+2025-10-07 23:16:34,607 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 1.2 minutes (75s)
+2025-10-07 23:16:34,607 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 1.2 minutes (75s)
+2025-10-07 23:16:34,607 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 1.2 minutes (75s)
+2025-10-07 23:16:34,607 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 1.2 minutes (75s)
+2025-10-07 23:16:34,607 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 1.2 minutes (75s)
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:15:20
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:15:20
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:15:20
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:15:20
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:15:20
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:16:34
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:16:34
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:16:34
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:16:34
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:16:34
+2025-10-07 23:16:34,607 - experiments.framework - INFO - Experiment completed successfully: clinical_validation_20251007_231520
+2025-10-07 23:16:34,607 - experiments.framework - INFO - Experiment completed successfully: clinical_validation_20251007_231520
+2025-10-07 23:16:34,607 - experiments.framework - INFO - Experiment completed successfully: clinical_validation_20251007_231520
+2025-10-07 23:16:34,607 - experiments.framework - INFO - Experiment completed successfully: clinical_validation_20251007_231520
+2025-10-07 23:16:34,607 - experiments.framework - INFO - Experiment completed successfully: clinical_validation_20251007_231520
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:16:34,607 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:16:34,698 - experiments.framework - INFO - Garbage collection freed 270 objects
+2025-10-07 23:16:34,698 - experiments.framework - INFO - Garbage collection freed 270 objects
+2025-10-07 23:16:34,698 - experiments.framework - INFO - Garbage collection freed 270 objects
+2025-10-07 23:16:34,698 - experiments.framework - INFO - Garbage collection freed 270 objects
+2025-10-07 23:16:34,698 - experiments.framework - INFO - Garbage collection freed 270 objects
+2025-10-07 23:16:35,036 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:16:35,036 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:16:35,036 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:16:35,036 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:16:35,036 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:16:36,038 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:16:36,038 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:16:36,038 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:16:36,038 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:16:36,038 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:16:36,060 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:16:36,060 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:16:36,060 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:16:36,060 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:16:36,060 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:16:36,064 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,064 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,064 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,064 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,064 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,391 - experiments.framework - INFO -   ✅ Saved plot: clinical_validation_summary
+2025-10-07 23:16:36,391 - experiments.framework - INFO -   ✅ Saved plot: clinical_validation_summary
+2025-10-07 23:16:36,391 - experiments.framework - INFO -   ✅ Saved plot: clinical_validation_summary
+2025-10-07 23:16:36,391 - experiments.framework - INFO -   ✅ Saved plot: clinical_validation_summary
+2025-10-07 23:16:36,391 - experiments.framework - INFO -   ✅ Saved plot: clinical_validation_summary
+2025-10-07 23:16:36,391 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,391 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,391 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,391 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:36,391 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/clinical_validation_20251007_231520/plots
+2025-10-07 23:16:37,835 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:16:37,835 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:16:37,835 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:16:37,835 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:16:37,835 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:16:37,835 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027
+2025-10-07 23:16:37,840 - experiments.framework - INFO - Starting experiment: reproducibility_tests_20251007_231637
+2025-10-07 23:16:37,840 - experiments.framework - INFO - Starting experiment: reproducibility_tests_20251007_231637
+2025-10-07 23:16:37,840 - experiments.framework - INFO - Starting experiment: reproducibility_tests_20251007_231637
+2025-10-07 23:16:37,840 - experiments.framework - INFO - Starting experiment: reproducibility_tests_20251007_231637
+2025-10-07 23:16:37,840 - experiments.framework - INFO - Starting experiment: reproducibility_tests_20251007_231637
+2025-10-07 23:16:37,840 - experiments.framework - INFO - Starting experiment: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,723 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,723 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,723 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,723 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,723 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,723 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,724 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.4 minutes (387s)
+2025-10-07 23:23:04,724 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.4 minutes (387s)
+2025-10-07 23:23:04,724 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.4 minutes (387s)
+2025-10-07 23:23:04,724 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.4 minutes (387s)
+2025-10-07 23:23:04,724 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.4 minutes (387s)
+2025-10-07 23:23:04,724 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 6.4 minutes (387s)
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:16:37
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:16:37
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:16:37
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:16:37
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:16:37
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕐 Started: 2025-10-07 23:16:37
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:23:04
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:23:04
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:23:04
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:23:04
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:23:04
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🕑 Finished: 2025-10-07 23:23:04
+2025-10-07 23:23:04,724 - experiments.framework - INFO - Experiment completed successfully: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,724 - experiments.framework - INFO - Experiment completed successfully: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,724 - experiments.framework - INFO - Experiment completed successfully: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,724 - experiments.framework - INFO - Experiment completed successfully: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,724 - experiments.framework - INFO - Experiment completed successfully: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,724 - experiments.framework - INFO - Experiment completed successfully: reproducibility_tests_20251007_231637
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:23:04,724 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-07 23:23:04,851 - experiments.framework - INFO - Garbage collection freed 125 objects
+2025-10-07 23:23:04,851 - experiments.framework - INFO - Garbage collection freed 125 objects
+2025-10-07 23:23:04,851 - experiments.framework - INFO - Garbage collection freed 125 objects
+2025-10-07 23:23:04,851 - experiments.framework - INFO - Garbage collection freed 125 objects
+2025-10-07 23:23:04,851 - experiments.framework - INFO - Garbage collection freed 125 objects
+2025-10-07 23:23:04,851 - experiments.framework - INFO - Garbage collection freed 125 objects
+2025-10-07 23:23:05,341 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:23:05,341 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:23:05,341 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:23:05,341 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:23:05,341 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:23:05,341 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-07 23:23:06,343 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:23:06,343 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:23:06,343 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:23:06,343 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:23:06,343 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:23:06,343 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-07 23:23:06,387 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:23:06,387 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:23:06,387 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:23:06,387 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:23:06,387 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:23:06,387 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-07 23:23:06,393 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,393 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,393 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,393 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,393 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,393 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,862 - experiments.framework - INFO -   ✅ Saved plot: reproducibility_summary
+2025-10-07 23:23:06,862 - experiments.framework - INFO -   ✅ Saved plot: reproducibility_summary
+2025-10-07 23:23:06,862 - experiments.framework - INFO -   ✅ Saved plot: reproducibility_summary
+2025-10-07 23:23:06,862 - experiments.framework - INFO -   ✅ Saved plot: reproducibility_summary
+2025-10-07 23:23:06,862 - experiments.framework - INFO -   ✅ Saved plot: reproducibility_summary
+2025-10-07 23:23:06,862 - experiments.framework - INFO -   ✅ Saved plot: reproducibility_summary
+2025-10-07 23:23:06,862 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,862 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,862 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,862 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,862 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots
+2025-10-07 23:23:06,862 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-lentiform_conf-age+sex+tiv_run_20251007_153027/reproducibility_tests_20251007_231637/plots

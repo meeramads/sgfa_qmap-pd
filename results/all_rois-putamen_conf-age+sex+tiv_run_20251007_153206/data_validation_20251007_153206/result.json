@@ -1,0 +1,429 @@
+{
+  "experiment_id": "data_validation_20251007_153206",
+  "config": {
+    "experiment_name": "data_validation",
+    "description": "Data quality assessment and EDA",
+    "version": "1.0",
+    "dataset": "qmap_pd",
+    "data_dir": "/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/qMAP-PD_data",
+    "preprocessing_config": {},
+    "K_values": [
+      5,
+      10,
+      15
+    ],
+    "num_sources": 3,
+    "percW_values": [
+      25.0,
+      33.0,
+      50.0
+    ],
+    "num_samples": 2000,
+    "num_chains": 1,
+    "num_warmup": 1000,
+    "num_runs_per_config": 3,
+    "cv_folds": 5,
+    "cv_strategy": "stratified",
+    "cv_target_variable": null,
+    "cv_group_variable": null,
+    "performance_config": {},
+    "enable_memory_optimization": true,
+    "enable_profiling": true,
+    "auto_configure_system": true,
+    "max_memory_gb": null,
+    "save_intermediate_results": false,
+    "save_samples": false,
+    "save_diagnostics": true,
+    "save_numpy_arrays": false,
+    "output_formats": [
+      "json",
+      "csv"
+    ],
+    "random_seeds": [
+      42,
+      123,
+      456
+    ]
+  },
+  "start_time": "2025-10-07T15:32:06.760880",
+  "end_time": "2025-10-07T15:32:14.291927",
+  "status": "completed",
+  "error_message": null,
+  "model_results": {
+    "data_summary": {
+      "raw_data": {
+        "n_subjects": 86,
+        "n_views": 4,
+        "features_per_view": [
+          1794,
+          21444,
+          7201,
+          17
+        ],
+        "total_features": 30456,
+        "clinical_variables": [
+          "sid",
+          "age",
+          "sex",
+          "tiv",
+          "rigidity_left",
+          "rigidity_right",
+          "tremor_rest_left",
+          "tremor_rest_right",
+          "tremor_postural_left",
+          "tremor_postural_right",
+          "bradykinesia_speed_left",
+          "bradykinesia_speed_right",
+          "bradykinesia_amplitude_left",
+          "bradykinesia_amplitude_right",
+          "bradykinesia_rhythm_left",
+          "bradykinesia_rhythm_right",
+          "mirrormovement_left",
+          "mirrormovement_right"
+        ],
+        "n_clinical_variables": 18,
+        "data_types": [
+          "float64",
+          "float64",
+          "float64",
+          "float64"
+        ],
+        "view_names": [
+          "volume_sn_voxels",
+          "volume_putamen_voxels",
+          "volume_lentiform_voxels",
+          "clinical"
+        ]
+      },
+      "preprocessed_data": {
+        "n_subjects": 86,
+        "n_views": 4,
+        "features_per_view": [
+          1794,
+          21444,
+          7201,
+          17
+        ],
+        "total_features": 30456,
+        "clinical_variables": [
+          "sid",
+          "age",
+          "sex",
+          "tiv",
+          "rigidity_left",
+          "rigidity_right",
+          "tremor_rest_left",
+          "tremor_rest_right",
+          "tremor_postural_left",
+          "tremor_postural_right",
+          "bradykinesia_speed_left",
+          "bradykinesia_speed_right",
+          "bradykinesia_amplitude_left",
+          "bradykinesia_amplitude_right",
+          "bradykinesia_rhythm_left",
+          "bradykinesia_rhythm_right",
+          "mirrormovement_left",
+          "mirrormovement_right"
+        ],
+        "n_clinical_variables": 18,
+        "data_types": [
+          "float64",
+          "float64",
+          "float64",
+          "float64"
+        ],
+        "view_names": [
+          "volume_sn_voxels",
+          "volume_putamen_voxels",
+          "volume_lentiform_voxels",
+          "clinical"
+        ]
+      },
+      "comparison": {
+        "feature_reduction_ratio": 0.0,
+        "features_removed": 0,
+        "subjects_unchanged": true
+      }
+    },
+    "quality_metrics": {
+      "raw_data": {
+        "volume_sn_voxels": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.007116745741619352,
+          "mean_feature_range": 5.394169929848774,
+          "std_feature_range": 0.7356253508219684,
+          "highly_correlated_pairs": -1,
+          "condition_number": Infinity
+        },
+        "volume_putamen_voxels": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.007468885967994517,
+          "mean_feature_range": 5.519289650473244,
+          "std_feature_range": 0.9362261085084652,
+          "highly_correlated_pairs": -1,
+          "condition_number": Infinity
+        },
+        "volume_lentiform_voxels": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.009730560677942018,
+          "mean_feature_range": 5.668239469874165,
+          "std_feature_range": 0.9424581828606569,
+          "highly_correlated_pairs": -1,
+          "condition_number": Infinity
+        },
+        "clinical": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.004103967168262654,
+          "mean_feature_range": 3.6280569945337002,
+          "std_feature_range": 0.670696469093025,
+          "highly_correlated_pairs": 0,
+          "condition_number": 103.93997790326533
+        }
+      },
+      "preprocessed_data": {
+        "volume_sn_voxels": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.007116745741619352,
+          "mean_feature_range": 4.468166907725789,
+          "std_feature_range": 1.0290293240416768,
+          "highly_correlated_pairs": -1,
+          "condition_number": Infinity
+        },
+        "volume_putamen_voxels": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.007468885967994517,
+          "mean_feature_range": 5.043370294740589,
+          "std_feature_range": 4.017727411795252,
+          "highly_correlated_pairs": -1,
+          "condition_number": Infinity
+        },
+        "volume_lentiform_voxels": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.009730560677942018,
+          "mean_feature_range": 6.493399379095908,
+          "std_feature_range": 7.888098414388585,
+          "highly_correlated_pairs": -1,
+          "condition_number": Infinity
+        },
+        "clinical": {
+          "missing_data_ratio": 0.0,
+          "low_variance_features": 0,
+          "low_variance_ratio": 0.0,
+          "outlier_ratio": 0.004103967168262654,
+          "mean_feature_range": 2.6875282746176348,
+          "std_feature_range": 1.1848838557865349,
+          "highly_correlated_pairs": 0,
+          "condition_number": 257.5568236113126
+        }
+      },
+      "improvement_metrics": {
+        "volume_sn_voxels": {
+          "missing_data_improvement": 0.0,
+          "low_variance_reduction": 0,
+          "outlier_reduction": 0.0,
+          "condition_number_improvement": NaN
+        },
+        "volume_putamen_voxels": {
+          "missing_data_improvement": 0.0,
+          "low_variance_reduction": 0,
+          "outlier_reduction": 0.0,
+          "condition_number_improvement": NaN
+        },
+        "volume_lentiform_voxels": {
+          "missing_data_improvement": 0.0,
+          "low_variance_reduction": 0,
+          "outlier_reduction": 0.0,
+          "condition_number_improvement": NaN
+        },
+        "clinical": {
+          "missing_data_improvement": 0.0,
+          "low_variance_reduction": 0,
+          "outlier_reduction": 0.0,
+          "condition_number_improvement": 0.40356134404004196
+        }
+      }
+    },
+    "preprocessing_effects": {
+      "distribution_changes": {
+        "volume_sn_voxels": {
+          "mean_shift": 0.08345388228012374,
+          "std_change_ratio": 0.8210574132099432,
+          "skewness_change": 2.682864319305751e-16
+        },
+        "volume_putamen_voxels": {
+          "mean_shift": 0.09088677593506843,
+          "std_change_ratio": 0.8777299483860908,
+          "skewness_change": 3.2883301043571284e-16
+        },
+        "volume_lentiform_voxels": {
+          "mean_shift": 0.1469852117116558,
+          "std_change_ratio": 1.0652651378890157,
+          "skewness_change": 3.9680945822326774e-16
+        },
+        "clinical": {
+          "mean_shift": 0.26132553760286814,
+          "std_change_ratio": 0.7309622368683356,
+          "skewness_change": 4.1021108078980967e-16
+        }
+      },
+      "dimensionality_reduction": {
+        "volume_sn_voxels": {
+          "original_features": 1794,
+          "processed_features": 1794,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        },
+        "volume_putamen_voxels": {
+          "original_features": 21444,
+          "processed_features": 21444,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        },
+        "volume_lentiform_voxels": {
+          "original_features": 7201,
+          "processed_features": 7201,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        },
+        "clinical": {
+          "original_features": 17,
+          "processed_features": 17,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        }
+      },
+      "feature_selection": {},
+      "normalization_effects": {
+        "volume_sn_voxels": {
+          "mean_after_processing": 0.07598383943844314,
+          "std_after_processing": 0.8289187371067346,
+          "range_after_processing": 13.513203458269015
+        },
+        "volume_putamen_voxels": {
+          "mean_after_processing": 0.07323746864756117,
+          "std_after_processing": 0.974596949445365,
+          "range_after_processing": 110.37366044863231
+        },
+        "volume_lentiform_voxels": {
+          "mean_after_processing": 0.12397462783904241,
+          "std_after_processing": 1.4964723186182642,
+          "range_after_processing": 92.2890038073681
+        },
+        "clinical": {
+          "mean_after_processing": 0.2521448518833117,
+          "std_after_processing": 0.8309787328886674,
+          "range_after_processing": 7.890162141600495
+        }
+      }
+    }
+  },
+  "cv_results": {},
+  "performance_metrics": {
+    "total_runtime_seconds": 7.531047,
+    "total_runtime_formatted": "7.5 seconds"
+  },
+  "diagnostics": {
+    "overall_quality_score": 0,
+    "preprocessing_improvement": {
+      "feature_reduction": {
+        "volume_sn_voxels": {
+          "original_features": 1794,
+          "processed_features": 1794,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        },
+        "volume_putamen_voxels": {
+          "original_features": 21444,
+          "processed_features": 21444,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        },
+        "volume_lentiform_voxels": {
+          "original_features": 7201,
+          "processed_features": 7201,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        },
+        "clinical": {
+          "original_features": 17,
+          "processed_features": 17,
+          "reduction_ratio": 0.0,
+          "features_removed": 0
+        }
+      },
+      "normalization_impact": {
+        "volume_sn_voxels": {
+          "mean_after_processing": 0.07598383943844314,
+          "std_after_processing": 0.8289187371067346,
+          "range_after_processing": 13.513203458269015
+        },
+        "volume_putamen_voxels": {
+          "mean_after_processing": 0.07323746864756117,
+          "std_after_processing": 0.974596949445365,
+          "range_after_processing": 110.37366044863231
+        },
+        "volume_lentiform_voxels": {
+          "mean_after_processing": 0.12397462783904241,
+          "std_after_processing": 1.4964723186182642,
+          "range_after_processing": 92.2890038073681
+        },
+        "clinical": {
+          "mean_after_processing": 0.2521448518833117,
+          "std_after_processing": 0.8309787328886674,
+          "range_after_processing": 7.890162141600495
+        }
+      },
+      "missing_data_handled": {}
+    },
+    "data_completeness": {
+      "completeness_ratio": 1.0,
+      "total_features": 30456,
+      "total_subjects": 86
+    },
+    "quality_recommendations": [
+      "Consider additional preprocessing steps"
+    ]
+  },
+  "plots": {
+    "data_distribution_comparison": {
+      "type": "matplotlib_figure",
+      "saved": true,
+      "files": [
+        "data_distribution_comparison.png",
+        "data_distribution_comparison.pdf"
+      ]
+    },
+    "data_validation_feature_reduction": {
+      "type": "matplotlib_figure",
+      "saved": true,
+      "files": [
+        "data_validation_feature_reduction.png",
+        "data_validation_feature_reduction.pdf"
+      ]
+    },
+    "data_validation_variance_distribution": {
+      "type": "matplotlib_figure",
+      "saved": true,
+      "files": [
+        "data_validation_variance_distribution.png",
+        "data_validation_variance_distribution.pdf"
+      ]
+    }
+  },
+  "data_summary": {},
+  "convergence_diagnostics": {}
+}
