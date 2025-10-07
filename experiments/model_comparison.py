@@ -21,6 +21,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 from sklearn.decomposition import PCA, FactorAnalysis, FastICA, NMF
 from sklearn.cluster import KMeans
