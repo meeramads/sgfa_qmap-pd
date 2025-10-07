@@ -208,9 +208,17 @@ class DataValidationExperiments(ExperimentFramework):
             )
             # Get data_dir directly from config (ExperimentConfig has it as top-level attr)
             data_dir = config_dict.get("data_dir") or "./qMAP-PD_data"
+
+            # Extract ROI selection and confound regression from config
+            preprocessing_config = config_dict.get("preprocessing", {})
+            select_rois = preprocessing_config.get("select_rois")
+            regress_confounds = preprocessing_config.get("regress_confounds")
+
             raw_data = load_qmap_pd(
                 data_dir=data_dir,
                 enable_advanced_preprocessing=False,
+                select_rois=select_rois,
+                regress_confounds=regress_confounds,
                 **config_dict.get("preprocessing_config", {}),
             )
 
@@ -218,6 +226,8 @@ class DataValidationExperiments(ExperimentFramework):
             preprocessed_data = load_qmap_pd(
                 data_dir=data_dir,
                 enable_advanced_preprocessing=True,
+                select_rois=select_rois,
+                regress_confounds=regress_confounds,
                 **config_dict.get("preprocessing_config", {}),
             )
 
@@ -970,7 +980,16 @@ class DataValidationExperiments(ExperimentFramework):
                 try:
                     # Create a temporary config with this strategy
                     temp_config_dict = config_dict.copy()
-                    temp_config_dict["preprocessing"] = strategy_params
+
+                    # Preserve select_rois and regress_confounds from original config
+                    original_preprocessing = config_dict.get("preprocessing", {})
+                    merged_preprocessing = strategy_params.copy()
+                    if "select_rois" in original_preprocessing:
+                        merged_preprocessing["select_rois"] = original_preprocessing["select_rois"]
+                    if "regress_confounds" in original_preprocessing:
+                        merged_preprocessing["regress_confounds"] = original_preprocessing["regress_confounds"]
+
+                    temp_config_dict["preprocessing"] = merged_preprocessing
                     temp_config = ConfigAccessor(temp_config_dict)
 
                     # Apply preprocessing with this strategy
