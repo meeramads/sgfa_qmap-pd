@@ -1635,6 +1635,54 @@ def run_sensitivity_analysis(config):
 
             results["sparsity_sensitivity"] = sparsity_results
 
+            # Test group sparsity sensitivity (group_λ)
+            logger.info("📊 Testing group sparsity (group_λ) sensitivity...")
+            group_lambda_values = [0.0, 0.5, 1.0, 2.0]  # Different group sparsity levels
+            group_lambda_results = {}
+
+            for grp_lambda in group_lambda_values:
+                try:
+                    test_hypers = base_hypers.copy()
+                    test_hypers["grp_lambda"] = grp_lambda
+
+                    with sensitivity_exp.profiler.profile(
+                        f"grp_lambda_sensitivity_{grp_lambda}"
+                    ) as p:
+                        result = sensitivity_exp._run_sgfa_analysis(
+                            X_list, test_hypers, base_args
+                        )
+
+                    metrics = sensitivity_exp.profiler.get_current_metrics()
+                    group_lambda_results[f"grp_lambda{grp_lambda}"] = {
+                        "grp_lambda": grp_lambda,
+                        "result": result,
+                        "performance": {
+                            "execution_time": metrics.execution_time,
+                            "peak_memory_gb": metrics.peak_memory_gb,
+                            "convergence": result.get("convergence", False),
+                            "log_likelihood": result.get(
+                                "log_likelihood", float("-inf")
+                            ),
+                        },
+                    }
+                    successful_tests += 1
+                    logger.info(
+                        f"✅ grp_λ={grp_lambda}: {metrics.execution_time:.1f}s, LL={result.get('log_likelihood', 0):.2f}"
+                    )
+                except Exception as e:
+                    logger.error(f"❌ grp_λ={grp_lambda} sensitivity test failed: {e}")
+                    group_lambda_results[f"grp_lambda{grp_lambda}"] = {"error": str(e)}
+
+                # Cleanup memory after each iteration
+                import jax
+                import gc
+                jax.clear_caches()
+                gc.collect()
+
+                total_tests += 1
+
+            results["group_lambda_sensitivity"] = group_lambda_results
+
             # Test MCMC parameter sensitivity
             logger.info("📊 Testing MCMC parameter sensitivity...")
             mcmc_configs = [
@@ -1697,15 +1745,15 @@ def run_sensitivity_analysis(config):
             plots = {}
 
             try:
-                # Create parameter sensitivity plot
-                fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+                # Create parameter sensitivity plot (2x3 grid to accommodate group_λ)
+                fig, axes = plt.subplots(2, 3, figsize=(18, 12))
                 fig.suptitle("SGFA Parameter Sensitivity Analysis", fontsize=16)
 
                 # Plot 1: K sensitivity
                 K_data = results.get("K_sensitivity", {})
                 if K_data:
-                    K_vals = [K_data[k]["K"] for k in sorted(K_data.keys())]
-                    K_lls = [K_data[k]["performance"]["log_likelihood"] for k in sorted(K_data.keys())]
+                    K_vals = [K_data[k]["K"] for k in sorted(K_data.keys()) if "error" not in K_data[k]]
+                    K_lls = [K_data[k]["performance"]["log_likelihood"] for k in sorted(K_data.keys()) if "error" not in K_data[k]]
                     axes[0, 0].plot(K_vals, K_lls, 'o-', linewidth=2, markersize=8)
                     axes[0, 0].set_xlabel("Number of Factors (K)")
                     axes[0, 0].set_ylabel("Log Likelihood")
@@ -1715,18 +1763,29 @@ def run_sensitivity_analysis(config):
                 # Plot 2: percW sensitivity
                 percW_data = results.get("sparsity_sensitivity", {})
                 if percW_data:
-                    percW_vals = [percW_data[p]["percW"] for p in sorted(percW_data.keys())]
-                    percW_lls = [percW_data[p]["performance"]["log_likelihood"] for p in sorted(percW_data.keys())]
+                    percW_vals = [percW_data[p]["percW"] for p in sorted(percW_data.keys()) if "error" not in percW_data[p]]
+                    percW_lls = [percW_data[p]["performance"]["log_likelihood"] for p in sorted(percW_data.keys()) if "error" not in percW_data[p]]
                     axes[0, 1].plot(percW_vals, percW_lls, 's-', linewidth=2, markersize=8)
                     axes[0, 1].set_xlabel("Sparsity (percW %)")
                     axes[0, 1].set_ylabel("Log Likelihood")
                     axes[0, 1].set_title("Sparsity (percW) Sensitivity")
                     axes[0, 1].grid(True, alpha=0.3)
 
-                # Plot 3: MCMC config comparison
+                # Plot 3: Group sparsity (group_λ) sensitivity
+                grp_lambda_data = results.get("group_lambda_sensitivity", {})
+                if grp_lambda_data:
+                    grp_lambda_vals = [grp_lambda_data[g]["grp_lambda"] for g in sorted(grp_lambda_data.keys()) if "error" not in grp_lambda_data[g]]
+                    grp_lambda_lls = [grp_lambda_data[g]["performance"]["log_likelihood"] for g in sorted(grp_lambda_data.keys()) if "error" not in grp_lambda_data[g]]
+                    axes[0, 2].plot(grp_lambda_vals, grp_lambda_lls, '^-', linewidth=2, markersize=8, color='green')
+                    axes[0, 2].set_xlabel("Group Sparsity (group_λ)")
+                    axes[0, 2].set_ylabel("Log Likelihood")
+                    axes[0, 2].set_title("Group Sparsity Sensitivity")
+                    axes[0, 2].grid(True, alpha=0.3)
+
+                # Plot 4: MCMC config comparison
                 mcmc_data = results.get("mcmc_sensitivity", {})
                 if mcmc_data:
-                    mcmc_labels = list(mcmc_data.keys())
+                    mcmc_labels = [k for k in mcmc_data.keys() if "error" not in mcmc_data[k]]
                     mcmc_lls = [mcmc_data[m]["performance"]["log_likelihood"] for m in mcmc_labels]
                     axes[1, 0].bar(mcmc_labels, mcmc_lls)
                     axes[1, 0].set_xlabel("MCMC Configuration")
@@ -1734,17 +1793,49 @@ def run_sensitivity_analysis(config):
                     axes[1, 0].set_title("MCMC Parameter Sensitivity")
                     axes[1, 0].grid(True, alpha=0.3, axis='y')
 
-                # Plot 4: Success summary
-                params_tested = ["K", "percW", "MCMC"]
+                # Plot 5: Success summary
+                params_tested = ["K", "percW", "group_λ", "MCMC"]
                 success_counts = [
-                    len([k for k in K_data.values() if not k.get("error")]),
-                    len([p for p in percW_data.values() if not p.get("error")]),
-                    len([m for m in mcmc_data.values() if not m.get("error")])
+                    len([k for k in K_data.values() if not k.get("error")]) if K_data else 0,
+                    len([p for p in percW_data.values() if not p.get("error")]) if percW_data else 0,
+                    len([g for g in grp_lambda_data.values() if not g.get("error")]) if grp_lambda_data else 0,
+                    len([m for m in mcmc_data.values() if not m.get("error")]) if mcmc_data else 0
                 ]
                 axes[1, 1].bar(params_tested, success_counts)
                 axes[1, 1].set_ylabel("Successful Tests")
                 axes[1, 1].set_title(f"Test Success Summary ({successful_tests}/{total_tests} total)")
+                axes[1, 1].set_xticklabels(params_tested, rotation=45, ha='right')
                 axes[1, 1].grid(True, alpha=0.3, axis='y')
+
+                # Plot 6: Execution time comparison
+                if K_data and percW_data and grp_lambda_data:
+                    param_names = []
+                    exec_times = []
+
+                    # K execution times
+                    for k in sorted(K_data.keys()):
+                        if "error" not in K_data[k]:
+                            param_names.append(f"K={K_data[k]['K']}")
+                            exec_times.append(K_data[k]["performance"]["execution_time"])
+
+                    # percW execution times
+                    for p in sorted(percW_data.keys()):
+                        if "error" not in percW_data[p]:
+                            param_names.append(f"percW={percW_data[p]['percW']}")
+                            exec_times.append(percW_data[p]["performance"]["execution_time"])
+
+                    # group_λ execution times
+                    for g in sorted(grp_lambda_data.keys()):
+                        if "error" not in grp_lambda_data[g]:
+                            param_names.append(f"grp_λ={grp_lambda_data[g]['grp_lambda']}")
+                            exec_times.append(grp_lambda_data[g]["performance"]["execution_time"])
+
+                    axes[1, 2].bar(range(len(param_names)), exec_times)
+                    axes[1, 2].set_xticks(range(len(param_names)))
+                    axes[1, 2].set_xticklabels(param_names, rotation=45, ha='right', fontsize=8)
+                    axes[1, 2].set_ylabel("Execution Time (s)")
+                    axes[1, 2].set_title("Execution Time by Parameter")
+                    axes[1, 2].grid(True, alpha=0.3, axis='y')
 
                 plt.tight_layout()
                 plots["parameter_sensitivity_summary"] = fig
@@ -1762,7 +1853,7 @@ def run_sensitivity_analysis(config):
                     "success_rate": (
                         successful_tests / total_tests if total_tests > 0 else 0
                     ),
-                    "parameters_tested": ["K", "percW", "mcmc_config"],
+                    "parameters_tested": ["K", "percW", "group_lambda", "mcmc_config"],
                     "data_characteristics": {
                         "n_subjects": X_list[0].shape[0],
                         "n_views": len(X_list),
