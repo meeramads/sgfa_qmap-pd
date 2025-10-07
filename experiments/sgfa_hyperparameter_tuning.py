@@ -1319,19 +1319,32 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             plots["sgfa_variant_quality"] = quality_fig
             self.logger.info("   ✅ Quality comparison plot created")
 
-            # ROI Specificity comparison across variants
-            self.logger.info("   Creating ROI specificity comparison plot...")
-            roi_spec_data = {}
-            for variant_name, result in results.items():
-                if "W" in result and isinstance(result["W"], list):
-                    try:
-                        from analysis.cross_validation_library import NeuroImagingMetrics
-                        W_list = result["W"]
-                        view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
-                        roi_spec = NeuroImagingMetrics.roi_specificity_score(W_list, view_names=view_names)
-                        roi_spec_data[variant_name] = roi_spec
-                    except Exception as e:
-                        self.logger.debug(f"Could not calculate ROI specificity for {variant_name}: {e}")
+            # ROI Specificity comparison across variants (only if multiple imaging views)
+            # Check if there are multiple imaging views (exclude clinical view)
+            n_imaging_views = 0
+            if results:
+                first_result = next(iter(results.values()))
+                if "W" in first_result and isinstance(first_result["W"], list):
+                    view_names = first_result.get("view_names", [])
+                    # Count non-clinical views
+                    n_imaging_views = sum(1 for v in view_names if "clinical" not in v.lower())
+
+            if n_imaging_views > 1:
+                self.logger.info("   Creating ROI specificity comparison plot...")
+                roi_spec_data = {}
+                for variant_name, result in results.items():
+                    if "W" in result and isinstance(result["W"], list):
+                        try:
+                            from analysis.cross_validation_library import NeuroImagingMetrics
+                            W_list = result["W"]
+                            view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+                            roi_spec = NeuroImagingMetrics.roi_specificity_score(W_list, view_names=view_names)
+                            roi_spec_data[variant_name] = roi_spec
+                        except Exception as e:
+                            self.logger.debug(f"Could not calculate ROI specificity for {variant_name}: {e}")
+            else:
+                self.logger.info(f"   Skipping ROI specificity plot (only {n_imaging_views} imaging view loaded)")
+                roi_spec_data = {}
 
             if roi_spec_data:
                 import matplotlib.pyplot as plt
@@ -1377,10 +1390,14 @@ class SGFAHyperparameterTuning(ExperimentFramework):
                 try:
                     import matplotlib.pyplot as plt
                     import numpy as np
+                    from visualization.preprocessing_plots import _format_view_name
 
                     W_list = best_result["W"]
                     Z_mean = best_result["Z"]
-                    view_names = best_result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+                    view_names = best_result.get("view_names", [f"view_{i}" for i in range(len(W_list))])
+
+                    # Format view names to human-readable format
+                    formatted_view_names = [_format_view_name(vn) for vn in view_names]
 
                     # Create combined weight matrix
                     W_combined = np.vstack(W_list)
@@ -1399,10 +1416,10 @@ class SGFAHyperparameterTuning(ExperimentFramework):
                     for i, W_view in enumerate(W_list[:-1]):
                         cumsum += W_view.shape[0]
                         ax1.axvline(cumsum - 0.5, color='white', linewidth=2, linestyle='--')
-                        if i < len(view_names) - 1:
-                            ax1.text(cumsum - W_view.shape[0]/2, -0.5, view_names[i],
+                        if i < len(formatted_view_names) - 1:
+                            ax1.text(cumsum - W_view.shape[0]/2, -0.5, formatted_view_names[i],
                                    ha='center', va='top', fontsize=10, fontweight='bold')
-                    ax1.text(cumsum + W_list[-1].shape[0]/2, -0.5, view_names[-1],
+                    ax1.text(cumsum + W_list[-1].shape[0]/2, -0.5, formatted_view_names[-1],
                            ha='center', va='top', fontsize=10, fontweight='bold')
 
                     plt.colorbar(im, ax=ax1, label='Loading Weight')
@@ -2470,8 +2487,8 @@ def run_sgfa_hyperparameter_tuning(config):
             # Add detailed parameter grid plot
             import matplotlib.pyplot as plt
             try:
-                # Create larger figure for 3D hyperparameter space
-                fig = plt.figure(figsize=(20, 12))
+                # Create larger figure for 3D hyperparameter space (3x2 grid for all 6 combinations)
+                fig = plt.figure(figsize=(20, 14))
                 fig.suptitle("SGFA 3D Hyperparameter Grid Search Results (K × percW × group_λ)", fontsize=18)
 
                 # Extract K, percW, and group_lambda values from variant names
@@ -2500,10 +2517,10 @@ def run_sgfa_hyperparameter_tuning(config):
                 unique_percW = sorted(set(percW_vals))
                 unique_grp = sorted(set(grp_vals))
 
-                # Create 2x3 subplot grid
-                gs = fig.add_gridspec(2, 3, hspace=0.3, wspace=0.3)
+                # Create 3x2 subplot grid for all parameter interaction views
+                gs = fig.add_gridspec(3, 2, hspace=0.35, wspace=0.3)
 
-                # Plot 1: Log-likelihood by K (grouped by group_lambda)
+                # Plot 1: K (grouped by group_λ)
                 ax1 = fig.add_subplot(gs[0, 0])
                 for grp in unique_grp:
                     K_for_grp = [K_vals[i] for i in range(len(K_vals)) if grp_vals[i] == grp]
@@ -2515,36 +2532,84 @@ def run_sgfa_hyperparameter_tuning(config):
                 ax1.legend(fontsize=9)
                 ax1.grid(True, alpha=0.3)
 
-                # Plot 2: Log-likelihood by percW (grouped by group_lambda)
+                # Plot 2: K (grouped by percW)
                 ax2 = fig.add_subplot(gs[0, 1])
-                for grp in unique_grp:
-                    percW_for_grp = [percW_vals[i] for i in range(len(percW_vals)) if grp_vals[i] == grp]
-                    ll_for_grp = [lls[i] for i in range(len(lls)) if grp_vals[i] == grp]
-                    ax2.plot(percW_for_grp, ll_for_grp, 's-', label=f'grp_λ={grp}', linewidth=2, markersize=6, alpha=0.7)
-                ax2.set_xlabel('Element-wise Sparsity (percW %)', fontsize=11)
+                for percW in unique_percW:
+                    K_for_percW = [K_vals[i] for i in range(len(K_vals)) if percW_vals[i] == percW]
+                    ll_for_percW = [lls[i] for i in range(len(lls)) if percW_vals[i] == percW]
+                    ax2.plot(K_for_percW, ll_for_percW, 'o-', label=f'percW={percW}%', linewidth=2, markersize=6, alpha=0.7)
+                ax2.set_xlabel('Number of Factors (K)', fontsize=11)
                 ax2.set_ylabel('Log Likelihood', fontsize=11)
-                ax2.set_title('Effect of percW (by Group Sparsity)', fontsize=12)
+                ax2.set_title('Effect of K (by Element-wise Sparsity)', fontsize=12)
                 ax2.legend(fontsize=9)
                 ax2.grid(True, alpha=0.3)
 
-                # Plot 3: Log-likelihood by group_lambda (grouped by K)
-                ax3 = fig.add_subplot(gs[0, 2])
-                for K in unique_K:
-                    grp_for_K = [grp_vals[i] for i in range(len(grp_vals)) if K_vals[i] == K]
-                    ll_for_K = [lls[i] for i in range(len(lls)) if K_vals[i] == K]
-                    ax3.plot(grp_for_K, ll_for_K, '^-', label=f'K={K}', linewidth=2, markersize=6, alpha=0.7)
-                ax3.set_xlabel('Group Sparsity (λ)', fontsize=11)
+                # Plot 3: percW (grouped by group_λ)
+                ax3 = fig.add_subplot(gs[1, 0])
+                for grp in unique_grp:
+                    percW_for_grp = [percW_vals[i] for i in range(len(percW_vals)) if grp_vals[i] == grp]
+                    ll_for_grp = [lls[i] for i in range(len(lls)) if grp_vals[i] == grp]
+                    ax3.plot(percW_for_grp, ll_for_grp, 's-', label=f'grp_λ={grp}', linewidth=2, markersize=6, alpha=0.7)
+                ax3.set_xlabel('Element-wise Sparsity (percW %)', fontsize=11)
                 ax3.set_ylabel('Log Likelihood', fontsize=11)
-                ax3.set_title('Effect of Group Sparsity (by K)', fontsize=12)
+                ax3.set_title('Effect of percW (by Group Sparsity)', fontsize=12)
                 ax3.legend(fontsize=9)
                 ax3.grid(True, alpha=0.3)
 
-                # Plot 4: Heatmap for each group_lambda value (K vs percW)
-                # Show multiple heatmaps side by side for different group_lambda values
-                if len(unique_grp) <= 3:
-                    # If 3 or fewer group_lambda values, show them all
+                # Plot 4: percW (grouped by K)
+                ax4 = fig.add_subplot(gs[1, 1])
+                for K in unique_K:
+                    percW_for_K = [percW_vals[i] for i in range(len(percW_vals)) if K_vals[i] == K]
+                    ll_for_K = [lls[i] for i in range(len(lls)) if K_vals[i] == K]
+                    ax4.plot(percW_for_K, ll_for_K, 's-', label=f'K={K}', linewidth=2, markersize=6, alpha=0.7)
+                ax4.set_xlabel('Element-wise Sparsity (percW %)', fontsize=11)
+                ax4.set_ylabel('Log Likelihood', fontsize=11)
+                ax4.set_title('Effect of percW (by K)', fontsize=12)
+                ax4.legend(fontsize=9)
+                ax4.grid(True, alpha=0.3)
+
+                # Plot 5: group_λ (grouped by K)
+                ax5 = fig.add_subplot(gs[2, 0])
+                for K in unique_K:
+                    grp_for_K = [grp_vals[i] for i in range(len(grp_vals)) if K_vals[i] == K]
+                    ll_for_K = [lls[i] for i in range(len(lls)) if K_vals[i] == K]
+                    ax5.plot(grp_for_K, ll_for_K, '^-', label=f'K={K}', linewidth=2, markersize=6, alpha=0.7)
+                ax5.set_xlabel('Group Sparsity (λ)', fontsize=11)
+                ax5.set_ylabel('Log Likelihood', fontsize=11)
+                ax5.set_title('Effect of Group Sparsity (by K)', fontsize=12)
+                ax5.legend(fontsize=9)
+                ax5.grid(True, alpha=0.3)
+
+                # Plot 6: group_λ (grouped by percW)
+                ax6 = fig.add_subplot(gs[2, 1])
+                for percW in unique_percW:
+                    grp_for_percW = [grp_vals[i] for i in range(len(grp_vals)) if percW_vals[i] == percW]
+                    ll_for_percW = [lls[i] for i in range(len(lls)) if percW_vals[i] == percW]
+                    ax6.plot(grp_for_percW, ll_for_percW, '^-', label=f'percW={percW}%', linewidth=2, markersize=6, alpha=0.7)
+                ax6.set_xlabel('Group Sparsity (λ)', fontsize=11)
+                ax6.set_ylabel('Log Likelihood', fontsize=11)
+                ax6.set_title('Effect of Group Sparsity (by percW)', fontsize=12)
+                ax6.legend(fontsize=9)
+                ax6.grid(True, alpha=0.3)
+
+                plt.tight_layout()
+                plots["parameter_grid_search"] = fig
+                logger.info("✅ Parameter comparison plots generated (6 complete parameter interaction views)")
+
+            except Exception as e:
+                logger.warning(f"Failed to create parameter grid plot: {e}")
+
+            # Create separate heatmap visualization
+            try:
+                n_heatmaps = min(len(unique_grp), 4)
+                fig_heat = plt.figure(figsize=(6 * n_heatmaps, 5))
+                fig_heat.suptitle("K × percW Heatmaps by Group Sparsity (λ)", fontsize=16)
+
+                # Heatmap for each group_lambda value (K vs percW)
+                if len(unique_grp) <= 4:
+                    # If 4 or fewer group_lambda values, show them all
                     for idx, grp in enumerate(unique_grp):
-                        ax = fig.add_subplot(gs[1, idx])
+                        ax = fig_heat.add_subplot(1, len(unique_grp), idx + 1)
                         ll_grid = np.full((len(unique_K), len(unique_percW)), np.nan)
                         for i, K in enumerate(unique_K):
                             for j, percW in enumerate(unique_percW):
@@ -2563,10 +2628,10 @@ def run_sgfa_hyperparameter_tuning(config):
                         ax.set_title(f'K×percW Heatmap (grp_λ={grp})', fontsize=11)
                         plt.colorbar(im, ax=ax, label='Log Likelihood')
                 else:
-                    # If more than 3 group_lambda values, show best/worst/middle
+                    # If more than 4 group_lambda values, show first/middle/last
                     selected_grps = [unique_grp[0], unique_grp[len(unique_grp)//2], unique_grp[-1]]
                     for idx, grp in enumerate(selected_grps):
-                        ax = fig.add_subplot(gs[1, idx])
+                        ax = fig_heat.add_subplot(1, 3, idx + 1)
                         ll_grid = np.full((len(unique_K), len(unique_percW)), np.nan)
                         for i, K in enumerate(unique_K):
                             for j, percW in enumerate(unique_percW):
@@ -2586,11 +2651,11 @@ def run_sgfa_hyperparameter_tuning(config):
                         plt.colorbar(im, ax=ax, label='LL')
 
                 plt.tight_layout()
-                plots["parameter_grid_search"] = fig
-                logger.info("✅ Parameter comparison plots generated")
+                plots["parameter_heatmaps"] = fig_heat
+                logger.info("✅ Heatmap plots generated")
 
             except Exception as e:
-                logger.warning(f"Failed to create parameter grid plot: {e}")
+                logger.warning(f"Failed to create heatmap plots: {e}")
 
             # Prepare return data before cleanup
             return_data = {

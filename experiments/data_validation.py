@@ -1416,16 +1416,18 @@ class DataValidationExperiments(ExperimentFramework):
                     for plot_idx, (view_idx, view_name, raw_X, proc_X) in enumerate(clinical_views):
                         # Raw data distribution
                         axes[0, plot_idx].hist(
-                            raw_X.flatten(), bins=50, alpha=0.7, color="red"
+                            raw_X.flatten(), bins=50, alpha=0.7, color="red", edgecolor="black"
                         )
                         axes[0, plot_idx].set_title(f"Raw {view_name}")
+                        axes[0, plot_idx].set_xlabel("Feature Value")
                         axes[0, plot_idx].set_ylabel("Frequency")
 
                         # Preprocessed data distribution
                         axes[1, plot_idx].hist(
-                            proc_X.flatten(), bins=50, alpha=0.7, color="blue"
+                            proc_X.flatten(), bins=50, alpha=0.7, color="blue", edgecolor="black"
                         )
                         axes[1, plot_idx].set_title(f"Preprocessed {view_name}")
+                        axes[1, plot_idx].set_xlabel("Standardized Value")
                         axes[1, plot_idx].set_ylabel("Frequency")
 
                     plt.tight_layout()
@@ -1497,15 +1499,19 @@ class DataValidationExperiments(ExperimentFramework):
             viz_manager.plot_dir = viz_manager._setup_plot_directory()
 
             # Prepare data validation structure for visualizations
-            # Transform preprocessing_effects into feature_reduction format for visualizer
+            # Build feature_reduction directly from actual loaded views (not from preprocessing_effects)
+            # This ensures we only show data for views that were actually loaded (respects --select-rois)
             feature_reduction = {}
-            if "preprocessing_effects" in results and "dimensionality_reduction" in results["preprocessing_effects"]:
-                for view_name, dims in results["preprocessing_effects"]["dimensionality_reduction"].items():
-                    feature_reduction[view_name] = {
-                        "original": dims.get("original_features", 0),
-                        "processed": dims.get("processed_features", 0),
-                        "reduction_ratio": dims.get("processed_features", 0) / dims.get("original_features", 1) if dims.get("original_features", 0) > 0 else 1.0
-                    }
+            view_names_actual = results.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
+
+            for view_idx, X in enumerate(X_list):
+                view_name = view_names_actual[view_idx] if view_idx < len(view_names_actual) else f"view_{view_idx}"
+                # For data validation, original = processed since we're showing the loaded data
+                feature_reduction[view_name] = {
+                    "original": X.shape[1],
+                    "processed": X.shape[1],
+                    "reduction_ratio": 1.0  # No reduction in data validation (just showing loaded data)
+                }
 
             # Collect variance analysis for visualization
             variance_analysis = {}
@@ -1560,6 +1566,8 @@ class DataValidationExperiments(ExperimentFramework):
 
                 for plot_file in plot_files:
                     plot_name = f"data_validation_{plot_file.stem}"
+                    # Create human-readable title from file stem
+                    title = plot_file.stem.replace("_", " ").title()
 
                     try:
                         import matplotlib.image as mpimg
@@ -1569,7 +1577,7 @@ class DataValidationExperiments(ExperimentFramework):
                         img = mpimg.imread(str(plot_file))
                         ax.imshow(img)
                         ax.axis("off")
-                        ax.set_title(f"Data Validation: {plot_name}", fontsize=14)
+                        ax.set_title(f"Data Validation: {title}", fontsize=14)
 
                         advanced_plots[plot_name] = fig
 

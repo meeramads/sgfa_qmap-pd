@@ -13,6 +13,25 @@ from core.io_utils import save_plot
 logger = logging.getLogger(__name__)
 
 
+def _format_view_name(view_name: str) -> str:
+    """Convert technical view names to human-readable format."""
+    # Handle generic view_N names
+    if view_name.startswith("view_"):
+        return f"View {view_name.split('_')[1]}"
+
+    # Handle ROI-specific names
+    name_map = {
+        "volume_sn_voxels": "Substantia Nigra",
+        "volume_putamen_voxels": "Putamen",
+        "volume_lentiform_voxels": "Lentiform Nucleus",
+        "volume_bg-all_voxels": "All ROIs",
+        "imaging": "All ROIs",
+        "clinical": "Clinical"
+    }
+
+    return name_map.get(view_name, view_name.replace("_", " ").title())
+
+
 class PreprocessingVisualizer:
     """Creates preprocessing visualizations."""
 
@@ -54,8 +73,9 @@ class PreprocessingVisualizer:
         """Plot feature reduction summary."""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
-        # Extract data
+        # Extract data and format view names
         views = list(feature_reduction.keys())
+        formatted_views = [_format_view_name(v) for v in views]
         original = [feature_reduction[v]["original"] for v in views]
         processed = [feature_reduction[v]["processed"] for v in views]
         retention = [feature_reduction[v]["reduction_ratio"] for v in views]
@@ -70,7 +90,7 @@ class PreprocessingVisualizer:
         ax1.set_ylabel("Number of Features")
         ax1.set_title("Feature Count Reduction")
         ax1.set_xticks(x)
-        ax1.set_xticklabels(views, rotation=45, ha="right")
+        ax1.set_xticklabels(formatted_views, rotation=45, ha="right")
         ax1.legend()
         ax1.grid(True, alpha=0.3)
 
@@ -88,16 +108,13 @@ class PreprocessingVisualizer:
         ax2.set_ylim(0, 1.1)
         ax2.axhline(y=0.5, color="r", linestyle="--", alpha=0.5)
         ax2.set_xticks(x_pos)
-        ax2.set_xticklabels(views, rotation=45, ha="right")
+        ax2.set_xticklabels(formatted_views, rotation=45, ha="right")
         ax2.grid(True, alpha=0.3)
 
         # Add percentage labels
         for i, (v, r) in enumerate(zip(views, retention)):
             ax2.text(i, r + 0.02, f"{r:.1%}", ha="center")
 
-        plt.suptitle(
-            "Preprocessing Feature Reduction Summary", fontsize=14, fontweight="bold"
-        )
         plt.tight_layout()
 
         # Save
@@ -135,13 +152,13 @@ class PreprocessingVisualizer:
 
             ax.set_xlabel('Feature Variance')
             ax.set_ylabel('Count')
-            ax.set_title(f'{view_name}\nVariance Distribution')
+            # Format view name to be human-readable
+            formatted_name = _format_view_name(view_name)
+            ax.set_title(f'{formatted_name}\nVariance Distribution')
             ax.grid(True, alpha=0.3)
             if threshold > 0:
                 ax.legend()
 
-        plt.suptitle('Feature Variance Analysis - Why Features Were Retained/Removed',
-                    fontsize=14, fontweight='bold')
         plt.tight_layout()
 
         # Save

@@ -150,7 +150,7 @@ class ComparisonVisualizer:
         bars = ax.bar(valid_methods, valid_scores, color=colors, alpha=0.8)
         ax.set_title(title, fontsize=14)
         ax.set_ylabel(ylabel)
-        ax.tick_params(axis='x', rotation=45)
+        ax.set_xticklabels(valid_methods, rotation=45, ha='right')
         ax.grid(axis='y', alpha=0.3)
 
         # Add value labels on bars
