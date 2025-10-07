@@ -402,23 +402,25 @@ def main():
                                     best_variant = variant_name
 
                         if best_variant:
-                            # Parse K and percW from variant name (e.g., "K5_percW25")
+                            # Parse K, percW, and group_lambda from variant name (e.g., "K5_percW25_grp0.0")
                             import re
 
-                            match = re.match(r"K(\d+)_percW(\d+)", best_variant)
+                            match = re.match(r"K(\d+)_percW([\d.]+)(?:_grp([\d.]+))?", best_variant)
                             if match:
                                 optimal_K = int(match.group(1))
-                                optimal_percW = int(match.group(2))
+                                optimal_percW = float(match.group(2))
+                                optimal_grp_lambda = float(match.group(3)) if match.group(3) else 0.0
 
                                 pipeline_context["optimal_sgfa_params"] = {
                                     "K": optimal_K,
                                     "percW": optimal_percW,
+                                    "grp_lambda": optimal_grp_lambda,
                                     "variant_name": best_variant,
                                     "execution_time": best_score,
                                 }
 
                                 logger.info(
-                                    f"🎯 Identified optimal SGFA parameters: {best_variant} ({ best_score:.1f}s)"
+                                    f"🎯 Identified optimal SGFA parameters: {best_variant} (K={optimal_K}, percW={optimal_percW}, grp_λ={optimal_grp_lambda}, {best_score:.1f}s)"
                                 )
 
             except Exception as e:

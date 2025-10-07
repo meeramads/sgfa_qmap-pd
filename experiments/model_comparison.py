@@ -1627,7 +1627,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             title="sparseGFA vs Traditional Methods: Performance",
             metrics_to_plot=["execution_time", "peak_memory_gb"],
         )
-        plots["performance_comparison"] = perf_fig
+        plots["sparsegfa_vs_traditional_performance"] = perf_fig
         self.logger.info("   ✅ Performance comparison plot created")
 
         # Plot 2: Quality comparison - Reconstruction Error (prefer CV if available)
@@ -1666,7 +1666,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 ylabel="Reconstruction Quality (higher is better)",
                 higher_is_better=True,
             )
-            plots["reconstruction_quality"] = quality_fig
+            plots["model_reconstruction_quality"] = quality_fig
             self.logger.info(f"   ✅ Reconstruction quality plot created (using {'CV' if using_cv else 'training'} error)")
 
         # Plot 2b: Sparsity comparison (for models that support it)
@@ -1679,7 +1679,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 ylabel="Sparsity Score (higher = more sparse/interpretable)",
                 higher_is_better=True,
             )
-            plots["sparsity_comparison"] = sparsity_fig
+            plots["model_sparsity_interpretability"] = sparsity_fig
             self.logger.info("   ✅ Sparsity comparison plot created")
 
         # Plot 2c: Information Criteria (AIC/BIC) comparison
@@ -1696,7 +1696,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 title="Model Selection: Information Criteria (Complexity-Adjusted)",
                 criteria=['aic', 'bic']
             )
-            plots["information_criteria"] = ic_fig
+            plots["model_selection_information_criteria"] = ic_fig
             self.logger.info("   ✅ Information criteria plot created")
 
         # Plot 2d: Factor Stability comparison
@@ -1712,7 +1712,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 stability_metrics=stability_metrics_dict,
                 title="Factor Stability (Bootstrap Reproducibility)"
             )
-            plots["factor_stability"] = stability_fig
+            plots["model_factor_stability"] = stability_fig
             self.logger.info("   ✅ Factor stability plot created")
 
         # Plot 3: Clinical validation comparison (if available)
@@ -1749,7 +1749,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 ax.text(score + 0.02, i, f'{score:.3f}', va='center')
 
             plt.tight_layout()
-            plots["clinical_validation"] = fig
+            plots["clinical_validation_pd_classification"] = fig
             self.logger.info(f"   ✅ Clinical validation plot created ({len(clinical_scores)} methods)")
 
         # Plot 4: Performance vs Quality tradeoff
@@ -1770,7 +1770,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 title="Performance vs Quality Tradeoff",
                 performance_metric='execution_time'
             )
-            plots["performance_vs_quality"] = perf_vs_quality_fig
+            plots["model_performance_vs_quality_tradeoff"] = perf_vs_quality_fig
             self.logger.info("   ✅ Performance vs quality tradeoff plot created")
 
         # Create comprehensive summary table
@@ -1821,7 +1821,8 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.logger.info("  - BIC accounts for model complexity (fairer to sparse models)\n")
 
         # Plot 5: ROI Specificity Heatmap (for multi-view models)
-        self.logger.info("   Creating ROI specificity heatmap...")
+        # Note: Only meaningful when multiple models have multi-view structure
+        self.logger.info("   Checking ROI specificity data...")
         roi_spec_data = {}
         for m in successful_methods:
             if m in analysis["quality_comparison"]:
@@ -1829,7 +1830,8 @@ class ModelArchitectureComparison(ExperimentFramework):
                 if roi_spec and "view_loadings" in roi_spec:
                     roi_spec_data[m] = roi_spec
 
-        if roi_spec_data:
+        # Only create plot if multiple models have ROI specificity (for comparison)
+        if len(roi_spec_data) > 1:
             try:
                 import matplotlib.pyplot as plt
                 import seaborn as sns
@@ -1864,10 +1866,12 @@ class ModelArchitectureComparison(ExperimentFramework):
                     ax.set_ylabel("Views/ROIs")
 
                 plt.tight_layout()
-                plots["roi_specificity_heatmap"] = fig
+                plots["model_roi_specificity_heatmap"] = fig
                 self.logger.info(f"   ✅ ROI specificity heatmap created ({len(roi_spec_data)} models)")
             except Exception as e:
                 self.logger.warning(f"Could not create ROI specificity plot: {e}")
+        else:
+            self.logger.info(f"   Skipping ROI specificity plot ({len(roi_spec_data)} model(s) with multi-view structure - need 2+ for comparison)")
 
         self.logger.info(f"📊 Unified model comparison plots completed: {len(plots)} plots generated")
         return plots
@@ -2781,12 +2785,12 @@ class ModelArchitectureComparison(ExperimentFramework):
             axes[1, 1].grid(True, alpha=0.3)
 
             plt.tight_layout()
-            plots["comparative_benchmarks"] = fig
+            plots["model_comparative_benchmarks"] = fig
             self.logger.info("   ✅ Comparative benchmark plots created")
 
         except Exception as e:
             self.logger.warning(f"Failed to create comparative benchmark plots: {e}")
-            plots["comparative_benchmarks_error"] = str(e)
+            plots["model_comparative_benchmarks_error"] = str(e)
 
         self.logger.info(f"📊 Comparative benchmark plots completed: {len(plots)} plots generated")
         return plots
@@ -3019,14 +3023,16 @@ def run_model_comparison(config, **kwargs):
     # Use optimal SGFA parameters if available
     if optimal_sgfa_params:
         logger.info(
-            f" → Using optimal SGFA parameters: K={ optimal_sgfa_params['K']}, percW={ optimal_sgfa_params['percW']}"
+            f" → Using optimal SGFA parameters: K={optimal_sgfa_params['K']}, percW={optimal_sgfa_params['percW']}, grp_λ={optimal_sgfa_params.get('grp_lambda', 0.0)}"
         )
         optimal_K = optimal_sgfa_params["K"]
         optimal_percW = optimal_sgfa_params["percW"]
+        optimal_grp_lambda = optimal_sgfa_params.get("grp_lambda", 0.0)
     else:
         logger.info("   → Using default parameters (no optimal parameters available)")
         optimal_K = 5
         optimal_percW = 25.0
+        optimal_grp_lambda = 0.0
 
     # Setup hyperparameters
     hypers = {
@@ -3034,6 +3040,7 @@ def run_model_comparison(config, **kwargs):
         "a_sigma": 1.0,
         "b_sigma": 1.0,
         "percW": optimal_percW,
+        "group_lambda": optimal_grp_lambda,
         "slab_scale": 1.0,
         "slab_df": 4.0,
     }
