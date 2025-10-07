@@ -1641,7 +1641,11 @@ class ModelArchitectureComparison(ExperimentFramework):
                                                                          analysis["quality_comparison"][m].get("reconstruction_error", 0))
 
                 # Convert to quality score (lower error = higher score)
-                reconstruction_scores[m] = 1.0 / (1.0 + recon_error)
+                # Skip if error is inf (CV failed) - don't show misleading zero score
+                if np.isfinite(recon_error):
+                    reconstruction_scores[m] = 1.0 / (1.0 + recon_error)
+                else:
+                    self.logger.warning(f"Skipping {m} from reconstruction quality plot (CV failed or returned inf)")
 
                 # Extract sparsity for sparse models
                 if m in results and "neuroimaging_metrics" in results[m]:
@@ -1690,7 +1694,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 title="Model Selection: Information Criteria (Complexity-Adjusted)",
                 criteria=['aic', 'bic']
             )
-            plots["model_selection_information_criteria"] = ic_fig
+            plots["information_criteria"] = ic_fig
             self.logger.info("   ✅ Information criteria plot created")
 
         # Plot 2d: Factor Stability comparison
@@ -1706,7 +1710,7 @@ class ModelArchitectureComparison(ExperimentFramework):
                 stability_metrics=stability_metrics_dict,
                 title="Factor Stability (Bootstrap Reproducibility)"
             )
-            plots["model_factor_stability"] = stability_fig
+            plots["factor_stability"] = stability_fig
             self.logger.info("   ✅ Factor stability plot created")
 
         # Plot 3: Clinical validation comparison (if available)

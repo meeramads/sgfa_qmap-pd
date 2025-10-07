@@ -562,13 +562,15 @@ class ComparisonVisualizer:
             ax.set_ylim([0, 1.1])
             ax.tick_params(axis='x', rotation=45)
             ax.grid(axis='y', alpha=0.3)
-            ax.axhline(y=0.7, color='orange', linestyle='--',
-                      alpha=0.5, label='Good stability threshold')
+            stability_threshold = 0.7
+            ax.axhline(y=stability_threshold, color='orange', linestyle='--',
+                      alpha=0.5, label=f'Stability Threshold = {stability_threshold}')
             ax.legend()
 
-            # Add value labels
-            for bar, val in zip(bars, values):
-                ax.text(bar.get_x() + bar.get_width()/2., val + 0.05,
+            # Add value labels above error bars
+            for bar, val, err in zip(bars, values, errors):
+                label_y = val + err + 0.05  # Position above error bar
+                ax.text(bar.get_x() + bar.get_width()/2., label_y,
                        f'{val:.3f}', ha='center', va='bottom', fontsize=10)
 
         plt.tight_layout()
