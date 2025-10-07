@@ -808,6 +808,10 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.logger.info("\n=== Analyzing Results ===")
         analysis = self._analyze_unified_comparison(results, performance_metrics, X_list, X_combined)
 
+        # === Part 3.5: Save Factor Maps (W and Z) for all methods ===
+        self.logger.info("\n=== Saving Factor Maps for All Methods ===")
+        self._save_all_factor_maps(results, X_list)
+
         # === Part 4: Generate Plots ===
         plots = self._plot_unified_comparison(results, performance_metrics, analysis)
 
@@ -1227,7 +1231,11 @@ class ModelArchitectureComparison(ExperimentFramework):
             self.logger.info(f"  {method_name} mean CV error: {mean_cv_error:.4f} (±{np.std(cv_errors):.4f})")
             return mean_cv_error
         else:
-            self.logger.warning(f"  All CV folds failed for {method_name}")
+            if method_name == "sparseGFA":
+                self.logger.warning(f"  ⚠️  All CV folds failed for {method_name} (likely due to computational expense of MCMC sampling)")
+                self.logger.warning(f"      {method_name} will be excluded from cross-validated reconstruction quality plots")
+            else:
+                self.logger.warning(f"  All CV folds failed for {method_name}")
             return float('inf')
 
     def _compute_information_criteria(
@@ -1275,7 +1283,9 @@ class ModelArchitectureComparison(ExperimentFramework):
         # Get reference model
         if method_name == "sparseGFA":
             # Too expensive for SGFA, skip for now
-            self.logger.warning(f"  Skipping stability for {method_name} (too computationally expensive)")
+            self.logger.warning(f"  ⚠️  Skipping bootstrap stability for {method_name} (too computationally expensive)")
+            self.logger.warning(f"      Bootstrap resampling requires {n_bootstraps}× MCMC runs, which is prohibitively expensive")
+            self.logger.warning(f"      {method_name} will be excluded from factor stability (bootstrap reproducibility) plots")
             return {'mean_stability': np.nan, 'per_factor_stability': []}
 
         # Traditional methods
@@ -1553,9 +1563,13 @@ class ModelArchitectureComparison(ExperimentFramework):
 
                     # Calculate ROI specificity for multi-view models
                     try:
+                        from visualization.preprocessing_plots import _format_view_name
+
                         view_names = result.get("view_names", [f"View_{i}" for i in range(len(W_list))])
+                        # Format view names to human-readable format
+                        formatted_view_names = [_format_view_name(vn) for vn in view_names]
                         roi_specificity = self.neuroimaging_metrics.roi_specificity_score(
-                            W_list, view_names=view_names
+                            W_list, view_names=formatted_view_names
                         )
                         self.logger.info(f"ROI Specificity for {method_name}:")
                         self.logger.info(f"  - {roi_specificity['n_specific_factors']}/{len(W_list[0][0])} factors are view-specific")
@@ -1871,8 +1885,204 @@ class ModelArchitectureComparison(ExperimentFramework):
         else:
             self.logger.info(f"   Skipping ROI specificity plot ({len(roi_spec_data)} model(s) with multi-view structure - need 2+ for comparison)")
 
+        # Plot 6: Comprehensive Comparison Table
+        self.logger.info("   Creating comprehensive comparison table...")
+        try:
+            table_fig = self._create_comparison_table(results, performance_metrics, analysis)
+            if table_fig:
+                plots["comprehensive_comparison_table"] = table_fig
+                self.logger.info("   ✅ Comprehensive comparison table created")
+        except Exception as e:
+            self.logger.warning(f"Could not create comparison table: {e}")
+
         self.logger.info(f"📊 Unified model comparison plots completed: {len(plots)} plots generated")
         return plots
+
+    def _create_comparison_table(
+        self, results: Dict, performance_metrics: Dict, analysis: Dict
+    ) -> Optional[Figure]:
+        """Create a comprehensive table comparing all models across all metrics."""
+        import matplotlib.pyplot as plt
+        import pandas as pd
+
+        # Define all methods
+        methods = list(results.keys())
+        if not methods:
+            return None
+
+        # Prepare data for table
+        table_data = []
+
+        for method in methods:
+            if "error" in results[method]:
+                # Skip failed methods
+                continue
+
+            row = {"Method": method.upper()}
+
+            # Execution Time (seconds)
+            if method in performance_metrics and "execution_time" in performance_metrics[method]:
+                exec_time = performance_metrics[method]["execution_time"]
+                row["Execution Time (s)"] = f"{exec_time:.2f}"
+            else:
+                row["Execution Time (s)"] = "N/A"
+
+            # Peak Memory (GB)
+            if method in performance_metrics and "peak_memory_gb" in performance_metrics[method]:
+                mem = performance_metrics[method]["peak_memory_gb"]
+                row["Peak Memory (GB)"] = f"{mem:.2f}"
+            else:
+                row["Peak Memory (GB)"] = "N/A"
+
+            # Reconstruction Quality (CV)
+            if method in analysis.get("quality_comparison", {}):
+                qc = analysis["quality_comparison"][method]
+                if "reconstruction_error_cv" in qc:
+                    cv_error = qc["reconstruction_error_cv"]
+                    if np.isfinite(cv_error):
+                        quality = 1.0 / (1.0 + cv_error)
+                        row["Reconstruction Quality"] = f"{quality:.4f}"
+                    else:
+                        if method == "sparseGFA":
+                            row["Reconstruction Quality"] = "N/A*"
+                        else:
+                            row["Reconstruction Quality"] = "N/A"
+                elif "reconstruction_error_train" in qc:
+                    train_error = qc["reconstruction_error_train"]
+                    if np.isfinite(train_error):
+                        quality = 1.0 / (1.0 + train_error)
+                        row["Reconstruction Quality"] = f"{quality:.4f}"
+                    else:
+                        row["Reconstruction Quality"] = "N/A"
+                else:
+                    row["Reconstruction Quality"] = "N/A"
+            else:
+                row["Reconstruction Quality"] = "N/A"
+
+            # Information Criterion (AIC, BIC)
+            if method in results[method] and "information_criteria" in results[method]:
+                ic = results[method]["information_criteria"]
+                aic = ic.get("aic")
+                bic = ic.get("bic")
+                if aic and bic and np.isfinite(aic) and np.isfinite(bic):
+                    row["Information Criterion"] = f"AIC: {aic:.1f}\nBIC: {bic:.1f}"
+                else:
+                    row["Information Criterion"] = "N/A"
+            else:
+                row["Information Criterion"] = "N/A"
+
+            # Factor Stability
+            if method in results[method] and "factor_stability" in results[method]:
+                fs = results[method]["factor_stability"]
+                mean_stab = fs.get("mean_stability")
+                if mean_stab and np.isfinite(mean_stab):
+                    row["Factor Stability"] = f"{mean_stab:.3f}"
+                else:
+                    if method in ["sparseGFA", "cca", "kmeans"]:
+                        row["Factor Stability"] = "N/A**"
+                    else:
+                        row["Factor Stability"] = "N/A"
+            else:
+                if method in ["sparseGFA", "cca", "kmeans"]:
+                    row["Factor Stability"] = "N/A**"
+                else:
+                    row["Factor Stability"] = "N/A"
+
+            table_data.append(row)
+
+        if not table_data:
+            return None
+
+        # Create DataFrame
+        df = pd.DataFrame(table_data)
+
+        # Create figure with table
+        fig, ax = plt.subplots(figsize=(14, len(table_data) * 0.6 + 2))
+        ax.axis('tight')
+        ax.axis('off')
+
+        # Create table
+        table = ax.table(
+            cellText=df.values,
+            colLabels=df.columns,
+            cellLoc='left',
+            loc='center',
+            colWidths=[0.12, 0.15, 0.15, 0.18, 0.20, 0.15]
+        )
+
+        # Style the table
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 2)
+
+        # Color header
+        for i in range(len(df.columns)):
+            table[(0, i)].set_facecolor('#4472C4')
+            table[(0, i)].set_text_props(weight='bold', color='white')
+
+        # Alternate row colors
+        for i in range(1, len(table_data) + 1):
+            for j in range(len(df.columns)):
+                if i % 2 == 0:
+                    table[(i, j)].set_facecolor('#E7E6E6')
+
+        # Add title
+        ax.set_title('Comprehensive Model Comparison',
+                     fontsize=14, fontweight='bold', pad=20)
+
+        # Add footnotes
+        footnote_text = (
+            "*  sparseGFA: CV reconstruction failed (computationally expensive due to MCMC)\n"
+            "** sparseGFA, CCA, K-means: Factor stability not computed (bootstrap too expensive or not applicable)"
+        )
+        fig.text(0.1, 0.02, footnote_text, fontsize=8, style='italic',
+                va='bottom', ha='left')
+
+        plt.tight_layout()
+        return fig
+
+    def _save_all_factor_maps(self, results: Dict, X_list: List[np.ndarray]) -> None:
+        """Save factor maps (W and Z matrices) for all methods to CSV files for external analysis."""
+        from pathlib import Path
+
+        # Create matrices directory in output_dir
+        matrices_dir = self.output_dir / "factor_maps"
+        matrices_dir.mkdir(exist_ok=True, parents=True)
+
+        self.logger.info(f"Saving factor maps to: {matrices_dir}")
+
+        # Get view names for sparseGFA (if available)
+        view_names = None
+        if "sparseGFA" in results and "view_names" in results["sparseGFA"]:
+            view_names = results["sparseGFA"]["view_names"]
+
+        # Save factor maps for each method
+        for method_name, result in results.items():
+            if "error" in result:
+                self.logger.debug(f"  Skipping {method_name} (has error)")
+                continue
+
+            if "W" not in result or "Z" not in result:
+                self.logger.debug(f"  Skipping {method_name} (missing W or Z)")
+                continue
+
+            try:
+                self.logger.info(f"  Saving factor maps for {method_name}...")
+
+                # Use the framework's _save_matrices_for_variant method
+                self._save_matrices_for_variant(
+                    result_dict=result,
+                    matrices_dir=matrices_dir,
+                    variant_name=method_name,
+                    view_names=view_names if method_name == "sparseGFA" else None
+                )
+
+                self.logger.info(f"  ✓ {method_name} factor maps saved")
+
+            except Exception as e:
+                self.logger.warning(f"  Failed to save factor maps for {method_name}: {e}")
+
+        self.logger.info(f"✅ All factor maps saved to: {matrices_dir}")
 
     def _evaluate_neuroimaging_metrics(
         self, X_list: List[np.ndarray], model_result: Dict, model_name: str
