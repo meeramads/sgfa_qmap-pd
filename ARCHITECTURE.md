@@ -2,8 +2,9 @@
 
 This document describes the overall architecture and code organization after the comprehensive refactoring (October 2025).
 
-**Last Updated**: October 6, 2025
+**Last Updated**: January 10, 2025
 **Architectural Issues Resolved**: 28 of 50 (56%)
+**Recent Enhancements**: Visualization consistency, factor map export, memory optimization (Jan 2025)
 
 ## Code Quality Metrics
 
@@ -157,13 +158,26 @@ Reusable utilities for common patterns:
 **Dependencies**: core (minimal)
 
 ### Experiments (`experiments/`)
-**Purpose**: Validation and comparison experiments
+**Purpose**: Validation and comparison experiments with comprehensive output
 **Key Files**:
-- `framework.py` - Experiment orchestration (1358 lines)
-- `data_validation.py` - Data quality checks
-- `model_comparison.py` - Method comparison
-- `sgfa_hyperparameter_tuning.py` - Hyperparameter tuning
+- `framework.py` - Experiment orchestration (1358 lines) with matrix saving utilities
+- `data_validation.py` - Data quality checks with ROI selection support
+- `model_comparison.py` - Method comparison with factor map export
+- `sgfa_hyperparameter_tuning.py` - Hyperparameter tuning with optimized NUTS settings
 - `clinical_validation.py` - Clinical validation
+- `sensitivity_analysis.py` - Sensitivity testing including group sparsity
+- `reproducibility.py` - Reproducibility validation
+
+**Recent Enhancements (Jan 2025)**:
+- ✅ **Factor map export**: All models (sparseGFA, PCA, ICA, FA, NMF, K-means, CCA) now save W and Z matrices to CSV
+  - Location: `results/<run>/methods_comparison/factor_maps/`
+  - Format: CSV with semantic names for MATLAB/external analysis
+- ✅ **ROI selection fixes**: `--select-rois` flag now properly respected throughout pipeline
+- ✅ **Group sparsity support**: Added group_λ extraction and passing to downstream experiments
+- ✅ **NUTS optimization**: Reverted to `max_tree_depth=10` (default) for standard configs after memory leak fix
+  - Better posterior exploration and effective sample size
+  - Only reduces to 8 for extreme configs (K≥10 AND percW≥50)
+- ✅ **Enhanced logging**: Clear warnings when metrics fail (CV reconstruction, factor stability)
 
 **Dependencies**: analysis, core, models
 
@@ -179,13 +193,22 @@ Reusable utilities for common patterns:
 **Dependencies**: core
 
 ### Visualization (`visualization/`)
-**Purpose**: Result visualization
+**Purpose**: Result visualization with human-readable naming and consistent formatting
 **Key Files**:
 - `brain_plots.py` - Brain mapping visualizations
 - `factor_plots.py` - Factor analysis plots
 - `report_generator.py` - HTML reports
 - `core_plots.py` - Core visualization utilities (moved from core/visualization.py)
 - `cv_plots.py` - Cross-validation visualizations
+- `comparison_plots.py` - Model comparison visualizations
+- `preprocessing_plots.py` - Data preprocessing visualizations with view name formatting
+
+**Recent Enhancements (Jan 2025)**:
+- ✅ **Human-readable view names**: All plots now use formatted names (e.g., "Substantia Nigra" instead of "volume_sn_voxels")
+- ✅ **Consistent plot naming**: Plot filenames match their content (no more swapped names)
+- ✅ **Comprehensive comparison table**: New table figure showing all methods and metrics with smart N/A handling
+- ✅ **Enhanced labels**: Factor scores with subtitles, quality plots with legend-only best values
+- ✅ **View name formatter**: `_format_view_name()` utility used across all experiments
 
 **Dependencies**: core
 
