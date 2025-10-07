@@ -1017,13 +1017,13 @@ class SGFAHyperparameterTuning(ExperimentFramework):
 
                 kernel = NUTS(models, target_accept_prob=0.6, max_tree_depth=8)
                 self.logger.info(
-                    f"High-memory config (K={K}, percW={percW}): max_tree_depth=8, target_accept_prob=0.6"
+                    f"High-memory config (K={K}, percW={percW}, group_lambda={group_lambda}): max_tree_depth=8, target_accept_prob=0.6"
                 )
             else:
                 # Standard config: use default max_tree_depth=10 for better exploration
                 kernel = NUTS(models, target_accept_prob=target_accept, max_tree_depth=10)
                 self.logger.info(
-                    f"Standard config (K={K}, percW={percW}): max_tree_depth=10 (default), target_accept_prob={target_accept}"
+                    f"Standard config (K={K}, percW={percW}, group_lambda={group_lambda}): max_tree_depth=10 (default), target_accept_prob={target_accept}"
                 )
 
             # Setup MCMC
