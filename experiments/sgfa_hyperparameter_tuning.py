@@ -1006,22 +1006,24 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             # Use reduced max_tree_depth to prevent GPU OOM
             target_accept = args.get("target_accept_prob", 0.8)
 
-            # Additional memory optimization for high memory variants
-            if K >= 10 and percW >= 33:
-                # Apply more aggressive memory management for large models
+            # Configure NUTS kernel with memory-aware settings
+            # Now that memory leak is fixed, we can use default max_tree_depth=10 for better sampling
+            # Only reduce for very high-memory configs
+            if K >= 10 and percW >= 50:
+                # Apply more aggressive memory management for very large models
                 import gc
                 gc.collect()
                 jax.clear_caches()
 
-                kernel = NUTS(models, target_accept_prob=0.6, max_tree_depth=6)
+                kernel = NUTS(models, target_accept_prob=0.6, max_tree_depth=8)
                 self.logger.info(
-                    f"High-memory config (K={K}, percW={percW}): max_tree_depth=6, target_accept_prob=0.6"
+                    f"High-memory config (K={K}, percW={percW}): max_tree_depth=8, target_accept_prob=0.6"
                 )
             else:
-                # Standard memory optimization for all other variants
-                kernel = NUTS(models, target_accept_prob=target_accept, max_tree_depth=8)
+                # Standard config: use default max_tree_depth=10 for better exploration
+                kernel = NUTS(models, target_accept_prob=target_accept, max_tree_depth=10)
                 self.logger.info(
-                    f"Standard config (K={K}, percW={percW}): max_tree_depth=8, target_accept_prob={target_accept}"
+                    f"Standard config (K={K}, percW={percW}): max_tree_depth=10 (default), target_accept_prob={target_accept}"
                 )
 
             # Setup MCMC
