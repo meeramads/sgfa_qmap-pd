@@ -130,7 +130,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             "sparsity_lambda": default_sparsity,
             "num_warmup": 300,
             "num_samples": 500,
-            "num_chains": 2,  # Will be adjusted based on system resources
+            "num_chains": 1,  # Single chain for GPU memory constraints
             "target_accept_prob": 0.8,
         }
 
@@ -205,15 +205,9 @@ class ModelArchitectureComparison(ExperimentFramework):
         adjusted_args = base_args.copy()
 
         # Adjust num_chains based on system resources
-        if not self.system_config["use_gpu"]:
-            # CPU mode: use more chains but limit by CPU cores
-            max_chains = min(4, self.system_config["n_cpu_cores"])
-            adjusted_args["num_chains"] = min(adjusted_args.get("num_chains", 4), max_chains)
-            adjusted_args["chain_method"] = "parallel"
-        else:
-            # GPU mode: use fewer chains to avoid memory issues
-            adjusted_args["num_chains"] = min(adjusted_args.get("num_chains", 2), 2)
-            adjusted_args["chain_method"] = "sequential"
+        # Force single chain for GPU memory constraints
+        adjusted_args["num_chains"] = 1
+        adjusted_args["chain_method"] = "sequential"
 
         # Adjust sampling parameters based on memory
         memory_limit = self.system_config["memory_limit_gb"]

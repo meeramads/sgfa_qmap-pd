@@ -990,7 +990,7 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             else:
                 num_warmup = args.get("num_warmup", 500)
                 num_samples = args.get("num_samples", 1000)
-                num_chains = args.get("num_chains", 2)
+                num_chains = args.get("num_chains", 1)  # Single chain for GPU memory
 
             # Create args object for model
             import argparse

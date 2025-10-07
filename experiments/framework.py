@@ -68,7 +68,7 @@ class ExperimentConfig:
 
     # MCMC configuration
     num_samples: int = 2000
-    num_chains: int = 4
+    num_chains: int = 1  # Single chain for GPU memory constraints
     num_warmup: int = 1000
     num_runs_per_config: int = 3
 
