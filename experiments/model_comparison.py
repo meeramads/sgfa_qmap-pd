@@ -3279,6 +3279,9 @@ def run_model_comparison(config, **kwargs):
         # Create experiment instance
         experiment = ModelArchitectureComparison(exp_config, logger)
 
+        # Set output directory for saving factor maps
+        experiment.output_dir = output_dir
+
         # Run unified methods comparison (sparseGFA vs all traditional baselines)
         result = experiment.run_methods_comparison(
             X_list, hypers, args, **kwargs
