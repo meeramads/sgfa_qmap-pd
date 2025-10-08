@@ -1,0 +1,2 @@
+experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
+sgfa_hyperparameter_tuning_20251008_122927,sgfa_hyperparameter_tuning,completed,17034.056718,4.7 hours (44m 54s),2025-10-08 12:29:27,2025-10-08 17:13:21,2000,1,"[5, 10, 15]",5

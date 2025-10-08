@@ -1,0 +1,62 @@
+{
+  "experiment_id": "methods_comparison_20251008_171335",
+  "config": {
+    "experiment_name": "methods_comparison",
+    "description": "Compare sparseGFA against traditional baseline methods",
+    "version": "1.0",
+    "dataset": "qmap_pd",
+    "data_dir": null,
+    "preprocessing_config": {},
+    "K_values": [
+      5,
+      10,
+      15
+    ],
+    "num_sources": 3,
+    "percW_values": [
+      25.0,
+      33.0,
+      50.0
+    ],
+    "num_samples": 2000,
+    "num_chains": 1,
+    "num_warmup": 1000,
+    "num_runs_per_config": 3,
+    "cv_folds": 5,
+    "cv_strategy": "stratified",
+    "cv_target_variable": null,
+    "cv_group_variable": null,
+    "performance_config": {},
+    "enable_memory_optimization": true,
+    "enable_profiling": true,
+    "auto_configure_system": true,
+    "max_memory_gb": null,
+    "save_intermediate_results": false,
+    "save_samples": false,
+    "save_diagnostics": true,
+    "save_numpy_arrays": false,
+    "output_formats": [
+      "json",
+      "csv"
+    ],
+    "random_seeds": [
+      42,
+      123,
+      456
+    ]
+  },
+  "start_time": "2025-10-08T17:13:35.542425",
+  "end_time": "2025-10-08T17:21:58.302152",
+  "status": "completed",
+  "error_message": null,
+  "model_results": {},
+  "cv_results": {},
+  "performance_metrics": {
+    "total_runtime_seconds": 502.759727,
+    "total_runtime_formatted": "8.4 minutes (503s)"
+  },
+  "diagnostics": {},
+  "plots": {},
+  "data_summary": {},
+  "convergence_diagnostics": {}
+}
