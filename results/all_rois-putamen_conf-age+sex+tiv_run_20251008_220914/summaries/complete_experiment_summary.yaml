@@ -1,0 +1,83 @@
+experiment_run_info:
+  config_used: config.yaml
+  duration_formatted: '5:16:27.376962'
+  duration_seconds: 18987.376962
+  end_time: '2025-10-09T03:25:41.590180'
+  start_time: '2025-10-08T22:09:14.213218'
+  unified_results: true
+experiments_executed:
+  clinical_validation:
+    duration: 327.336506
+    experiment_id: clinical_validation_20251009_031011
+    status: completed
+  data_validation:
+    duration: 12.411956
+    experiment_id: data_validation_20251008_220914
+    status: completed
+  model_comparison:
+    duration: 403.355604
+    experiment_id: methods_comparison_20251009_025111
+    future_work_models: []
+    implemented_models:
+    - sparseGFA
+    - pca
+    - ica
+    - fa
+    - nmf
+    - kmeans
+    - cca
+    status: completed
+  reproducibility:
+    duration: 589.214338
+    experiment_id: reproducibility_tests_20251009_031549
+    status: completed
+  sensitivity_analysis:
+    duration: 709.866415
+    experiment_id: sensitivity_analysis_20251009_025807
+    status: completed
+  sgfa_hyperparameter_tuning:
+    duration: 16863.622431
+    experiment_id: sgfa_hyperparameter_tuning_20251008_220939
+    sgfa_variants:
+    - K2_percW10_grp0.0
+    - K2_percW10_grp0.05
+    - K2_percW10_grp0.1
+    - K2_percW10_grp0.2
+    - K2_percW25_grp0.0
+    - K2_percW25_grp0.05
+    - K2_percW25_grp0.1
+    - K2_percW25_grp0.2
+    - K2_percW33_grp0.0
+    - K2_percW33_grp0.05
+    - K2_percW33_grp0.1
+    - K2_percW33_grp0.2
+    - K3_percW10_grp0.0
+    - K3_percW10_grp0.05
+    - K3_percW10_grp0.1
+    - K3_percW10_grp0.2
+    - K3_percW25_grp0.0
+    - K3_percW25_grp0.05
+    - K3_percW25_grp0.1
+    - K3_percW25_grp0.2
+    - K3_percW33_grp0.0
+    - K3_percW33_grp0.05
+    - K3_percW33_grp0.1
+    - K3_percW33_grp0.2
+    - K4_percW10_grp0.0
+    - K4_percW10_grp0.05
+    - K4_percW10_grp0.1
+    - K4_percW10_grp0.2
+    - K4_percW25_grp0.0
+    - K4_percW25_grp0.05
+    - K4_percW25_grp0.1
+    - K4_percW25_grp0.2
+    - K4_percW33_grp0.0
+    - K4_percW33_grp0.05
+    - K4_percW33_grp0.1
+    - K4_percW33_grp0.2
+    status: completed
+    successful_variants: 0
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 6
+  total_experiments: 6

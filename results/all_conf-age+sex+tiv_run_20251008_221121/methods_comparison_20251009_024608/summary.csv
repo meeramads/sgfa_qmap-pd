@@ -1,0 +1,2 @@
+experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
+methods_comparison_20251009_024608,methods_comparison,completed,531.321728,8.9 minutes (531s),2025-10-09 02:46:08,2025-10-09 02:54:59,2000,1,"[5, 10, 15]",5

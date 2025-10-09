@@ -1,0 +1,407 @@
+{
+  "last_completed_variant": "K4_percW33_grp0.2",
+  "completed_variants": [
+    "K2_percW10_grp0.0",
+    "K2_percW10_grp0.05",
+    "K2_percW10_grp0.1",
+    "K2_percW10_grp0.2",
+    "K2_percW25_grp0.0",
+    "K2_percW25_grp0.05",
+    "K2_percW25_grp0.1",
+    "K2_percW25_grp0.2",
+    "K2_percW33_grp0.0",
+    "K2_percW33_grp0.05",
+    "K2_percW33_grp0.1",
+    "K2_percW33_grp0.2",
+    "K3_percW10_grp0.0",
+    "K3_percW10_grp0.05",
+    "K3_percW10_grp0.1",
+    "K3_percW10_grp0.2",
+    "K3_percW25_grp0.0",
+    "K3_percW25_grp0.05",
+    "K3_percW25_grp0.1",
+    "K3_percW25_grp0.2",
+    "K3_percW33_grp0.0",
+    "K3_percW33_grp0.05",
+    "K3_percW33_grp0.1",
+    "K3_percW33_grp0.2",
+    "K4_percW10_grp0.0",
+    "K4_percW10_grp0.05",
+    "K4_percW10_grp0.1",
+    "K4_percW10_grp0.2",
+    "K4_percW25_grp0.0",
+    "K4_percW25_grp0.05",
+    "K4_percW25_grp0.1",
+    "K4_percW25_grp0.2",
+    "K4_percW33_grp0.0",
+    "K4_percW33_grp0.05",
+    "K4_percW33_grp0.1",
+    "K4_percW33_grp0.2"
+  ],
+  "num_completed": 36,
+  "total_variants": 36,
+  "results_summary": {
+    "K2_percW10_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -3777345.0
+    },
+    "K2_percW10_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -3817466.0
+    },
+    "K2_percW10_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -3803893.0
+    },
+    "K2_percW10_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -3770089.0
+    },
+    "K2_percW25_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -3655546.0
+    },
+    "K2_percW25_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -3792635.75
+    },
+    "K2_percW25_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -4073185.0
+    },
+    "K2_percW25_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -3551935.75
+    },
+    "K2_percW33_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -3829643.25
+    },
+    "K2_percW33_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -3796246.75
+    },
+    "K2_percW33_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -4161858.75
+    },
+    "K2_percW33_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -3651594.0
+    },
+    "K3_percW10_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -3787817.0
+    },
+    "K3_percW10_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -3761945.75
+    },
+    "K3_percW10_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -3959733.75
+    },
+    "K3_percW10_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -3929862.0
+    },
+    "K3_percW25_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -3586813.0
+    },
+    "K3_percW25_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -3794878.0
+    },
+    "K3_percW25_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -3838032.25
+    },
+    "K3_percW25_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -4098023.25
+    },
+    "K3_percW33_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -3919562.25
+    },
+    "K3_percW33_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -3787493.75
+    },
+    "K3_percW33_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -3870803.25
+    },
+    "K3_percW33_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -4109128.25
+    },
+    "K4_percW10_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -4286212.5
+    },
+    "K4_percW10_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -4107169.0
+    },
+    "K4_percW10_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -4280512.0
+    },
+    "K4_percW10_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -4313001.0
+    },
+    "K4_percW25_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -4167950.25
+    },
+    "K4_percW25_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -4224765.0
+    },
+    "K4_percW25_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -4207183.0
+    },
+    "K4_percW25_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -4348463.0
+    },
+    "K4_percW33_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -4274604.0
+    },
+    "K4_percW33_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -4258829.0
+    },
+    "K4_percW33_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -4170343.75
+    },
+    "K4_percW33_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -4148108.0
+    }
+  },
+  "performance_metrics": {
+    "K2_percW10_grp0.0": {
+      "execution_time": 439.1004641049949,
+      "peak_memory_gb": 2.174938201904297,
+      "convergence": true,
+      "log_likelihood": -3777345.0
+    },
+    "K2_percW10_grp0.05": {
+      "execution_time": 451.8180823570001,
+      "peak_memory_gb": 2.2259521484375,
+      "convergence": true,
+      "log_likelihood": -3817466.0
+    },
+    "K2_percW10_grp0.1": {
+      "execution_time": 369.03348776799976,
+      "peak_memory_gb": 2.2476043701171875,
+      "convergence": true,
+      "log_likelihood": -3803893.0
+    },
+    "K2_percW10_grp0.2": {
+      "execution_time": 455.1747179059894,
+      "peak_memory_gb": 2.2507781982421875,
+      "convergence": true,
+      "log_likelihood": -3770089.0
+    },
+    "K2_percW25_grp0.0": {
+      "execution_time": 432.7997207209992,
+      "peak_memory_gb": 2.2651710510253906,
+      "convergence": true,
+      "log_likelihood": -3655546.0
+    },
+    "K2_percW25_grp0.05": {
+      "execution_time": 445.0965760059771,
+      "peak_memory_gb": 2.265716552734375,
+      "convergence": true,
+      "log_likelihood": -3792635.75
+    },
+    "K2_percW25_grp0.1": {
+      "execution_time": 452.9679274579976,
+      "peak_memory_gb": 2.278125762939453,
+      "convergence": true,
+      "log_likelihood": -4073185.0
+    },
+    "K2_percW25_grp0.2": {
+      "execution_time": 447.66086532600457,
+      "peak_memory_gb": 2.2803306579589844,
+      "convergence": true,
+      "log_likelihood": -3551935.75
+    },
+    "K2_percW33_grp0.0": {
+      "execution_time": 434.7214143180172,
+      "peak_memory_gb": 2.282623291015625,
+      "convergence": true,
+      "log_likelihood": -3829643.25
+    },
+    "K2_percW33_grp0.05": {
+      "execution_time": 446.5411047950038,
+      "peak_memory_gb": 2.2809295654296875,
+      "convergence": true,
+      "log_likelihood": -3796246.75
+    },
+    "K2_percW33_grp0.1": {
+      "execution_time": 455.24342189900926,
+      "peak_memory_gb": 2.2811431884765625,
+      "convergence": true,
+      "log_likelihood": -4161858.75
+    },
+    "K2_percW33_grp0.2": {
+      "execution_time": 449.9430108179804,
+      "peak_memory_gb": 2.2833213806152344,
+      "convergence": true,
+      "log_likelihood": -3651594.0
+    },
+    "K3_percW10_grp0.0": {
+      "execution_time": 426.8818783859897,
+      "peak_memory_gb": 2.286174774169922,
+      "convergence": true,
+      "log_likelihood": -3787817.0
+    },
+    "K3_percW10_grp0.05": {
+      "execution_time": 448.54826156501076,
+      "peak_memory_gb": 2.2848854064941406,
+      "convergence": true,
+      "log_likelihood": -3761945.75
+    },
+    "K3_percW10_grp0.1": {
+      "execution_time": 639.9842987489828,
+      "peak_memory_gb": 2.2884864807128906,
+      "convergence": true,
+      "log_likelihood": -3959733.75
+    },
+    "K3_percW10_grp0.2": {
+      "execution_time": 574.9974296019936,
+      "peak_memory_gb": 2.295665740966797,
+      "convergence": true,
+      "log_likelihood": -3929862.0
+    },
+    "K3_percW25_grp0.0": {
+      "execution_time": 420.2686740079953,
+      "peak_memory_gb": 2.2984962463378906,
+      "convergence": true,
+      "log_likelihood": -3586813.0
+    },
+    "K3_percW25_grp0.05": {
+      "execution_time": 449.7608674049843,
+      "peak_memory_gb": 2.297039031982422,
+      "convergence": true,
+      "log_likelihood": -3794878.0
+    },
+    "K3_percW25_grp0.1": {
+      "execution_time": 449.81060739202076,
+      "peak_memory_gb": 2.3032913208007812,
+      "convergence": true,
+      "log_likelihood": -3838032.25
+    },
+    "K3_percW25_grp0.2": {
+      "execution_time": 454.615134630003,
+      "peak_memory_gb": 2.3071746826171875,
+      "convergence": true,
+      "log_likelihood": -4098023.25
+    },
+    "K3_percW33_grp0.0": {
+      "execution_time": 431.9453282709874,
+      "peak_memory_gb": 2.3093223571777344,
+      "convergence": true,
+      "log_likelihood": -3919562.25
+    },
+    "K3_percW33_grp0.05": {
+      "execution_time": 452.67851109200274,
+      "peak_memory_gb": 2.313213348388672,
+      "convergence": true,
+      "log_likelihood": -3787493.75
+    },
+    "K3_percW33_grp0.1": {
+      "execution_time": 452.59937697200803,
+      "peak_memory_gb": 2.3086776733398438,
+      "convergence": true,
+      "log_likelihood": -3870803.25
+    },
+    "K3_percW33_grp0.2": {
+      "execution_time": 451.9706340400153,
+      "peak_memory_gb": 2.308727264404297,
+      "convergence": true,
+      "log_likelihood": -4109128.25
+    },
+    "K4_percW10_grp0.0": {
+      "execution_time": 460.0828889250115,
+      "peak_memory_gb": 2.3133010864257812,
+      "convergence": true,
+      "log_likelihood": -4286212.5
+    },
+    "K4_percW10_grp0.05": {
+      "execution_time": 472.48908727400703,
+      "peak_memory_gb": 2.3185081481933594,
+      "convergence": true,
+      "log_likelihood": -4107169.0
+    },
+    "K4_percW10_grp0.1": {
+      "execution_time": 468.6597946260008,
+      "peak_memory_gb": 2.3185043334960938,
+      "convergence": true,
+      "log_likelihood": -4280512.0
+    },
+    "K4_percW10_grp0.2": {
+      "execution_time": 463.888291966985,
+      "peak_memory_gb": 2.3256263732910156,
+      "convergence": true,
+      "log_likelihood": -4313001.0
+    },
+    "K4_percW25_grp0.0": {
+      "execution_time": 453.70287146698684,
+      "peak_memory_gb": 2.3191909790039062,
+      "convergence": true,
+      "log_likelihood": -4167950.25
+    },
+    "K4_percW25_grp0.05": {
+      "execution_time": 470.3182832870225,
+      "peak_memory_gb": 2.3277053833007812,
+      "convergence": true,
+      "log_likelihood": -4224765.0
+    },
+    "K4_percW25_grp0.1": {
+      "execution_time": 471.185930593987,
+      "peak_memory_gb": 2.327808380126953,
+      "convergence": true,
+      "log_likelihood": -4207183.0
+    },
+    "K4_percW25_grp0.2": {
+      "execution_time": 470.10765947497566,
+      "peak_memory_gb": 2.3374900817871094,
+      "convergence": true,
+      "log_likelihood": -4348463.0
+    },
+    "K4_percW33_grp0.0": {
+      "execution_time": 454.9361517409852,
+      "peak_memory_gb": 2.3434486389160156,
+      "convergence": true,
+      "log_likelihood": -4274604.0
+    },
+    "K4_percW33_grp0.05": {
+      "execution_time": 466.86378419498214,
+      "peak_memory_gb": 2.3373680114746094,
+      "convergence": true,
+      "log_likelihood": -4258829.0
+    },
+    "K4_percW33_grp0.1": {
+      "execution_time": 468.2205244420038,
+      "peak_memory_gb": 2.3346023559570312,
+      "convergence": true,
+      "log_likelihood": -4170343.75
+    },
+    "K4_percW33_grp0.2": {
+      "execution_time": 470.46404739900026,
+      "peak_memory_gb": 2.3366127014160156,
+      "convergence": true,
+      "log_likelihood": -4148108.0
+    }
+  }
+}

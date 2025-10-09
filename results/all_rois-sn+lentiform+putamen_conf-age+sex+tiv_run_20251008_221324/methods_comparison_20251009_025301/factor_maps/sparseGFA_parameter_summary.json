@@ -1,0 +1,11 @@
+{
+  "variant_name": "sparseGFA",
+  "saved_matrices": [
+    "W (factor_loadings)",
+    "Z (factor_scores)"
+  ],
+  "saved_parameters": [
+    "hyperparameter_performance"
+  ],
+  "timestamp": "2025-10-09T03:02:15.715753"
+}
