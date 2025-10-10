@@ -206,13 +206,31 @@ def main():
         logger.info(f"Regressing confounds: {args.regress_confounds}")
 
     # Configure K values for parameter comparison if provided
+    # This overrides ALL n_factors settings across all experiments
     if args.test_k:
+        logger.info(f"⚙️  Overriding all n_factors configurations with --test-k: {args.test_k}")
+
+        # Override sgfa_hyperparameter_tuning
         if "sgfa_hyperparameter_tuning" not in config:
             config["sgfa_hyperparameter_tuning"] = {}
         if "parameter_ranges" not in config["sgfa_hyperparameter_tuning"]:
             config["sgfa_hyperparameter_tuning"]["parameter_ranges"] = {}
         config["sgfa_hyperparameter_tuning"]["parameter_ranges"]["n_factors"] = args.test_k
-        logger.info(f"Testing K values: {args.test_k}")
+
+        # Override model_comparison
+        if "model_comparison" in config and "models" in config["model_comparison"]:
+            for model in config["model_comparison"]["models"]:
+                if "n_factors" in model:
+                    model["n_factors"] = args.test_k
+
+        # Override sensitivity_analysis
+        if "sensitivity_analysis" not in config:
+            config["sensitivity_analysis"] = {}
+        if "parameter_ranges" not in config["sensitivity_analysis"]:
+            config["sensitivity_analysis"]["parameter_ranges"] = {}
+        config["sensitivity_analysis"]["parameter_ranges"]["n_factors"] = args.test_k
+
+        logger.info(f"✓ All n_factors overridden to: {args.test_k}")
 
     # Setup unified results directory if requested
     if args.unified_results:
