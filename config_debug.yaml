@@ -137,7 +137,7 @@ model_comparison:
 # SGFA Hyperparameter Tuning Experiment - debug version
 sgfa_hyperparameter_tuning:
   parameter_ranges:
-    n_factors: [2, 3]                     # Minimal range for debug
+    n_factors: [20]                       # K = 20 only
     sparsity_lambda: [0.05, 0.1]          # Element-wise sparsity - two values only
     group_lambda: [0.0, 0.1]              # Group sparsity - two values for debug (0.0 = no group sparsity, higher = more shrinkage)
     learning_rate: [0.01]                 # Single value
@@ -146,7 +146,7 @@ sgfa_hyperparameter_tuning:
   scalability_analysis:
     sample_size_ranges: [20, 30]          # Very small for debug
     feature_size_ranges: [50, 100]        # Small feature ranges
-    component_ranges: [2, 3]              # Limited components
+    component_ranges: [20]                # K = 20 only
     chain_ranges: [1]                     # Single chain only
 
     benchmark_configs:
@@ -168,7 +168,7 @@ sgfa_hyperparameter_tuning:
 # Sensitivity Analysis Experiment - minimal parameter ranges
 sensitivity_analysis:
   parameter_ranges:
-    n_factors: [2, 3]                     # Minimal range
+    n_factors: [20]                       # K = 20 only
     sparsity_lambda: [0.05, 0.1]          # Two values only
     learning_rate: [0.01]                 # Single value
 

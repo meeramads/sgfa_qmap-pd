@@ -86,7 +86,7 @@ cross_validation:
 monitoring:
   checkpoint_dir: "./results/checkpoints"  # Checkpoint directory
   log_level: "INFO"                     # "DEBUG"|"INFO"|"WARNING"|"ERROR"|"CRITICAL"
-  save_checkpoints: true                # Save model checkpoints during training
+  save_checkpoints: false               # Save model checkpoints during training
   checkpoint_interval: 200              # Save checkpoint every N samples (≥1)
 
 # System Configuration (OPTIONAL)
