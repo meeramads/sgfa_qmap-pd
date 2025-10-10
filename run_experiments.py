@@ -380,11 +380,12 @@ def main():
         results["sgfa_hyperparameter_tuning"] = sgfa_result
 
         # Extract optimal parameters for downstream experiments
-        if sgfa_result and use_shared_data and hasattr(sgfa_result, "get"):
+        if sgfa_result and use_shared_data:
             try:
                 # Extract best performing variant info
-                if "model_results" in sgfa_result:
-                    model_results = sgfa_result["model_results"]
+                # ExperimentResult is a dataclass, access attributes not dict keys
+                if hasattr(sgfa_result, "model_results") and sgfa_result.model_results:
+                    model_results = sgfa_result.model_results
                     if "sgfa_variants" in model_results:
                         # Find best variant by execution time and convergence
                         best_variant = None
@@ -430,6 +431,12 @@ def main():
     if "model_comparison" in experiments_to_run:
         logger.info("🧠 3/6 Starting Model Architecture Comparison Experiment...")
         exp_config = config.copy()
+
+        # Debug: Log data sharing status
+        logger.info(f"   DEBUG: X_list available: {pipeline_context['X_list'] is not None}")
+        logger.info(f"   DEBUG: use_shared_data: {use_shared_data}")
+        logger.info(f"   DEBUG: optimal_sgfa_params available: {pipeline_context['optimal_sgfa_params'] is not None}")
+
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
             exp_config["_shared_data"] = {
