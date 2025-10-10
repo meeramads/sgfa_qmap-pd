@@ -2356,8 +2356,11 @@ def run_sgfa_hyperparameter_tuning(config):
 
             # Test different K values for comparison
             # Get configuration from sgfa_hyperparameter_tuning config section
+            logger.info(f"DEBUG: config_dict keys = {list(config_dict.keys())}")
             sgfa_config = config_dict.get("sgfa_hyperparameter_tuning", {})
+            logger.info(f"DEBUG: sgfa_config = {sgfa_config}")
             parameter_ranges = sgfa_config.get("parameter_ranges", {})
+            logger.info(f"DEBUG: parameter_ranges = {parameter_ranges}")
 
             # Extract K values, percW values, and group_lambda values from proper config section
             K_values = sorted(parameter_ranges.get("n_factors", [2, 3, 4]))
