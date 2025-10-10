@@ -69,6 +69,16 @@ class FactorVisualizer:
             W, data, save_path=str(plot_dir / "factors" / "enhanced_loading_distributions.png")
         )
 
+        # Create clinical-specific visualization if clinical data present
+        view_names = data.get("view_names", [])
+        has_clinical_data = any('clinical' in view_name.lower() for view_name in view_names)
+
+        if has_clinical_data:
+            logger.info("Creating detailed clinical factor loading analysis")
+            self.plot_clinical_factor_loadings(
+                W, data, save_path=str(plot_dir / "factors" / "clinical_factor_loadings.png")
+            )
+
         # Create region-wise analysis for brain data (if brain regions detected)
         brain_regions = ['lentiform', 'sn', 'putamen', 'caudate', 'thalamus', 'hippocampus',
                         'amygdala', 'cortical', 'subcortical', 'frontal', 'parietal', 'temporal',
@@ -96,6 +106,7 @@ class FactorVisualizer:
     def _plot_factor_loadings(self, W: np.ndarray, data: Dict, save_dir: Path):
         """Plot factor loadings for each view."""
         view_names = data.get("view_names", [])
+        feature_names = data.get("feature_names", {})
         Dm = [X.shape[1] for X in data.get("X_list", [])]
 
         # Create figure with subplots for each view
@@ -118,10 +129,23 @@ class FactorVisualizer:
             )
 
             axes[m].set_title(f"{view_name}\n({dim} features)")
-            axes[m].set_xlabel("Features")
             axes[m].set_ylabel("Factors")
             axes[m].set_yticks(range(W_view.shape[1]))
             axes[m].set_yticklabels([f"F{i + 1}" for i in range(W_view.shape[1])])
+
+            # Add feature names on x-axis if available
+            if view_name in feature_names and len(feature_names[view_name]) == dim:
+                feat_labels = feature_names[view_name]
+                # Show labels if not too many features
+                if dim <= 30:
+                    axes[m].set_xticks(range(dim))
+                    axes[m].set_xticklabels(feat_labels, rotation=45, ha='right', fontsize=8)
+                    axes[m].set_xlabel("")
+                else:
+                    # Too many features - just show count
+                    axes[m].set_xlabel("Features")
+            else:
+                axes[m].set_xlabel("Features")
 
             # Add colorbar
             plt.colorbar(im, ax=axes[m], fraction=0.046)
@@ -471,29 +495,15 @@ class FactorVisualizer:
                                           if k in view_name.lower()), view_name)
                         feature_labels = [f"{region_name}_voxel_{i}" for i in top_indices]
                     elif 'clinical' in view_name.lower():
-                        # Load actual clinical variable names
-                        try:
-                            import pandas as pd
-                            from pathlib import Path
-                            # Try multiple possible paths for clinical data
-                            clinical_paths = [
-                                Path("qMAP-PD_data/data_clinical/pd_motor_gfa_data.tsv"),
-                                Path("../qMAP-PD_data/data_clinical/pd_motor_gfa_data.tsv"),
-                                Path("./data_clinical/pd_motor_gfa_data.tsv")
-                            ]
-                            clinical_file = None
-                            for path in clinical_paths:
-                                if path.exists():
-                                    clinical_file = path
-                                    break
-                            if clinical_file:
-                                clinical_df = pd.read_csv(clinical_file, sep="\t")
-                                # Get column names excluding 'sid' ID column
-                                clinical_names = [col for col in clinical_df.columns if col != 'sid']
-                                feature_labels = [clinical_names[i] if i < len(clinical_names) else f"Clinical_var_{i}" for i in top_indices]
-                            else:
+                        # Use feature names from data if available
+                        if feat_names and view_names[view_idx] in feat_names:
+                            try:
+                                view_feat_names = feat_names[view_names[view_idx]]
+                                feature_labels = [view_feat_names[i] if i < len(view_feat_names) else f"Clinical_var_{i}" for i in top_indices]
+                            except (IndexError, KeyError) as e:
+                                logger.warning(f"Could not use feature names for clinical view: {e}")
                                 feature_labels = [f"Clinical_var_{i}" for i in top_indices]
-                        except Exception:
+                        else:
                             feature_labels = [f"Clinical_var_{i}" for i in top_indices]
                     else:
                         feature_labels = [f"{view_name}_feature_{i}" for i in top_indices]
@@ -1023,6 +1033,207 @@ class FactorVisualizer:
         except Exception as e:
             logger.warning(f"Could not calculate spatial coherence: {e}")
             return 0.0
+
+    def plot_clinical_factor_loadings(self, W: np.ndarray, data: Dict, save_path: str = None):
+        """Create detailed clinical variable factor loading visualization."""
+        view_names = data.get("view_names", [])
+        feature_names = data.get("feature_names", {})
+        Dm = [X.shape[1] for X in data.get("X_list", [])]
+
+        # Find clinical view
+        clinical_view_idx = None
+        clinical_view_name = None
+        for i, view_name in enumerate(view_names):
+            if 'clinical' in view_name.lower():
+                clinical_view_idx = i
+                clinical_view_name = view_name
+                break
+
+        if clinical_view_idx is None:
+            logger.warning("No clinical view found for clinical factor loading visualization")
+            return
+
+        # Extract clinical loadings
+        d = sum(Dm[:clinical_view_idx])
+        dim = Dm[clinical_view_idx]
+        W_clinical = W[d:d+dim, :]
+        n_factors = W_clinical.shape[1]
+
+        # Get clinical feature names
+        if clinical_view_name in feature_names:
+            clinical_feat_names = feature_names[clinical_view_name]
+        else:
+            clinical_feat_names = [f"Clinical_var_{i}" for i in range(dim)]
+
+        # Create comprehensive figure
+        fig = plt.figure(figsize=(18, 12))
+
+        # 1. Heatmap of all clinical loadings
+        ax1 = plt.subplot(2, 3, 1)
+        im = ax1.imshow(W_clinical.T, aspect='auto', cmap='RdBu_r',
+                       vmin=-np.max(np.abs(W_clinical)), vmax=np.max(np.abs(W_clinical)))
+        ax1.set_title('Clinical Feature Loadings Heatmap', fontweight='bold')
+        ax1.set_ylabel('Factors')
+        ax1.set_yticks(range(n_factors))
+        ax1.set_yticklabels([f'Factor {i+1}' for i in range(n_factors)])
+
+        if dim <= 30:
+            ax1.set_xticks(range(dim))
+            ax1.set_xticklabels(clinical_feat_names, rotation=45, ha='right', fontsize=8)
+        else:
+            ax1.set_xlabel(f'Clinical Features (n={dim})')
+
+        plt.colorbar(im, ax=ax1, shrink=0.8, label='Loading Strength')
+
+        # 2. Top loadings per factor (bar plot)
+        ax2 = plt.subplot(2, 3, 2)
+        n_top = min(10, dim)
+        factor_colors = plt.cm.tab10(np.linspace(0, 1, n_factors))
+
+        for k in range(n_factors):
+            abs_loadings = np.abs(W_clinical[:, k])
+            top_indices = np.argsort(abs_loadings)[-n_top:][::-1]
+            top_values = W_clinical[top_indices, k]
+            top_names = [clinical_feat_names[i] for i in top_indices]
+
+            offset = k * (n_top + 2)
+            colors = ['red' if x < 0 else 'blue' for x in top_values]
+            ax2.barh(np.arange(offset, offset + n_top), top_values,
+                    color=colors, alpha=0.7, label=f'Factor {k+1}')
+
+            # Add feature names
+            for i, (val, name) in enumerate(zip(top_values, top_names)):
+                ax2.text(0, offset + i, f'  {name}', va='center', fontsize=7, fontweight='bold')
+
+        ax2.set_title(f'Top {n_top} Clinical Features per Factor', fontweight='bold')
+        ax2.set_xlabel('Loading Value')
+        ax2.set_yticks([])
+        ax2.axvline(0, color='black', linestyle='-', alpha=0.3)
+        ax2.legend(loc='lower right')
+
+        # 3. Feature importance across all factors
+        ax3 = plt.subplot(2, 3, 3)
+        feature_importance = np.max(np.abs(W_clinical), axis=1)
+        sorted_indices = np.argsort(feature_importance)[-15:][::-1]  # Top 15
+
+        bars = ax3.barh(range(len(sorted_indices)),
+                       feature_importance[sorted_indices],
+                       color=plt.cm.viridis(np.linspace(0, 1, len(sorted_indices))))
+        ax3.set_yticks(range(len(sorted_indices)))
+        ax3.set_yticklabels([clinical_feat_names[i] for i in sorted_indices], fontsize=8)
+        ax3.set_xlabel('Max |Loading| Across Factors')
+        ax3.set_title('Most Important Clinical Features', fontweight='bold')
+
+        # 4. Loading distribution by feature category (if identifiable)
+        ax4 = plt.subplot(2, 3, 4)
+
+        # Categorize clinical features
+        categories = {}
+        for i, name in enumerate(clinical_feat_names):
+            if any(kw in name.lower() for kw in ['age', 'sex', 'tiv', 'demographic']):
+                categories.setdefault('Demographics', []).append(i)
+            elif any(kw in name.lower() for kw in ['rigidity', 'rigid']):
+                categories.setdefault('Rigidity', []).append(i)
+            elif any(kw in name.lower() for kw in ['tremor']):
+                categories.setdefault('Tremor', []).append(i)
+            elif any(kw in name.lower() for kw in ['bradykinesia', 'brady']):
+                categories.setdefault('Bradykinesia', []).append(i)
+            elif any(kw in name.lower() for kw in ['mirror', 'movement']):
+                categories.setdefault('Mirror Movement', []).append(i)
+            else:
+                categories.setdefault('Other', []).append(i)
+
+        if len(categories) > 1:
+            category_loadings = []
+            category_names = []
+            for cat_name, indices in categories.items():
+                if indices:
+                    mean_loading = np.mean(np.abs(W_clinical[indices, :]))
+                    category_loadings.append(mean_loading)
+                    category_names.append(f"{cat_name} (n={len(indices)})")
+
+            bars = ax4.barh(range(len(category_names)), category_loadings,
+                          color=plt.cm.Set3(np.linspace(0, 1, len(category_names))))
+            ax4.set_yticks(range(len(category_names)))
+            ax4.set_yticklabels(category_names, fontsize=9)
+            ax4.set_xlabel('Mean |Loading|')
+            ax4.set_title('Loading Strength by Feature Category', fontweight='bold')
+        else:
+            ax4.text(0.5, 0.5, 'Feature categories\nnot identified',
+                    ha='center', va='center', transform=ax4.transAxes, fontsize=10)
+            ax4.set_title('Loading Strength by Feature Category', fontweight='bold')
+
+        # 5. Factor interpretability for clinical features
+        ax5 = plt.subplot(2, 3, 5)
+        interpretability_scores = []
+        for k in range(n_factors):
+            sparsity = np.mean(np.abs(W_clinical[:, k]) < 0.1)
+            max_loading = np.max(np.abs(W_clinical[:, k]))
+            interpretability = sparsity * max_loading
+            interpretability_scores.append(interpretability)
+
+        bars = ax5.bar(range(n_factors), interpretability_scores,
+                      color=factor_colors, alpha=0.7)
+        ax5.set_xlabel('Factor')
+        ax5.set_ylabel('Interpretability Score')
+        ax5.set_title('Clinical Factor Interpretability', fontweight='bold')
+        ax5.set_xticks(range(n_factors))
+        ax5.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+
+        # Add value labels
+        for i, (bar, score) in enumerate(zip(bars, interpretability_scores)):
+            ax5.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
+                    f'{score:.3f}', ha='center', va='bottom', fontweight='bold', fontsize=8)
+
+        # 6. Summary table
+        ax6 = plt.subplot(2, 3, 6)
+        ax6.axis('off')
+
+        # Find most important feature per factor
+        most_important_per_factor = []
+        for k in range(n_factors):
+            max_idx = np.argmax(np.abs(W_clinical[:, k]))
+            feat_name = clinical_feat_names[max_idx]
+            loading_val = W_clinical[max_idx, k]
+            most_important_per_factor.append(f"{feat_name[:20]}... ({loading_val:.3f})"
+                                            if len(feat_name) > 20
+                                            else f"{feat_name} ({loading_val:.3f})")
+
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Clinical Features', f'{dim}'],
+            ['Number of Factors', f'{n_factors}'],
+            ['Avg |Loading|', f'{np.mean(np.abs(W_clinical)):.4f}'],
+            ['Max |Loading|', f'{np.max(np.abs(W_clinical)):.4f}'],
+            ['Sparsity %', f'{np.mean(np.abs(W_clinical) < 0.1)*100:.1f}%'],
+            ['Most Interpretable Factor', f'Factor {np.argmax(interpretability_scores)+1}'],
+        ]
+
+        # Add top feature per factor
+        for k in range(min(3, n_factors)):  # Show top 3 factors
+            summary_data.append([f'Top Feature F{k+1}', most_important_per_factor[k]])
+
+        table = ax6.table(cellText=summary_data, cellLoc='left', loc='center',
+                         colWidths=[0.5, 0.5])
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 1.5)
+
+        # Style header row
+        for i in range(len(summary_data[0])):
+            table[(0, i)].set_facecolor('#4CAF50')
+            table[(0, i)].set_text_props(weight='bold', color='white')
+
+        plt.suptitle('Clinical Factor Loading Analysis', fontsize=16, fontweight='bold')
+        plt.tight_layout()
+
+        if save_path:
+            clinical_save_path = save_path.replace('.png', '_clinical_detailed.png')
+            save_plot(clinical_save_path)
+            plt.close()
+            logger.info(f"Saved clinical factor loading plot: {clinical_save_path}")
+        else:
+            plt.show()
 
     def plot_region_wise_factor_analysis(self, W: np.ndarray, data: Dict, save_path: str = None):
         """Create comprehensive region-wise factor analysis for brain data organized as separate views."""

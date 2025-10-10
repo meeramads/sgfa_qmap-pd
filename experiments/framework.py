@@ -476,10 +476,14 @@ class ExperimentFramework:
         # Check for matrices in model_results
         model_results = result.model_results
 
-        # Extract view names from data_summary if available
+        # Extract view names and feature names from data_summary if available
         view_names = None
-        if result.data_summary and "view_names" in result.data_summary:
-            view_names = result.data_summary["view_names"]
+        feature_names = None
+        if result.data_summary:
+            if "view_names" in result.data_summary:
+                view_names = result.data_summary["view_names"]
+            if "feature_names" in result.data_summary:
+                feature_names = result.data_summary["feature_names"]
 
         # Save SGFA matrices if available
         if "sgfa_variants" in model_results:
@@ -487,7 +491,7 @@ class ExperimentFramework:
             for variant_name, variant_result in sgfa_results.items():
                 if variant_result and isinstance(variant_result, dict):
                     self._save_matrices_for_variant(
-                        variant_result, matrices_dir, f"sgfa_{variant_name}", view_names
+                        variant_result, matrices_dir, f"sgfa_{variant_name}", view_names, feature_names
                     )
 
         # Save other method matrices if available
@@ -496,7 +500,7 @@ class ExperimentFramework:
             for method_name, method_result in trad_results.items():
                 if method_result and isinstance(method_result, dict):
                     self._save_matrices_for_variant(
-                        method_result, matrices_dir, f"traditional_{method_name}", view_names
+                        method_result, matrices_dir, f"traditional_{method_name}", view_names, feature_names
                     )
 
         # Save main result matrices if available (for single-method experiments)
@@ -515,10 +519,11 @@ class ExperimentFramework:
                 Z = model_results["Z"]
 
             if W is not None or Z is not None:
-                self._save_matrices_for_variant({"W": W, "Z": Z}, matrices_dir, "main", view_names)
+                self._save_matrices_for_variant({"W": W, "Z": Z}, matrices_dir, "main", view_names, feature_names)
 
     def _save_matrices_for_variant(
-        self, result_dict: dict, matrices_dir: Path, variant_name: str, view_names: Optional[List[str]] = None
+        self, result_dict: dict, matrices_dir: Path, variant_name: str,
+        view_names: Optional[List[str]] = None, feature_names: Optional[Dict[str, List[str]]] = None
     ):
         """Save W, Z matrices and all model parameters for a specific variant/method."""
         import pandas as pd
@@ -536,32 +541,62 @@ class ExperimentFramework:
                             # Get view name (use index if not available)
                             if view_names and view_idx < len(view_names):
                                 view_label = view_names[view_idx].replace(" ", "_").replace("/", "_")
+                                view_name = view_names[view_idx]
                             else:
                                 view_label = f"view{view_idx}"
+                                view_name = None
 
-                            # Save as numpy
-                            # save_numpy(
-                            #     W_view,
-                            #     matrices_dir
-                            #     / f"{variant_name}_factor_loadings_{view_label}.npy",
-                            # )
+                            # Get feature names for this view
+                            row_labels = None
+                            if feature_names and view_name and view_name in feature_names:
+                                feat_list = feature_names[view_name]
+                                # Ensure feature names match matrix dimensions
+                                if len(feat_list) == W_view.shape[0]:
+                                    row_labels = feat_list
+
+                            # Create DataFrame with feature names as index and factors as columns
+                            col_labels = [f"Factor_{i+1}" for i in range(W_view.shape[1])]
+                            W_df = pd.DataFrame(W_view, columns=col_labels)
+
+                            if row_labels:
+                                W_df.index = row_labels
+                                W_df.index.name = "Feature"
+
                             # Save as CSV for readability
                             save_csv(
-                                pd.DataFrame(W_view),
+                                W_df,
                                 matrices_dir
                                 / f"{variant_name}_factor_loadings_{view_label}.csv",
-                                index=False,
+                                index=True if row_labels else False,
                             )
                 else:
-                    # Single matrix case
+                    # Single matrix case (combined views)
                     if hasattr(W, "shape"):
-                        # save_numpy(
-                        #     W, matrices_dir / f"{variant_name}_factor_loadings.npy"
-                        # )
+                        # Try to get concatenated feature names
+                        row_labels = None
+                        if feature_names and view_names:
+                            # Concatenate all feature names in order
+                            all_features = []
+                            for view_name in view_names:
+                                if view_name in feature_names:
+                                    all_features.extend(feature_names[view_name])
+
+                            # Ensure concatenated features match matrix dimensions
+                            if len(all_features) == W.shape[0]:
+                                row_labels = all_features
+
+                        # Create DataFrame with column headers
+                        col_labels = [f"Factor_{i+1}" for i in range(W.shape[1])]
+                        W_df = pd.DataFrame(W, columns=col_labels)
+
+                        if row_labels:
+                            W_df.index = row_labels
+                            W_df.index.name = "Feature"
+
                         save_csv(
-                            pd.DataFrame(W),
+                            W_df,
                             matrices_dir / f"{variant_name}_factor_loadings.csv",
-                            index=False,
+                            index=True if row_labels else False,
                         )
             except Exception as e:
                 print(f"Warning: Could not save W matrices for {variant_name}: {e}")

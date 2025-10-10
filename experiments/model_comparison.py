@@ -816,6 +816,15 @@ class ModelArchitectureComparison(ExperimentFramework):
         # === Part 4: Generate Plots ===
         plots = self._plot_unified_comparison(results, performance_metrics, analysis)
 
+        # Prepare data summary with feature names for CSV export
+        data_summary = {}
+        if 'data' in kwargs:
+            data = kwargs['data']
+            if 'view_names' in data:
+                data_summary['view_names'] = data['view_names']
+            if 'feature_names' in data:
+                data_summary['feature_names'] = data['feature_names']
+
         return ExperimentResult(
             experiment_id="methods_comparison",
             config=self.config,
@@ -825,6 +834,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             model_results=results,
             performance_metrics=performance_metrics,
             plots=plots,
+            data_summary=data_summary,
         )
 
     def _run_model_architecture(
