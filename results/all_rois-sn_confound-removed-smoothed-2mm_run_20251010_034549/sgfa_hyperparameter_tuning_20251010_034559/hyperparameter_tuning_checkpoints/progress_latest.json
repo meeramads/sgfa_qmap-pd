@@ -1,0 +1,143 @@
+{
+  "last_completed_variant": "K20_percW33_grp0.2",
+  "completed_variants": [
+    "K20_percW10_grp0.0",
+    "K20_percW10_grp0.05",
+    "K20_percW10_grp0.1",
+    "K20_percW10_grp0.2",
+    "K20_percW25_grp0.0",
+    "K20_percW25_grp0.05",
+    "K20_percW25_grp0.1",
+    "K20_percW25_grp0.2",
+    "K20_percW33_grp0.0",
+    "K20_percW33_grp0.05",
+    "K20_percW33_grp0.1",
+    "K20_percW33_grp0.2"
+  ],
+  "num_completed": 12,
+  "total_variants": 12,
+  "results_summary": {
+    "K20_percW10_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -5474763.0
+    },
+    "K20_percW10_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -5822546.5
+    },
+    "K20_percW10_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -5734412.0
+    },
+    "K20_percW10_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -5635165.5
+    },
+    "K20_percW25_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -5472069.5
+    },
+    "K20_percW25_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -5627922.0
+    },
+    "K20_percW25_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -5663980.5
+    },
+    "K20_percW25_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -5694865.0
+    },
+    "K20_percW33_grp0.0": {
+      "convergence": true,
+      "log_likelihood": -5850414.0
+    },
+    "K20_percW33_grp0.05": {
+      "convergence": true,
+      "log_likelihood": -5798572.5
+    },
+    "K20_percW33_grp0.1": {
+      "convergence": true,
+      "log_likelihood": -5889608.5
+    },
+    "K20_percW33_grp0.2": {
+      "convergence": true,
+      "log_likelihood": -5917734.0
+    }
+  },
+  "performance_metrics": {
+    "K20_percW10_grp0.0": {
+      "execution_time": 739.4314160220092,
+      "peak_memory_gb": 2.2538604736328125,
+      "convergence": true,
+      "log_likelihood": -5474763.0
+    },
+    "K20_percW10_grp0.05": {
+      "execution_time": 765.0493257839989,
+      "peak_memory_gb": 2.299449920654297,
+      "convergence": true,
+      "log_likelihood": -5822546.5
+    },
+    "K20_percW10_grp0.1": {
+      "execution_time": 756.1730483459833,
+      "peak_memory_gb": 2.3320159912109375,
+      "convergence": true,
+      "log_likelihood": -5734412.0
+    },
+    "K20_percW10_grp0.2": {
+      "execution_time": 754.1038866589952,
+      "peak_memory_gb": 2.3472557067871094,
+      "convergence": true,
+      "log_likelihood": -5635165.5
+    },
+    "K20_percW25_grp0.0": {
+      "execution_time": 737.326633610006,
+      "peak_memory_gb": 2.3461570739746094,
+      "convergence": true,
+      "log_likelihood": -5472069.5
+    },
+    "K20_percW25_grp0.05": {
+      "execution_time": 648.1489179430064,
+      "peak_memory_gb": 2.3586044311523438,
+      "convergence": true,
+      "log_likelihood": -5627922.0
+    },
+    "K20_percW25_grp0.1": {
+      "execution_time": 758.6560338459967,
+      "peak_memory_gb": 2.364532470703125,
+      "convergence": true,
+      "log_likelihood": -5663980.5
+    },
+    "K20_percW25_grp0.2": {
+      "execution_time": 758.9697611930023,
+      "peak_memory_gb": 2.3742408752441406,
+      "convergence": true,
+      "log_likelihood": -5694865.0
+    },
+    "K20_percW33_grp0.0": {
+      "execution_time": 735.8210235350125,
+      "peak_memory_gb": 2.3769454956054688,
+      "convergence": true,
+      "log_likelihood": -5850414.0
+    },
+    "K20_percW33_grp0.05": {
+      "execution_time": 761.0596216720005,
+      "peak_memory_gb": 2.378246307373047,
+      "convergence": true,
+      "log_likelihood": -5798572.5
+    },
+    "K20_percW33_grp0.1": {
+      "execution_time": 762.2689785450057,
+      "peak_memory_gb": 2.3785781860351562,
+      "convergence": true,
+      "log_likelihood": -5889608.5
+    },
+    "K20_percW33_grp0.2": {
+      "execution_time": 757.4931277919968,
+      "peak_memory_gb": 2.3784446716308594,
+      "convergence": true,
+      "log_likelihood": -5917734.0
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "variant_configuration": {
+    "variant_name": "sparseGFA",
+    "hyperparameters": {
+      "K": 5,
+      "num_samples": 500,
+      "num_warmup": 300,
+      "num_chains": 1
+    },
+    "timestamp": "2025-10-10T06:20:53.800656"
+  },
+  "performance_metrics": {
+    "execution_time_seconds": 300.70869851112366,
+    "converged": "True",
+    "log_likelihood": -177319.59375,
+    "factor_interpretability_score": null
+  },
+  "clinical_relevance": {
+    "K_factors": 5,
+    "sparsity_level": "unknown",
+    "recommended_for": "High sparsity - good for identifying key biomarkers"
+  },
+  "scientific_assessment": {
+    "computational_efficiency": "slow",
+    "model_quality": "good",
+    "interpretability": "low"
+  }
+}
