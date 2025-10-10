@@ -2280,9 +2280,13 @@ def run_sgfa_hyperparameter_tuning(config):
         def method_comparison_experiment(config, output_dir, **kwargs):
             import numpy as np
 
+            # Use full_config if provided (contains all sections including sgfa_hyperparameter_tuning)
+            # Otherwise fall back to the exp_config object
+            full_config = kwargs.get('full_config', config)
+
             # Normalize config input using standard ConfigHelper
             from core.config_utils import ConfigHelper
-            config_dict = ConfigHelper.to_dict(config)
+            config_dict = ConfigHelper.to_dict(full_config)
 
             logger.info(
                 "Running comprehensive method comparison with actual model training..."
@@ -2717,12 +2721,12 @@ def run_sgfa_hyperparameter_tuning(config):
             return return_data
 
         # Run experiment using framework
-        # IMPORTANT: Pass the full config dict (not exp_config) so method_comparison_experiment
-        # can access sgfa_hyperparameter_tuning.parameter_ranges.n_factors
         result = framework.run_experiment(
             experiment_function=method_comparison_experiment,
-            config=config,  # Changed from exp_config to config to preserve all config sections
+            config=exp_config,
             model_results=data,
+            # Pass the full config as kwargs so method_comparison_experiment can access it
+            full_config=config,  # Include full config with sgfa_hyperparameter_tuning section
         )
 
         # Immediate memory cleanup after framework completion
