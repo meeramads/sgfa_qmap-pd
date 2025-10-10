@@ -2717,9 +2717,11 @@ def run_sgfa_hyperparameter_tuning(config):
             return return_data
 
         # Run experiment using framework
+        # IMPORTANT: Pass the full config dict (not exp_config) so method_comparison_experiment
+        # can access sgfa_hyperparameter_tuning.parameter_ranges.n_factors
         result = framework.run_experiment(
             experiment_function=method_comparison_experiment,
-            config=exp_config,
+            config=config,  # Changed from exp_config to config to preserve all config sections
             model_results=data,
         )
 
