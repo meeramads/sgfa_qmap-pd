@@ -2679,6 +2679,79 @@ def run_sgfa_hyperparameter_tuning(config):
             except Exception as e:
                 logger.warning(f"Failed to create heatmap plots: {e}")
 
+            # Validate clinical laterality patterns for each successful variant
+            logger.info("🔍 Validating clinical laterality patterns...")
+            laterality_validation_results = {}
+
+            try:
+                from experiments.clinical_validation import ClinicalValidationExperiments
+
+                # Create a minimal config for the validator
+                validator_config = ExperimentConfig(output_dir=output_dir)
+                validator = ClinicalValidationExperiments(validator_config, logger=logger)
+
+                # Validate patterns for each variant that has factor loadings
+                for variant_name, variant_result in model_results.items():
+                    if variant_result.get("status") == "completed" and "W" in variant_result:
+                        try:
+                            W_list = variant_result["W"]
+                            view_names = variant_result.get("view_names", [])
+
+                            # Find clinical view
+                            clinical_idx = None
+                            for idx, vname in enumerate(view_names):
+                                if "clinical" in vname.lower():
+                                    clinical_idx = idx
+                                    break
+
+                            if clinical_idx is not None and clinical_idx < len(W_list):
+                                # Get clinical factor loadings (features × factors)
+                                W_clinical = W_list[clinical_idx]
+
+                                # Get clinical feature names if available
+                                feature_names = variant_result.get("feature_names", {})
+                                clinical_features = feature_names.get("clinical", [f"feature_{i}" for i in range(W_clinical.shape[0])])
+
+                                # Create DataFrame with features as rows, factors as columns
+                                import pandas as pd
+                                factor_loadings_df = pd.DataFrame(
+                                    W_clinical,
+                                    index=clinical_features,
+                                    columns=[f"Factor_{i+1}" for i in range(W_clinical.shape[1])]
+                                )
+
+                                # Determine ROI name from view_names
+                                imaging_views = [v for v in view_names if "clinical" not in v.lower()]
+                                roi_name = imaging_views[0] if len(imaging_views) > 0 else "Unknown"
+
+                                # Validate patterns
+                                validation_result = validator.validate_laterality_patterns(
+                                    factor_loadings_df,
+                                    roi_name=f"{roi_name} ({variant_name})"
+                                )
+
+                                laterality_validation_results[variant_name] = validation_result
+
+                        except Exception as e:
+                            logger.warning(f"Could not validate laterality patterns for {variant_name}: {e}")
+
+                if laterality_validation_results:
+                    logger.info(f"✅ Laterality validation completed for {len(laterality_validation_results)} variants")
+
+                    # Log summary of best variants
+                    best_variant = max(
+                        laterality_validation_results.items(),
+                        key=lambda x: x[1]['summary']['average_validation_score']
+                    )
+                    logger.info(f"   Best laterality patterns: {best_variant[0]} (score: {best_variant[1]['summary']['average_validation_score']:.2f}/2.5)")
+                    logger.info(f"   Status: {best_variant[1]['summary']['validation_status']}")
+                else:
+                    logger.warning("⚠️  No variants had clinical data for laterality validation")
+
+            except Exception as e:
+                logger.warning(f"Laterality validation failed: {e}")
+                laterality_validation_results = {}
+
             # Prepare return data before cleanup
             return_data = {
                 "status": "completed",
@@ -2688,6 +2761,7 @@ def run_sgfa_hyperparameter_tuning(config):
                 "models_summary": models_summary,
                 "analysis_summary": analysis_summary,
                 "performance_summary": performance_summary,
+                "laterality_validation": laterality_validation_results,  # NEW: Add validation results
                 "experiment_config": {
                     "K_values_tested": K_values,
                     "percW_values_tested": percW_values,

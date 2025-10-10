@@ -2496,6 +2496,299 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         return analysis
 
+    def validate_laterality_patterns(
+        self,
+        factor_loadings: pd.DataFrame,
+        roi_name: str = "Unknown"
+    ) -> Dict:
+        """
+        Validate expected clinical laterality patterns in factor loadings.
+
+        Expected patterns (from supervisor):
+        - Left bradykinesia (rate, speed) + right mirror movements
+          should weight together in same direction
+        - Right bradykinesia features should weight in opposite direction
+        - Optional: Tremor splitting (left vs right in opposite directions)
+
+        Most robust patterns expected in SN (substantia nigra).
+
+        Args:
+            factor_loadings: DataFrame with features as rows, factors as columns
+            roi_name: Name of the ROI being analyzed
+
+        Returns:
+            Dictionary with validation results and scores
+        """
+        self.logger.info(f"🔍 Validating laterality patterns for {roi_name}")
+
+        results = {
+            'roi_name': roi_name,
+            'factors': {},
+            'summary': {}
+        }
+
+        for factor_col in factor_loadings.columns:
+            loadings = factor_loadings[factor_col]
+
+            # Categorize features by symptom type and laterality
+            left_brady_rate = []
+            left_brady_speed = []
+            right_brady_rate = []
+            right_brady_speed = []
+            left_rigidity = []
+            right_rigidity = []
+            left_tremor = []
+            right_tremor = []
+            right_mirror = []
+            left_mirror = []
+
+            for feature, loading in loadings.items():
+                if abs(loading) < 0.01:  # Skip very small loadings
+                    continue
+
+                feature_lower = str(feature).lower()
+
+                # Determine laterality
+                is_left = '-left' in feature_lower or '_left' in feature_lower
+                is_right = '-right' in feature_lower or '_right' in feature_lower
+
+                # Categorize by symptom and laterality
+                if 'bradykinesia' in feature_lower:
+                    if 'rate' in feature_lower:
+                        if is_left:
+                            left_brady_rate.append((feature, loading))
+                        elif is_right:
+                            right_brady_rate.append((feature, loading))
+                    elif 'speed' in feature_lower:
+                        if is_left:
+                            left_brady_speed.append((feature, loading))
+                        elif is_right:
+                            right_brady_speed.append((feature, loading))
+                elif 'rigidity' in feature_lower:
+                    if is_left:
+                        left_rigidity.append((feature, loading))
+                    elif is_right:
+                        right_rigidity.append((feature, loading))
+                elif 'tremor' in feature_lower:
+                    if is_left:
+                        left_tremor.append((feature, loading))
+                    elif is_right:
+                        right_tremor.append((feature, loading))
+                elif 'mirror' in feature_lower:
+                    if is_left:
+                        left_mirror.append((feature, loading))
+                    elif is_right:
+                        right_mirror.append((feature, loading))
+
+            # Pattern 1: Bradykinesia + contralateral mirror movements align
+            # 1a: Left bradykinesia + right mirror
+            # 1b: Right bradykinesia + left mirror (symmetric pattern)
+            left_brady_features = left_brady_rate + left_brady_speed
+            right_brady_features = right_brady_rate + right_brady_speed
+
+            pattern1a_score = 0.0
+            pattern1b_score = 0.0
+
+            # Pattern 1a: left brady + right mirror
+            if len(left_brady_features) >= 1 and len(right_mirror) > 0:
+                left_brady_values = [x[1] for x in left_brady_features]
+                right_mirror_values = [x[1] for x in right_mirror]
+
+                left_brady_mean = np.mean(left_brady_values)
+                right_mirror_mean = np.mean(right_mirror_values)
+
+                same_sign_1a = (left_brady_mean * right_mirror_mean) > 0
+
+                if abs(left_brady_mean) > 0.01 and abs(right_mirror_mean) > 0.01:
+                    if same_sign_1a:
+                        left_consistency = 1.0 - min(1.0, np.std(left_brady_values) / (abs(left_brady_mean) + 1e-6))
+                        pattern1a_score = 0.5 + 0.5 * max(0, left_consistency)
+                    else:
+                        pattern1a_score = 0.1
+
+            # Pattern 1b: right brady + left mirror (symmetric)
+            if len(right_brady_features) >= 1 and len(left_mirror) > 0:
+                right_brady_values = [x[1] for x in right_brady_features]
+                left_mirror_values = [x[1] for x in left_mirror]
+
+                right_brady_mean = np.mean(right_brady_values)
+                left_mirror_mean = np.mean(left_mirror_values)
+
+                same_sign_1b = (right_brady_mean * left_mirror_mean) > 0
+
+                if abs(right_brady_mean) > 0.01 and abs(left_mirror_mean) > 0.01:
+                    if same_sign_1b:
+                        right_consistency = 1.0 - min(1.0, np.std(right_brady_values) / (abs(right_brady_mean) + 1e-6))
+                        pattern1b_score = 0.5 + 0.5 * max(0, right_consistency)
+                    else:
+                        pattern1b_score = 0.1
+
+            # Take max since they're symmetric alternatives (usually only one is dominant)
+            pattern1_score = max(pattern1a_score, pattern1b_score)
+
+            pattern1_details = {
+                'left_brady_right_mirror': {
+                    'left_brady_features': left_brady_features,
+                    'right_mirror': right_mirror,
+                    'score': pattern1a_score
+                },
+                'right_brady_left_mirror': {
+                    'right_brady_features': right_brady_features,
+                    'left_mirror': left_mirror,
+                    'score': pattern1b_score
+                },
+                'alignment_score': pattern1_score,
+                'dominant_pattern': 'left_brady_right_mirror' if pattern1a_score > pattern1b_score else 'right_brady_left_mirror'
+            }
+
+            # Pattern 2: Opposite bradykinesia sides tend opposite directions
+            pattern2_score = 0.0
+            pattern2_details = {}
+
+            if len(left_brady_features) >= 1 and len(right_brady_features) >= 1:
+                left_brady_values = [x[1] for x in left_brady_features]
+                right_brady_values = [x[1] for x in right_brady_features]
+
+                left_mean = np.mean(left_brady_values)
+                right_mean = np.mean(right_brady_values)
+
+                # Check if they tend to have opposite signs
+                opposite_sign = (left_mean * right_mean) < 0
+
+                if abs(left_mean) > 0.01 and abs(right_mean) > 0.01:
+                    if opposite_sign:
+                        # Score based on consistency within each side
+                        left_consistency = 1.0 - min(1.0, np.std(left_brady_values) / (abs(left_mean) + 1e-6))
+                        right_consistency = 1.0 - min(1.0, np.std(right_brady_values) / (abs(right_mean) + 1e-6))
+
+                        avg_consistency = (max(0, left_consistency) + max(0, right_consistency)) / 2
+                        pattern2_score = 0.5 + 0.5 * avg_consistency
+                    else:
+                        # Partial credit for presence
+                        pattern2_score = 0.1
+
+                pattern2_details = {
+                    'left_mean': left_mean,
+                    'right_mean': right_mean,
+                    'opposite_tendency': opposite_sign,
+                    'opposition_score': pattern2_score,
+                    'left_features': left_brady_features,
+                    'right_features': right_brady_features
+                }
+
+            # Pattern 3: Tremor splitting (optional tendency)
+            pattern3_score = 0.0
+            pattern3_details = {}
+
+            if len(left_tremor) > 0 and len(right_tremor) > 0:
+                left_tremor_mean = np.mean([x[1] for x in left_tremor])
+                right_tremor_mean = np.mean([x[1] for x in right_tremor])
+
+                # Check if they tend to have opposite signs
+                opposite_tremor = (left_tremor_mean * right_tremor_mean) < 0
+
+                if abs(left_tremor_mean) > 0.01 and abs(right_tremor_mean) > 0.01:
+                    pattern3_score = 1.0 if opposite_tremor else 0.2  # Partial credit
+
+                pattern3_details = {
+                    'left_tremor': left_tremor,
+                    'right_tremor': right_tremor,
+                    'left_mean': left_tremor_mean,
+                    'right_mean': right_tremor_mean,
+                    'split_tendency': opposite_tremor,
+                    'split_score': pattern3_score
+                }
+
+            # Calculate overall validation score (0 to 2.5)
+            # Pattern 1: 0-1, Pattern 2: 0-1, Pattern 3: 0-0.5 (optional)
+            validation_score = pattern1_score + pattern2_score + (0.5 * pattern3_score)
+
+            results['factors'][factor_col] = {
+                'validation_score': validation_score,
+                'pattern1_left_brady_right_mirror': pattern1_details,
+                'pattern2_opposite_bradykinesia': pattern2_details,
+                'pattern3_tremor_split': pattern3_details,
+                'all_categorized': {
+                    'left_brady_rate': left_brady_rate,
+                    'left_brady_speed': left_brady_speed,
+                    'right_brady_rate': right_brady_rate,
+                    'right_brady_speed': right_brady_speed,
+                    'left_rigidity': left_rigidity,
+                    'right_rigidity': right_rigidity,
+                    'left_tremor': left_tremor,
+                    'right_tremor': right_tremor,
+                    'left_mirror': left_mirror,
+                    'right_mirror': right_mirror,
+                }
+            }
+
+        # Compute summary statistics based on tendencies (not strict pass/fail)
+        total_factors = len(results['factors'])
+
+        # Count factors showing strong tendencies (score > 0.5 for each pattern)
+        factors_with_pattern1_tendency = sum(
+            1 for f in results['factors'].values()
+            if f['pattern1_left_brady_right_mirror'].get('alignment_score', 0) > 0.5
+        )
+        factors_with_pattern2_tendency = sum(
+            1 for f in results['factors'].values()
+            if f['pattern2_opposite_bradykinesia'].get('opposition_score', 0) > 0.5
+        )
+        factors_with_pattern3_tendency = sum(
+            1 for f in results['factors'].values()
+            if f['pattern3_tremor_split'].get('split_score', 0) > 0.5
+        )
+
+        # Average scores across all factors
+        avg_pattern1 = np.mean([
+            f['pattern1_left_brady_right_mirror'].get('alignment_score', 0)
+            for f in results['factors'].values()
+        ]) if total_factors > 0 else 0
+
+        avg_pattern2 = np.mean([
+            f['pattern2_opposite_bradykinesia'].get('opposition_score', 0)
+            for f in results['factors'].values()
+        ]) if total_factors > 0 else 0
+
+        avg_pattern3 = np.mean([
+            f['pattern3_tremor_split'].get('split_score', 0)
+            for f in results['factors'].values()
+        ]) if total_factors > 0 else 0
+
+        avg_score = np.mean([f['validation_score'] for f in results['factors'].values()]) if total_factors > 0 else 0
+
+        # Determine validation status based on tendencies
+        # STRONG: Both patterns show strong tendency (avg > 0.5)
+        # MODERATE: At least one pattern shows tendency
+        # WEAK: No strong tendencies detected
+        if avg_pattern1 > 0.5 and avg_pattern2 > 0.5:
+            validation_status = 'STRONG'
+        elif avg_pattern1 > 0.3 or avg_pattern2 > 0.3:
+            validation_status = 'MODERATE'
+        else:
+            validation_status = 'WEAK'
+
+        results['summary'] = {
+            'total_factors': total_factors,
+            'factors_with_pattern1_tendency': factors_with_pattern1_tendency,
+            'factors_with_pattern2_tendency': factors_with_pattern2_tendency,
+            'factors_with_pattern3_tendency': factors_with_pattern3_tendency,
+            'avg_pattern1_score': avg_pattern1,
+            'avg_pattern2_score': avg_pattern2,
+            'avg_pattern3_score': avg_pattern3,
+            'average_validation_score': avg_score,
+            'validation_status': validation_status
+        }
+
+        self.logger.info(f"  Total factors: {total_factors}")
+        self.logger.info(f"  Pattern 1 tendency (Left brady + right mirror): {factors_with_pattern1_tendency} factors (avg: {avg_pattern1:.2f})")
+        self.logger.info(f"  Pattern 2 tendency (Opposite bradykinesia): {factors_with_pattern2_tendency} factors (avg: {avg_pattern2:.2f})")
+        self.logger.info(f"  Pattern 3 tendency (Tremor split): {factors_with_pattern3_tendency} factors (avg: {avg_pattern3:.2f})")
+        self.logger.info(f"  Average validation score: {avg_score:.2f}/2.5")
+        self.logger.info(f"  Status: {results['summary']['validation_status']}")
+
+        return results
+
 
 def run_clinical_validation(config):
     """Run clinical validation experiments with remote workstation integration."""
