@@ -206,7 +206,7 @@ model_comparison:
 # SGFA Hyperparameter Tuning Experiment
 sgfa_hyperparameter_tuning:
   parameter_ranges:
-    n_factors: [2, 3, 4]                # Range of factor numbers (tailored for 2-4 view experiments: K≤num_views)
+    n_factors: [20]                     # Range of factor numbers (K = 20 only)
     sparsity_lambda: [0.1, 0.25, 0.33]  # Element-wise sparsity (percW: 10%, 25%, 33%) - controls sparsity within each factor
     group_lambda: [0.0, 0.05, 0.1, 0.2] # Group sparsity - encourages entire features (rows of W) to be zero across all factors
                                         # 0.0 = no group sparsity (baseline), higher values = stronger shrinkage (useful for multi-view feature selection)
@@ -216,7 +216,7 @@ sgfa_hyperparameter_tuning:
   scalability_analysis:
     sample_size_ranges: [50, 100, 250, 500, 1000, 2000, 5000]
     feature_size_ranges: [10, 25, 50, 100, 250, 500, 1000]
-    component_ranges: [2, 3, 5, 8, 10, 15, 20]
+    component_ranges: [20]
     chain_ranges: [1, 2, 4, 8]
 
     benchmark_configs:
