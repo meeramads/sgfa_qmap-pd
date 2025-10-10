@@ -24,6 +24,7 @@ def load_qmap_pd(
     id_col: str = "sid",
     select_rois: Optional[List[str]] = None,
     regress_confounds: Optional[List[str]] = None,
+    drop_confounds_from_clinical: bool = True,  # NEW: drop confounds from clinical view instead of residualizing
     # Preprocessing parameters
     enable_advanced_preprocessing: bool = False,
     enable_spatial_processing: bool = False,
@@ -66,9 +67,13 @@ def load_qmap_pd(
         If None, loads default ROIs (sn, putamen, lentiform) or fallback (bg-all)
         Use this to analyze one ROI at a time
     regress_confounds : List[str], optional
-        List of clinical features to regress out from all views (e.g., ['age', 'sex', 'tiv'])
+        List of clinical features to regress out from imaging views (e.g., ['age', 'sex', 'tiv'])
         Uses residualization: removes variance explained by confounds while preserving signal
-        More principled than dropping features - removes confound effects from ALL data
+        Behavior for clinical view controlled by drop_confounds_from_clinical parameter
+    drop_confounds_from_clinical : bool, default=True
+        If True, completely remove confound features from the clinical view
+        If False, residualize them (keep as near-zero features)
+        Only applies when regress_confounds is specified
     enable_advanced_preprocessing : bool
         Enable advanced preprocessing pipeline
     enable_spatial_processing : bool
@@ -500,18 +505,47 @@ def load_qmap_pd(
 
             # Regress confounds from each view
             X_list_deconfounded = []
-            for i, (X, view_name) in enumerate(zip(X_list, view_names)):
-                # Fit linear model: X = confounds * beta + residuals
-                lr = LinearRegression(fit_intercept=False)  # We already added intercept
-                lr.fit(confound_matrix_with_intercept, X)
+            updated_feature_names = {}
 
-                # Get residuals (data with confounds regressed out)
-                X_deconfounded = X - lr.predict(confound_matrix_with_intercept)
+            for i, (X, view_name) in enumerate(zip(X_list, view_names)):
+                # Special handling for clinical view
+                if view_name == "clinical" and drop_confounds_from_clinical:
+                    # DROP confound features from clinical view instead of residualizing
+                    clinical_feature_list = feature_names.get("clinical", [])
+                    keep_indices = [j for j, fname in enumerate(clinical_feature_list)
+                                   if fname not in confounds_to_regress]
+
+                    if len(keep_indices) < len(clinical_feature_list):
+                        # Drop confound columns
+                        X_deconfounded = X[:, keep_indices]
+                        kept_features = [clinical_feature_list[j] for j in keep_indices]
+                        updated_feature_names["clinical"] = kept_features
+                        dropped_features = [f for f in clinical_feature_list if f in confounds_to_regress]
+                        logging.info(f"  Dropped {len(dropped_features)} confound features from {view_name}: {dropped_features}")
+                        logging.info(f"  Remaining {view_name} features: {len(kept_features)}")
+                    else:
+                        # No confounds to drop
+                        X_deconfounded = X
+                        updated_feature_names["clinical"] = clinical_feature_list
+                        logging.info(f"  No confounds found in {view_name} to drop")
+                else:
+                    # For non-clinical views OR if drop_confounds_from_clinical=False: regress out confounds
+                    lr = LinearRegression(fit_intercept=False)  # We already added intercept
+                    lr.fit(confound_matrix_with_intercept, X)
+
+                    # Get residuals (data with confounds regressed out)
+                    X_deconfounded = X - lr.predict(confound_matrix_with_intercept)
+
+                    # Keep original feature names for non-clinical views
+                    if view_name in feature_names:
+                        updated_feature_names[view_name] = feature_names[view_name]
+
+                    logging.info(f"  Regressed confounds from {view_name}: {confounds_to_regress}")
 
                 X_list_deconfounded.append(X_deconfounded)
-                logging.info(f"  Regressed confounds from {view_name}: {confounds_to_regress}")
 
             X_list = X_list_deconfounded
+            feature_names = updated_feature_names
 
             # Store confound regression info in meta
             meta["confound_regression"] = {
