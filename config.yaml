@@ -165,12 +165,12 @@ data_validation:
 model_comparison:
   models:
     - name: "sparse_gfa"
-      n_factors: [3, 5, 8, 10]           # Unified K values (memory-optimized)
+      n_factors: [20]                    # K = 20 only
       sparsity_lambda: [0.01, 0.1, 0.5]  # Different sparsity levels
       group_lambda: [0.1, 0.5]           # Group sparsity options
 
     - name: "standard_gfa"
-      n_factors: [3, 5, 8, 10]           # Unified K values for comparison
+      n_factors: [20]                    # K = 20 only
 
   cross_validation:
     n_folds: 5                          # Cross-validation for model comparison
@@ -244,7 +244,7 @@ sgfa_hyperparameter_tuning:
 # Sensitivity Analysis Experiment
 sensitivity_analysis:
   parameter_ranges:
-    n_factors: [3, 5, 8, 10, 12]        # Range of factor numbers
+    n_factors: [20]                     # K = 20 only
     sparsity_lambda: [0.01, 0.1, 0.5, 1.0]  # Range of sparsity values
     learning_rate: [0.005, 0.01, 0.05]  # MCMC learning rates
 
