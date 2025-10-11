@@ -2752,6 +2752,121 @@ def run_sgfa_hyperparameter_tuning(config):
                 logger.warning(f"Laterality validation failed: {e}")
                 laterality_validation_results = {}
 
+            # Save laterality validation results to CSV
+            if laterality_validation_results:
+                try:
+                    validation_table_rows = []
+
+                    for variant_name, result in laterality_validation_results.items():
+                        summary = result['summary']
+
+                        # Collect clinical variables involved in patterns for each factor
+                        pattern1_vars = []
+                        pattern2_vars = []
+                        pattern3_vars = []
+
+                        for factor_name, factor_result in result['factors'].items():
+                            # Pattern 1: Bradykinesia + contralateral mirror
+                            p1_details = factor_result['pattern1_left_brady_right_mirror']
+                            if p1_details.get('alignment_score', 0) > 0.5:
+                                dominant = p1_details.get('dominant_pattern', '')
+                                if dominant == 'left_brady_right_mirror':
+                                    left_brady = [f[0] for f in p1_details['left_brady_features']]
+                                    right_mirror = [f[0] for f in p1_details['right_mirror']]
+                                    if left_brady and right_mirror:
+                                        pattern1_vars.append(f"{factor_name}: {', '.join(left_brady[:2])} + {', '.join(right_mirror[:2])}")
+                                elif dominant == 'right_brady_left_mirror':
+                                    right_brady = [f[0] for f in p1_details.get('right_brady_features', [])]
+                                    left_mirror = [f[0] for f in p1_details.get('left_mirror', [])]
+                                    if right_brady and left_mirror:
+                                        pattern1_vars.append(f"{factor_name}: {', '.join(right_brady[:2])} + {', '.join(left_mirror[:2])}")
+
+                            # Pattern 2: Opposite bradykinesia
+                            p2_details = factor_result['pattern2_opposite_bradykinesia']
+                            if p2_details.get('opposition_score', 0) > 0.5:
+                                left_feats = [f[0] for f in p2_details.get('left_features', [])]
+                                right_feats = [f[0] for f in p2_details.get('right_features', [])]
+                                if left_feats and right_feats:
+                                    pattern2_vars.append(f"{factor_name}: {', '.join(left_feats[:2])} vs {', '.join(right_feats[:2])}")
+
+                            # Pattern 3: Tremor split
+                            p3_details = factor_result['pattern3_tremor_split']
+                            if p3_details.get('split_score', 0) > 0.5:
+                                left_tremor = [f[0] for f in p3_details.get('left_tremor', [])]
+                                right_tremor = [f[0] for f in p3_details.get('right_tremor', [])]
+                                if left_tremor and right_tremor:
+                                    pattern3_vars.append(f"{factor_name}: {', '.join(left_tremor[:2])} vs {', '.join(right_tremor[:2])}")
+
+                        # Create a row with summary statistics
+                        row = {
+                            'variant': variant_name,
+                            'roi_name': result['roi_name'],
+                            'total_factors': summary['total_factors'],
+                            'validation_status': summary['validation_status'],
+                            'avg_validation_score': summary['average_validation_score'],
+                            'avg_pattern1_score': summary['avg_pattern1_score'],
+                            'avg_pattern2_score': summary['avg_pattern2_score'],
+                            'avg_pattern3_score': summary['avg_pattern3_score'],
+                            'factors_with_pattern1': summary['factors_with_pattern1_tendency'],
+                            'factors_with_pattern2': summary['factors_with_pattern2_tendency'],
+                            'factors_with_pattern3': summary['factors_with_pattern3_tendency'],
+                            'pattern1_variables': '; '.join(pattern1_vars) if pattern1_vars else 'None',
+                            'pattern2_variables': '; '.join(pattern2_vars) if pattern2_vars else 'None',
+                            'pattern3_variables': '; '.join(pattern3_vars) if pattern3_vars else 'None',
+                        }
+                        validation_table_rows.append(row)
+
+                    # Create DataFrame and save
+                    import pandas as pd
+                    validation_df = pd.DataFrame(validation_table_rows)
+
+                    # Sort by validation score (descending)
+                    validation_df = validation_df.sort_values('avg_validation_score', ascending=False)
+
+                    # Save to CSV with legend
+                    csv_path = output_dir / "laterality_validation_results.csv"
+
+                    # Create a legend/header
+                    with open(csv_path, 'w') as f:
+                        f.write("# Laterality Validation Results - SGFA Hyperparameter Tuning\n")
+                        f.write("#\n")
+                        f.write("# VALIDATION STATUS THRESHOLDS:\n")
+                        f.write("#   STRONG:   Both Pattern 1 and Pattern 2 avg scores > 0.5\n")
+                        f.write("#   MODERATE: At least one of Pattern 1 or Pattern 2 avg score > 0.3\n")
+                        f.write("#   WEAK:     Neither pattern shows strong tendency\n")
+                        f.write("#\n")
+                        f.write("# PATTERN DESCRIPTIONS:\n")
+                        f.write("#   Pattern 1: Bradykinesia + Contralateral Mirror Movements (score 0-1)\n")
+                        f.write("#              Expected: Left brady aligns with right mirror (or vice versa)\n")
+                        f.write("#\n")
+                        f.write("#   Pattern 2: Opposite Bradykinesia Sides (score 0-1)\n")
+                        f.write("#              Expected: Left and right brady have opposite loadings\n")
+                        f.write("#\n")
+                        f.write("#   Pattern 3: Tremor Splitting (score 0-1, weighted 0.5x)\n")
+                        f.write("#              Expected: Left and right tremor on different factors\n")
+                        f.write("#\n")
+                        f.write("# OVERALL VALIDATION SCORE: Pattern1 + Pattern2 + (0.5 * Pattern3) = 0-2.5\n")
+                        f.write("#\n")
+                        f.write("# COLUMNS:\n")
+                        f.write("#   variant: SGFA hyperparameter configuration name\n")
+                        f.write("#   roi_name: Brain region being analyzed\n")
+                        f.write("#   total_factors: Number of factors in the model\n")
+                        f.write("#   validation_status: Overall clinical validity (STRONG/MODERATE/WEAK)\n")
+                        f.write("#   avg_validation_score: Average score across all factors (0-2.5)\n")
+                        f.write("#   avg_patternX_score: Average score for pattern X across factors (0-1)\n")
+                        f.write("#   factors_with_patternX: Count of factors showing strong tendency (>0.5)\n")
+                        f.write("#   patternX_variables: Clinical features involved in pattern (top 2 per side)\n")
+                        f.write("#\n")
+                        f.write("#" + "="*80 + "\n")
+                        f.write("\n")
+
+                    # Append the data
+                    validation_df.to_csv(csv_path, mode='a', index=False, float_format='%.3f')
+                    logger.info(f"💾 Laterality validation results saved to: {csv_path}")
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save laterality validation table: {e}")
+
             # Prepare return data before cleanup
             return_data = {
                 "status": "completed",
