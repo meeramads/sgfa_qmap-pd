@@ -159,6 +159,18 @@ def main():
         help="Regress out confound variables from all views (e.g., --regress-confounds age sex tiv)",
     )
     parser.add_argument(
+        "--drop-confounds-from-clinical",
+        action="store_true",
+        default=True,
+        help="Drop confounds from clinical view instead of residualizing (default: True)",
+    )
+    parser.add_argument(
+        "--residualize-confounds-in-clinical",
+        dest="drop_confounds_from_clinical",
+        action="store_false",
+        help="Residualize confounds in clinical view instead of dropping them",
+    )
+    parser.add_argument(
         "--test-k",
         nargs="+",
         type=int,
@@ -203,7 +215,10 @@ def main():
         if "preprocessing" not in config:
             config["preprocessing"] = {}
         config["preprocessing"]["regress_confounds"] = args.regress_confounds
-        logger.info(f"Regressing confounds: {args.regress_confounds}")
+        config["preprocessing"]["drop_confounds_from_clinical"] = args.drop_confounds_from_clinical
+
+        action = "dropping" if args.drop_confounds_from_clinical else "residualizing"
+        logger.info(f"Regressing confounds: {args.regress_confounds} ({action} in clinical view)")
 
     # Configure K values for parameter comparison if provided
     # This overrides ALL n_factors settings across all experiments
@@ -253,6 +268,8 @@ def main():
         # Add confound regression info
         if args.regress_confounds:
             config_suffix += f"_conf-{'+'.join(args.regress_confounds)}"
+            if not args.drop_confounds_from_clinical:
+                config_suffix += "_residualized"
 
         # Add K values info
         if args.test_k:

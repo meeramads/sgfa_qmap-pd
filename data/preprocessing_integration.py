@@ -82,11 +82,13 @@ def get_advanced_preprocessing_data(
         # Extract ROI selection and confound regression from config if present
         select_rois = strategy_config.get("select_rois")
         regress_confounds = strategy_config.get("regress_confounds")
+        drop_confounds_from_clinical = strategy_config.get("drop_confounds_from_clinical", True)
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
             select_rois=select_rois,
-            regress_confounds=regress_confounds
+            regress_confounds=regress_confounds,
+            drop_confounds_from_clinical=drop_confounds_from_clinical
         )
         X_list_raw = basic_data["X_list"]
         view_names = basic_data.get(
@@ -121,11 +123,13 @@ def get_advanced_preprocessing_data(
         # Extract ROI selection and confound regression from config if present
         select_rois = config.get("preprocessing", {}).get("select_rois")
         regress_confounds = config.get("preprocessing", {}).get("regress_confounds")
+        drop_confounds_from_clinical = config.get("preprocessing", {}).get("drop_confounds_from_clinical", True)
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
             select_rois=select_rois,
-            regress_confounds=regress_confounds
+            regress_confounds=regress_confounds,
+            drop_confounds_from_clinical=drop_confounds_from_clinical
         )
         preprocessing_info = {
             "status": "fallback_basic",
@@ -411,11 +415,13 @@ def apply_preprocessing_to_pipeline(
         # Extract ROI selection and confound regression from config if present
         select_rois = config.get("preprocessing", {}).get("select_rois")
         regress_confounds = config.get("preprocessing", {}).get("regress_confounds")
+        drop_confounds_from_clinical = config.get("preprocessing", {}).get("drop_confounds_from_clinical", True)
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
             select_rois=select_rois,
-            regress_confounds=regress_confounds
+            regress_confounds=regress_confounds,
+            drop_confounds_from_clinical=drop_confounds_from_clinical
         )
         X_list_raw = basic_data["X_list"]
 
@@ -464,11 +470,13 @@ def apply_preprocessing_to_pipeline(
         # Extract ROI selection and confound regression from config if present
         select_rois = config.get("preprocessing", {}).get("select_rois")
         regress_confounds = config.get("preprocessing", {}).get("regress_confounds")
+        drop_confounds_from_clinical = config.get("preprocessing", {}).get("drop_confounds_from_clinical", True)
 
         basic_data = load_qmap_pd(
             data_dir=data_dir,
             select_rois=select_rois,
-            regress_confounds=regress_confounds
+            regress_confounds=regress_confounds,
+            drop_confounds_from_clinical=drop_confounds_from_clinical
         )
         fallback_info = {
             "preprocessing_integration": False,
