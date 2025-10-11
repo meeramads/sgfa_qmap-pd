@@ -2504,14 +2504,6 @@ class ClinicalValidationExperiments(ExperimentFramework):
         """
         Validate expected clinical laterality patterns in factor loadings.
 
-        Expected patterns (from supervisor):
-        - Left bradykinesia (rate, speed) + right mirror movements
-          should weight together in same direction
-        - Right bradykinesia features should weight in opposite direction
-        - Optional: Tremor splitting (left vs right in opposite directions)
-
-        Most robust patterns expected in SN (substantia nigra).
-
         Args:
             factor_loadings: DataFrame with features as rows, factors as columns
             roi_name: Name of the ROI being analyzed
