@@ -1,2 +1,0 @@
-experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
-reproducibility_tests_20251009_031549,reproducibility_tests,completed,589.214338,9.8 minutes (589s),2025-10-09 03:15:49,2025-10-09 03:25:38,2000,1,"[5, 10, 15]",5

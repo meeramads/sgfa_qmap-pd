@@ -1,0 +1,2 @@
+experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
+sensitivity_analysis_20251012_021217,sensitivity_analysis,completed,688.332616,11.5 minutes (688s),2025-10-12 02:12:17,2025-10-12 02:23:45,2000,1,"[5, 10, 15]",5

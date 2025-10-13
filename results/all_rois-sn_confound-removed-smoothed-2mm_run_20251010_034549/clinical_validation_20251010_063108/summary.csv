@@ -1,2 +1,0 @@
-experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
-clinical_validation_20251010_063108,clinical_validation,completed,166.372943,2.8 minutes (166s),2025-10-10 06:31:08,2025-10-10 06:33:55,2000,1,"[5, 10, 15]",5
