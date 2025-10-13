@@ -972,63 +972,23 @@ class NeuroImagingCrossValidator:
                     Z_mean, test_clinical, available_vars
                 )
 
-        # Clustering for subtype analysis
-        if (
-            hasattr(self.config, "auto_optimize_subtypes")
-            and self.config.auto_optimize_subtypes
-        ):
-            # Literature-based optimization
-            logger.info("Determining optimal number of PD subtypes...")
+        # NOTE: Clustering metrics removed to avoid data leakage in unsupervised CV
+        # For unsupervised subtyping, clustering should be performed on ALL data,
+        # not within CV folds. CV is only appropriate for measuring factor stability
+        # and reconstruction quality on held-out test sets.
+        #
+        # If you need clustering metrics, use the pd_subtype_discovery validation
+        # which trains on all data and uses bootstrap stability instead of CV.
 
-            # Use configured candidate clusters or default
-            candidate_clusters = getattr(
-                self.config, "subtype_candidate_range", [2, 3, 4]
-            )
-            optimal_n, cluster_metrics = self._find_optimal_subtypes(
-                Z_mean, candidate_clusters, fold_id
-            )
+        # Store cluster labels as None (clustering not performed in CV context)
+        cluster_labels = None
+        silhouette = np.nan
+        calinski_harabasz = np.nan
+        n_subtypes = 0
 
-            logger.info(
-                f"OPTIMAL SUBTYPES FOUND: {optimal_n} clusters for fold {fold_id}"
-            )
-            logger.info(
-                f"   Best silhouette score: {cluster_metrics['best_silhouette']:.4f}"
-            )
-            logger.info(
-                f"   Best Calinski-Harabasz score: {cluster_metrics['best_calinski']:.4f}"
-            )
-            logger.info(f"   Subtype distribution: {cluster_metrics['cluster_sizes']}")
-
-            # Use optimal clustering
-            kmeans = KMeans(
-                n_clusters=optimal_n, random_state=self.config.random_state, n_init=10
-            )
-            cluster_labels = kmeans.fit_predict(Z_mean)
-
-            # Final validation metrics with optimal clusters
-            silhouette = cluster_metrics["best_silhouette"]
-            calinski_harabasz = cluster_metrics["best_calinski"]
-            n_subtypes = optimal_n
-
-        else:
-            # Traditional fixed clustering (backward compatibility)
-            n_subtypes = 3  # TD, PIGD, Mixed subtypes in PD
-            logger.info(
-                f"Using fixed {n_subtypes} clusters (traditional TD/PIGD/Mixed)"
-            )
-
-            kmeans = KMeans(
-                n_clusters=n_subtypes, random_state=self.config.random_state
-            )
-            cluster_labels = kmeans.fit_predict(Z_mean)
-
-            # Subtype validation metrics
-            if len(np.unique(cluster_labels)) > 1:
-                silhouette = silhouette_score(Z_mean, cluster_labels)
-                calinski_harabasz = calinski_harabasz_score(Z_mean, cluster_labels)
-            else:
-                silhouette = 0.0
-                calinski_harabasz = 0.0
+        logger.info(
+            f"Fold {fold_id}: Clustering skipped (use pd_subtype_discovery for unsupervised clustering)"
+        )
 
         fold_result = {
             "fold_id": fold_id,
@@ -1046,10 +1006,10 @@ class NeuroImagingCrossValidator:
             "interpretability_scores": interpretability_scores,
             "clinical_associations": clinical_associations,
             "spatial_coherence": interpretability_scores.get("spatial_coherence", 0.0),
-            # Clustering metrics
+            # Clustering metrics (disabled to avoid data leakage)
             "silhouette_score": silhouette,
             "calinski_harabasz_score": calinski_harabasz,
-            "n_subtypes_found": len(np.unique(cluster_labels)),
+            "n_subtypes_found": n_subtypes,
             # Model complexity
             "n_factors": W_mean.shape[1],
             "effective_sparsity": np.mean(np.abs(W_mean) > 0.1),
@@ -1422,12 +1382,24 @@ class NeuroImagingCrossValidator:
     def _analyze_subtype_consistency(
         self, converged_results: List[Dict], clinical_data: Optional[pd.DataFrame]
     ) -> Dict:
-        """Analyze consistency of identified subtypes across CV folds."""
+        """Analyze consistency of identified subtypes across CV folds.
+
+        NOTE: As of data leakage fix, clustering is no longer performed within CV folds.
+        This method will return placeholder metrics. Use pd_subtype_discovery for
+        unsupervised subtyping on all data with bootstrap stability.
+        """
         if not converged_results:
             return {"note": "No converged results for subtype analysis"}
 
         # Analyze number of subtypes identified
         n_subtypes_found = [r.get("n_subtypes_found", 0) for r in converged_results]
+
+        # Check if clustering was actually performed
+        if all(n == 0 for n in n_subtypes_found):
+            return {
+                "note": "Clustering disabled in CV to avoid data leakage. Use pd_subtype_discovery for unsupervised clustering.",
+                "cv_purpose": "CV only measures factor stability and reconstruction quality on held-out data."
+            }
 
         # Log optimal subtype summary
         if n_subtypes_found:
