@@ -13,7 +13,7 @@ used across different experiments:
 - integration: High-level workflows coordinating multiple clinical modules
 
 These modules are extracted from the original clinical_validation experiment
-to enable reuse across model_comparison and sgfa_hyperparameter_tuning experiments.
+to enable reuse across model_comparison and sgfa_configuration_comparison experiments.
 """
 
 from .biomarker_analysis import BiomarkerAnalyzer

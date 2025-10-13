@@ -6,7 +6,7 @@ Runs the complete experimental framework optimized for university GPU resources.
 This modular version imports experiments from separate modules for better organization.
 """
 
-from experiments.sgfa_hyperparameter_tuning import run_sgfa_hyperparameter_tuning
+from experiments.sgfa_configuration_comparison import run_sgfa_configuration_comparison
 from experiments.sensitivity_analysis import run_sensitivity_analysis
 from experiments.model_comparison import run_model_comparison
 from experiments.data_validation import run_data_validation
@@ -117,7 +117,7 @@ def main():
         nargs="+",
         choices=[
             "data_validation",
-            "sgfa_hyperparameter_tuning",
+            "sgfa_configuration_comparison",
             "model_comparison",
             "sensitivity_analysis",
             "clinical_validation",
@@ -225,12 +225,12 @@ def main():
     if args.test_k:
         logger.info(f"⚙️  Overriding all n_factors configurations with --test-k: {args.test_k}")
 
-        # Override sgfa_hyperparameter_tuning
-        if "sgfa_hyperparameter_tuning" not in config:
-            config["sgfa_hyperparameter_tuning"] = {}
-        if "parameter_ranges" not in config["sgfa_hyperparameter_tuning"]:
-            config["sgfa_hyperparameter_tuning"]["parameter_ranges"] = {}
-        config["sgfa_hyperparameter_tuning"]["parameter_ranges"]["n_factors"] = args.test_k
+        # Override sgfa_configuration_comparison
+        if "sgfa_configuration_comparison" not in config:
+            config["sgfa_configuration_comparison"] = {}
+        if "parameter_ranges" not in config["sgfa_configuration_comparison"]:
+            config["sgfa_configuration_comparison"]["parameter_ranges"] = {}
+        config["sgfa_configuration_comparison"]["parameter_ranges"]["n_factors"] = args.test_k
 
         # Override model_comparison
         if "model_comparison" in config and "models" in config["model_comparison"]:
@@ -295,7 +295,7 @@ def main():
         # Create organized subdirectories only for experiments that will actually run
         experiment_dir_mapping = {
             "data_validation": "01_data_validation",
-            "sgfa_hyperparameter_tuning": "02_sgfa_hyperparameter_tuning",
+            "sgfa_configuration_comparison": "02_sgfa_configuration_comparison",
             "model_comparison": "03_model_comparison",
             "sensitivity_analysis": "04_sensitivity_analysis",
             "clinical_validation": "05_clinical_validation",
@@ -340,7 +340,7 @@ def main():
     if "all" in experiments_to_run:
         experiments_to_run = [
             "data_validation",
-            "sgfa_hyperparameter_tuning",
+            "sgfa_configuration_comparison",
             "model_comparison",
             "sensitivity_analysis",
             "clinical_validation",
@@ -401,7 +401,7 @@ def main():
                 f"   Strategy: {pipeline_context.get('data_strategy', 'unknown')}"
             )
 
-    if "sgfa_hyperparameter_tuning" in experiments_to_run:
+    if "sgfa_configuration_comparison" in experiments_to_run:
         logger.info("🔬 2/6 Starting SGFA Hyperparameter Tuning Experiment...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
@@ -411,8 +411,8 @@ def main():
                 "preprocessing_info": pipeline_context["preprocessing_info"],
                 "mode": "shared",
             }
-        sgfa_result = run_sgfa_hyperparameter_tuning(exp_config)
-        results["sgfa_hyperparameter_tuning"] = sgfa_result
+        sgfa_result = run_sgfa_configuration_comparison(exp_config)
+        results["sgfa_configuration_comparison"] = sgfa_result
 
         # Extract optimal parameters for downstream experiments
         if sgfa_result and use_shared_data:
@@ -568,12 +568,12 @@ def main():
                 "mode": "shared",
             }
 
-        # Run neuroimaging hyperparameter optimization from sgfa_hyperparameter_tuning
-        from experiments.sgfa_hyperparameter_tuning import SGFAHyperparameterTuning
+        # Run neuroimaging configuration optimization from sgfa_configuration_comparison
+        from experiments.sgfa_configuration_comparison import SGFAConfigurationComparison
         from experiments.framework import ExperimentConfig
 
         experiment_config = ExperimentConfig.from_dict(exp_config)
-        sgfa_exp = SGFAHyperparameterTuning(experiment_config)
+        sgfa_exp = SGFAConfigurationComparison(experiment_config)
 
         # Generate synthetic data if shared data not available
         if pipeline_context["X_list"] is None:
@@ -659,7 +659,7 @@ def main():
                 }
 
                 # Add specific details based on experiment type
-                if exp_name == "sgfa_hyperparameter_tuning" and hasattr(
+                if exp_name == "sgfa_configuration_comparison" and hasattr(
                     result, "model_results"
                 ):
                     model_results = result.model_results
@@ -728,7 +728,7 @@ def main():
             # Only document directories for experiments that were actually run
             experiment_descriptions = {
                 "data_validation": "01_data_validation/     - Data quality and preprocessing analysis",
-                "sgfa_hyperparameter_tuning": "02_sgfa_hyperparameter_tuning/   - SGFA hyperparameter optimization",
+                "sgfa_configuration_comparison": "02_sgfa_configuration_comparison/   - SGFA hyperparameter optimization",
                 "model_comparison": "03_model_comparison/   - Model architecture comparison",
                 "sensitivity_analysis": "04_sensitivity_analysis/ - Parameter sensitivity studies",
                 "clinical_validation": "05_clinical_validation/ - Clinical validation studies",
@@ -752,7 +752,7 @@ def main():
                 if result is not None:
                     f.write(f"### {exp_name.replace('_', ' ').title()}\\n")
                     f.write(f"- Status: Completed\\n")
-                    if exp_name == "sgfa_hyperparameter_tuning" and hasattr(
+                    if exp_name == "sgfa_configuration_comparison" and hasattr(
                         result, "model_results"
                     ):
                         model_results = result.model_results

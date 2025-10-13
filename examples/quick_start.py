@@ -121,7 +121,7 @@ results = run_sgfa_analysis(X_list, K=5, sparsity_level=0.25)
     
     print("\n⚙️  Or use command line:")
     print("python run_experiments.py \\")
-    print("    --experiments sgfa_hyperparameter_tuning \\")
+    print("    --experiments sgfa_configuration_comparison \\")
     print("    --data-dir ./qMAP-PD_data")
     
     print("\n💡 Tip: Start with data_validation to check data quality first!")
@@ -137,13 +137,13 @@ def quick_start_configuration():
     
     print("\n1. For 2-view experiment (clinical + 1 ROI):")
     print("   python run_experiments.py \\")
-    print("       --experiments sgfa_hyperparameter_tuning \\")
+    print("       --experiments sgfa_configuration_comparison \\")
     print("       --select-rois volume_sn_voxels.tsv \\")
     print("       --test-k 2 3")
     
     print("\n2. For 4-view experiment (clinical + 3 ROIs):")
     print("   python run_experiments.py \\")
-    print("       --experiments sgfa_hyperparameter_tuning \\")
+    print("       --experiments sgfa_configuration_comparison \\")
     print("       --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv volume_lentiform_voxels.tsv \\")
     print("       --test-k 3 4 5")
     

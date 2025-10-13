@@ -79,14 +79,11 @@ class PreprocessingVisualizer:
 
     def _plot_feature_reduction(self, feature_reduction: Dict, save_dir: Path):
         """Plot feature reduction summary."""
-        logger.info(f"Creating feature reduction plot with {len(feature_reduction)} views: {list(feature_reduction.keys())}")
-
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
         # Extract data and format view names
         views = list(feature_reduction.keys())
         formatted_views = [_format_view_name(v) for v in views]
-        logger.info(f"Formatted view names: {formatted_views}")
         original = [feature_reduction[v]["original"] for v in views]
         processed = [feature_reduction[v]["processed"] for v in views]
         retention = [feature_reduction[v]["reduction_ratio"] for v in views]
@@ -135,8 +132,6 @@ class PreprocessingVisualizer:
 
     def _plot_variance_distribution(self, variance_analysis: Dict, save_dir: Path):
         """Plot feature variance distributions to show why features were retained/removed."""
-        logger.info(f"Creating variance distribution plot with {len(variance_analysis)} views: {list(variance_analysis.keys())}")
-
         n_views = len(variance_analysis)
         fig, axes = plt.subplots(1, n_views, figsize=(6 * n_views, 5))
 

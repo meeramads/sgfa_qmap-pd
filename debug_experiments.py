@@ -5,7 +5,7 @@ Individual experiment runners for debugging and development.
 
 Usage:
     python debug_experiments.py data_validation
-    python debug_experiments.py sgfa_hyperparameter_tuning
+    python debug_experiments.py sgfa_configuration_comparison
     python debug_experiments.py model_comparison
     python debug_experiments.py clinical_validation
     python debug_experiments.py sensitivity_analysis
@@ -174,7 +174,7 @@ def run_data_validation_debug():
         raise
 
 
-def run_sgfa_hyperparameter_tuning_debug():
+def run_sgfa_configuration_comparison_debug():
     """Run minimal SGFA parameter comparison - simple version."""
     logger.info("🔬 Running DEBUG: SGFA Parameter Comparison (Simple)")
 
@@ -207,7 +207,7 @@ def run_sgfa_hyperparameter_tuning_debug():
             raise
 
         # Create simple debug output
-        debug_dir = Path("debug_results/sgfa_hyperparameter_tuning")
+        debug_dir = Path("debug_results/sgfa_configuration_comparison")
         debug_dir.mkdir(parents=True, exist_ok=True)
 
         # Set up minimal SGFA parameters
@@ -1170,7 +1170,7 @@ def run_all_debug():
 
     experiments = [
         ("data_validation", run_data_validation_debug),
-        ("sgfa_hyperparameter_tuning", run_sgfa_hyperparameter_tuning_debug),
+        ("sgfa_configuration_comparison", run_sgfa_configuration_comparison_debug),
         ("model_comparison", run_model_comparison_debug),
         ("sensitivity_analysis", run_sensitivity_analysis_debug),
         ("reproducibility", run_reproducibility_debug),
@@ -1221,7 +1221,7 @@ def main():
         "experiment",
         choices=[
             "data_validation",
-            "sgfa_hyperparameter_tuning",
+            "sgfa_configuration_comparison",
             "model_comparison",
             "sensitivity_analysis",
             "reproducibility",
@@ -1243,7 +1243,7 @@ def main():
     # Map experiment names to functions
     experiment_map = {
         "data_validation": run_data_validation_debug,
-        "sgfa_hyperparameter_tuning": run_sgfa_hyperparameter_tuning_debug,
+        "sgfa_configuration_comparison": run_sgfa_configuration_comparison_debug,
         "model_comparison": run_model_comparison_debug,
         "sensitivity_analysis": run_sensitivity_analysis_debug,
         "reproducibility": run_reproducibility_debug,

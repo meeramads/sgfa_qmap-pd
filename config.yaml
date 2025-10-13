@@ -212,8 +212,11 @@ model_comparison:
       - "success_rate"                  # Method reliability comparison
       - "performance_efficiency"       # Time vs memory trade-offs
 
-# SGFA Hyperparameter Tuning Experiment
-sgfa_hyperparameter_tuning:
+# SGFA Configuration Comparison Experiment
+# NOTE: This compares different SGFA configurations on the full dataset (unsupervised)
+# to identify which settings produce the most interpretable and stable factors.
+# No train/test split needed - we're not predicting outcomes or validating generalization.
+sgfa_configuration_comparison:
   parameter_ranges:
     n_factors: [20]                     # Range of factor numbers (K = 20 only)
     sparsity_lambda: [0.1, 0.25, 0.33]  # Element-wise sparsity (percW: 10%, 25%, 33%) - controls sparsity within each factor

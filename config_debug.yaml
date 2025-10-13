@@ -135,7 +135,7 @@ model_comparison:
       - "memory_usage"
 
 # SGFA Hyperparameter Tuning Experiment - debug version
-sgfa_hyperparameter_tuning:
+sgfa_configuration_comparison:
   parameter_ranges:
     n_factors: [20]                       # K = 20 only
     sparsity_lambda: [0.05, 0.1]          # Element-wise sparsity - two values only

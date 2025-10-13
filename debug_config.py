@@ -8,15 +8,15 @@ with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 
 print("=== CONFIG LOADED ===")
-print(f"sgfa_hyperparameter_tuning section exists: {'sgfa_hyperparameter_tuning' in config}")
-print(f"parameter_ranges: {config.get('sgfa_hyperparameter_tuning', {}).get('parameter_ranges', {})}")
-print(f"n_factors: {config.get('sgfa_hyperparameter_tuning', {}).get('parameter_ranges', {}).get('n_factors', 'NOT FOUND')}")
+print(f"sgfa_configuration_comparison section exists: {'sgfa_configuration_comparison' in config}")
+print(f"parameter_ranges: {config.get('sgfa_configuration_comparison', {}).get('parameter_ranges', {})}")
+print(f"n_factors: {config.get('sgfa_configuration_comparison', {}).get('parameter_ranges', {}).get('n_factors', 'NOT FOUND')}")
 
 # Now test what the actual experiment code does
 from core.config_utils import ConfigHelper
 
 config_dict = ConfigHelper.to_dict(config)
-sgfa_config = config_dict.get("sgfa_hyperparameter_tuning", {})
+sgfa_config = config_dict.get("sgfa_configuration_comparison", {})
 parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
 print("\n=== AFTER ConfigHelper.to_dict() ===")

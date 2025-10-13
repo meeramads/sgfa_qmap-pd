@@ -16,14 +16,14 @@ from .runner import ExperimentRunner
 from .model_comparison import ModelArchitectureComparison
 from .reproducibility import ReproducibilityExperiments
 from .sensitivity_analysis import SensitivityAnalysisExperiments
-from .sgfa_hyperparameter_tuning import SGFAHyperparameterTuning
+from .sgfa_configuration_comparison import SGFAConfigurationComparison
 
 __all__ = [
     "ExperimentFramework",
     "ExperimentConfig",
     "ExperimentRunner",
     "DataValidationExperiments",
-    "SGFAHyperparameterTuning",
+    "SGFAConfigurationComparison",
     "ModelArchitectureComparison",
     "SensitivityAnalysisExperiments",
     "ReproducibilityExperiments",

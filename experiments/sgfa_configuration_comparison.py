@@ -1,8 +1,16 @@
-"""SGFA parameter comparison experiments for qMAP-PD analysis.
+"""SGFA configuration comparison experiments for qMAP-PD analysis.
 
-This module focuses on optimizing hyperparameters (K, percW) for the sparseGFA model.
-For comparing different model architectures (sparseGFA vs alternatives),
-see experiments/model_comparison.py.
+This module compares different SGFA configurations (K, percW, group_lambda) to identify
+which settings produce the most clinically interpretable and stable latent factors.
+
+NOTE: This is configuration comparison for unsupervised learning, NOT hyperparameter
+tuning with train/test splits. We evaluate configurations based on:
+- Clinical interpretability (laterality patterns)
+- Model convergence and stability
+- Computational efficiency
+- Factor quality and sparsity
+
+For comparing SGFA against alternative model architectures, see experiments/model_comparison.py.
 """
 
 import logging
@@ -32,8 +40,13 @@ from analysis.clinical import ClinicalMetrics, ClinicalClassifier
 
 
 @performance_optimized_experiment()
-class SGFAHyperparameterTuning(ExperimentFramework):
-    """SGFA hyperparameter tuning experiments for K and percW optimization."""
+class SGFAConfigurationComparison(ExperimentFramework):
+    """SGFA configuration comparison for evaluating different parameter settings.
+
+    This class compares SGFA configurations (K, percW, group_lambda) on the full dataset
+    to identify which settings produce the most interpretable and stable factors.
+    No train/test split is used since this is unsupervised configuration exploration.
+    """
 
     def __init__(
         self, config: ExperimentConfig, logger: Optional[logging.Logger] = None
@@ -44,7 +57,7 @@ class SGFAHyperparameterTuning(ExperimentFramework):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
 
-        # Initialize neuroimaging hyperparameter optimizer from config
+        # Initialize configuration from config file
         from core.config_utils import ConfigHelper
         config_dict = ConfigHelper.to_dict(config)
         cv_settings = config_dict.get("cross_validation", {})
@@ -81,11 +94,11 @@ class SGFAHyperparameterTuning(ExperimentFramework):
             "basic_fa": {"use_sparse": False, "use_group": False},
         }
 
-        # Focus purely on SGFA parameter optimization
+        # Focus purely on SGFA configuration comparison
         # Traditional methods moved to model_comparison.py
 
-        # Load scalability test ranges from config
-        sgfa_config = config_dict.get("sgfa_hyperparameter_tuning", {})
+        # Load configuration ranges from config
+        sgfa_config = config_dict.get("sgfa_configuration_comparison", config_dict.get("sgfa_hyperparameter_tuning", {}))
         scalability_config = sgfa_config.get("scalability_analysis", {})
         parameter_ranges = sgfa_config.get("parameter_ranges", {})
 
@@ -2093,10 +2106,15 @@ class SGFAHyperparameterTuning(ExperimentFramework):
         return plots
 
 
-def run_sgfa_hyperparameter_tuning(config):
-    """Run SGFA parameter comparison experiments with remote workstation integration."""
+def run_sgfa_configuration_comparison(config):
+    """Run SGFA configuration comparison experiments with remote workstation integration.
+
+    NOTE: This is NOT hyperparameter tuning with train/test splits. We compare different
+    SGFA configurations (K, percW, group_lambda) on the full dataset to identify which
+    settings produce the most clinically interpretable and stable latent factors.
+    """
     logger = logging.getLogger(__name__)
-    logger.info("Starting SGFA Parameter Comparison Experiments")
+    logger.info("Starting SGFA Configuration Comparison Experiments")
 
     try:
         # Check if using shared data mode
@@ -2126,8 +2144,8 @@ def run_sgfa_hyperparameter_tuning(config):
         framework = ExperimentFramework(config_accessor.output_dir)
 
         exp_config = ExperimentConfig(
-            experiment_name="sgfa_hyperparameter_tuning",
-            description="Compare SGFA model parameter variants",
+            experiment_name="sgfa_configuration_comparison",
+            description="Compare SGFA model configuration variants",
             dataset="qmap_pd",
             data_dir=config_accessor.data_dir,
         )
@@ -2280,7 +2298,7 @@ def run_sgfa_hyperparameter_tuning(config):
         def method_comparison_experiment(config, output_dir, **kwargs):
             import numpy as np
 
-            # Use full_config if provided (contains all sections including sgfa_hyperparameter_tuning)
+            # Use full_config if provided (contains all sections including sgfa_configuration_comparison)
             # Otherwise fall back to the exp_config object
             full_config = kwargs.get('full_config', config)
 
@@ -2341,8 +2359,8 @@ def run_sgfa_hyperparameter_tuning(config):
             # Now run actual method comparison experiments
             logger.info("🔬 Starting SGFA parameter comparison experiments...")
 
-            # Create SGFA parameter comparison experiment instance
-            method_exp = SGFAHyperparameterTuning(exp_config, logger)
+            # Create SGFA configuration comparison experiment instance
+            method_exp = SGFAConfigurationComparison(exp_config, logger)
 
             # Setup hyperparameters for comparison
             comparison_hypers = {
@@ -2355,9 +2373,9 @@ def run_sgfa_hyperparameter_tuning(config):
             }
 
             # Test different K values for comparison
-            # Get configuration from sgfa_hyperparameter_tuning config section
+            # Get configuration from sgfa_configuration_comparison config section (with backward compatibility)
             logger.info(f"DEBUG: config_dict keys = {list(config_dict.keys())}")
-            sgfa_config = config_dict.get("sgfa_hyperparameter_tuning", {})
+            sgfa_config = config_dict.get("sgfa_configuration_comparison", config_dict.get("sgfa_hyperparameter_tuning", {}))
             logger.info(f"DEBUG: sgfa_config = {sgfa_config}")
             parameter_ranges = sgfa_config.get("parameter_ranges", {})
             logger.info(f"DEBUG: parameter_ranges = {parameter_ranges}")
@@ -2918,7 +2936,7 @@ def run_sgfa_hyperparameter_tuning(config):
             config=exp_config,
             model_results=data,
             # Pass the full config as kwargs so method_comparison_experiment can access it
-            full_config=config,  # Include full config with sgfa_hyperparameter_tuning section
+            full_config=config,  # Include full config with sgfa_configuration_comparison section
         )
 
         # Immediate memory cleanup after framework completion

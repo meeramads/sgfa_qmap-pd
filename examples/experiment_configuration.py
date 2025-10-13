@@ -32,9 +32,9 @@ def example_roi_selection():
     
     # Single ROI
     print("\n1. Single ROI (clinical + 1 imaging view = 2 views total):")
-    print("   python run_experiments.py --experiments sgfa_hyperparameter_tuning \\")
+    print("   python run_experiments.py --experiments sgfa_configuration_comparison \\")
     print("       --select-rois volume_sn_voxels.tsv")
-    print("   → Result directory: sgfa_hyperparameter_tuning_rois-sn_run_TIMESTAMP/")
+    print("   → Result directory: sgfa_configuration_comparison_rois-sn_run_TIMESTAMP/")
     
     # Multiple ROIs
     print("\n2. Multiple ROIs (clinical + 3 imaging views = 4 views total):")
@@ -90,14 +90,14 @@ def example_k_selection():
     
     # 2-view scenario
     print("\n1. Two views (clinical + 1 ROI):")
-    print("   python run_experiments.py --experiments sgfa_hyperparameter_tuning \\")
+    print("   python run_experiments.py --experiments sgfa_configuration_comparison \\")
     print("       --select-rois volume_sn_voxels.tsv \\")
     print("       --test-k 2 3")
     print("   → Tests K=2 and K=3 (appropriate for 2 views)")
     
     # 4-view scenario
     print("\n2. Four views (clinical + 3 ROIs):")
-    print("   python run_experiments.py --experiments sgfa_hyperparameter_tuning \\")
+    print("   python run_experiments.py --experiments sgfa_configuration_comparison \\")
     print("       --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv volume_lentiform_voxels.tsv \\")
     print("       --test-k 3 4 5")
     print("   → Tests K=3, K=4, K=5 (appropriate for 4 views)")
@@ -115,7 +115,7 @@ def example_combined_options():
     print("\nFull example:")
     
     print("\npython run_experiments.py \\")
-    print("    --experiments sgfa_hyperparameter_tuning \\")
+    print("    --experiments sgfa_configuration_comparison \\")
     print("    --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv \\")
     print("    --exclude-clinical age sex tiv \\")
     print("    --test-k 2 3 \\")
@@ -129,7 +129,7 @@ def example_combined_options():
     print("   ✓ Total: 2 K × 3 percW = 6 configurations")
     
     print("\n📁 Result directory:")
-    print("   sgfa_hyperparameter_tuning_rois-sn+putamen_excl-age+sex+tiv_K-2+3_run_TIMESTAMP/")
+    print("   sgfa_configuration_comparison_rois-sn+putamen_excl-age+sex+tiv_K-2+3_run_TIMESTAMP/")
     
     print("\n💡 Directory name clearly shows the configuration!")
 
@@ -147,7 +147,7 @@ def example_typical_workflow():
     print("       --select-rois volume_sn_voxels.tsv")
     
     print("\n2️⃣ Run parameter optimization:")
-    print("   python run_experiments.py --experiments sgfa_hyperparameter_tuning \\")
+    print("   python run_experiments.py --experiments sgfa_configuration_comparison \\")
     print("       --select-rois volume_sn_voxels.tsv \\")
     print("       --exclude-clinical age sex tiv \\")
     print("       --test-k 2 3")
