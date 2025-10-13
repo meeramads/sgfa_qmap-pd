@@ -641,7 +641,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                 data_characteristics=data_characteristics
             )
 
-            self.logger.info(f"🏭 Reproducibility test using model: {model_type}")
+            self.logger.info(f"🏭 Robustness test using model: {model_type}")
 
             # Import the SGFA model function via interface
             from core.model_interface import get_model_function
@@ -1667,7 +1667,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         base_seed = args.get("random_seed", 42)
 
         for chain_id in range(n_chains):
-            self.logger.info(f"Running chain {chain_id + 1}/{n_chains}")
+            self.logger.info(f"🔗 Running chain {chain_id + 1}/{n_chains} (seed: {base_seed + chain_id * 1000})")
 
             # Unique seed per chain
             chain_seed = base_seed + chain_id * 1000
@@ -2070,8 +2070,8 @@ class ReproducibilityExperiments(ExperimentFramework):
         return plots
 
 
-def run_reproducibility(config):
-    """Run reproducibility tests with remote workstation integration."""
+def run_robustness_testing(config):
+    """Run robustness tests with remote workstation integration."""
     import logging
     import os
     import sys
@@ -2079,7 +2079,7 @@ def run_reproducibility(config):
     import numpy as np
 
     logger = logging.getLogger(__name__)
-    logger.info("Starting Reproducibility Tests")
+    logger.info("Starting Robustness Tests")
 
     try:
         # Add project root to path for imports
@@ -2092,7 +2092,7 @@ def run_reproducibility(config):
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
         from experiments.framework import ExperimentConfig, ExperimentFramework
 
-        logger.info("🔧 Loading data for reproducibility testing...")
+        logger.info("🔧 Loading data for robustness testing...")
         # Get preprocessing strategy from config
         from core.config_utils import ConfigHelper
         config_dict = ConfigHelper.to_dict(config)
@@ -2106,7 +2106,7 @@ def run_reproducibility(config):
             preferred_strategy=strategy,  # Use strategy from config
         )
 
-        logger.info(f"✅ Data loaded: {len(X_list)} views for reproducibility testing")
+        logger.info(f"✅ Data loaded: {len(X_list)} views for robustness testing")
         for i, X in enumerate(X_list):
             logger.info(f"   View {i}: {X.shape}")
 
@@ -2137,8 +2137,8 @@ def run_reproducibility(config):
         # Setup base args
         base_args = {
             "K": 10,
-            "num_warmup": 50,  # Reduced for reproducibility testing speed
-            "num_samples": 100,  # Reduced for reproducibility testing speed
+            "num_warmup": 50,  # Reduced for robustness testing speed
+            "num_samples": 100,  # Reduced for robustness testing speed
             "num_chains": 1,
             "target_accept_prob": 0.8,
             "reghsZ": True,
@@ -2146,7 +2146,7 @@ def run_reproducibility(config):
 
         # Run the experiment
         def reproducibility_experiment(config, output_dir, **kwargs):
-            logger.info("🔄 Running comprehensive reproducibility tests...")
+            logger.info("🔄 Running comprehensive robustness tests...")
 
             # Normalize config input using standard ConfigHelper
             from core.config_utils import ConfigHelper
@@ -2303,7 +2303,7 @@ def run_reproducibility(config):
 
                 results["initialization_robustness"] = init_results
 
-            logger.info("🔄 Reproducibility tests completed!")
+            logger.info("🔄 Robustness tests completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
 
             # Generate reproducibility plots
@@ -2426,9 +2426,9 @@ def run_reproducibility(config):
             model_results={"X_list": X_list, "preprocessing_info": preprocessing_info},
         )
 
-        logger.info("✅ Reproducibility tests completed successfully")
+        logger.info("✅ Robustness tests completed successfully")
         return result
 
     except Exception as e:
-        logger.error(f"Reproducibility tests failed: {e}")
+        logger.error(f"Robustness tests failed: {e}")
         return None

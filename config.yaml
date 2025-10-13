@@ -267,11 +267,15 @@ sensitivity_analysis:
 # Clinical Validation Experiment
 clinical_validation:
   validation_types:
-    - "pd_subtype_discovery"            # PD subtype discovery using unsupervised clustering
+    - "pd_subtype_discovery"            # PD subtype discovery using unsupervised clustering (RECOMMENDED)
     # NOTE: "subtype_classification" disabled - requires real clinical subtype labels (not available in qMAP-PD)
     # - "subtype_classification"          # PD subtype prediction (requires predefined labels)
     # - "disease_progression"             # Disease progression modeling (placeholder - not implemented)
     # - "biomarker_discovery"             # Novel biomarker identification (placeholder - not implemented)
+    #
+    # WARNING: Do NOT add "clinical_stratified_cv" for unsupervised subtyping!
+    # - "clinical_stratified_cv"          # CV is ONLY for supervised tasks with known labels
+    #                                     # For unsupervised subtyping, use "pd_subtype_discovery" which trains on all data
 
   # NOTE: Classification metrics only applicable if real clinical labels are available
   # For unsupervised subtype discovery, use clustering metrics instead (silhouette, stability, etc.)
