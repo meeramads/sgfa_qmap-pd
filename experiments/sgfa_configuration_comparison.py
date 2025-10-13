@@ -1109,6 +1109,7 @@ class SGFAConfigurationComparison(ExperimentFramework):
                     "num_warmup": num_warmup,
                     "num_chains": num_chains,
                 },
+                "view_names": kwargs.get("view_names", [f"view_{i}" for i in range(len(X_list))]),
             }
 
             # Add clinical performance if clinical labels provided
@@ -2443,7 +2444,7 @@ def run_sgfa_configuration_comparison(config):
                         # Run SGFA variant
                         with method_exp.profiler.profile(f"sgfa_{variant_name}"):
                             variant_result = method_exp._run_sgfa_variant(
-                                X_list, variant_hypers, variant_args
+                                X_list, variant_hypers, variant_args, view_names=data.get("view_names", [])
                             )
 
                         # CRITICAL: Remove large sample arrays to prevent memory leak

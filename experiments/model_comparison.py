@@ -2439,7 +2439,7 @@ class ModelArchitectureComparison(ExperimentFramework):
             # Prepare data structure for visualizations
             data = {
                 "X_list": X_list,
-                "view_names": [f"view_{i}" for i in range(len(X_list))],
+                "view_names": kwargs.get("view_names", [f"view_{i}" for i in range(len(X_list))]),
                 "n_subjects": X_list[0].shape[0],
                 "view_dimensions": [X.shape[1] for X in X_list],
                 "preprocessing": {
@@ -3216,6 +3216,7 @@ def run_model_comparison(config, **kwargs):
     if shared_data and shared_data.get("X_list") is not None:
         logger.info("   → Using shared data from previous experiments")
         X_list = shared_data["X_list"]
+        view_names = shared_data.get("view_names", [f"view_{i}" for i in range(len(X_list))])
         view_dims = [X.shape[1] for X in X_list]
         n_subjects = X_list[0].shape[0]
         logger.info(
@@ -3233,6 +3234,8 @@ def run_model_comparison(config, **kwargs):
             auto_select_strategy=True
         )
 
+        # Extract view names from preprocessing info
+        view_names = preprocessing_info.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
         view_dims = [X.shape[1] for X in X_list]
         n_subjects = X_list[0].shape[0]
         logger.info(
@@ -3294,7 +3297,7 @@ def run_model_comparison(config, **kwargs):
 
         # Run unified methods comparison (sparseGFA vs all traditional baselines)
         result = experiment.run_methods_comparison(
-            X_list, hypers, args, **kwargs
+            X_list, hypers, args, view_names=view_names, **kwargs
         )
 
         logger.info("🔬 Methods comparison completed!")
