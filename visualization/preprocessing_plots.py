@@ -15,21 +15,29 @@ logger = logging.getLogger(__name__)
 
 def _format_view_name(view_name: str) -> str:
     """Convert technical view names to human-readable format."""
-    # Handle generic view_N names
-    if view_name.startswith("view_"):
-        return f"View {view_name.split('_')[1]}"
-
-    # Handle ROI-specific names
+    # Handle ROI-specific names first (preferred)
     name_map = {
         "volume_sn_voxels": "Substantia Nigra",
         "volume_putamen_voxels": "Putamen",
         "volume_lentiform_voxels": "Lentiform Nucleus",
-        "volume_bg-all_voxels": "All ROIs",
-        "imaging": "All ROIs",
-        "clinical": "Clinical"
+        "volume_bg-all_voxels": "All ROIs (Basal Ganglia)",
+        "imaging": "Imaging Data",
+        "clinical": "Clinical Data"
     }
 
-    return name_map.get(view_name, view_name.replace("_", " ").title())
+    if view_name in name_map:
+        return name_map[view_name]
+
+    # Handle generic view_N names as fallback
+    if view_name.startswith("view_"):
+        try:
+            view_idx = view_name.split('_')[1]
+            return f"View {view_idx}"
+        except (IndexError, ValueError):
+            pass
+
+    # Fallback: Clean up the name by replacing underscores and title-casing
+    return view_name.replace("_", " ").replace("voxels", "").replace("volume", "").strip().title()
 
 
 class PreprocessingVisualizer:

@@ -38,6 +38,7 @@ class PreprocessingStrategy(Enum):
     ADVANCED = "advanced"
     CLINICAL_FOCUSED = "clinical_focused"
     DIFFERENTIATED_IMAGING_CLINICAL = "differentiated_imaging_clinical"
+    FULL_PREPROCESSING_ALL_VIEWS = "full_preprocessing_all_views"
 
 
 @dataclass
@@ -73,6 +74,12 @@ class ExperimentsConfig:
     save_pickle_results: bool = False
     save_numpy_arrays: bool = False  # Save numpy arrays to disk
     max_parallel_jobs: int = 1
+
+    # Spatial remapping configuration
+    enable_spatial_remapping: bool = False  # Remap factor loadings to brain space
+    save_brain_maps: bool = True  # Save brain maps as CSV files
+    create_brain_map_plots: bool = False  # Create 3D visualization plots
+    brain_maps_output_dir: str = "brain_maps"  # Subdirectory for brain maps
 
     def validate(self) -> List[str]:
         """Validate experiments configuration."""
@@ -177,6 +184,9 @@ class PreprocessingConfig:
     imaging_preserve_voxels: bool = False
     n_top_features: Optional[int] = None
     min_voxel_distance: float = 3.0
+
+    # Confound handling
+    drop_confounds_from_clinical: bool = True  # Drop confounds from clinical view vs residualize
 
     def validate(self) -> List[str]:
         """Validate preprocessing configuration."""

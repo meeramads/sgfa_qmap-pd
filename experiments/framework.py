@@ -92,6 +92,12 @@ class ExperimentConfig:
     save_numpy_arrays: bool = False  # Disable to save disk space
     output_formats: List[str] = field(default_factory=lambda: ["json", "csv"])
 
+    # Spatial remapping configuration
+    enable_spatial_remapping: bool = False  # Remap factor loadings to brain space
+    save_brain_maps: bool = True  # Save brain maps as CSV files
+    create_brain_map_plots: bool = False  # Create 3D visualization plots
+    brain_maps_output_dir: str = "brain_maps"  # Subdirectory for brain maps
+
     # Reproducibility
     random_seeds: List[int] = field(default_factory=lambda: [42, 123, 456])
 

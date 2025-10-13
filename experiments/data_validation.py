@@ -27,6 +27,7 @@ from experiments.framework import (
     ExperimentResult,
 )
 from optimization.experiment_mixins import performance_optimized_experiment
+from visualization.preprocessing_plots import _format_view_name
 
 logger = logging.getLogger(__name__)
 
@@ -579,12 +580,13 @@ class DataValidationExperiments(ExperimentFramework):
         for view_idx, (raw_X, proc_X) in enumerate(
             zip(raw_data["X_list"], preprocessed_data["X_list"])
         ):
-            view_name = raw_data.get("view_names", [f"View {view_idx}"])[view_idx]
+            view_name = raw_data.get("view_names", [f"view_{view_idx}"])[view_idx]
+            formatted_view_name = _format_view_name(view_name)
 
             # Raw data distribution
             feature_means_raw = np.nanmean(raw_X, axis=0)
             axes[0, view_idx].hist(feature_means_raw, bins=50, alpha=0.7, label="Raw")
-            axes[0, view_idx].set_title(f"{view_name} - Raw Feature Means")
+            axes[0, view_idx].set_title(f"{formatted_view_name} - Raw Feature Means")
             axes[0, view_idx].set_xlabel("Feature Mean Value")
             axes[0, view_idx].set_ylabel("Frequency")
 
@@ -597,7 +599,7 @@ class DataValidationExperiments(ExperimentFramework):
                 label="Processed",
                 color="orange",
             )
-            axes[1, view_idx].set_title(f"{view_name} - Processed Feature Means")
+            axes[1, view_idx].set_title(f"{formatted_view_name} - Processed Feature Means")
             axes[1, view_idx].set_xlabel("Feature Mean Value")
             axes[1, view_idx].set_ylabel("Frequency")
 
@@ -624,7 +626,8 @@ class DataValidationExperiments(ExperimentFramework):
         for view_idx, (raw_X, proc_X) in enumerate(
             zip(raw_data["X_list"], preprocessed_data["X_list"])
         ):
-            view_name = raw_data.get("view_names", [f"View {view_idx}"])[view_idx]
+            view_name = raw_data.get("view_names", [f"view_{view_idx}"])[view_idx]
+            formatted_view_name = _format_view_name(view_name)
 
             # Sample data for visualization (to avoid memory issues)
             sample_size = min(500, raw_X.shape[0])
@@ -636,14 +639,14 @@ class DataValidationExperiments(ExperimentFramework):
             # Raw data missing pattern
             missing_raw = np.isnan(raw_sample)
             axes[0, view_idx].imshow(missing_raw.T, cmap="RdYlBu", aspect="auto")
-            axes[0, view_idx].set_title(f"{view_name} - Raw Missing Data")
+            axes[0, view_idx].set_title(f"{formatted_view_name} - Raw Missing Data")
             axes[0, view_idx].set_xlabel("Subjects")
             axes[0, view_idx].set_ylabel("Features")
 
             # Preprocessed data missing pattern
             missing_proc = np.isnan(proc_sample)
             axes[1, view_idx].imshow(missing_proc.T, cmap="RdYlBu", aspect="auto")
-            axes[1, view_idx].set_title(f"{view_name} - Processed Missing Data")
+            axes[1, view_idx].set_title(f"{formatted_view_name} - Processed Missing Data")
             axes[1, view_idx].set_xlabel("Subjects")
             axes[1, view_idx].set_ylabel("Features")
 
@@ -671,7 +674,8 @@ class DataValidationExperiments(ExperimentFramework):
         for view_idx, (raw_X, proc_X) in enumerate(
             zip(raw_data["X_list"], preprocessed_data["X_list"])
         ):
-            view_name = raw_data.get("view_names", [f"View {view_idx}"])[view_idx]
+            view_name = raw_data.get("view_names", [f"view_{view_idx}"])[view_idx]
+            formatted_view_name = _format_view_name(view_name)
 
             # Sample features for correlation analysis
             max_features = 50  # Limit for computational efficiency
@@ -682,7 +686,7 @@ class DataValidationExperiments(ExperimentFramework):
             if np.sum(valid_mask_raw) > 1:
                 raw_corr = np.corrcoef(raw_sample[:, valid_mask_raw].T)
                 im1 = axes[0, view_idx].imshow(raw_corr, cmap="RdBu", vmin=-1, vmax=1)
-                axes[0, view_idx].set_title(f"{view_name} - Raw Correlations")
+                axes[0, view_idx].set_title(f"{formatted_view_name} - Raw Correlations")
                 plt.colorbar(im1, ax=axes[0, view_idx])
 
             # Processed data correlation
@@ -691,7 +695,7 @@ class DataValidationExperiments(ExperimentFramework):
             if np.sum(valid_mask_proc) > 1:
                 proc_corr = np.corrcoef(proc_sample[:, valid_mask_proc].T)
                 im2 = axes[1, view_idx].imshow(proc_corr, cmap="RdBu", vmin=-1, vmax=1)
-                axes[1, view_idx].set_title(f"{view_name} - Processed Correlations")
+                axes[1, view_idx].set_title(f"{formatted_view_name} - Processed Correlations")
                 plt.colorbar(im2, ax=axes[1, view_idx])
 
         plt.tight_layout()
@@ -719,7 +723,8 @@ class DataValidationExperiments(ExperimentFramework):
         for view_idx, (raw_X, proc_X) in enumerate(
             zip(raw_data["X_list"], preprocessed_data["X_list"])
         ):
-            view_name = raw_data.get("view_names", [f"View {view_idx}"])[view_idx]
+            view_name = raw_data.get("view_names", [f"view_{view_idx}"])[view_idx]
+            formatted_view_name = _format_view_name(view_name)
 
             # PCA on raw data
             raw_X_clean = raw_X[
@@ -729,7 +734,7 @@ class DataValidationExperiments(ExperimentFramework):
                 pca_raw = PCA(n_components=min(10, raw_X_clean.shape[1]))
                 pca_raw.fit(raw_X_clean)
 
-                pca_results["raw_data"][view_name] = {
+                pca_results["raw_data"][formatted_view_name] = {
                     "explained_variance_ratio": pca_raw.explained_variance_ratio_.tolist(),
                     "cumulative_variance": np.cumsum(
                         pca_raw.explained_variance_ratio_
@@ -746,7 +751,7 @@ class DataValidationExperiments(ExperimentFramework):
                     np.cumsum(pca_raw.explained_variance_ratio_),
                     "o-",
                 )
-                axes[0, view_idx].set_title(f"{view_name} - Raw Data PCA")
+                axes[0, view_idx].set_title(f"{formatted_view_name} - Raw Data PCA")
                 axes[0, view_idx].set_xlabel("Principal Component")
                 axes[0, view_idx].set_ylabel("Cumulative Explained Variance")
                 axes[0, view_idx].grid(True)
@@ -757,7 +762,7 @@ class DataValidationExperiments(ExperimentFramework):
                 pca_proc = PCA(n_components=min(10, proc_X_clean.shape[1]))
                 pca_proc.fit(proc_X_clean)
 
-                pca_results["preprocessed_data"][view_name] = {
+                pca_results["preprocessed_data"][formatted_view_name] = {
                     "explained_variance_ratio": pca_proc.explained_variance_ratio_.tolist(),
                     "cumulative_variance": np.cumsum(
                         pca_proc.explained_variance_ratio_
@@ -775,7 +780,7 @@ class DataValidationExperiments(ExperimentFramework):
                     "o-",
                     color="orange",
                 )
-                axes[1, view_idx].set_title(f"{view_name} - Processed Data PCA")
+                axes[1, view_idx].set_title(f"{formatted_view_name} - Processed Data PCA")
                 axes[1, view_idx].set_xlabel("Principal Component")
                 axes[1, view_idx].set_ylabel("Cumulative Explained Variance")
                 axes[1, view_idx].grid(True)
@@ -1286,11 +1291,16 @@ class DataValidationExperiments(ExperimentFramework):
                     alpha=0.7,
                 )
 
+            # Get view names from first valid strategy (all should have same views)
+            first_strategy_data = valid_strategies[strategy_names[0]]
+            view_names = first_strategy_data.get("view_names", [f"view_{i}" for i in range(n_views)])
+            formatted_view_names = [_format_view_name(vn) for vn in view_names]
+
             axes[0, 1].set_title("Missing Data by View and Strategy")
             axes[0, 1].set_xlabel("View")
             axes[0, 1].set_ylabel("Missing Data Ratio")
             axes[0, 1].set_xticks(x + width * (len(strategy_names) - 1) / 2)
-            axes[0, 1].set_xticklabels([f"View {i}" for i in range(n_views)])
+            axes[0, 1].set_xticklabels(formatted_view_names, rotation=45, ha='right')
             axes[0, 1].legend()
 
         # 3. Data variance comparison
@@ -1433,11 +1443,12 @@ class DataValidationExperiments(ExperimentFramework):
                     fig.suptitle("Data Distribution: Raw vs Preprocessed (Clinical Data Only)", fontsize=16)
 
                     for plot_idx, (view_idx, view_name, raw_X, proc_X) in enumerate(clinical_views):
+                        formatted_view_name = _format_view_name(view_name)
                         # Raw data distribution
                         axes[0, plot_idx].hist(
                             raw_X.flatten(), bins=50, alpha=0.7, color="red", edgecolor="black"
                         )
-                        axes[0, plot_idx].set_title(f"Raw {view_name}")
+                        axes[0, plot_idx].set_title(f"Raw {formatted_view_name}")
                         axes[0, plot_idx].set_xlabel("Feature Value")
                         axes[0, plot_idx].set_ylabel("Frequency")
 
@@ -1445,7 +1456,7 @@ class DataValidationExperiments(ExperimentFramework):
                         axes[1, plot_idx].hist(
                             proc_X.flatten(), bins=50, alpha=0.7, color="blue", edgecolor="black"
                         )
-                        axes[1, plot_idx].set_title(f"Preprocessed {view_name}")
+                        axes[1, plot_idx].set_title(f"Preprocessed {formatted_view_name}")
                         axes[1, plot_idx].set_xlabel("Standardized Value")
                         axes[1, plot_idx].set_ylabel("Frequency")
 
@@ -1550,7 +1561,7 @@ class DataValidationExperiments(ExperimentFramework):
 
             data = {
                 "X_list": X_list,
-                "view_names": [f"view_{i}" for i in range(len(X_list))],
+                "view_names": view_names_actual,  # Use actual loaded view names, not generic ones
                 "n_subjects": X_list[0].shape[0],
                 "view_dimensions": [X.shape[1] for X in X_list],
                 "preprocessing": {
