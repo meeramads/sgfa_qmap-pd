@@ -1534,6 +1534,8 @@ class DataValidationExperiments(ExperimentFramework):
             feature_reduction = {}
             view_names_actual = results.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
 
+            logger.info(f"   Building feature_reduction plot for {len(X_list)} loaded views: {view_names_actual}")
+
             for view_idx, X in enumerate(X_list):
                 view_name = view_names_actual[view_idx] if view_idx < len(view_names_actual) else f"view_{view_idx}"
                 # For data validation, original = processed since we're showing the loaded data
@@ -1542,6 +1544,7 @@ class DataValidationExperiments(ExperimentFramework):
                     "processed": X.shape[1],
                     "reduction_ratio": 1.0  # No reduction in data validation (just showing loaded data)
                 }
+                logger.info(f"     - {view_name}: {X.shape[1]} features")
 
             # Collect variance analysis for visualization
             variance_analysis = {}
