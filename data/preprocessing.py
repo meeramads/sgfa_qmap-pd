@@ -1665,6 +1665,256 @@ class PreprocessingInspector:
             return None
 
 
+# == SPATIAL REMAPPING UTILITIES ==
+
+
+def get_selected_voxel_positions(
+    preprocessor,
+    view_name: str,
+    data_dir: str,
+    roi_name: Optional[str] = None
+) -> Optional[pd.DataFrame]:
+    """
+    Get spatial positions for selected voxels after feature selection.
+
+    This function maps selected voxel indices back to their spatial coordinates,
+    enabling reconstruction of brain maps from factor loadings.
+
+    Parameters
+    ----------
+    preprocessor : NeuroImagingPreprocessor or AdvancedPreprocessor
+        Fitted preprocessor containing selected feature indices
+    view_name : str
+        Name of the imaging view (e.g., 'volume_sn_voxels')
+    data_dir : str
+        Path to data directory containing position_lookup files
+    roi_name : str, optional
+        ROI name (e.g., 'sn', 'putamen'). If None, extracted from view_name
+
+    Returns
+    -------
+    pd.DataFrame or None
+        DataFrame with spatial positions for selected voxels
+        Columns typically: ['x', 'y', 'z'] or voxel indices
+        Rows correspond to selected voxels in same order as factor loadings
+
+    Examples
+    --------
+    >>> # After running SGFA with feature selection
+    >>> results = run_sgfa(X_list, ...)
+    >>> preprocessor = results['preprocessor']
+    >>>
+    >>> # Get positions for selected voxels
+    >>> positions = get_selected_voxel_positions(
+    ...     preprocessor,
+    ...     view_name='volume_sn_voxels',
+    ...     data_dir='qMAP-PD_data'
+    ... )
+    >>>
+    >>> # Map factor loadings to brain space
+    >>> W_sn = results['W'][sn_view_idx]  # Shape: (n_selected_voxels, K)
+    >>> for k in range(K):
+    ...     factor_k = W_sn[:, k]
+    ...     brain_map = pd.DataFrame({
+    ...         'x': positions['x'],
+    ...         'y': positions['y'],
+    ...         'z': positions['z'],
+    ...         'loading': factor_k
+    ...     })
+    """
+    # Extract ROI name if not provided
+    if roi_name is None:
+        roi_name = view_name.lower().replace('volume_', '').replace('_voxels', '')
+
+    # Load full position lookup
+    positions_all = SpatialProcessingUtils.load_position_lookup(data_dir, roi_name)
+
+    if positions_all is None:
+        logging.warning(f"No position lookup found for {roi_name}")
+        return None
+
+    # Get selected feature indices
+    selected_indices = None
+
+    if hasattr(preprocessor, 'selected_features_'):
+        # Check various possible index keys
+        possible_keys = [
+            f"{view_name}_variance_indices",
+            f"{view_name}_roi_indices",
+            f"{view_name}_corr_indices",
+            f"{view_name}_temp_variance_indices",  # From combined selection
+        ]
+
+        for key in possible_keys:
+            if key in preprocessor.selected_features_:
+                selected_indices = preprocessor.selected_features_[key]
+                logging.info(f"Found selected indices under key: {key}")
+                break
+
+    if selected_indices is None:
+        logging.warning(f"No selected feature indices found for {view_name}")
+        logging.info("Returning full position lookup (no feature selection applied)")
+        return positions_all
+
+    # Index positions by selected voxels
+    positions_selected = positions_all.iloc[selected_indices].reset_index(drop=True)
+
+    logging.info(
+        f"Spatial remapping: {len(positions_all)} total voxels → "
+        f"{len(positions_selected)} selected voxels"
+    )
+
+    return positions_selected
+
+
+def create_brain_map_from_factors(
+    factor_loadings: np.ndarray,
+    positions: pd.DataFrame,
+    factor_index: Optional[int] = None
+) -> pd.DataFrame:
+    """
+    Create spatial brain map from factor loadings and voxel positions.
+
+    Parameters
+    ----------
+    factor_loadings : np.ndarray
+        Factor loadings for imaging view, shape (n_voxels, n_factors)
+        or (n_voxels,) for a single factor
+    positions : pd.DataFrame
+        Spatial positions for selected voxels, shape (n_voxels, 3+)
+        Must have columns for spatial coordinates (e.g., 'x', 'y', 'z')
+    factor_index : int, optional
+        If factor_loadings is 2D, which factor to map (column index)
+        If None and 2D, uses first factor
+
+    Returns
+    -------
+    pd.DataFrame
+        Brain map with columns: ['x', 'y', 'z', 'loading']
+        Can be used for visualization or saved for further analysis
+
+    Examples
+    --------
+    >>> # Single factor
+    >>> W_sn = results['W'][0]  # Shape: (687, 3)
+    >>> positions = get_selected_voxel_positions(...)
+    >>>
+    >>> brain_map = create_brain_map_from_factors(
+    ...     W_sn, positions, factor_index=0
+    ... )
+    >>>
+    >>> # Visualize or save
+    >>> brain_map.to_csv('factor_0_brain_map.csv', index=False)
+    """
+    # Handle 1D or 2D factor loadings
+    if factor_loadings.ndim == 2:
+        if factor_index is None:
+            factor_index = 0
+            logging.info(f"Using factor {factor_index} (default)")
+        loadings = factor_loadings[:, factor_index]
+    else:
+        loadings = factor_loadings
+
+    # Validate dimensions
+    if len(loadings) != len(positions):
+        raise ValueError(
+            f"Dimension mismatch: {len(loadings)} loadings vs "
+            f"{len(positions)} positions"
+        )
+
+    # Create brain map
+    brain_map = positions.copy()
+    brain_map['loading'] = loadings
+
+    # Sort by loading magnitude for easier inspection
+    brain_map['abs_loading'] = np.abs(loadings)
+    brain_map = brain_map.sort_values('abs_loading', ascending=False)
+    brain_map = brain_map.drop(columns=['abs_loading'])
+
+    return brain_map
+
+
+def remap_all_factors_to_brain(
+    W_list: List[np.ndarray],
+    view_names: List[str],
+    preprocessor,
+    data_dir: str
+) -> Dict[str, Dict[int, pd.DataFrame]]:
+    """
+    Remap all factor loadings for all imaging views to brain space.
+
+    Parameters
+    ----------
+    W_list : List[np.ndarray]
+        List of factor loading matrices, one per view
+        Each W has shape (n_features_in_view, n_factors)
+    view_names : List[str]
+        Names of views corresponding to W_list
+    preprocessor : NeuroImagingPreprocessor
+        Fitted preprocessor with selected feature indices
+    data_dir : str
+        Path to data directory containing position lookups
+
+    Returns
+    -------
+    Dict[str, Dict[int, pd.DataFrame]]
+        Nested dictionary: {view_name: {factor_k: brain_map_df}}
+        Only includes imaging views (clinical views skipped)
+
+    Examples
+    --------
+    >>> results = run_sgfa(X_list, ...)
+    >>>
+    >>> brain_maps = remap_all_factors_to_brain(
+    ...     W_list=results['W'],
+    ...     view_names=results['view_names'],
+    ...     preprocessor=results['preprocessor'],
+    ...     data_dir='qMAP-PD_data'
+    ... )
+    >>>
+    >>> # Access specific factor in specific ROI
+    >>> sn_factor_0 = brain_maps['volume_sn_voxels'][0]
+    >>> sn_factor_0.to_csv('sn_factor0_map.csv')
+    >>>
+    >>> # Plot all factors for an ROI
+    >>> for k, brain_map in brain_maps['volume_sn_voxels'].items():
+    ...     plot_brain_map(brain_map, title=f'SN Factor {k}')
+    """
+    all_brain_maps = {}
+
+    for view_idx, (W, view_name) in enumerate(zip(W_list, view_names)):
+        # Skip clinical views
+        if 'clinical' in view_name.lower():
+            logging.info(f"Skipping clinical view: {view_name}")
+            continue
+
+        logging.info(f"Remapping factors for {view_name}...")
+
+        # Get positions for this view
+        positions = get_selected_voxel_positions(
+            preprocessor, view_name, data_dir
+        )
+
+        if positions is None:
+            logging.warning(f"Could not get positions for {view_name}, skipping")
+            continue
+
+        # Create brain map for each factor
+        view_brain_maps = {}
+        n_factors = W.shape[1]
+
+        for k in range(n_factors):
+            brain_map = create_brain_map_from_factors(
+                W, positions, factor_index=k
+            )
+            view_brain_maps[k] = brain_map
+
+        all_brain_maps[view_name] = view_brain_maps
+        logging.info(f"  → Created {n_factors} brain maps for {view_name}")
+
+    return all_brain_maps
+
+
 # == CLI MAIN FUNCTION ==
 
 

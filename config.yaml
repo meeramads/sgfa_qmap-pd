@@ -25,6 +25,12 @@ experiments:
   save_numpy_arrays: false               # OPTIONAL: Save numpy arrays to disk (not human-readable, default: false)
   max_parallel_jobs: 2                   # OPTIONAL: Maximum parallel experiments (1-16, default: 1)
 
+  # Spatial Remapping Configuration (OPTIONAL)
+  enable_spatial_remapping: true          # OPTIONAL: Remap factor loadings to brain space (default: false)
+  save_brain_maps: true                   # OPTIONAL: Save brain maps as CSV files (default: true)
+  create_brain_map_plots: true            # OPTIONAL: Create 3D visualization plots (default: true)
+  brain_maps_output_dir: "brain_maps"     # OPTIONAL: Subdirectory for brain maps (default: "brain_maps")
+
   # NOTE: SGFA results caching is automatically enabled when running multiple experiments
   # Results are cached in: {base_output_dir}/.sgfa_cache/
   # Cache is cleared automatically after pipeline completes
@@ -56,21 +62,24 @@ model:
 # Preprocessing Configuration (OPTIONAL)
 # Controls data preprocessing and feature selection
 preprocessing:
-  strategy: "differentiated_imaging_clinical"  # TEST: differentiated preprocessing for imaging vs clinical
+  strategy: "full_preprocessing_all_views"  # Apply feature selection to ALL views (imaging + clinical)
   enable_advanced_preprocessing: true   # Enable smart preprocessing for speed
-  enable_spatial_processing: false      # Keep disabled to preserve voxel spatial mapping
+  enable_spatial_processing: false      # Spatial processing (harmonization, etc) - can be slow
   imputation_strategy: "median"         # Handle missing values without removing voxels
 
   # Feature selection - ROI-aware for interpretability
-  feature_selection_method: "variance"  # Use variance-based selection
+  # NOTE: Feature selection preserves spatial remapping through selected voxel indices
+  feature_selection_method: "variance"  # Use variance-based selection (removes uninformative voxels)
   variance_threshold: 0.02              # Remove voxels with <2% variance (flat/noisy voxels)
   missing_threshold: 0.8                # Remove voxels with >80% missing data
 
   # ROI-aware selection (preserves proportional representation from each brain region)
   roi_based_selection: true             # Enable ROI-aware feature selection
-  imaging_preserve_voxels: false        # Allow dropping low-variance voxels for speed
   n_top_features: 10000                 # Optional: Keep top 10K voxels total (faster runs)
   min_voxel_distance: 3.0               # Minimum distance between selected voxels (spatial distribution)
+
+  # Confound handling (NEW)
+  drop_confounds_from_clinical: true    # Drop confounds from clinical view (vs residualize)
 
 # Cross-Validation Configuration (OPTIONAL)
 # Configures model evaluation and validation

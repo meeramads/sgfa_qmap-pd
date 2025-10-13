@@ -510,22 +510,28 @@ def _apply_differentiated_preprocessing(
             is_imaging = _is_imaging_view(view_name)
 
             if is_imaging:
-                logger.info(f"  → IMAGING data: preserving spatial structure")
-                # For imaging: minimal processing to preserve spatial mapping
+                logger.info(f"  → IMAGING data: applying neuroimaging-aware preprocessing")
+                # For imaging: apply full preprocessing WITH feature selection
+                # Spatial structure can be reconstructed via position lookups if needed
 
-                # Only basic scaling and imputation, NO outlier removal or feature selection
-                # Imputation only
-                imputer = SimpleImputer(strategy=strategy_config.get("imputation_strategy", "median"))
-                X_imputed = imputer.fit_transform(X)
+                imaging_config = NeuroImagingConfig(
+                    imputation_strategy=strategy_config.get("imputation_strategy", "median"),
+                    feature_selection_method=strategy_config.get("feature_selection_method", "variance"),
+                    variance_threshold=strategy_config.get("variance_threshold", 0.01),
+                    missing_threshold=strategy_config.get("missing_threshold", 0.5),
+                    enable_spatial_processing=strategy_config.get("enable_spatial_processing", False),
+                    roi_based_selection=strategy_config.get("roi_based_selection", False),
+                    spatial_imputation=strategy_config.get("spatial_imputation", False),
+                )
 
-                # Scaling only
-                scaler = RobustScaler()
-                X_scaled = scaler.fit_transform(X_imputed)
+                # Apply neuroimaging preprocessing including feature selection
+                imaging_preprocessor = NeuroImagingPreprocessor(data_dir=data_dir, **imaging_config.to_dict())
+                X_imaging_processed = imaging_preprocessor.fit_transform([X], [view_name])
+                X_processed.append(X_imaging_processed[0])
 
-                X_processed.append(X_scaled)
-                steps_applied.extend(["imaging_imputation", "imaging_scaling"])
+                steps_applied.extend(["imaging_imputation", "imaging_scaling", "imaging_feature_selection"])
 
-                logger.info(f"  → Preserved all {X.shape[1]} imaging voxels for spatial mapping")
+                logger.info(f"  → Imaging features: {X.shape[1]} → {X_imaging_processed[0].shape[1]} ({100*(1-X_imaging_processed[0].shape[1]/X.shape[1]):.1f}% reduction)")
 
             else:
                 logger.info(f"  → CLINICAL data: applying comprehensive preprocessing")
@@ -551,9 +557,11 @@ def _apply_differentiated_preprocessing(
         # Collect preprocessing information
         preprocessing_info = {
             "status": "completed",
-            "strategy": "differentiated_imaging_clinical",
+            "strategy": "full_preprocessing_all_views",
             "steps_applied": list(set(steps_applied)),
-            "preprocessing_type": "DifferentiatedPreprocessor",
+            "preprocessing_type": "NeuroImagingPreprocessor",
+            "imaging_feature_selection": "enabled",
+            "clinical_feature_selection": "enabled",
         }
 
         logger.info("✅ Differentiated preprocessing completed")
