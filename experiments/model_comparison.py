@@ -14,16 +14,18 @@ CURRENT STATUS:
     data_validation → robustness_testing → factor_stability → clinical_validation
 
 This module would compare different model architectures including:
-- Implemented: sparseGFA vs traditional methods (PCA, ICA, FA, KMeans, CCA, NMF)
-- Future work: standardGFA, neuroGFA, LCA (documented but not run due to computational constraints)
+- Implemented: sparseGFA vs traditional factor analysis methods (PCA, ICA, FA, NMF, CCA)
+- Future work: standardGFA, neuroGFA (documented but not implemented yet)
 
-Traditional methods cover different analysis approaches:
-- PCA: Linear dimensionality reduction
-- ICA: Independent component analysis
-- FA: Factor analysis with noise modeling
-- NMF: Non-negative matrix factorization
-- KMeans: Clustering-based analysis
-- CCA: Multi-view canonical correlation analysis
+Traditional factor analysis / dimensionality reduction methods included:
+- PCA: Linear dimensionality reduction (unsupervised, orthogonal factors)
+- ICA: Independent component analysis (blind source separation)
+- FA: Factor analysis with noise modeling (probabilistic)
+- NMF: Non-negative matrix factorization (non-negative constraints)
+- CCA: Multi-view canonical correlation analysis (maximizes cross-view correlation)
+
+NOTE: Clustering algorithms (e.g., K-means) are excluded - they solve a different problem
+(grouping subjects) rather than factor extraction (finding latent dimensions).
 
 For comparing different sparseGFA configurations, see experiments/sgfa_configuration_comparison.py.
 """
@@ -38,7 +40,6 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import numpy as np
 from sklearn.decomposition import PCA, FactorAnalysis, FastICA, NMF
-from sklearn.cluster import KMeans
 from sklearn.cross_decomposition import CCA
 
 # Safe configuration access
@@ -115,12 +116,9 @@ class ModelArchitectureComparison(ExperimentFramework):
                 "implemented": False,
                 "reason": "Research idea not yet implemented - future work for spatial brain data",
             },
-            "LCA": {
-                "model_type": "LCA",
-                "description": "Latent Class Analysis with discrete latent variables",
-                "implemented": False,
-                "reason": "Computational demands likely exceed GPU limits - future work for discrete factor modeling",
-            },
+            # NOTE: LCA (Latent Class Analysis) removed - it's a clustering/mixture model, not factor analysis
+            # LCA finds discrete latent classes (similar to K-means/GMM), whereas factor analysis
+            # finds continuous latent factors. They solve fundamentally different problems.
         }
 
         # Load comparison parameters from config
@@ -156,7 +154,9 @@ class ModelArchitectureComparison(ExperimentFramework):
         self.model_parameter_grids = model_configs
 
         # Traditional methods for comparison
-        self.traditional_methods = ["pca", "ica", "fa", "nmf", "kmeans", "cca"]
+        # NOTE: Only factor analysis / dimensionality reduction methods included
+        # K-means removed - it's a clustering algorithm, not a factor analysis method
+        self.traditional_methods = ["pca", "ica", "fa", "nmf", "cca"]
 
         # Initialize comparison visualizer
         from visualization import ComparisonVisualizer
@@ -697,7 +697,7 @@ class ModelArchitectureComparison(ExperimentFramework):
 
         This unified comparison tests:
         - sparseGFA: Our proposed sparse group factor analysis method
-        - Traditional baselines: PCA, ICA, FA, NMF, KMeans, CCA
+        - Traditional baselines: PCA, ICA, FA, NMF, CCA (factor analysis methods only)
 
         Args:
             X_list: List of data matrices (multi-view data)
@@ -1184,7 +1184,6 @@ class ModelArchitectureComparison(ExperimentFramework):
                 else:
                     # Traditional methods on concatenated data
                     from sklearn.decomposition import PCA, FastICA, FactorAnalysis, NMF
-                    from sklearn.cluster import KMeans
                     from sklearn.cross_decomposition import CCA
 
                     X_train = np.hstack(X_train_list)
@@ -1200,14 +1199,6 @@ class ModelArchitectureComparison(ExperimentFramework):
                         model = NMF(n_components=n_components, max_iter=500)
                         X_train = np.abs(X_train)  # NMF requires non-negative
                         X_test = np.abs(X_test)
-                    elif method_name == "kmeans":
-                        model = KMeans(n_clusters=n_components, n_init=10)
-                        Z_train = model.fit_transform(X_train)
-                        Z_test = model.transform(X_test)
-                        # Pseudo-reconstruction via cluster centers
-                        fold_error = np.mean((X_test - model.cluster_centers_[model.predict(X_test)]) ** 2)
-                        cv_errors.append(fold_error)
-                        continue
                     elif method_name == "cca":
                         # CCA needs two views
                         n_features_1 = X_train.shape[1] // 2
@@ -1443,23 +1434,6 @@ class ModelArchitectureComparison(ExperimentFramework):
                     "W": W,
                     "mixing_matrix": method.mixing_,
                     "method": "ica",
-                }
-
-            elif method_name == "kmeans":
-                method = KMeans(n_clusters=n_components, random_state=42, n_init=10)
-                labels = method.fit_predict(X)
-
-                # For KMeans, we create factor-like representations
-                Z = np.eye(n_components)[labels]  # One-hot encoding of cluster assignments
-                W = method.cluster_centers_.T  # Cluster centers as "loadings"
-
-                results = {
-                    "Z": Z,
-                    "W": W,
-                    "labels": labels,
-                    "cluster_centers": method.cluster_centers_,
-                    "inertia": method.inertia_,
-                    "method": "kmeans",
                 }
 
             elif method_name == "nmf":
@@ -2003,12 +1977,12 @@ class ModelArchitectureComparison(ExperimentFramework):
                 if mean_stab and np.isfinite(mean_stab):
                     row["Factor Stability"] = f"{mean_stab:.3f}"
                 else:
-                    if method in ["sparseGFA", "cca", "kmeans"]:
+                    if method in ["sparseGFA", "cca"]:
                         row["Factor Stability"] = "N/A**"
                     else:
                         row["Factor Stability"] = "N/A"
             else:
-                if method in ["sparseGFA", "cca", "kmeans"]:
+                if method in ["sparseGFA", "cca"]:
                     row["Factor Stability"] = "N/A**"
                 else:
                     row["Factor Stability"] = "N/A"
@@ -2058,7 +2032,7 @@ class ModelArchitectureComparison(ExperimentFramework):
         # Add footnotes
         footnote_text = (
             "*  sparseGFA: CV reconstruction failed (computationally expensive due to MCMC)\n"
-            "** sparseGFA, CCA, K-means: Factor stability not computed (bootstrap too expensive or not applicable)"
+            "** sparseGFA, CCA: Factor stability not computed (bootstrap too expensive or not applicable)"
         )
         fig.text(0.1, 0.02, footnote_text, fontsize=8, style='italic',
                 va='bottom', ha='left')

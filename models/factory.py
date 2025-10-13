@@ -6,8 +6,11 @@ This module provides a unified interface for creating different GFA model types
 with proper configuration, validation, and extensibility.
 
 Note: This project primarily uses Sparse GFA (sparseGFA/sparse_gfa).
-Standard GFA and LCA models are registered for completeness but are NOT actively
+Standard GFA models are registered for completeness but are NOT actively
 used due to memory constraints with high-dimensional neuroimaging data.
+
+LCA (Latent Class Analysis) has been removed - it's a clustering method, not
+factor analysis, and should not be compared to GFA methods.
 """
 
 from __future__ import annotations
@@ -16,7 +19,6 @@ import logging
 from typing import Any, Dict, List, Optional, Type
 
 from .base import BaseGFAModel
-from .latent_class_analysis import LatentClassAnalysisModel
 from .sparse_gfa import SparseGFAModel
 from .standard_gfa import StandardGFAModel
 from .variants.neuroimaging_gfa import NeuroimagingGFAModel
@@ -79,16 +81,9 @@ class ModelFactory:
             "required_params": ["K", "spatial_info"],
             "optional_params": ["spatial_weight"],
         },
-        "LCA": {
-            "class": LatentClassAnalysisModel,
-            "description": "Latent Class Analysis (NOT USED - very high memory usage)",
-            "required_params": ["K"],
-            "optional_params": [],
-            "warnings": [
-                "Not used in this project due to very high memory usage",
-                "Memory requirements exceed available resources for neuroimaging data"
-            ],
-        },
+        # NOTE: LCA (Latent Class Analysis) removed - it's a clustering/mixture model,
+        # not a factor analysis method. LCA finds discrete latent classes (categorical)
+        # whereas GFA finds continuous latent factors. They solve different problems.
     }
 
     @classmethod
@@ -103,7 +98,7 @@ class ModelFactory:
         Create a model instance with configuration.
 
         Args:
-            model_type: Type of model (e.g., 'sparseGFA', 'GFA', 'neuroGFA', 'LCA')
+            model_type: Type of model (e.g., 'sparseGFA', 'GFA', 'neuroGFA')
             config: Configuration object or dict
             hypers: Hyperparameters dictionary
             **kwargs: Additional model-specific arguments
@@ -157,13 +152,6 @@ class ModelFactory:
                 )
 
             return model_class(config, hypers, spatial_info=spatial_info)
-
-        elif model_type in ["LCA"]:
-            # LCA model - log memory warning
-            lca_model = model_class(config, hypers)
-            if hasattr(lca_model, "get_memory_warning"):
-                logger.warning(lca_model.get_memory_warning())
-            return lca_model
 
         else:
             # Standard model instantiation
@@ -230,7 +218,7 @@ class ModelFactory:
         Examples:
             >>> models = ModelFactory.list_models()
             >>> print(models)
-            ['sparseGFA', 'GFA', 'neuroGFA', 'LCA', ...]
+            ['sparseGFA', 'GFA', 'neuroGFA']
         """
         return sorted(cls._models.keys())
 

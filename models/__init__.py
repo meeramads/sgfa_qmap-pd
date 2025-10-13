@@ -2,7 +2,6 @@
 
 from .base import BaseGFAModel
 from .factory import ModelFactory
-from .latent_class_analysis import LatentClassAnalysisModel
 from .sparse_gfa import SparseGFAModel
 from .standard_gfa import StandardGFAModel
 
@@ -15,7 +14,7 @@ def create_model(model_type: str, config, hypers, **kwargs):
     Parameters:
     -----------
     model_type : str
-        Type of model ('sparseGFA', 'GFA', 'neuroGFA', 'LCA')
+        Type of model ('sparseGFA', 'GFA', 'neuroGFA')
     config : Configuration object
     hypers : Dict
         Hyperparameters
@@ -34,5 +33,4 @@ __all__ = [
     "BaseGFAModel",
     "SparseGFAModel",
     "StandardGFAModel",
-    "LatentClassAnalysisModel",
 ]
