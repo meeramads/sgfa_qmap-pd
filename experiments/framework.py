@@ -101,6 +101,12 @@ class ExperimentConfig:
     # Reproducibility
     random_seeds: List[int] = field(default_factory=lambda: [42, 123, 456])
 
+    # Factor Stability Analysis (Ferreira et al. 2024)
+    cosine_threshold: float = 0.8  # Minimum cosine similarity for factor matching
+    min_match_rate: float = 0.5  # Minimum fraction of chains for robust factor (>50%)
+    sparsity_threshold: float = 0.01  # Threshold for effective factor counting
+    min_nonzero_pct: float = 0.05  # Minimum fraction of non-zero loadings
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return asdict(self)

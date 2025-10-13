@@ -1593,6 +1593,482 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         return variations
 
+    @experiment_handler("factor_stability_analysis")
+    @validate_data_types(X_list=list, hypers=dict, args=dict)
+    @validate_parameters(
+        X_list=lambda x: len(x) > 0,
+        n_chains=lambda x: x > 1,
+    )
+    def run_factor_stability_analysis(
+        self,
+        X_list: List[np.ndarray],
+        hypers: Dict,
+        args: Dict,
+        n_chains: int = 4,
+        cosine_threshold: float = 0.8,
+        min_match_rate: float = 0.5,
+        **kwargs,
+    ) -> ExperimentResult:
+        """Run factor stability analysis with multiple independent chains.
+
+        Implements the methodology from Ferreira et al. 2024 Section 2.7:
+        - Run N independent MCMC chains sequentially
+        - Extract factor loadings (W) and scores (Z) from each chain
+        - Assess factor stability using cosine similarity matching
+        - Count effective factors (non-shrunk by priors)
+
+        Parameters
+        ----------
+        X_list : List[np.ndarray]
+            List of data matrices (multi-view data)
+        hypers : Dict
+            Hyperparameters for SGFA model
+        args : Dict
+            MCMC arguments (num_warmup, num_samples, etc.)
+        n_chains : int, default=4
+            Number of independent chains to run
+        cosine_threshold : float, default=0.8
+            Minimum cosine similarity for factor matching
+        min_match_rate : float, default=0.5
+            Minimum fraction of chains for robust factor (>50%)
+        **kwargs : dict
+            Additional arguments
+
+        Returns
+        -------
+        ExperimentResult
+            Contains:
+            - chain_results: Results from each chain
+            - stability_analysis: Factor stability metrics
+            - effective_factors: Effective factor counts per chain
+            - plots: Stability visualization plots
+        """
+        # Validate inputs
+        ResultValidator.validate_data_matrices(X_list)
+        ParameterValidator.validate_positive(n_chains, "n_chains")
+
+        if n_chains < 2:
+            raise ValueError("n_chains must be at least 2 for stability analysis")
+
+        self.logger.info(f"Running factor stability analysis with {n_chains} independent chains")
+        self.logger.info(f"Cosine similarity threshold: {cosine_threshold}")
+        self.logger.info(f"Minimum match rate: {min_match_rate}")
+
+        # Import factor stability utilities
+        from analysis.factor_stability import (
+            assess_factor_stability_cosine,
+            count_effective_factors,
+            save_stability_results,
+        )
+
+        # Run multiple chains sequentially
+        chain_results = []
+        performance_metrics = {}
+        base_seed = args.get("random_seed", 42)
+
+        for chain_id in range(n_chains):
+            self.logger.info(f"Running chain {chain_id + 1}/{n_chains}")
+
+            # Unique seed per chain
+            chain_seed = base_seed + chain_id * 1000
+
+            # Update args with chain-specific seed and single chain
+            chain_args = args.copy()
+            chain_args["random_seed"] = chain_seed
+            chain_args["num_chains"] = 1  # Run single chain at a time
+
+            with self.profiler.profile(f"chain_{chain_id}") as p:
+                result = self._run_sgfa_analysis(X_list, hypers, chain_args, **kwargs)
+
+                # Extract essential outputs (W, Z, log_likelihood)
+                chain_result = {
+                    "chain_id": chain_id,
+                    "seed": chain_seed,
+                    "W": result.get("W"),
+                    "Z": result.get("Z"),
+                    "log_likelihood": result.get("log_likelihood"),
+                    "convergence": result.get("convergence", False),
+                    "execution_time": result.get("execution_time", 0),
+                }
+
+                # Store samples if available (for averaging W)
+                if "samples" in result:
+                    chain_result["samples"] = {
+                        "W": result["samples"].get("W"),
+                        "Z": result["samples"].get("Z"),
+                    }
+
+                chain_results.append(chain_result)
+
+                # Store performance metrics
+                metrics = self.profiler.get_current_metrics()
+                performance_metrics[f"chain_{chain_id}"] = {
+                    "execution_time": metrics.execution_time,
+                    "peak_memory_gb": metrics.peak_memory_gb,
+                    "convergence": result.get("convergence", False),
+                    "log_likelihood": result.get("log_likelihood", np.nan),
+                }
+
+            # CRITICAL: Memory cleanup after each chain
+            import jax
+            import gc
+            jax.clear_caches()
+            gc.collect()
+
+            self.logger.info(
+                f"Chain {chain_id} completed: "
+                f"LL={result.get('log_likelihood', np.nan):.2f}, "
+                f"converged={result.get('convergence', False)}"
+            )
+
+        # Assess factor stability using cosine similarity
+        self.logger.info("Assessing factor stability across chains...")
+        stability_results = assess_factor_stability_cosine(
+            chain_results,
+            threshold=cosine_threshold,
+            min_match_rate=min_match_rate,
+        )
+
+        # Count effective factors for each chain
+        self.logger.info("Counting effective factors per chain...")
+        effective_factors_per_chain = []
+        for i, chain_result in enumerate(chain_results):
+            W = chain_result["W"]
+            effective = count_effective_factors(
+                W,
+                sparsity_threshold=0.01,
+                min_nonzero_pct=0.05,
+            )
+            effective["chain_id"] = i
+            effective_factors_per_chain.append(effective)
+
+            self.logger.info(
+                f"Chain {i}: {effective['n_effective']}/{effective['total_factors']} "
+                f"effective factors"
+            )
+
+        # Compile diagnostics
+        diagnostics = {
+            "stability_summary": {
+                "n_chains": n_chains,
+                "n_stable_factors": stability_results["n_stable_factors"],
+                "total_factors": stability_results["total_factors"],
+                "stability_rate": stability_results["stability_rate"],
+                "stable_factor_indices": stability_results["stable_factor_indices"],
+            },
+            "effective_factors_summary": {
+                "per_chain": [
+                    {
+                        "chain_id": ef["chain_id"],
+                        "n_effective": ef["n_effective"],
+                        "shrinkage_rate": ef["shrinkage_rate"],
+                    }
+                    for ef in effective_factors_per_chain
+                ],
+                "mean_effective": np.mean([ef["n_effective"] for ef in effective_factors_per_chain]),
+                "std_effective": np.std([ef["n_effective"] for ef in effective_factors_per_chain]),
+            },
+            "convergence_summary": {
+                "n_converged": sum(
+                    1 for pm in performance_metrics.values() if pm["convergence"]
+                ),
+                "convergence_rate": sum(
+                    1 for pm in performance_metrics.values() if pm["convergence"]
+                ) / n_chains,
+            },
+        }
+
+        # Generate plots
+        plots = self._plot_factor_stability(
+            chain_results,
+            stability_results,
+            effective_factors_per_chain,
+            performance_metrics,
+            X_list=X_list,
+            data=kwargs,  # Pass any additional data (view_names, feature_names, etc.)
+        )
+
+        return ExperimentResult(
+            experiment_id="factor_stability_analysis",
+            config=self.config,
+            model_results={
+                "chain_results": chain_results,
+                "stability_results": stability_results,
+                "effective_factors": effective_factors_per_chain,
+            },
+            diagnostics=diagnostics,
+            plots=plots,
+            performance_metrics=performance_metrics,
+            status="completed",
+        )
+
+    def _plot_factor_stability(
+        self,
+        chain_results: List[Dict],
+        stability_results: Dict,
+        effective_factors_per_chain: List[Dict],
+        performance_metrics: Dict,
+        X_list: Optional[List[np.ndarray]] = None,
+        data: Optional[Dict] = None,
+    ) -> Dict:
+        """Generate plots for factor stability analysis."""
+        plots = {}
+
+        try:
+            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+            fig.suptitle("Factor Stability Analysis", fontsize=16, fontweight='bold')
+
+            # Plot 1: Stable vs Unstable factors
+            per_factor = stability_results["per_factor_details"]
+            stable_indices = [f["factor_index"] for f in per_factor if f["is_robust"]]
+            unstable_indices = [f["factor_index"] for f in per_factor if not f["is_robust"]]
+            match_rates = [f["match_rate"] for f in per_factor]
+
+            colors = ['green' if f["is_robust"] else 'red' for f in per_factor]
+            axes[0, 0].bar(range(len(match_rates)), match_rates, color=colors, alpha=0.7)
+            axes[0, 0].axhline(
+                y=stability_results["min_match_rate"],
+                color='black',
+                linestyle='--',
+                label=f'Threshold ({stability_results["min_match_rate"]:.1%})',
+            )
+            axes[0, 0].set_xlabel("Factor Index")
+            axes[0, 0].set_ylabel("Match Rate")
+            axes[0, 0].set_title(
+                f"Factor Stability: {len(stable_indices)} Robust, "
+                f"{len(unstable_indices)} Unstable"
+            )
+            axes[0, 0].legend()
+            axes[0, 0].grid(True, alpha=0.3)
+
+            # Plot 2: Effective factors per chain
+            chain_ids = [ef["chain_id"] for ef in effective_factors_per_chain]
+            n_effective = [ef["n_effective"] for ef in effective_factors_per_chain]
+            total_factors = effective_factors_per_chain[0]["total_factors"]
+
+            axes[0, 1].bar(chain_ids, n_effective, alpha=0.7)
+            axes[0, 1].axhline(
+                y=total_factors,
+                color='red',
+                linestyle='--',
+                label=f'K={total_factors}',
+                alpha=0.5,
+            )
+            axes[0, 1].set_xlabel("Chain ID")
+            axes[0, 1].set_ylabel("Number of Effective Factors")
+            axes[0, 1].set_title(
+                f"Effective Factors Per Chain (Mean: {np.mean(n_effective):.1f})"
+            )
+            axes[0, 1].legend()
+            axes[0, 1].grid(True, alpha=0.3)
+
+            # Plot 3: Log likelihood by chain
+            lls = [
+                pm["log_likelihood"]
+                for pm in performance_metrics.values()
+                if not np.isnan(pm["log_likelihood"])
+            ]
+            chain_labels = [f"Chain {i}" for i in range(len(lls))]
+
+            axes[1, 0].plot(range(len(lls)), lls, 'o-', markersize=8, linewidth=2)
+            axes[1, 0].set_xlabel("Chain ID")
+            axes[1, 0].set_ylabel("Log Likelihood")
+            axes[1, 0].set_title("Log Likelihood Across Chains")
+            axes[1, 0].grid(True, alpha=0.3)
+
+            # Add mean line
+            if lls:
+                axes[1, 0].axhline(
+                    np.mean(lls), color='red', linestyle='--', label='Mean', alpha=0.7
+                )
+                axes[1, 0].legend()
+
+            # Plot 4: Stability summary
+            summary_data = [
+                len(stable_indices),
+                len(unstable_indices),
+                np.mean(n_effective),
+                total_factors - np.mean(n_effective),
+            ]
+            summary_labels = [
+                'Robust\nFactors',
+                'Unstable\nFactors',
+                'Mean Effective\nFactors',
+                'Mean Shrunk\nFactors',
+            ]
+            colors = ['green', 'red', 'blue', 'gray']
+
+            axes[1, 1].bar(range(len(summary_data)), summary_data, color=colors, alpha=0.7)
+            axes[1, 1].set_xticks(range(len(summary_labels)))
+            axes[1, 1].set_xticklabels(summary_labels, rotation=0, ha='center')
+            axes[1, 1].set_ylabel("Count")
+            axes[1, 1].set_title("Stability and Effectiveness Summary")
+            axes[1, 1].grid(True, alpha=0.3, axis='y')
+
+            plt.tight_layout()
+            plots["factor_stability_summary"] = fig
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create factor stability plots: {str(e)}")
+
+        # Add enhanced factor loading distributions visualization
+        if X_list is not None and len(chain_results) > 0:
+            try:
+                from visualization.factor_plots import FactorVisualizer
+
+                # Use consensus W from the first chain (or average if available)
+                consensus_W = stability_results.get("consensus_W")
+                if consensus_W is None:
+                    # Fall back to first chain's W
+                    consensus_W = chain_results[0].get("W")
+
+                if consensus_W is not None:
+                    # Prepare data dict for visualizer
+                    viz_data = {
+                        "X_list": X_list,
+                        "view_names": data.get("view_names", [f"View_{i}" for i in range(len(X_list))]) if data else [f"View_{i}" for i in range(len(X_list))],
+                        "feature_names": data.get("feature_names", {}) if data else {},
+                    }
+
+                    # Create visualizer
+                    visualizer = FactorVisualizer(self.config)
+
+                    # Create figure for enhanced loading distributions
+                    self.logger.info("Creating enhanced factor loading distribution plot...")
+                    fig_loadings = plt.figure(figsize=(16, 12))
+                    visualizer.plot_enhanced_factor_loading_distributions(
+                        consensus_W, viz_data, save_path=None
+                    )
+                    plots["enhanced_loading_distributions"] = plt.gcf()
+
+            except Exception as e:
+                self.logger.warning(f"Failed to create enhanced loading distributions: {str(e)}")
+
+        # Add brain visualization summary
+        if X_list is not None and len(chain_results) > 0:
+            try:
+                from visualization.brain_plots import BrainVisualizer
+
+                # Use consensus W from stability results
+                consensus_W = stability_results.get("consensus_W")
+                consensus_Z = chain_results[0].get("Z")  # Use first chain's Z
+
+                if consensus_W is not None and consensus_Z is not None:
+                    # Check if data has brain regions
+                    view_names = data.get("view_names", []) if data else []
+                    brain_regions = ['lentiform', 'sn', 'putamen', 'caudate', 'thalamus',
+                                    'hippocampus', 'amygdala', 'cortical', 'subcortical',
+                                    'frontal', 'parietal', 'temporal', 'occipital',
+                                    'cerebellum', 'brainstem', 'roi', 'region', 'voxel', 'vertex']
+
+                    has_brain_data = any(
+                        any(region in vn.lower() for region in brain_regions)
+                        for vn in view_names
+                    )
+
+                    if has_brain_data:
+                        self.logger.info("Creating brain visualization summary...")
+
+                        # Prepare analysis results dict
+                        analysis_results = {
+                            "W": [consensus_W] if not isinstance(consensus_W, list) else consensus_W,
+                            "Z": consensus_Z,
+                        }
+
+                        # Prepare data dict
+                        viz_data = {
+                            "X_list": X_list,
+                            "view_names": view_names,
+                            "feature_names": data.get("feature_names", {}) if data else {},
+                        }
+
+                        # Create visualizer
+                        brain_viz = BrainVisualizer(self.config)
+
+                        # Create brain visualization summary
+                        fig_brain = brain_viz.create_brain_visualization_summary(
+                            analysis_results, viz_data, plot_dir=None
+                        )
+
+                        if fig_brain is not None:
+                            plots["brain_visualization_summary"] = fig_brain
+
+            except Exception as e:
+                self.logger.warning(f"Failed to create brain visualization summary: {str(e)}")
+
+        # Add factor stability heatmap (chain-to-chain matching matrix)
+        try:
+            similarity_matrix = stability_results.get("similarity_matrix")
+
+            if similarity_matrix is not None and len(chain_results) > 0:
+                self.logger.info("Creating factor stability heatmap (chain-to-chain matching)...")
+
+                n_chains = similarity_matrix.shape[0]
+                K = similarity_matrix.shape[2]  # Number of factors
+
+                # Create a composite heatmap showing factor matching across chains
+                # For each factor, show how well it matches across all chain pairs
+                fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+                fig.suptitle("Factor Stability: Chain-to-Chain Matching", fontsize=16, fontweight='bold')
+
+                # Plot 1: Average similarity per factor across all chain comparisons
+                # Compute mean similarity for each factor across chain 0 to other chains
+                avg_similarity_per_factor = np.zeros(K)
+                for k in range(K):
+                    # Get similarities from chain 0 to all other chains for factor k
+                    chain_similarities = similarity_matrix[0, 1:, k]
+                    avg_similarity_per_factor[k] = np.mean(chain_similarities[chain_similarities > 0])
+
+                # Bar plot of average similarity per factor
+                factor_indices = np.arange(K)
+                colors_factors = ['green' if sim >= stability_results["threshold"] else 'red'
+                                 for sim in avg_similarity_per_factor]
+
+                axes[0].bar(factor_indices, avg_similarity_per_factor, color=colors_factors, alpha=0.7)
+                axes[0].axhline(y=stability_results["threshold"], color='black',
+                               linestyle='--', label=f'Threshold ({stability_results["threshold"]})')
+                axes[0].set_xlabel('Factor Index')
+                axes[0].set_ylabel('Average Cosine Similarity')
+                axes[0].set_title('Average Factor Matching Across Chains')
+                axes[0].legend()
+                axes[0].grid(True, alpha=0.3)
+                axes[0].set_ylim([0, 1])
+
+                # Plot 2: Heatmap showing chain-to-chain factor matching
+                # Show maximum similarity for each chain pair (across all factors)
+                chain_pair_matrix = np.zeros((n_chains, n_chains))
+                for i in range(n_chains):
+                    for j in range(n_chains):
+                        if i != j:
+                            # For each chain pair, show the average max similarity across factors
+                            chain_pair_matrix[i, j] = np.mean(similarity_matrix[i, j, :])
+                        else:
+                            chain_pair_matrix[i, j] = 1.0  # Self-similarity is 1
+
+                im = axes[1].imshow(chain_pair_matrix, cmap='RdYlGn', vmin=0, vmax=1, aspect='auto')
+                axes[1].set_xticks(range(n_chains))
+                axes[1].set_yticks(range(n_chains))
+                axes[1].set_xticklabels([f'Chain {i}' for i in range(n_chains)])
+                axes[1].set_yticklabels([f'Chain {i}' for i in range(n_chains)])
+                axes[1].set_title('Average Factor Similarity Between Chain Pairs')
+
+                # Add text annotations
+                for i in range(n_chains):
+                    for j in range(n_chains):
+                        text = axes[1].text(j, i, f'{chain_pair_matrix[i, j]:.2f}',
+                                          ha="center", va="center", color="black", fontsize=10)
+
+                plt.colorbar(im, ax=axes[1], label='Cosine Similarity')
+                plt.tight_layout()
+
+                plots["factor_stability_heatmap"] = fig
+                self.logger.info("   ✅ Factor stability heatmap created")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create factor stability heatmap: {str(e)}")
+
+        return plots
+
 
 def run_reproducibility(config):
     """Run reproducibility tests with remote workstation integration."""
@@ -1676,8 +2152,8 @@ def run_reproducibility(config):
             from core.config_utils import ConfigHelper
             config_dict = ConfigHelper.to_dict(config)
 
-            # Get reproducibility configuration
-            repro_config = config_dict.get("reproducibility", {})
+            # Get robustness testing configuration
+            repro_config = config_dict.get("robustness_testing", {})
             seed_values = repro_config.get("seed_values", [42, 123, 456])
             test_scenarios = repro_config.get("test_scenarios", ["seed_reproducibility", "data_perturbation", "initialization_robustness"])
             perturbation_config = repro_config.get("perturbation", {

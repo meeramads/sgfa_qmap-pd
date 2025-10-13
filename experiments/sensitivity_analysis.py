@@ -1,4 +1,20 @@
-"""Sensitivity analysis experiments for SGFA hyperparameters."""
+"""Sensitivity analysis experiments for SGFA hyperparameters.
+
+⏳ FUTURE WORK - PENDING METRIC DEVELOPMENT ⏳
+
+CURRENT STATUS:
+    This experiment is NOT part of the production pipeline (Ferreira et al. 2024).
+    Sensitivity analysis requires a suitable metric for comparing hyperparameter settings:
+    - Log-likelihood is unsuitable for comparing models with different K
+    - ELBO is not currently computed by the SGFA implementation
+    - Alternative metrics need to be identified and implemented
+
+    Until a suitable comparison metric is developed, use fixed hyperparameters:
+    K=20, percW=33%, slab_df=4, slab_scale=2 (as in Ferreira et al. 2024)
+
+    For assessing robustness to algorithm variations (seeds, noise, initialization),
+    see robustness_testing.py (part of core pipeline).
+"""
 
 import logging
 from itertools import product

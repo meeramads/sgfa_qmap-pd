@@ -9,7 +9,7 @@ Usage:
     python debug_experiments.py model_comparison
     python debug_experiments.py clinical_validation
     python debug_experiments.py sensitivity_analysis
-    python debug_experiments.py reproducibility
+    python debug_experiments.py robustness_testing
     python debug_experiments.py all
 """
 
@@ -548,9 +548,9 @@ def run_sensitivity_analysis_debug():
         raise
 
 
-def run_reproducibility_debug():
-    """Run enhanced reproducibility testing - lightweight but comprehensive."""
-    logger.info("🔄 Running DEBUG: Reproducibility (Enhanced)")
+def run_robustness_testing_debug():
+    """Run enhanced robustness testing - lightweight but comprehensive."""
+    logger.info("🔄 Running DEBUG: Robustness Testing (Enhanced)")
 
     config = load_debug_config()
     start_time = time.time()
@@ -564,7 +564,7 @@ def run_reproducibility_debug():
         import numpy as np
         import pickle
 
-        logger.info("Testing reproducibility across multiple dimensions...")
+        logger.info("Testing robustness across multiple dimensions...")
         data_dir = get_data_dir(config)
         result = load_qmap_pd(data_dir)
 
@@ -816,7 +816,7 @@ def run_reproducibility_debug():
             tests["serialization_test"] = {"error": str(e)}
 
         # Create debug output
-        debug_dir = Path("debug_results/reproducibility")
+        debug_dir = Path("debug_results/robustness_testing")
         debug_dir.mkdir(parents=True, exist_ok=True)
 
         duration = time.time() - start_time
@@ -835,7 +835,7 @@ def run_reproducibility_debug():
 
         # Log summary
         status_emoji = "✅" if len(issues) == 0 else "⚠️"
-        logger.info(f"{status_emoji} Reproducibility test completed in {duration:.2f}s")
+        logger.info(f"{status_emoji} Robustness testing completed in {duration:.2f}s")
         logger.info(f"   Issues found: {len(issues)}")
         if issues:
             for issue in issues[:3]:  # Show first 3 issues
@@ -852,7 +852,7 @@ def run_reproducibility_debug():
 
     except Exception as e:
         duration = time.time() - start_time
-        logger.error(f"❌ Reproducibility test failed after {duration:.2f}s: {e}")
+        logger.error(f"❌ Robustness testing failed after {duration:.2f}s: {e}")
         raise
 
 
@@ -1173,7 +1173,7 @@ def run_all_debug():
         ("sgfa_configuration_comparison", run_sgfa_configuration_comparison_debug),
         ("model_comparison", run_model_comparison_debug),
         ("sensitivity_analysis", run_sensitivity_analysis_debug),
-        ("reproducibility", run_reproducibility_debug),
+        ("robustness_testing", run_robustness_testing_debug),
         ("clinical_validation", run_clinical_validation_debug),
     ]
 
@@ -1224,7 +1224,7 @@ def main():
             "sgfa_configuration_comparison",
             "model_comparison",
             "sensitivity_analysis",
-            "reproducibility",
+            "robustness_testing",
             "clinical_validation",
             "all"
         ],
@@ -1246,7 +1246,7 @@ def main():
         "sgfa_configuration_comparison": run_sgfa_configuration_comparison_debug,
         "model_comparison": run_model_comparison_debug,
         "sensitivity_analysis": run_sensitivity_analysis_debug,
-        "reproducibility": run_reproducibility_debug,
+        "robustness_testing": run_robustness_testing_debug,
         "clinical_validation": run_clinical_validation_debug,
         "all": run_all_debug,
     }

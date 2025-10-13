@@ -166,7 +166,7 @@ jobs:
         python -c "
         import sys
         sys.path.insert(0, '.')
-        from experiments.reproducibility import ReproducibilityExperiments
+        from experiments.robustness_testing import ReproducibilityExperiments
         from experiments.framework import ExperimentConfig
         from data.synthetic import generate_synthetic_data
         

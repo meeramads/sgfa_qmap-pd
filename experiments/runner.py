@@ -44,7 +44,7 @@ class ExperimentRunner:
         self, config: ExperimentConfig, num_repetitions: int = 10
     ) -> List[ExperimentResult]:
         """Run reproducibility test."""
-        from experiments.reproducibility import ReproducibilityExperiments
+        from experiments.robustness_testing import ReproducibilityExperiments
 
         repro_exp = ReproducibilityExperiments(self.framework)
         return repro_exp.test_reproducibility(config, num_repetitions)

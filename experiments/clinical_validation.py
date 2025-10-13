@@ -516,6 +516,62 @@ class ClinicalValidationExperiments(ExperimentFramework):
         except Exception as e:
             self.logger.warning(f"Failed to create neuroimaging clinical validation plots: {str(e)}")
 
+        # Add clinical factor loadings visualization
+        try:
+            sgfa_results = results.get("sgfa_cv_results", {})
+            fold_results = sgfa_results.get("fold_results", [])
+
+            # Find a successful fold with W available
+            W_for_viz = None
+            X_list_for_viz = None
+
+            for fold in fold_results:
+                if fold.get("success", False) and fold.get("W") is not None:
+                    W_for_viz = fold.get("W")
+                    # X_list would need to be passed to the plot method or stored
+                    break
+
+            if W_for_viz is not None:
+                self.logger.info("   Creating clinical factor loadings visualization...")
+                from visualization.factor_plots import FactorVisualizer
+
+                # Prepare data dict for visualizer
+                # Try to get view_names from config._shared_data first, then from results
+                config_dict = self.config.to_dict() if hasattr(self.config, "to_dict") else self.config.__dict__
+                shared_data = config_dict.get("_shared_data", {})
+
+                # Get X_list and view_names
+                X_list_for_viz = shared_data.get("X_list") if shared_data else results.get("X_list")
+                view_names_for_viz = shared_data.get("view_names") if shared_data else results.get("view_names")
+
+                if X_list_for_viz is not None and view_names_for_viz is not None:
+                    viz_data = {
+                        "X_list": X_list_for_viz,
+                        "view_names": view_names_for_viz,
+                        "feature_names": results.get("feature_names", {}),
+                    }
+
+                    # Create visualizer
+                    visualizer = FactorVisualizer(self.config)
+
+                    # Create clinical factor loadings plot
+                    fig_clinical = plt.figure(figsize=(18, 12))
+                    visualizer.plot_clinical_factor_loadings(
+                        W_for_viz, viz_data, save_path=None
+                    )
+                    plots["clinical_factor_loadings"] = plt.gcf()
+
+                    self.logger.info("   ✅ Clinical factor loadings plot created")
+                    self.logger.info(f"   Views used: {view_names_for_viz}")
+                else:
+                    self.logger.info(f"   ⚠️  X_list or view_names not available for clinical factor loadings plot")
+                    self.logger.info(f"      X_list available: {X_list_for_viz is not None}, view_names available: {view_names_for_viz is not None}")
+            else:
+                self.logger.info("   ⚠️  No successful fold with W matrix found for clinical factor loadings plot")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create clinical factor loadings plot: {str(e)}")
+
         self.logger.info(f"📊 Neuroimaging clinical validation plots completed: {len(plots)} plots generated")
         return plots
 

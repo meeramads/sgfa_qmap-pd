@@ -166,7 +166,7 @@ Reusable utilities for common patterns:
 - `sgfa_hyperparameter_tuning.py` - Hyperparameter tuning with optimized NUTS settings
 - `clinical_validation.py` - Clinical validation
 - `sensitivity_analysis.py` - Sensitivity testing including group sparsity
-- `reproducibility.py` - Reproducibility validation
+- `robustness_testing.py` - Robustness testing and quality control validation
 
 **Recent Enhancements (Jan 2025)**:
 - ✅ **Factor map export**: All models (sparseGFA, PCA, ICA, FA, NMF, K-means, CCA) now save W and Z matrices to CSV

@@ -14,7 +14,7 @@ from .data_validation import DataValidationExperiments
 from .framework import ExperimentConfig, ExperimentFramework
 from .runner import ExperimentRunner
 from .model_comparison import ModelArchitectureComparison
-from .reproducibility import ReproducibilityExperiments
+from .robustness_testing import ReproducibilityExperiments
 from .sensitivity_analysis import SensitivityAnalysisExperiments
 from .sgfa_configuration_comparison import SGFAConfigurationComparison
 

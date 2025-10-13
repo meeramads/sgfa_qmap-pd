@@ -1,13 +1,27 @@
 """Model architecture comparison experiments for qMAP-PD analysis.
 
-This module compares different model architectures including:
-- Implemented: sparseGFA vs traditional methods (PCA, ICA, FA, KMeans, CCA)
+⏳ FUTURE WORK - PENDING METRIC DEVELOPMENT ⏳
+
+CURRENT STATUS:
+    This experiment is NOT part of the production pipeline (Ferreira et al. 2024).
+    Model comparison requires a suitable metric for comparing different architectures:
+    - Log-likelihood is unsuitable for comparing models with different structures
+    - ELBO is not currently computed by the SGFA implementation
+    - Reconstruction error may not be meaningful across different model types
+    - Alternative metrics (e.g., predictive performance, clinical validity) need investigation
+
+    Until a suitable comparison metric is developed, focus on the core pipeline:
+    data_validation → robustness_testing → factor_stability → clinical_validation
+
+This module would compare different model architectures including:
+- Implemented: sparseGFA vs traditional methods (PCA, ICA, FA, KMeans, CCA, NMF)
 - Future work: standardGFA, neuroGFA, LCA (documented but not run due to computational constraints)
 
 Traditional methods cover different analysis approaches:
 - PCA: Linear dimensionality reduction
 - ICA: Independent component analysis
 - FA: Factor analysis with noise modeling
+- NMF: Non-negative matrix factorization
 - KMeans: Clustering-based analysis
 - CCA: Multi-view canonical correlation analysis
 

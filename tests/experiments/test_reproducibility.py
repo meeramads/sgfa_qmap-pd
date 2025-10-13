@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from data import generate_synthetic_data
-from experiments.reproducibility import run_reproducibility
+from experiments.robustness_testing import run_reproducibility
 
 
 class TestReproducibility:

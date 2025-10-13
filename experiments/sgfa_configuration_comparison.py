@@ -1,10 +1,22 @@
 """SGFA configuration comparison experiments for qMAP-PD analysis.
 
+⏳ FUTURE WORK - PENDING METRIC DEVELOPMENT ⏳
+
 This module compares different SGFA configurations (K, percW, group_lambda) to identify
 which settings produce the most clinically interpretable and stable latent factors.
 
+CURRENT STATUS:
+    This experiment is NOT part of the production pipeline (Ferreira et al. 2024).
+    Comparison experiments require a suitable metric for model comparison:
+    - Log-likelihood is unsuitable for comparing models with different K
+    - ELBO is not currently computed by the SGFA implementation
+    - Alternative metrics need to be identified and implemented
+
+    Until a suitable comparison metric is developed, use fixed hyperparameters:
+    K=20, percW=33%, slab_df=4, slab_scale=2 (as in Ferreira et al. 2024)
+
 NOTE: This is configuration comparison for unsupervised learning, NOT hyperparameter
-tuning with train/test splits. We evaluate configurations based on:
+tuning with train/test splits. When enabled, evaluations would be based on:
 - Clinical interpretability (laterality patterns)
 - Model convergence and stability
 - Computational efficiency

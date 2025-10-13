@@ -11,7 +11,7 @@ from experiments.sensitivity_analysis import run_sensitivity_analysis
 from experiments.model_comparison import run_model_comparison
 from experiments.data_validation import run_data_validation
 from experiments.clinical_validation import run_clinical_validation
-from experiments.reproducibility import run_reproducibility
+from experiments.robustness_testing import run_reproducibility as run_robustness_testing
 from core.config_utils import (
     check_configuration_warnings,
     ensure_directories,
@@ -121,13 +121,15 @@ def main():
             "model_comparison",
             "sensitivity_analysis",
             "clinical_validation",
-            "reproducibility",
+            "robustness_testing",
+            "factor_stability",
             "neuroimaging_hyperopt",
             "neuroimaging_cv_benchmarks",
             "all",
+            "all_extended",
         ],
         default=["all"],
-        help="Experiments to run",
+        help="Experiments to run (use 'all' for core pipeline, 'all_extended' for full pipeline with comparison studies)",
     )
     parser.add_argument("--data-dir", help="Override data directory")
     parser.add_argument(
@@ -299,7 +301,8 @@ def main():
             "model_comparison": "03_model_comparison",
             "sensitivity_analysis": "04_sensitivity_analysis",
             "clinical_validation": "05_clinical_validation",
-            "reproducibility": "06_reproducibility"
+            "robustness_testing": "06_robustness_testing",
+            "factor_stability": "07_factor_stability"
         }
 
         # Only create directories for experiments that are actually being run
@@ -338,14 +341,30 @@ def main():
     # Determine which experiments to run
     experiments_to_run = args.experiments
     if "all" in experiments_to_run:
+        # Default: Core analysis pipeline (skip comparison/sensitivity studies)
+        # Order: validate data → robustness testing → stability → clinical validation
+        experiments_to_run = [
+            "data_validation",
+            "robustness_testing",
+            "factor_stability",
+            "clinical_validation",
+        ]
+        logger.info("ℹ️  Running core analysis pipeline (comparison studies skipped by default)")
+        logger.info("   To include comparison studies, use: --experiments all_extended")
+
+    if "all_extended" in experiments_to_run:
+        # Extended: Include all comparison and sensitivity studies
+        # Order: validate → compare configs → compare models → sensitivity → reproduce → stability → clinical
         experiments_to_run = [
             "data_validation",
             "sgfa_configuration_comparison",
             "model_comparison",
             "sensitivity_analysis",
+            "robustness_testing",
+            "factor_stability",
             "clinical_validation",
-            "reproducibility",
         ]
+        logger.info("ℹ️  Running extended pipeline with all comparison and sensitivity studies")
 
     # Determine execution mode
     use_shared_data = not args.no_shared_data and not args.independent_mode
@@ -518,9 +537,19 @@ def main():
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
+
+            # Extract view_names from preprocessing_info
+            preprocessing_info = pipeline_context.get("preprocessing_info", {})
+            view_names = preprocessing_info.get("data_summary", {}).get(
+                "view_names",
+                [f"view_{i}" for i in range(len(pipeline_context["X_list"]))]
+            )
+            logger.info(f"   Views: {view_names}")
+
             exp_config["_shared_data"] = {
                 "X_list": pipeline_context["X_list"],
-                "preprocessing_info": pipeline_context["preprocessing_info"],
+                "preprocessing_info": preprocessing_info,
+                "view_names": view_names,  # Explicitly pass view_names
                 "mode": "shared",
             }
 
@@ -535,8 +564,40 @@ def main():
 
         results["clinical_validation"] = run_clinical_validation(exp_config)
 
-    if "reproducibility" in experiments_to_run:
-        logger.info("🔁 6/6 Starting Reproducibility Analysis...")
+    if "robustness_testing" in experiments_to_run:
+        logger.info("🔁 Starting Robustness Testing...")
+        exp_config = config.copy()
+        if pipeline_context["X_list"] is not None and use_shared_data:
+            logger.info("   → Using shared data from previous experiments")
+
+            # Extract view_names from preprocessing_info
+            preprocessing_info = pipeline_context.get("preprocessing_info", {})
+            view_names = preprocessing_info.get("data_summary", {}).get(
+                "view_names",
+                [f"view_{i}" for i in range(len(pipeline_context["X_list"]))]
+            )
+            logger.info(f"   Views: {view_names}")
+
+            exp_config["_shared_data"] = {
+                "X_list": pipeline_context["X_list"],
+                "preprocessing_info": preprocessing_info,
+                "view_names": view_names,  # Explicitly pass view_names
+                "mode": "shared",
+            }
+
+            # Pass optimal SGFA parameters if available
+            if pipeline_context["optimal_sgfa_params"] is not None:
+                exp_config["_optimal_sgfa_params"] = pipeline_context[
+                    "optimal_sgfa_params"
+                ]
+                logger.info(
+                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
+                )
+
+        results["robustness_testing"] = run_robustness_testing(exp_config)
+
+    if "factor_stability" in experiments_to_run:
+        logger.info("🔬 Starting Factor Stability Analysis...")
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
@@ -552,10 +613,197 @@ def main():
                     "optimal_sgfa_params"
                 ]
                 logger.info(
-                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
+                    f"   → Using optimal SGFA params: {pipeline_context['optimal_sgfa_params']['variant_name']}"
                 )
 
-        results["reproducibility"] = run_reproducibility(exp_config)
+        # Import and run factor stability analysis
+        from experiments.robustness_testing import ReproducibilityExperiments
+        from experiments.framework import ExperimentConfig
+        from core.config_utils import get_data_dir
+
+        # Create experiment configuration
+        fs_config = exp_config.get("factor_stability", {})
+        experiment_config = ExperimentConfig(
+            experiment_name="factor_stability_analysis",
+            description="Factor stability analysis with fixed parameters (Ferreira et al. 2024)",
+            dataset="qmap_pd",
+            data_dir=get_data_dir(exp_config),
+            K_values=[fs_config.get("K", 20)],
+            num_samples=fs_config.get("num_samples", 5000),
+            num_warmup=fs_config.get("num_warmup", 1000),
+            num_chains=fs_config.get("num_chains", 4),
+            cosine_threshold=fs_config.get("cosine_threshold", 0.8),
+            min_match_rate=fs_config.get("min_match_rate", 0.5),
+            sparsity_threshold=fs_config.get("sparsity_threshold", 0.01),
+            min_nonzero_pct=fs_config.get("min_nonzero_pct", 0.05),
+        )
+
+        # Initialize reproducibility experiments
+        repro_exp = ReproducibilityExperiments(experiment_config, logger)
+
+        # Load data if not already available
+        if exp_config.get("_shared_data") and exp_config["_shared_data"].get("X_list"):
+            X_list = exp_config["_shared_data"]["X_list"]
+            preprocessing_info = exp_config["_shared_data"].get("preprocessing_info", {})
+            logger.info(f"   Using shared data: {len(X_list)} views")
+        else:
+            logger.info("   Loading data for factor stability analysis...")
+            from data.preprocessing_integration import apply_preprocessing_to_pipeline
+
+            X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                config=exp_config,
+                data_dir=get_data_dir(exp_config),
+                auto_select_strategy=False,
+                preferred_strategy=exp_config.get("preprocessing", {}).get("strategy", "standard"),
+            )
+            logger.info(f"   Data loaded: {len(X_list)} views")
+
+        # Extract view_names from preprocessing_info
+        view_names = preprocessing_info.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
+        logger.info(f"   Views: {view_names}")
+
+        # Prepare hyperparameters (read from config.yaml)
+        K = fs_config.get("K", 20)
+        hypers = {
+            "Dm": [X.shape[1] for X in X_list],
+            "K": K,
+            "a_sigma": 1.0,
+            "b_sigma": 1.0,
+            "slab_df": fs_config.get("slab_df", 4),
+            "slab_scale": fs_config.get("slab_scale", 2),
+            "percW": fs_config.get("percW", 33),
+        }
+
+        # Prepare MCMC args (read from config.yaml)
+        mcmc_args = {
+            "K": K,
+            "num_warmup": fs_config.get("num_warmup", 1000),
+            "num_samples": fs_config.get("num_samples", 5000),
+            "num_chains": 1,  # Sequential execution (run_factor_stability_analysis handles multiple chains)
+            "target_accept_prob": fs_config.get("target_accept_prob", 0.8),
+            "reghsZ": fs_config.get("reghsZ", True),
+            "random_seed": 42,
+        }
+
+        logger.info(f"   Using parameters from config.yaml:")
+        logger.info(f"   - K={K}, percW={hypers['percW']}, slab_df={hypers['slab_df']}, slab_scale={hypers['slab_scale']}")
+        logger.info(f"   - num_samples={mcmc_args['num_samples']}, num_warmup={mcmc_args['num_warmup']}")
+        logger.info(f"   - cosine_threshold={experiment_config.cosine_threshold}, min_match_rate={experiment_config.min_match_rate}")
+
+        # Run factor stability analysis
+        logger.info(f"   Running {experiment_config.num_chains} chains with K={K} factors...")
+        result = repro_exp.run_factor_stability_analysis(
+            X_list=X_list,
+            hypers=hypers,
+            args=mcmc_args,
+            n_chains=experiment_config.num_chains,
+            cosine_threshold=experiment_config.cosine_threshold,
+            min_match_rate=experiment_config.min_match_rate,
+            view_names=view_names,  # Pass view names for plotting
+        )
+
+        results["factor_stability"] = result
+
+        # Save W and Z matrices for each chain + stability analysis results
+        if result and hasattr(result, "model_results"):
+            logger.info("   💾 Saving factor loadings and scores...")
+
+            # Get output directory for factor stability
+            if unified_dir:
+                fs_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "07_factor_stability")
+            else:
+                fs_output_dir = get_output_dir(exp_config) / "factor_stability"
+            fs_output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Import saving utilities
+            from analysis.factor_stability import save_stability_results
+            from core.io_utils import save_csv, save_json
+            import pandas as pd
+
+            # Extract results
+            chain_results_data = result.model_results.get("chain_results", [])
+            stability_results_data = result.model_results.get("stability_results", {})
+            effective_factors_data = result.model_results.get("effective_factors", [])
+
+            # Save chain results (W and Z for each chain)
+            chains_dir = fs_output_dir / "chains"
+            chains_dir.mkdir(exist_ok=True)
+
+            for chain_data in chain_results_data:
+                chain_id = chain_data.get("chain_id", 0)
+                chain_dir = chains_dir / f"chain_{chain_id}"
+                chain_dir.mkdir(exist_ok=True)
+
+                # Save W (factor loadings)
+                W = chain_data.get("W")
+                if W is not None:
+                    if isinstance(W, list):
+                        # Multi-view: save each view
+                        for view_idx, W_view in enumerate(W):
+                            W_df = pd.DataFrame(
+                                W_view,
+                                columns=[f"Factor_{k}" for k in range(W_view.shape[1])],
+                            )
+                            W_df.index = [f"Feature_{j}" for j in range(W_view.shape[0])]
+                            W_df.index.name = "Feature"
+                            save_csv(W_df, chain_dir / f"W_view_{view_idx}.csv", index=True)
+                    else:
+                        # Single matrix
+                        W_df = pd.DataFrame(
+                            W,
+                            columns=[f"Factor_{k}" for k in range(W.shape[1])],
+                        )
+                        W_df.index = [f"Feature_{j}" for j in range(W.shape[0])]
+                        W_df.index.name = "Feature"
+                        save_csv(W_df, chain_dir / "W.csv", index=True)
+
+                # Save Z (factor scores)
+                Z = chain_data.get("Z")
+                if Z is not None:
+                    Z_df = pd.DataFrame(
+                        Z,
+                        columns=[f"Factor_{k}" for k in range(Z.shape[1])],
+                    )
+                    Z_df.index = [f"Subject_{j}" for j in range(Z.shape[0])]
+                    Z_df.index.name = "Subject"
+                    save_csv(Z_df, chain_dir / "Z.csv", index=True)
+
+                # Save metadata
+                metadata = {
+                    "chain_id": chain_data.get("chain_id", chain_id),
+                    "seed": chain_data.get("seed", "unknown"),
+                    "log_likelihood": float(chain_data.get("log_likelihood", 0)),
+                    "convergence": chain_data.get("convergence", False),
+                    "execution_time": chain_data.get("execution_time", 0),
+                }
+                save_json(metadata, chain_dir / "metadata.json", indent=2)
+
+            # Save stability analysis results
+            if stability_results_data and effective_factors_data:
+                stability_dir = fs_output_dir / "stability_analysis"
+                save_stability_results(
+                    stability_results_data,
+                    effective_factors_data[0] if effective_factors_data else {},
+                    str(stability_dir),
+                )
+
+            # Save plots
+            if hasattr(result, "plots") and result.plots:
+                plots_dir = fs_output_dir / "plots"
+                plots_dir.mkdir(exist_ok=True)
+                from core.io_utils import save_plot
+                for plot_name, fig in result.plots.items():
+                    if fig is not None:
+                        save_plot(plots_dir / f"{plot_name}.png", dpi=300, close_after=False)
+                        save_plot(plots_dir / f"{plot_name}.pdf", close_after=True)
+
+            logger.info(f"   ✓ Results saved to: {fs_output_dir}")
+
+            # Log summary
+            stability = result.model_results.get("stability_results", {})
+            logger.info(f"   ✓ Found {stability.get('n_stable_factors', 0)}/{stability.get('total_factors', 0)} stable factors")
+            logger.info(f"   ✓ Stability rate: {stability.get('stability_rate', 0):.1%}")
+            logger.info(f"   ✓ Factor loadings (W) and scores (Z) saved for all {len(chain_results_data)} chains")
 
     if "neuroimaging_hyperopt" in experiments_to_run:
         logger.info("🔬 7/8 Starting Neuroimaging Hyperparameter Optimization...")
@@ -732,7 +980,7 @@ def main():
                 "model_comparison": "03_model_comparison/   - Model architecture comparison",
                 "sensitivity_analysis": "04_sensitivity_analysis/ - Parameter sensitivity studies",
                 "clinical_validation": "05_clinical_validation/ - Clinical validation studies",
-                "reproducibility": "06_reproducibility/     - Reproducibility and stability analysis"
+                "robustness_testing": "06_robustness_testing/     - Robustness and quality control testing"
             }
 
             for experiment in experiments_to_run:

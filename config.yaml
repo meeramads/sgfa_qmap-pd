@@ -314,8 +314,8 @@ clinical_validation:
       - "memory_vs_stability"             # Memory optimization impact on reproducibility
       - "convergence_vs_clinical_validity" # Fast convergence vs clinical correlation
 
-# Reproducibility Experiment
-reproducibility:
+# Robustness Testing Experiment
+robustness_testing:
   test_scenarios:
     - "identical_seeds"                 # Same random seed should give same results
     - "different_hardware"              # Results across different hardware
@@ -333,6 +333,29 @@ reproducibility:
     correlation_threshold: 0.95         # Minimum correlation for reproducibility
     parameter_relative_error: 0.05      # Maximum relative error in parameters
     reconstruction_error_ratio: 0.02    # Maximum reconstruction error difference
+
+# Factor Stability Analysis Configuration
+# Implements Ferreira et al. 2024 methodology for assessing factor robustness
+factor_stability:
+  K: 20                                 # Number of latent factors (10-50 recommended)
+  num_chains: 4                         # Number of independent chains (4+ recommended)
+  num_samples: 5000                     # MCMC samples per chain (2000-10000)
+  num_warmup: 1000                      # MCMC warmup samples (500-2000)
+
+  # Factor matching parameters (Ferreira et al. 2024)
+  cosine_threshold: 0.8                 # Minimum cosine similarity for matching (0.7-0.9)
+  min_match_rate: 0.5                   # Minimum fraction of chains (>50%)
+
+  # Effective factor counting parameters
+  sparsity_threshold: 0.01              # Minimum loading magnitude to be non-zero
+  min_nonzero_pct: 0.05                 # Minimum fraction of non-zero loadings (5%)
+
+  # Fixed parameters from Ferreira et al. 2024 Section 2.7
+  percW: 33                             # Sparsity level (33% = p₀^(m) = Dm/3)
+  slab_df: 4                            # Slab degrees of freedom
+  slab_scale: 2                         # Slab scale
+  reghsZ: true                          # Regularized horseshoe on Z
+  target_accept_prob: 0.8               # MCMC acceptance probability
 
 # =============================================================================
 # CONFIGURATION EXAMPLES FOR DIFFERENT USE CASES

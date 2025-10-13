@@ -53,13 +53,20 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
 
 ### Experimental Validation
 
-- **[experiments/](experiments/)**: Comprehensive experimental framework with advanced neuroimaging CV
-  - `data_validation.py`: Data quality and preprocessing validation **IMPLEMENTED AND TESTED**
-  - `model_comparison.py`: SGFA vs traditional method comparison **IMPLEMENTED AND TESTED** + **NeuroImagingMetrics NEEDS DEVELOPMENT**
-  - `sgfa_hyperparameter_tuning.py`: SGFA variant comparison **IMPLEMENTED AND TESTED** + **HyperOptimizer NEEDS DEVELOPMENT**
-  - `sensitivity_analysis.py`: Hyperparameter sensitivity testing **IMPLEMENTED AND TESTED**
-  - `reproducibility.py`: Reproducibility and robustness validation **IMPLEMENTED AND TESTED**
-  - `clinical_validation.py`: Clinical subtype validation + basic SGFA benchmarks **IMPLEMENTED AND TESTED** + **Advanced neuroimaging CV NEEDS DEVELOPMENT**
+- **[experiments/](experiments/)**: Comprehensive experimental framework following Ferreira et al. 2024 methodology
+
+  **Core Pipeline (Production Ready):**
+  - `data_validation.py`: Data quality and preprocessing validation with PCA dimensionality analysis **IMPLEMENTED AND TESTED**
+  - `robustness_testing.py`: Algorithm reliability testing (seed reproducibility, perturbation, initialization) **IMPLEMENTED AND TESTED**
+  - `factor_stability.py`: Factor stability analysis with cosine similarity across independent chains (Ferreira et al. 2024 Section 2.7) **PRODUCTION READY**
+  - `clinical_validation.py`: Clinical relevance and biomarker discovery **IMPLEMENTED AND TESTED**
+
+  **Future Work (Requires Suitable Comparison Metric):**
+  - `sgfa_configuration_comparison.py`: SGFA hyperparameter comparison **⏳ PENDING METRIC DEVELOPMENT** (log-likelihood unsuitable, ELBO not computed)
+  - `model_comparison.py`: SGFA vs traditional methods (PCA, ICA, FA) **⏳ PENDING METRIC DEVELOPMENT**
+  - `sensitivity_analysis.py`: Hyperparameter sensitivity analysis **⏳ PENDING METRIC DEVELOPMENT**
+
+  **Development Tools:**
   - `debug_experiments.py`: Lightweight testing framework for rapid validation **IMPLEMENTED**
 
 ### Models & Implementation
@@ -296,7 +303,7 @@ python debug_experiments.py sgfa_hyperparameter_tuning
 python debug_experiments.py model_comparison
 python debug_experiments.py sensitivity_analysis
 python debug_experiments.py clinical_validation
-python debug_experiments.py reproducibility
+python debug_experiments.py robustness_testing
 
 # Test all components
 python debug_experiments.py all
@@ -307,6 +314,65 @@ python debug_experiments.py all
 - **Debug**: 50-150 MCMC samples, 3-5 factors, minimal preprocessing
 - **Production**: 1000+ MCMC samples, full factors, comprehensive preprocessing
 - **Runtime**: Varies significantly based on system specifications and data complexity
+
+### Core Analysis Pipeline (Production Ready)
+
+Run the complete validation pipeline following Ferreira et al. 2024 methodology:
+
+```bash
+# Run core pipeline (data validation → robustness testing → factor stability → clinical validation)
+# Runtime: 30-60 minutes (depending on hardware)
+python run_experiments.py --config config.yaml --experiments all
+
+# Run individual experiments
+python run_experiments.py --config config.yaml --experiments data_validation
+python run_experiments.py --config config.yaml --experiments robustness_testing
+python run_experiments.py --config config.yaml --experiments factor_stability
+python run_experiments.py --config config.yaml --experiments clinical_validation
+
+# Run extended pipeline (includes comparison experiments - FUTURE WORK)
+# Note: Comparison experiments require suitable metrics (ELBO or alternative)
+# python run_experiments.py --config config.yaml --experiments all_extended
+```
+
+**Pipeline Overview:**
+
+| Experiment | Purpose | Key Outputs |
+|------------|---------|-------------|
+| **data_validation** | Data quality assessment with PCA dimensionality analysis | 5 diagnostic plots including PCA explained variance |
+| **robustness_testing** | Algorithm reliability (seeds, noise, initialization) | Robustness metrics and comparison plots |
+| **factor_stability** | Identify stable factors across independent chains | Consensus loadings, stability heatmap, 4+ visualizations |
+| **clinical_validation** | Clinical relevance and biomarker discovery | Clinical associations, subtype analysis |
+
+**Factor Stability Analysis Details:**
+
+Following Ferreira et al. 2024 Section 2.7:
+
+- Uses **fixed hyperparameters**: percW=33%, slab_df=4, slab_scale=2
+- Runs **4 independent MCMC chains** with different random seeds
+- Assesses stability via **cosine similarity matching** (threshold 0.8)
+- Identifies **robust factors** appearing in >50% of chains
+- Saves W (loadings) and Z (scores) for each chain
+
+**Results Structure:**
+
+```text
+results/
+├── 01_data_validation/          # PCA, distributions, quality metrics
+├── 06_robustness_testing/       # Seed/perturbation tests
+├── 07_factor_stability/         # Chain results + consensus
+│   ├── chains/                  # W.csv, Z.csv per chain
+│   ├── stability_analysis/      # Consensus loadings, metrics
+│   └── plots/                   # 4+ visualizations
+└── 05_clinical_validation/      # Clinical associations
+```
+
+**Customization:** Edit `config.yaml` sections to adjust parameters:
+
+- `factor_stability.K`: Number of factors (10-50)
+- `factor_stability.num_chains`: Independent chains (4+)
+- `factor_stability.num_samples`: MCMC samples per chain (2000-10000)
+- `factor_stability.cosine_threshold`: Matching threshold (0.7-0.9)
 
 ### Basic Analysis
 
@@ -388,9 +454,9 @@ param_results = sgfa_optimizer.run_parameter_sweep(X_list)
 sensitivity = SensitivityAnalysisExperiments(config)
 sensitivity_results = sensitivity.run_sensitivity_analysis(X_list)
 
-# Run reproducibility validation
-reproducibility = ReproducibilityExperiments(config)
-repro_results = reproducibility.run_reproducibility_tests(X_list)
+# Run robustness testing validation
+robustness_testing = ReproducibilityExperiments(config)
+robustness_results = robustness_testing.run_reproducibility_tests(X_list)
 
 # Run clinical validation with integrated SGFA performance benchmarks
 clinical = ClinicalValidationExperiments(config)
@@ -655,7 +721,7 @@ python debug_experiments.py model_comparison
 - `sgfa_hyperparameter_tuning`: SGFA parameter optimization and scalability analysis
 - `model_comparison`: SGFA vs traditional methods (PCA, ICA, FA)
 - `sensitivity_analysis`: Hyperparameter sensitivity testing
-- `reproducibility`: Reproducibility and robustness validation
+- `robustness_testing`: Robustness testing and quality control validation
 - `clinical_validation`: Clinical subtype validation + basic SGFA benchmarks
 
 **ADVANCED FEATURES NEED DEVELOPMENT:**
