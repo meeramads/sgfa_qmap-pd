@@ -6,15 +6,15 @@ Data-Driven Analysis of Optimal Outlier Detection Thresholds
 CURRENT CONFIGURATION: threshold = 3.0
 
 
-volume_sn_voxels
+volume_lentiform_voxels
 --------------------------------------------------------------------------------
-ELBOW POINT: 2.87
-  - Retention at elbow: 21.5%
+ELBOW POINT: 2.67
+  - Retention at elbow: 12.7%
   - Interpretation: Moderate - balanced removal of artifacts while preserving signal
 
 CURRENT THRESHOLD (3.0) PERFORMANCE:
-  - Voxels retained: 531 (29.6%)
-  - Voxels removed: 1263
+  - Voxels retained: 2013 (28.0%)
+  - Voxels removed: 5188
   - Variance preserved: 100.0%
   - Correlation preserved: 100.0%
 
@@ -27,7 +27,7 @@ RECOMMENDATION:
 OVERALL RECOMMENDATIONS
 ================================================================================
 
-Average elbow point across all ROIs: 2.87
+Average elbow point across all ROIs: 2.67
 
 RECOMMENDATION: Current threshold (3.0) is appropriate
   - Well-aligned with data-driven elbow analysis

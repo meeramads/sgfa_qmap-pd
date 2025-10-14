@@ -53,3 +53,18 @@
 2025-10-14 22:07:15,311 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
 2025-10-14 22:07:15,664 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
 2025-10-14 22:07:15,664 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_run_20251014_220709/data_validation_20251014_220709/plots
+2025-10-14 22:15:31,505 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251014_221527
+2025-10-14 22:15:31,505 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 3.6 seconds
+2025-10-14 22:15:31,505 - experiments.framework - INFO - 🕐 Started: 2025-10-14 22:15:27
+2025-10-14 22:15:31,505 - experiments.framework - INFO - 🕑 Finished: 2025-10-14 22:15:31
+2025-10-14 22:15:31,505 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251014_221527
+2025-10-14 22:15:31,505 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-14 22:15:31,540 - experiments.framework - INFO - Garbage collection freed 18550 objects
+2025-10-14 22:15:31,647 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-14 22:15:32,648 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-14 22:15:32,720 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-14 22:15:32,723 - experiments.framework - INFO - Saving 3 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-lentiform_run_20251014_221527/data_validation_20251014_221527/plots
+2025-10-14 22:15:33,844 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-14 22:15:34,852 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-14 22:15:35,204 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-14 22:15:35,204 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-lentiform_run_20251014_221527/data_validation_20251014_221527/plots
