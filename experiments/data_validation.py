@@ -1740,6 +1740,10 @@ class DataValidationExperiments(ExperimentFramework):
             imaging_views, imaging_names, mad_distributions, output_path
         )
 
+        subject_outliers = self._analyze_subject_level_outliers(
+            imaging_views, imaging_names, raw_data, output_path
+        )
+
         summary_table = self._generate_threshold_summary(
             imaging_names, mad_distributions, elbow_analysis,
             spatial_analysis, info_preservation, candidate_thresholds, output_path
@@ -1757,6 +1761,7 @@ class DataValidationExperiments(ExperimentFramework):
             "elbow_analysis": elbow_analysis,
             "spatial_analysis": spatial_analysis,
             "information_preservation": info_preservation,
+            "subject_outliers": subject_outliers,
             "summary_table": summary_table,
         }
 
@@ -2275,6 +2280,300 @@ class DataValidationExperiments(ExperimentFramework):
         plt.close()
 
         logger.info(f"      Saved information preservation plot: {plot_file.name}")
+
+    def _analyze_subject_level_outliers(
+        self,
+        imaging_views: List[np.ndarray],
+        view_names: List[str],
+        raw_data: Dict,
+        output_path: Path
+    ) -> Dict[str, Any]:
+        """
+        Analyze subject-level data quality by identifying subjects with pervasive outlier voxels.
+
+        This complements voxel-level MAD analysis by asking: which *subjects* have
+        widespread data quality problems, rather than which *voxels* are unreliable.
+
+        For each subject, count how many voxels show extreme values (>3 MAD from group median).
+        Subjects with high outlier percentages may have scan quality issues.
+
+        Parameters
+        ----------
+        imaging_views : List[np.ndarray]
+            List of imaging data matrices (n_subjects × n_voxels per view)
+        view_names : List[str]
+            Names of imaging views
+        raw_data : Dict
+            Raw data dictionary containing subject_ids if available
+        output_path : Path
+            Output directory for plots and tables
+
+        Returns
+        -------
+        Dict[str, Any]
+            Subject outlier analysis results including flagged subjects
+        """
+        logger.info("👤 Analyzing subject-level data quality...")
+
+        subject_ids = raw_data.get("subject_ids", None)
+        if subject_ids is None:
+            # Generate generic IDs
+            n_subjects = imaging_views[0].shape[0] if imaging_views else 0
+            subject_ids = [f"Subject_{i:03d}" for i in range(n_subjects)]
+
+        subject_results = {}
+        outlier_threshold = 3.0  # MAD threshold for defining outliers
+
+        for X, view_name in zip(imaging_views, view_names):
+            logger.info(f"   Processing {view_name}: {X.shape}")
+
+            n_subjects, n_voxels = X.shape
+
+            # For each voxel, calculate group median and MAD
+            voxel_medians = np.median(X, axis=0)
+            voxel_mads = np.median(np.abs(X - voxel_medians), axis=0)
+
+            # Count outlier voxels for each subject
+            subject_outlier_counts = []
+            subject_outlier_pcts = []
+
+            for subj_idx in range(n_subjects):
+                subject_data = X[subj_idx, :]
+                outlier_count = 0
+
+                for voxel_idx in range(n_voxels):
+                    voxel_value = subject_data[voxel_idx]
+                    voxel_median = voxel_medians[voxel_idx]
+                    voxel_mad = voxel_mads[voxel_idx]
+
+                    if not np.isnan(voxel_value) and voxel_mad > 0:
+                        # Calculate MAD score for this subject at this voxel
+                        mad_score = np.abs(voxel_value - voxel_median) / (voxel_mad * 1.4826)
+                        if mad_score > outlier_threshold:
+                            outlier_count += 1
+
+                outlier_pct = 100.0 * outlier_count / n_voxels
+                subject_outlier_counts.append(outlier_count)
+                subject_outlier_pcts.append(outlier_pct)
+
+            subject_results[view_name] = {
+                "outlier_counts": subject_outlier_counts,
+                "outlier_percentages": subject_outlier_pcts,
+                "n_subjects": n_subjects,
+                "n_voxels": n_voxels,
+            }
+
+            logger.info(f"      Mean outlier %: {np.mean(subject_outlier_pcts):.1f}%")
+            logger.info(f"      Max outlier %: {np.max(subject_outlier_pcts):.1f}%")
+
+        # Create visualizations
+        self._plot_subject_outlier_distributions(
+            subject_results, view_names, subject_ids, output_path
+        )
+
+        # Identify flagged subjects (>5% outlier voxels in any ROI)
+        flagged_subjects = self._identify_flagged_subjects(
+            subject_results, view_names, subject_ids, threshold_pct=5.0, output_path
+        )
+
+        logger.info(f"   ✅ Subject-level analysis completed: {len(flagged_subjects)} subjects flagged")
+        return {
+            "subject_results": subject_results,
+            "flagged_subjects": flagged_subjects,
+            "outlier_threshold_mad": outlier_threshold,
+            "flagging_threshold_pct": 5.0,
+        }
+
+    def _plot_subject_outlier_distributions(
+        self,
+        subject_results: Dict[str, Any],
+        view_names: List[str],
+        subject_ids: List[str],
+        output_path: Path
+    ):
+        """Create histograms showing distribution of subject outlier percentages."""
+        fig, axes = plt.subplots(len(view_names), 1, figsize=(12, 5 * len(view_names)))
+        if len(view_names) == 1:
+            axes = [axes]
+
+        for idx, (view_name, ax) in enumerate(zip(view_names, axes)):
+            outlier_pcts = subject_results[view_name]["outlier_percentages"]
+
+            # Histogram of outlier percentages
+            ax.hist(outlier_pcts, bins=30, alpha=0.7, color='steelblue', edgecolor='black')
+            ax.axvline(5.0, color='red', linestyle='--', linewidth=2,
+                      label='5% threshold (flagging criterion)')
+            ax.axvline(np.mean(outlier_pcts), color='green', linestyle='--', linewidth=2,
+                      label=f'Mean: {np.mean(outlier_pcts):.1f}%')
+
+            ax.set_xlabel('Outlier Voxels (%)', fontsize=12)
+            ax.set_ylabel('Number of Subjects', fontsize=12)
+            ax.set_title(f'Subject-Level Data Quality - {view_name}\n'
+                        f'Distribution of outlier percentages across {len(outlier_pcts)} subjects',
+                        fontsize=13, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=11)
+
+            # Add statistics text box
+            stats_text = (
+                f"Min: {np.min(outlier_pcts):.1f}%\n"
+                f"Q1: {np.percentile(outlier_pcts, 25):.1f}%\n"
+                f"Median: {np.median(outlier_pcts):.1f}%\n"
+                f"Q3: {np.percentile(outlier_pcts, 75):.1f}%\n"
+                f"Max: {np.max(outlier_pcts):.1f}%\n"
+                f"Flagged (>5%): {np.sum(np.array(outlier_pcts) > 5.0)}"
+            )
+            ax.text(0.98, 0.97, stats_text, transform=ax.transAxes,
+                   fontsize=10, verticalalignment='top', horizontalalignment='right',
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+
+        plt.tight_layout()
+        plot_file = output_path / "subject_outlier_distributions.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved subject outlier distribution plot: {plot_file.name}")
+
+    def _identify_flagged_subjects(
+        self,
+        subject_results: Dict[str, Any],
+        view_names: List[str],
+        subject_ids: List[str],
+        threshold_pct: float,
+        output_path: Path
+    ) -> List[Dict[str, Any]]:
+        """
+        Identify subjects who exceed outlier threshold in any ROI.
+
+        Parameters
+        ----------
+        subject_results : Dict
+            Subject outlier analysis results per view
+        view_names : List[str]
+            View names
+        subject_ids : List[str]
+            Subject identifiers
+        threshold_pct : float
+            Percentage threshold for flagging (e.g., 5.0 = 5%)
+        output_path : Path
+            Output directory
+
+        Returns
+        -------
+        List[Dict]
+            List of flagged subjects with details
+        """
+        flagged_subjects = []
+
+        n_subjects = len(subject_ids)
+
+        for subj_idx in range(n_subjects):
+            subject_id = subject_ids[subj_idx]
+            outlier_pcts_by_roi = {}
+            is_flagged = False
+
+            for view_name in view_names:
+                outlier_pct = subject_results[view_name]["outlier_percentages"][subj_idx]
+                outlier_pcts_by_roi[view_name] = outlier_pct
+
+                if outlier_pct > threshold_pct:
+                    is_flagged = True
+
+            if is_flagged:
+                flagged_subjects.append({
+                    "subject_id": subject_id,
+                    "subject_index": subj_idx,
+                    "outlier_percentages": outlier_pcts_by_roi,
+                    "max_outlier_pct": max(outlier_pcts_by_roi.values()),
+                })
+
+        # Save flagged subjects table
+        if flagged_subjects:
+            self._save_flagged_subjects_table(flagged_subjects, view_names, threshold_pct, output_path)
+        else:
+            logger.info("      No subjects flagged (all below threshold)")
+
+        return flagged_subjects
+
+    def _save_flagged_subjects_table(
+        self,
+        flagged_subjects: List[Dict],
+        view_names: List[str],
+        threshold_pct: float,
+        output_path: Path
+    ):
+        """Save table of flagged subjects to CSV."""
+        # Build table rows
+        rows = []
+        for subject_info in flagged_subjects:
+            row = {
+                "Subject_ID": subject_info["subject_id"],
+                "Subject_Index": subject_info["subject_index"],
+                "Max_Outlier_Pct": subject_info["max_outlier_pct"],
+            }
+            # Add per-ROI outlier percentages
+            for view_name in view_names:
+                clean_name = view_name.replace("volume_", "").replace("_voxels", "")
+                row[f"{clean_name}_Outlier_Pct"] = subject_info["outlier_percentages"][view_name]
+
+            rows.append(row)
+
+        flagged_df = pd.DataFrame(rows)
+
+        # Sort by max outlier percentage (worst first)
+        flagged_df = flagged_df.sort_values("Max_Outlier_Pct", ascending=False)
+
+        # Save to CSV
+        csv_file = output_path / "flagged_subjects.csv"
+        flagged_df.to_csv(csv_file, index=False)
+        logger.info(f"      Saved flagged subjects table: {csv_file.name} ({len(flagged_subjects)} subjects)")
+
+        # Also create a human-readable text file
+        txt_file = output_path / "flagged_subjects_report.txt"
+        with open(txt_file, 'w') as f:
+            f.write("=" * 80 + "\n")
+            f.write("SUBJECT-LEVEL DATA QUALITY FLAGGING REPORT\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(f"Flagging criterion: >{threshold_pct:.1f}% outlier voxels in any ROI\n")
+            f.write(f"Total subjects flagged: {len(flagged_subjects)}\n\n")
+
+            if len(flagged_subjects) > 0:
+                f.write("FLAGGED SUBJECTS (sorted by severity):\n")
+                f.write("-" * 80 + "\n\n")
+
+                for subject_info in sorted(flagged_subjects, key=lambda x: x["max_outlier_pct"], reverse=True):
+                    f.write(f"Subject ID: {subject_info['subject_id']}\n")
+                    f.write(f"  Index: {subject_info['subject_index']}\n")
+                    f.write(f"  Max outlier percentage: {subject_info['max_outlier_pct']:.2f}%\n")
+                    f.write(f"  Outlier percentages by ROI:\n")
+                    for view_name, pct in subject_info["outlier_percentages"].items():
+                        flag = "⚠️ FLAGGED" if pct > threshold_pct else "✓ OK"
+                        f.write(f"    - {view_name}: {pct:.2f}% {flag}\n")
+                    f.write("\n")
+
+                f.write("\n" + "=" * 80 + "\n")
+                f.write("RECOMMENDATIONS:\n")
+                f.write("=" * 80 + "\n\n")
+                f.write("1. INSPECT FLAGGED SUBJECTS:\n")
+                f.write("   - Review scan acquisition notes for these subject IDs\n")
+                f.write("   - Check for motion artifacts, scanner issues, or protocol deviations\n\n")
+
+                f.write("2. CONSIDER EXCLUSION IF:\n")
+                f.write("   - Outlier percentage >10% in any ROI (severe quality issues)\n")
+                f.write("   - Known scan quality problems from acquisition notes\n")
+                f.write("   - Visual inspection confirms widespread artifacts\n\n")
+
+                f.write("3. RETAIN SUBJECTS IF:\n")
+                f.write("   - Outlier percentage 5-10% (mild issues, may be biological)\n")
+                f.write("   - No known scan quality problems\n")
+                f.write("   - Outliers may represent real biological variability (PD subtypes)\n\n")
+
+                f.write("4. NEXT STEPS:\n")
+                f.write("   - For severe cases (>10%), consider exclusion from analysis\n")
+                f.write("   - For mild cases (5-10%), monitor impact on factor stability\n")
+                f.write("   - Document exclusion criteria if subjects are removed\n")
+
+        logger.info(f"      Saved flagged subjects report: {txt_file.name}")
 
     def _generate_threshold_summary(
         self,
