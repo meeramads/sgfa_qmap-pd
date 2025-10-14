@@ -1,3 +1,5 @@
+2025-10-14 21:56:43,902 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_run_20251014_215643
+2025-10-14 21:56:43,906 - experiments.framework - INFO - Starting experiment: data_validation_20251014_215643
 2025-10-14 21:56:43,908 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251014_215643
 2025-10-14 21:56:43,908 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 0.0 seconds
 2025-10-14 21:56:43,908 - experiments.framework - INFO - 🕐 Started: 2025-10-14 21:56:43
