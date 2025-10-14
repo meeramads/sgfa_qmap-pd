@@ -242,10 +242,10 @@ robustness_testing:
 # Factor Stability Analysis Configuration
 # Implements Ferreira et al. 2024 methodology for assessing factor robustness
 factor_stability:
-  K: 20                                 # Number of latent factors (10-50 recommended)
+  K: 50                                 # Number of latent factors - increased to allow model to converge to fewer
   num_chains: 4                         # Number of independent chains (4+ recommended)
-  num_samples: 5000                     # MCMC samples per chain (2000-10000)
-  num_warmup: 1000                      # MCMC warmup samples (500-2000)
+  num_samples: 10000                    # MCMC samples per chain (increased for better convergence with K=50)
+  num_warmup: 2000                      # MCMC warmup samples (increased for better mixing)
   chain_method: 'parallel'              # Chain execution: 'parallel' (2x faster on GPU), 'sequential', or 'vectorized'
 
   # Factor matching parameters (Ferreira et al. 2024)
@@ -257,7 +257,7 @@ factor_stability:
   min_nonzero_pct: 0.05                 # Minimum fraction of non-zero loadings (5%)
 
   # Fixed parameters from Ferreira et al. 2024 Section 2.7
-  percW: 33                             # Sparsity level (33% = p₀^(m) = Dm/3)
+  percW: 20                             # Sparsity level (reduced from 33 for stronger shrinkage)
   slab_df: 4                            # Slab degrees of freedom
   slab_scale: 2                         # Slab scale
   reghsZ: true                          # Regularized horseshoe on Z
