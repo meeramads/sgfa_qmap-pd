@@ -5,11 +5,113 @@ Replaces basic load_qmap_pd() with full NeuroImagingPreprocessor capabilities.
 """
 
 import logging
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def _save_filtered_position_lookups(
+    preprocessor, view_names: List[str], data_dir: str
+) -> Dict[str, str]:
+    """
+    Save filtered position lookup vectors for imaging views.
+
+    This creates CSV files mapping the retained voxels to their 3D spatial coordinates,
+    enabling brain remapping after voxel dropping (QC outlier removal, ROI selection).
+
+    Parameters
+    ----------
+    preprocessor : NeuroImagingPreprocessor
+        Fitted preprocessor with outlier_masks_ and selected_features_
+    view_names : List[str]
+        Names of views
+    data_dir : str
+        Data directory for loading original position lookups
+
+    Returns
+    -------
+    Dict[str, str]
+        Mapping of view names to saved position lookup file paths
+    """
+    from data.preprocessing import SpatialProcessingUtils
+
+    saved_files = {}
+
+    for view_name in view_names:
+        # Only process imaging views
+        if not view_name.startswith("volume_"):
+            continue
+
+        logger.info(f"Creating filtered position lookup for {view_name}...")
+
+        # Load original position lookup
+        roi_name = view_name.replace("volume_", "").replace("_voxels", "")
+        original_positions = SpatialProcessingUtils.load_position_lookup(data_dir, roi_name)
+
+        if original_positions is None:
+            logger.warning(f"No original position lookup found for {view_name}, skipping")
+            continue
+
+        # Start with all voxels
+        keep_mask = np.ones(len(original_positions), dtype=bool)
+
+        # Apply QC outlier mask if available
+        if hasattr(preprocessor, 'outlier_masks_') and view_name in preprocessor.outlier_masks_:
+            outlier_mask = preprocessor.outlier_masks_[view_name]
+            logger.info(f"  Applying QC outlier mask: {np.sum(outlier_mask)}/{len(outlier_mask)} voxels kept")
+            keep_mask = keep_mask & outlier_mask[:len(keep_mask)]  # Handle size mismatch
+
+        # Apply ROI-based selection if available
+        if hasattr(preprocessor, 'selected_features_'):
+            roi_indices_key = f"{view_name}_roi_indices"
+            roi_mask_key = f"{view_name}_roi_mask"
+
+            if roi_indices_key in preprocessor.selected_features_:
+                # Indices-based selection
+                selected_indices = preprocessor.selected_features_[roi_indices_key]
+                logger.info(f"  Applying ROI selection (indices): {len(selected_indices)} voxels selected")
+
+                # Create new mask based on selected indices
+                new_mask = np.zeros(len(keep_mask), dtype=bool)
+                # First apply QC mask, then select indices from kept voxels
+                kept_positions = np.where(keep_mask)[0]
+                for idx in selected_indices:
+                    if idx < len(kept_positions):
+                        new_mask[kept_positions[idx]] = True
+                keep_mask = new_mask
+
+            elif roi_mask_key in preprocessor.selected_features_:
+                # Mask-based selection
+                roi_mask = preprocessor.selected_features_[roi_mask_key]
+                logger.info(f"  Applying ROI selection (mask): {np.sum(roi_mask)}/{len(roi_mask)} voxels kept")
+                # ROI mask applies to already-QC-filtered data
+                kept_positions = np.where(keep_mask)[0]
+                new_mask = np.zeros(len(keep_mask), dtype=bool)
+                for i, kept_idx in enumerate(kept_positions):
+                    if i < len(roi_mask) and roi_mask[i]:
+                        new_mask[kept_idx] = True
+                keep_mask = new_mask
+
+        # Filter position lookup to retained voxels
+        filtered_positions = original_positions[keep_mask].copy()
+        filtered_positions.reset_index(drop=True, inplace=True)
+
+        # Save to data directory
+        output_dir = Path(data_dir) / "preprocessed_position_lookups"
+        output_dir.mkdir(exist_ok=True, parents=True)
+
+        output_file = output_dir / f"{roi_name}_filtered_position_lookup.csv"
+        filtered_positions.to_csv(output_file, index=False)
+
+        saved_files[view_name] = str(output_file)
+        logger.info(f"  Saved filtered position lookup: {output_file}")
+        logger.info(f"  {len(original_positions)} → {len(filtered_positions)} voxels ({100*len(filtered_positions)/len(original_positions):.1f}% retained)")
+
+    return saved_files
 
 
 def get_advanced_preprocessing_data(
@@ -280,6 +382,15 @@ def _apply_advanced_preprocessing(
             "reduction_ratio": reduction_ratio,
             "features_removed": total_features_before - total_features_after,
         }
+
+        # Save filtered position lookups for imaging views (for brain remapping)
+        if preprocessing_config.enable_spatial_processing:
+            saved_positions = _save_filtered_position_lookups(
+                preprocessor, view_names, data_dir
+            )
+            if saved_positions:
+                preprocessing_info["filtered_position_lookups"] = saved_positions
+                logger.info(f"   Saved {len(saved_positions)} filtered position lookup files")
 
         logger.info(f"✅ Advanced preprocessing completed")
         logger.info(f"   Applied steps: {steps_applied}")
