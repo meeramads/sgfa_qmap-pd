@@ -64,7 +64,8 @@ def assess_factor_stability_cosine(
         - min_match_rate: Match rate threshold used
         - per_factor_details: List of dicts with per-factor matching info
         - similarity_matrix: (n_chains, n_chains, K) array of similarities
-        - consensus_W: Consensus factor loadings for stable factors
+        - consensus_W: Consensus factor loadings for stable factors (D, n_stable)
+        - consensus_Z: Consensus factor scores for stable factors (N, n_stable) or None
 
     Examples
     --------
@@ -117,6 +118,26 @@ def assess_factor_stability_cosine(
     D, K = W_chain_avg[0].shape
 
     logger.info(f"Factor loading matrices: D={D} features, K={K} factors")
+
+    # Step 1b: Average Z within each chain (for consensus Z computation later)
+    Z_chain_avg = []
+    for i, result in enumerate(chain_results):
+        chain_id = result.get("chain_id", i)
+
+        # Check if we have Z scores
+        Z = result.get("Z")
+        if Z is not None:
+            if "samples" in result and "Z" in result.get("samples", {}):
+                Z_samples = result["samples"]["Z"]  # (n_samples, N, K)
+                Z_avg = np.mean(Z_samples, axis=0)  # (N, K)
+                Z_chain_avg.append(Z_avg)
+                logger.info(f"Chain {chain_id}: Averaged Z shape {Z_avg.shape}")
+            else:
+                Z_chain_avg.append(Z)
+                logger.info(f"Chain {chain_id}: Z (no samples) shape {Z.shape}")
+        else:
+            logger.warning(f"Chain {chain_id}: No Z scores available")
+            Z_chain_avg.append(None)
 
     # Validate all chains have same shape
     for i, W in enumerate(W_chain_avg):
@@ -190,13 +211,23 @@ def assess_factor_stability_cosine(
                 f"rate={match_rate:.2%})"
             )
 
-    # Step 3: Compute consensus factor loadings for stable factors
+    # Step 3: Compute consensus factor loadings and scores for stable factors
     consensus_W = None
+    consensus_Z = None
     if stable_factors:
         logger.info(f"Computing consensus loadings for {len(stable_factors)} stable factors")
         consensus_W = _compute_consensus_loadings(
             W_chain_avg, per_factor_matches, stable_factors
         )
+
+        # Compute consensus Z if Z scores are available
+        if all(Z is not None for Z in Z_chain_avg):
+            logger.info(f"Computing consensus scores for {len(stable_factors)} stable factors")
+            consensus_Z = _compute_consensus_scores(
+                Z_chain_avg, per_factor_matches, stable_factors
+            )
+        else:
+            logger.warning("Not all chains have Z scores - consensus_Z will be None")
 
     # Step 4: Compile results
     result = {
@@ -209,6 +240,7 @@ def assess_factor_stability_cosine(
         "per_factor_details": per_factor_matches,
         "similarity_matrix": similarity_matrix,
         "consensus_W": consensus_W,
+        "consensus_Z": consensus_Z,
         "stability_rate": len(stable_factors) / K if K > 0 else 0.0,
     }
 
@@ -258,6 +290,47 @@ def _compute_consensus_loadings(
             consensus_W[:, i] = np.mean(matched_loadings, axis=0)
 
     return consensus_W
+
+
+def _compute_consensus_scores(
+    Z_chain_avg: List[np.ndarray],
+    per_factor_matches: List[Dict],
+    stable_factors: List[int],
+) -> np.ndarray:
+    """Compute consensus factor scores by averaging across chains.
+
+    Parameters
+    ----------
+    Z_chain_avg : List[np.ndarray]
+        Factor scores from each chain, each shape (N, K)
+    per_factor_matches : List[Dict]
+        Matching information for each factor from assess_factor_stability_cosine
+    stable_factors : List[int]
+        Indices of stable factors
+
+    Returns
+    -------
+    np.ndarray
+        Consensus scores, shape (N, len(stable_factors))
+    """
+    N, K = Z_chain_avg[0].shape
+    n_stable = len(stable_factors)
+    consensus_Z = np.zeros((N, n_stable))
+
+    for i, factor_idx in enumerate(stable_factors):
+        factor_match_info = per_factor_matches[factor_idx]
+        matched_indices = factor_match_info["matched_in_chains"]
+
+        # Average scores from all chains where this factor matched
+        matched_scores = []
+        for chain_idx, matched_k in enumerate(matched_indices):
+            if matched_k is not None:
+                matched_scores.append(Z_chain_avg[chain_idx][:, matched_k])
+
+        if matched_scores:
+            consensus_Z[:, i] = np.mean(matched_scores, axis=0)
+
+    return consensus_Z
 
 
 def count_effective_factors(
@@ -481,12 +554,25 @@ def save_stability_results(
     if stability_results["consensus_W"] is not None:
         consensus_W = stability_results["consensus_W"]
         factor_names = [f"Factor_{i}" for i in stability_results["stable_factor_indices"]]
-        consensus_df = pd.DataFrame(
+        consensus_W_df = pd.DataFrame(
             consensus_W,
             columns=factor_names,
         )
-        consensus_df.index.name = "Feature"
-        save_csv(consensus_df, output_path / "consensus_factor_loadings.csv", index=True)
+        consensus_W_df.index.name = "Feature"
+        save_csv(consensus_W_df, output_path / "consensus_factor_loadings.csv", index=True)
+        logger.info(f"  ✅ Saved consensus factor loadings (W): {consensus_W.shape}")
+
+    # Save consensus scores if available
+    if stability_results.get("consensus_Z") is not None:
+        consensus_Z = stability_results["consensus_Z"]
+        factor_names = [f"Factor_{i}" for i in stability_results["stable_factor_indices"]]
+        consensus_Z_df = pd.DataFrame(
+            consensus_Z,
+            columns=factor_names,
+        )
+        consensus_Z_df.index.name = "Subject"
+        save_csv(consensus_Z_df, output_path / "consensus_factor_scores.csv", index=True)
+        logger.info(f"  ✅ Saved consensus factor scores (Z): {consensus_Z.shape}")
 
     # Save similarity matrix
     if "similarity_matrix" in stability_results:
