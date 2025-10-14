@@ -365,18 +365,20 @@ def main():
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
 
-            # Extract view_names from preprocessing_info
+            # Extract view_names and feature_names from preprocessing_info
             preprocessing_info = pipeline_context.get("preprocessing_info", {})
             view_names = preprocessing_info.get("data_summary", {}).get(
                 "view_names",
                 [f"view_{i}" for i in range(len(pipeline_context["X_list"]))]
             )
+            feature_names = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("feature_names", {})
             logger.info(f"   Views: {view_names}")
 
             exp_config["_shared_data"] = {
                 "X_list": pipeline_context["X_list"],
                 "preprocessing_info": preprocessing_info,
                 "view_names": view_names,  # Explicitly pass view_names
+                "feature_names": feature_names,  # Explicitly pass feature_names
                 "mode": "shared",
             }
 
@@ -453,8 +455,9 @@ def main():
             )
             logger.info(f"   Data loaded: {len(X_list)} views")
 
-        # Extract view_names from preprocessing_info
+        # Extract view_names and feature_names from preprocessing_info
         view_names = preprocessing_info.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
+        feature_names = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("feature_names", {})
         logger.info(f"   Views: {view_names}")
 
         # Prepare hyperparameters (read from config.yaml)
@@ -495,6 +498,7 @@ def main():
             cosine_threshold=experiment_config.cosine_threshold,
             min_match_rate=experiment_config.min_match_rate,
             view_names=view_names,  # Pass view names for plotting
+            feature_names=feature_names,  # Pass feature names for plotting
         )
 
         results["factor_stability"] = result
@@ -606,18 +610,20 @@ def main():
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
 
-            # Extract view_names from preprocessing_info
+            # Extract view_names and feature_names from preprocessing_info
             preprocessing_info = pipeline_context.get("preprocessing_info", {})
             view_names = preprocessing_info.get("data_summary", {}).get(
                 "view_names",
                 [f"view_{i}" for i in range(len(pipeline_context["X_list"]))]
             )
+            feature_names = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("feature_names", {})
             logger.info(f"   Views: {view_names}")
 
             exp_config["_shared_data"] = {
                 "X_list": pipeline_context["X_list"],
                 "preprocessing_info": preprocessing_info,
                 "view_names": view_names,  # Explicitly pass view_names
+                "feature_names": feature_names,  # Explicitly pass feature_names
                 "mode": "shared",
             }
 

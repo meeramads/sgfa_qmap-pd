@@ -536,19 +536,20 @@ class ClinicalValidationExperiments(ExperimentFramework):
                 from visualization.factor_plots import FactorVisualizer
 
                 # Prepare data dict for visualizer
-                # Try to get view_names from config._shared_data first, then from results
+                # Try to get view_names and feature_names from config._shared_data first, then from results
                 config_dict = self.config.to_dict() if hasattr(self.config, "to_dict") else self.config.__dict__
                 shared_data = config_dict.get("_shared_data", {})
 
-                # Get X_list and view_names
+                # Get X_list, view_names, and feature_names
                 X_list_for_viz = shared_data.get("X_list") if shared_data else results.get("X_list")
                 view_names_for_viz = shared_data.get("view_names") if shared_data else results.get("view_names")
+                feature_names_for_viz = shared_data.get("feature_names") if shared_data else results.get("feature_names", {})
 
                 if X_list_for_viz is not None and view_names_for_viz is not None:
                     viz_data = {
                         "X_list": X_list_for_viz,
                         "view_names": view_names_for_viz,
-                        "feature_names": results.get("feature_names", {}),
+                        "feature_names": feature_names_for_viz,
                     }
 
                     # Create visualizer
