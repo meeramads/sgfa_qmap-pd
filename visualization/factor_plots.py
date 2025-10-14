@@ -694,10 +694,10 @@ class FactorVisualizer:
             sparsity_levels.append(sparsity)
 
         bars = plt.bar(range(n_factors), sparsity_levels, color=factor_colors, alpha=0.7, edgecolor='black')
-        plt.title(f'Sparsity by Factor\n(% loadings < {sparsity_threshold})', fontweight='bold')
-        plt.xlabel('Factor')
-        plt.ylabel('Sparsity (%)')
-        plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
+        plt.title(f'Sparsity by Factor (% < {sparsity_threshold})', fontweight='bold', fontsize=10)
+        plt.xlabel('Factor', fontsize=9)
+        plt.ylabel('Sparsity (%)', fontsize=9)
+        plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)], fontsize=8)
 
         # Add value labels on bars
         for i, (bar, val) in enumerate(zip(bars, sparsity_levels)):
@@ -788,8 +788,8 @@ class FactorVisualizer:
             table[(0, i)].set_facecolor('#4CAF50')
             table[(0, i)].set_text_props(weight='bold', color='white')
 
-        plt.suptitle('Enhanced Factor Loading Analysis', fontsize=16, fontweight='bold', y=0.95)
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.suptitle('Enhanced Factor Loading Analysis', fontsize=16, fontweight='bold', y=0.98)
+        plt.tight_layout(rect=[0, 0.03, 1, 0.96], h_pad=3.0, w_pad=2.0)
 
         if save_path:
             save_plot(save_path)
