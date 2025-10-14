@@ -1729,8 +1729,15 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info(f"Running factor stability analysis with {n_chains} independent chains")
         self.logger.info(f"Cosine similarity threshold: {cosine_threshold}")
         self.logger.info(f"Minimum match rate: {min_match_rate}")
-        self.logger.info(f"view_names provided: {kwargs.get('view_names', 'None')}")
-        self.logger.info(f"feature_names provided: {kwargs.get('feature_names', 'None')}")
+
+        # Log data characteristics concisely
+        view_names = kwargs.get('view_names')
+        feature_names = kwargs.get('feature_names')
+        if view_names:
+            self.logger.info(f"View names: {view_names}")
+        if feature_names:
+            feature_counts = {view: len(names) for view, names in feature_names.items()}
+            self.logger.info(f"Feature counts per view: {feature_counts}")
 
         # Import factor stability utilities
         from analysis.factor_stability import (
