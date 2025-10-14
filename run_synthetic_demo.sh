@@ -20,7 +20,7 @@ echo ""
 echo "Starting experiment..."
 echo ""
 
-python run_experiments.py \
+python3 run_experiments.py \
     --config config_synthetic.yaml \
     --experiments factor_stability \
     --unified-results

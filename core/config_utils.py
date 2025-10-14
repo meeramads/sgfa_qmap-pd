@@ -89,6 +89,10 @@ def safe_get_path(config: Dict[str, Any], *keys: str, default: str = ".") -> Pat
 
 def get_data_dir(config: Dict[str, Any]) -> Path:
     """Get data directory from config with safe fallback."""
+    # For synthetic data, return a dummy path since no data directory is needed
+    dataset = safe_get(config, "data", "dataset", default="qmap_pd")
+    if dataset in {"synthetic", "toy"}:
+        return Path("./synthetic_data")  # Dummy path, not actually used
     return safe_get_path(config, "data", "data_dir", default="./data")
 
 

@@ -45,20 +45,27 @@ class PreprocessingStrategy(Enum):
 class DataConfig:
     """Data configuration schema."""
 
-    data_dir: str
+    data_dir: Optional[str] = None
+    dataset: str = "qmap_pd"  # Dataset type: "qmap_pd" or "synthetic"
     clinical_file: Optional[str] = None
     volume_dir: Optional[str] = None
     imaging_as_single_view: bool = True
+
+    # Synthetic data parameters
+    num_sources: int = 3
+    K_true: int = 3
+    percW_true: float = 33.0
 
     def validate(self) -> List[str]:
         """Validate data configuration."""
         errors = []
 
-        # Check data directory
-        if not self.data_dir:
-            errors.append("data_dir is required")
-        elif not Path(self.data_dir).exists():
-            errors.append(f"data_dir does not exist: {self.data_dir}")
+        # Check data directory only for non-synthetic datasets
+        if self.dataset not in {"synthetic", "toy"}:
+            if not self.data_dir:
+                errors.append("data_dir is required for non-synthetic datasets")
+            elif not Path(self.data_dir).exists():
+                errors.append(f"data_dir does not exist: {self.data_dir}")
 
         return errors
 
