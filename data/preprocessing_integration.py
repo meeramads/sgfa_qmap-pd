@@ -75,21 +75,38 @@ def get_advanced_preprocessing_data(
         else:
             logger.info("📝 Using basic preprocessing only")
 
-        # Load basic data first
-        from data.qmap_pd import load_qmap_pd
+        # Check dataset type
+        dataset = config.get("data", {}).get("dataset", "qmap_pd")
 
-        logger.info("Loading basic qMAP-PD data...")
-        # Extract ROI selection and confound regression from config if present
-        select_rois = strategy_config.get("select_rois")
-        regress_confounds = strategy_config.get("regress_confounds")
-        drop_confounds_from_clinical = strategy_config.get("drop_confounds_from_clinical", True)
+        # Load data based on dataset type
+        if dataset in {"synthetic", "toy"}:
+            # Generate synthetic data
+            from data.synthetic import generate_synthetic_data
 
-        basic_data = load_qmap_pd(
-            data_dir=data_dir,
-            select_rois=select_rois,
-            regress_confounds=regress_confounds,
-            drop_confounds_from_clinical=drop_confounds_from_clinical
-        )
+            logger.info("Generating synthetic data...")
+            basic_data = generate_synthetic_data(
+                num_sources=config.get("data", {}).get("num_sources", 3),
+                K=config.get("data", {}).get("K_true", 3),
+                percW=config.get("data", {}).get("percW_true", 33.0),
+            )
+            logger.info("Generated synthetic data for testing")
+        else:
+            # Load qMAP-PD data
+            from data.qmap_pd import load_qmap_pd
+
+            logger.info("Loading basic qMAP-PD data...")
+            # Extract ROI selection and confound regression from config if present
+            select_rois = strategy_config.get("select_rois")
+            regress_confounds = strategy_config.get("regress_confounds")
+            drop_confounds_from_clinical = strategy_config.get("drop_confounds_from_clinical", True)
+
+            basic_data = load_qmap_pd(
+                data_dir=data_dir,
+                select_rois=select_rois,
+                regress_confounds=regress_confounds,
+                drop_confounds_from_clinical=drop_confounds_from_clinical
+            )
+
         X_list_raw = basic_data["X_list"]
         view_names = basic_data.get(
             "view_names", [f"view_{i}" for i in range(len(X_list_raw))]
@@ -409,20 +426,38 @@ def apply_preprocessing_to_pipeline(
     try:
         logger.info("🚀 === PIPELINE PREPROCESSING INTEGRATION ===")
 
-        # Load basic data for analysis
-        from data.qmap_pd import load_qmap_pd
+        # Check dataset type
+        dataset = config.get("data", {}).get("dataset", "qmap_pd")
+        logger.info(f"Dataset type: {dataset}")
 
-        # Extract ROI selection and confound regression from config if present
-        select_rois = config.get("preprocessing", {}).get("select_rois")
-        regress_confounds = config.get("preprocessing", {}).get("regress_confounds")
-        drop_confounds_from_clinical = config.get("preprocessing", {}).get("drop_confounds_from_clinical", True)
+        # Load data based on dataset type
+        if dataset in {"synthetic", "toy"}:
+            # Generate synthetic data
+            from data.synthetic import generate_synthetic_data
 
-        basic_data = load_qmap_pd(
-            data_dir=data_dir,
-            select_rois=select_rois,
-            regress_confounds=regress_confounds,
-            drop_confounds_from_clinical=drop_confounds_from_clinical
-        )
+            basic_data = generate_synthetic_data(
+                num_sources=config.get("data", {}).get("num_sources", 3),
+                K=config.get("data", {}).get("K_true", 3),
+                percW=config.get("data", {}).get("percW_true", 33.0),
+            )
+            logger.info("Generated synthetic data for testing")
+        else:
+            # Load qMAP-PD data
+            from data.qmap_pd import load_qmap_pd
+
+            # Extract ROI selection and confound regression from config if present
+            select_rois = config.get("preprocessing", {}).get("select_rois")
+            regress_confounds = config.get("preprocessing", {}).get("regress_confounds")
+            drop_confounds_from_clinical = config.get("preprocessing", {}).get("drop_confounds_from_clinical", True)
+
+            basic_data = load_qmap_pd(
+                data_dir=data_dir,
+                select_rois=select_rois,
+                regress_confounds=regress_confounds,
+                drop_confounds_from_clinical=drop_confounds_from_clinical
+            )
+            logger.info("Loaded qMAP-PD data")
+
         X_list_raw = basic_data["X_list"]
 
         # Determine strategy

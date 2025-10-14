@@ -1,0 +1,92 @@
+# SGFA Synthetic Data Configuration
+# For demonstrating the factor stability pipeline with ground truth data
+
+# =============================================================================
+# DATA CONFIGURATION - SYNTHETIC DATA
+# =============================================================================
+data:
+  dataset: "synthetic"  # Use synthetic data generator
+  # Synthetic data parameters (passed to generate_synthetic_data)
+  num_sources: 3        # Number of data views (clinical + 2 imaging views)
+  K_true: 3             # TRUE number of latent factors (ground truth)
+  percW_true: 33.0      # TRUE sparsity percentage (ground truth)
+  # Note: Synthetic data generates N=150 samples with Dm=[60, 40, 20] features
+
+# =============================================================================
+# EXPERIMENT CONFIGURATION
+# =============================================================================
+experiments:
+  base_output_dir: "./results"
+  save_intermediate: false
+  generate_plots: true
+  enable_spatial_analysis: false
+  save_pickle_results: false
+  save_numpy_arrays: false
+  max_parallel_jobs: 1
+
+  # Spatial remapping disabled for synthetic data
+  enable_spatial_remapping: false
+  save_brain_maps: false
+  create_brain_map_plots: false
+
+# =============================================================================
+# MODEL CONFIGURATION
+# =============================================================================
+model:
+  model_type: "sparse_gfa"
+  K: 10  # Test with K > K_true to verify automatic shrinkage
+
+  # MCMC Parameters (conservative for demo)
+  num_samples: 2000
+  num_warmup: 1000
+  num_chains: 1
+
+  # Sparsity Parameters
+  percW: 25.0           # Sparsity percentage for inference
+  slab_df: 4            # Slab degrees of freedom
+  slab_scale: 2         # Slab scale
+
+# =============================================================================
+# PREPROCESSING CONFIGURATION
+# =============================================================================
+preprocessing:
+  # Minimal preprocessing for synthetic data
+  strategy: "none"
+  enable_advanced_preprocessing: false
+  imputation_strategy: "none"
+  feature_selection_method: "none"
+  roi_based_selection: false
+  drop_confounds_from_clinical: false
+
+# =============================================================================
+# FACTOR STABILITY CONFIGURATION (Ferreira et al. 2024)
+# =============================================================================
+factor_stability:
+  K: 10                 # Number of factors to infer (should shrink to ~3)
+  num_chains: 4         # Multiple chains for stability assessment
+  num_samples: 3000     # MCMC samples per chain
+  num_warmup: 500       # Warmup samples per chain
+  chain_method: 'parallel'  # Method for running chains
+
+  # Sparsity priors (should discover ground truth sparsity)
+  percW: 25.0           # Slightly lower than ground truth (33%)
+  slab_df: 4
+  slab_scale: 2
+
+  # Stability assessment parameters
+  cosine_threshold: 0.8      # Similarity threshold for factor matching
+  min_match_rate: 0.5        # Minimum match rate across chains
+  sparsity_threshold: 0.01   # Threshold for effective factors
+  min_nonzero_pct: 0.05      # Minimum non-zero percentage
+
+  # MCMC diagnostics
+  target_accept_prob: 0.8
+  reghsZ: true
+
+# =============================================================================
+# SYSTEM CONFIGURATION
+# =============================================================================
+system:
+  use_gpu: true         # Use GPU if available
+  verbose: true
+  random_seed: 42
