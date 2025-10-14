@@ -3,10 +3,16 @@
 
 # Data Configuration
 data:
-  qmap_pd:
-    data_dir: "data/qMAP-PD"
-    metadata_file: "data/qMAP-PD/metadata.csv"
-    roi_map_file: "data/qMAP-PD/roi_map.csv"
+  data_dir: "./qMAP-PD_data"
+  clinical_file: "data_clinical/clinical.tsv"
+  volume_dir: "volume_matrices"
+  imaging_as_single_view: true
+
+# Experiment Configuration
+experiments:
+  base_output_dir: "./results"
+  save_intermediate: false
+  generate_plots: true
 
 # Preprocessing Configuration
 preprocessing:
@@ -37,12 +43,12 @@ factor_stability:
   reghsZ: true
   target_accept_prob: 0.8
 
-# Experiment Selection
-experiments:
-  run: ["factor_stability"]              # Only run factor_stability
-
-# Output Configuration
-output:
-  results_dir: "results"
-  save_intermediate: false
-  verbose: true
+# Model Configuration
+model:
+  model_type: "sparse_gfa"
+  K: 5
+  num_samples: 100
+  num_warmup: 50
+  num_chains: 1
+  sparsity_lambda: 0.05
+  random_seed: 42
