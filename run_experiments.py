@@ -248,15 +248,13 @@ def main():
         logger.info(f"🗂️  Using unified results directory: {unified_dir}")
         logger.info(f"   All experiments will save to: {unified_dir.name}")
 
-        # Create organized subdirectories only for experiments that will actually run
+        # Create organized subdirectories for pipeline experiments
+        # Numbering reflects the pipeline execution order (data_validation → robustness → stability → clinical)
         experiment_dir_mapping = {
             "data_validation": "01_data_validation",
-            "sgfa_configuration_comparison": "02_sgfa_configuration_comparison",
-            "model_comparison": "03_model_comparison",
-            "sensitivity_analysis": "04_sensitivity_analysis",
-            "clinical_validation": "05_clinical_validation",
-            "robustness_testing": "06_robustness_testing",
-            "factor_stability": "07_factor_stability"
+            "robustness_testing": "02_robustness_testing",
+            "factor_stability": "03_factor_stability",
+            "clinical_validation": "04_clinical_validation",
         }
 
         # Only create directories for experiments that are actually being run
@@ -530,7 +528,7 @@ def main():
 
             # Get output directory for factor stability
             if unified_dir:
-                fs_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "07_factor_stability")
+                fs_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "03_factor_stability")
             else:
                 fs_output_dir = get_output_dir(exp_config) / "factor_stability"
             fs_output_dir.mkdir(parents=True, exist_ok=True)
@@ -778,11 +776,9 @@ def main():
             # Only document directories for experiments that were actually run
             experiment_descriptions = {
                 "data_validation": "01_data_validation/     - Data quality and preprocessing analysis",
-                "sgfa_configuration_comparison": "02_sgfa_configuration_comparison/   - SGFA hyperparameter optimization",
-                "model_comparison": "03_model_comparison/   - Model architecture comparison",
-                "sensitivity_analysis": "04_sensitivity_analysis/ - Parameter sensitivity studies",
-                "clinical_validation": "05_clinical_validation/ - Clinical validation studies",
-                "robustness_testing": "06_robustness_testing/     - Robustness and quality control testing"
+                "robustness_testing": "02_robustness_testing/     - Robustness and quality control testing",
+                "factor_stability": "03_factor_stability/        - Factor stability analysis across chains",
+                "clinical_validation": "04_clinical_validation/ - Clinical validation studies",
             }
 
             for experiment in experiments_to_run:
