@@ -247,7 +247,7 @@ factor_stability:
   K: 10                                 # Number of latent factors - testing convergence with lower K
   num_chains: 4                         # Number of independent chains (4+ recommended)
   num_samples: 3000                     # MCMC samples per chain (reduced for memory safety with full voxels)
-  num_warmup: 500                       # MCMC warmup samples (reduced for memory safety)
+  num_warmup: 2000                      # MCMC warmup samples (INCREASED for better adaptation to complex posterior)
   chain_method: 'parallel'              # Chain execution: 'parallel' (2x faster on GPU), 'sequential', or 'vectorized'
 
   # Factor matching parameters (Ferreira et al. 2024)

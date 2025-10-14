@@ -199,6 +199,9 @@ class PreprocessingConfig:
     n_top_features: Optional[int] = None
     min_voxel_distance: float = 3.0
 
+    # Quality control parameters
+    qc_outlier_threshold: float = 3.0  # MAD threshold for outlier voxel detection
+
     # Confound handling
     drop_confounds_from_clinical: bool = True  # Drop confounds from clinical view vs residualize
 
@@ -229,6 +232,9 @@ class PreprocessingConfig:
 
         if not 0 <= self.missing_threshold <= 1:
             errors.append("missing_threshold must be between 0 and 1")
+
+        if self.qc_outlier_threshold <= 0:
+            errors.append("qc_outlier_threshold must be positive")
 
         return errors
 
