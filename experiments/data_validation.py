@@ -1596,7 +1596,12 @@ class DataValidationExperiments(ExperimentFramework):
             # Build feature_reduction directly from actual loaded views (not from preprocessing_effects)
             # This ensures we only show data for views that were actually loaded (respects --select-rois)
             feature_reduction = {}
-            view_names_actual = results.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
+
+            # Get view names from preprocessed_data section of data_summary
+            view_names_actual = results.get("data_summary", {}).get("preprocessed_data", {}).get("view_names", [])
+            if not view_names_actual:
+                # Fallback to generic names if not found
+                view_names_actual = [f"view_{i}" for i in range(len(X_list))]
 
             for view_idx, X in enumerate(X_list):
                 view_name = view_names_actual[view_idx] if view_idx < len(view_names_actual) else f"view_{view_idx}"
@@ -1612,7 +1617,7 @@ class DataValidationExperiments(ExperimentFramework):
             variance_threshold = getattr(self.config.preprocessing_config, 'variance_threshold', 0.0)
 
             for view_idx, X in enumerate(X_list):
-                view_name = results.get("data_summary", {}).get("view_names", [f"view_{view_idx}"])[view_idx] if view_idx < len(results.get("data_summary", {}).get("view_names", [])) else f"view_{view_idx}"
+                view_name = view_names_actual[view_idx] if view_idx < len(view_names_actual) else f"view_{view_idx}"
                 feature_variances = np.nanvar(X, axis=0)
                 n_retained = np.sum(feature_variances >= variance_threshold) if variance_threshold > 0 else len(feature_variances)
 
