@@ -1776,8 +1776,14 @@ class RobustnessExperiments(ExperimentFramework):
             self.logger.info(f"Starting SGFA analysis with {n_chains} chains...")
             try:
                 result = self._run_sgfa_analysis(X_list, hypers, multi_chain_args, **kwargs)
-                self.logger.info(f"✅ All {n_chains} chains completed")
                 self.logger.info(f"   Result keys: {list(result.keys())}")
+
+                # Check if execution succeeded
+                if "error" in result:
+                    self.logger.error(f"❌ SGFA analysis returned with error")
+                    raise RuntimeError(result["error"])
+
+                self.logger.info(f"✅ All {n_chains} chains completed successfully")
             except Exception as e:
                 self.logger.error(f"❌ Multi-chain SGFA analysis FAILED: {e}")
                 import traceback
@@ -1788,8 +1794,10 @@ class RobustnessExperiments(ExperimentFramework):
         W_samples = result.get("W_samples")  # Shape: (num_chains, num_samples, D, K)
         Z_samples = result.get("Z_samples")  # Shape: (num_chains, num_samples, N, K)
 
-        self.logger.info(f"W_samples shape: {W_samples.shape}")
-        self.logger.info(f"Z_samples shape: {Z_samples.shape}")
+        if W_samples is not None:
+            self.logger.info(f"W_samples shape: {W_samples.shape}")
+        if Z_samples is not None:
+            self.logger.info(f"Z_samples shape: {Z_samples.shape}")
 
         # Process each chain's results
         for chain_id in range(n_chains):
