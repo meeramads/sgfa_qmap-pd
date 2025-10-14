@@ -762,6 +762,62 @@ class ClinicalValidationExperiments(ExperimentFramework):
         )
         results["factor_interpretation"] = interpretation_results
 
+        # Laterality pattern validation (PD-specific clinical validation)
+        self.logger.info("Validating laterality patterns in factor loadings")
+        try:
+            W_sgfa = sgfa_result.get("W")
+            if W_sgfa is not None:
+                # Convert W to DataFrame with feature names if available
+                feature_names = kwargs.get("feature_names", {})
+                view_names = kwargs.get("view_names", [])
+
+                # Get clinical feature names
+                clinical_view_idx = None
+                for idx, view_name in enumerate(view_names):
+                    if "clinical" in view_name.lower():
+                        clinical_view_idx = idx
+                        break
+
+                if clinical_view_idx is not None and clinical_view_idx in feature_names:
+                    clinical_features = feature_names[clinical_view_idx]
+
+                    # Extract clinical view loadings from W
+                    # W shape: [total_features, n_factors]
+                    # Need to find which rows correspond to clinical view
+                    start_idx = sum(X_list[i].shape[1] for i in range(clinical_view_idx))
+                    end_idx = start_idx + X_list[clinical_view_idx].shape[1]
+
+                    W_clinical = W_sgfa[start_idx:end_idx, :]
+
+                    # Create DataFrame
+                    factor_loadings_df = pd.DataFrame(
+                        W_clinical,
+                        index=clinical_features,
+                        columns=[f"Factor_{i+1}" for i in range(W_clinical.shape[1])]
+                    )
+
+                    # Determine ROI name from view_names
+                    imaging_views = [v for v in view_names if "clinical" not in v.lower()]
+                    roi_name = imaging_views[0] if len(imaging_views) > 0 else "Unknown"
+
+                    # Validate laterality patterns
+                    laterality_results = self.validate_laterality_patterns(
+                        factor_loadings_df,
+                        roi_name=roi_name
+                    )
+                    results["laterality_validation"] = laterality_results
+
+                    # Save laterality validation results to CSV
+                    self._save_laterality_validation_csv(laterality_results, roi_name)
+
+                else:
+                    self.logger.info("   ⚠️  No clinical features found for laterality validation")
+            else:
+                self.logger.info("   ⚠️  No factor loadings (W) available for laterality validation")
+        except Exception as e:
+            self.logger.warning(f"Laterality validation failed: {e}")
+            results["laterality_validation"] = None
+
         # Comprehensive analysis
         analysis = self._analyze_pd_subtype_discovery(results)
 
@@ -779,6 +835,200 @@ class ClinicalValidationExperiments(ExperimentFramework):
             plots=plots,
             status="completed",
         )
+
+    def _save_laterality_validation_csv(self, laterality_results: Dict, roi_name: str) -> None:
+        """
+        Save laterality validation results to CSV format with detailed features and pattern descriptions.
+
+        Args:
+            laterality_results: Results from validate_laterality_patterns()
+            roi_name: Name of the ROI being analyzed
+        """
+        try:
+            from pathlib import Path
+            import csv
+
+            output_dir = get_output_dir(self.config) / "laterality_validation"
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create filename with ROI name
+            safe_roi_name = roi_name.replace("/", "_").replace(" ", "_")
+            csv_path = output_dir / f"laterality_validation_{safe_roi_name}.csv"
+
+            # Prepare data for CSV
+            csv_data = []
+
+            # Add legend/header section first
+            csv_data.append({
+                'Type': 'LEGEND',
+                'Factor': 'Pattern Descriptions',
+                'Pattern_Name': 'Pattern 1: Bradykinesia + Contralateral Mirror Alignment',
+                'Description': 'Left bradykinesia co-occurs with right mirror movements (or vice versa)',
+                'Threshold': 'Strong tendency: score > 0.5, Moderate: score > 0.3',
+            })
+            csv_data.append({
+                'Type': 'LEGEND',
+                'Factor': '',
+                'Pattern_Name': 'Pattern 2: Opposite Bradykinesia Tendencies',
+                'Description': 'Left and right bradykinesia features tend in opposite directions',
+                'Threshold': 'Strong tendency: score > 0.5, Moderate: score > 0.3',
+            })
+            csv_data.append({
+                'Type': 'LEGEND',
+                'Factor': '',
+                'Pattern_Name': 'Pattern 3: Tremor Split',
+                'Description': 'Left and right tremor features tend in opposite directions (optional)',
+                'Threshold': 'Strong tendency: score > 0.5',
+            })
+            csv_data.append({
+                'Type': 'LEGEND',
+                'Factor': '',
+                'Pattern_Name': 'Loading Threshold',
+                'Description': 'Features with |loading| < 0.01 are excluded from analysis',
+                'Threshold': 'Minimum loading: 0.01',
+            })
+            csv_data.append({'Type': '', 'Factor': '', 'Pattern_Name': '', 'Description': '', 'Threshold': ''})  # Blank row
+
+            # Add summary row
+            summary = laterality_results['summary']
+            csv_data.append({
+                'Type': 'SUMMARY',
+                'Factor': 'All',
+                'Validation_Score': f"{summary['average_validation_score']:.3f}",
+                'Pattern1_Score': f"{summary['avg_pattern1_score']:.3f}",
+                'Pattern2_Score': f"{summary['avg_pattern2_score']:.3f}",
+                'Pattern3_Score': f"{summary['avg_pattern3_score']:.3f}",
+                'Validation_Status': summary['validation_status'],
+                'Total_Factors': summary['total_factors'],
+                'Factors_Pattern1': summary['factors_with_pattern1_tendency'],
+                'Factors_Pattern2': summary['factors_with_pattern2_tendency'],
+                'Factors_Pattern3': summary['factors_with_pattern3_tendency'],
+            })
+            csv_data.append({'Type': '', 'Factor': '', 'Validation_Score': '', 'Pattern1_Score': '', 'Pattern2_Score': '', 'Pattern3_Score': ''})  # Blank row
+
+            # Add detailed per-factor rows with features
+            for factor_name, factor_data in laterality_results['factors'].items():
+                pattern1 = factor_data['pattern1_left_brady_right_mirror']
+                pattern2 = factor_data['pattern2_opposite_bradykinesia']
+                pattern3 = factor_data['pattern3_tremor_split']
+
+                # Get all categorized features
+                all_features = factor_data.get('all_categorized', {})
+
+                # Main factor row
+                csv_data.append({
+                    'Type': 'FACTOR',
+                    'Factor': factor_name,
+                    'Validation_Score': f"{factor_data['validation_score']:.3f}",
+                    'Pattern1_Score': f"{pattern1.get('alignment_score', 0):.3f}",
+                    'Pattern2_Score': f"{pattern2.get('opposition_score', 0):.3f}",
+                    'Pattern3_Score': f"{pattern3.get('split_score', 0):.3f}",
+                    'Pattern1_Dominant': pattern1.get('dominant_pattern', 'N/A'),
+                    'Pattern2_Opposite': pattern2.get('opposite_tendency', False),
+                    'Pattern3_Split': pattern3.get('split_tendency', False),
+                })
+
+                # Pattern 1 features
+                left_brady_features = pattern1.get('left_brady_features', [])
+                right_mirror_features = pattern1.get('right_mirror', [])
+                if left_brady_features:
+                    features_str = '; '.join([f"{feat[0]}={feat[1]:.3f}" for feat in left_brady_features])
+                    csv_data.append({
+                        'Type': 'FEATURES',
+                        'Factor': factor_name,
+                        'Pattern': 'Pattern1_Left_Bradykinesia',
+                        'Features': features_str,
+                        'Count': len(left_brady_features),
+                    })
+                if right_mirror_features:
+                    features_str = '; '.join([f"{feat[0]}={feat[1]:.3f}" for feat in right_mirror_features])
+                    csv_data.append({
+                        'Type': 'FEATURES',
+                        'Factor': factor_name,
+                        'Pattern': 'Pattern1_Right_Mirror',
+                        'Features': features_str,
+                        'Count': len(right_mirror_features),
+                    })
+
+                # Pattern 2 features
+                left_features = pattern2.get('left_features', [])
+                right_features = pattern2.get('right_features', [])
+                if left_features:
+                    features_str = '; '.join([f"{feat[0]}={feat[1]:.3f}" for feat in left_features])
+                    csv_data.append({
+                        'Type': 'FEATURES',
+                        'Factor': factor_name,
+                        'Pattern': 'Pattern2_Left_Bradykinesia',
+                        'Features': features_str,
+                        'Count': len(left_features),
+                        'Mean_Loading': f"{pattern2.get('left_mean', 0):.3f}",
+                    })
+                if right_features:
+                    features_str = '; '.join([f"{feat[0]}={feat[1]:.3f}" for feat in right_features])
+                    csv_data.append({
+                        'Type': 'FEATURES',
+                        'Factor': factor_name,
+                        'Pattern': 'Pattern2_Right_Bradykinesia',
+                        'Features': features_str,
+                        'Count': len(right_features),
+                        'Mean_Loading': f"{pattern2.get('right_mean', 0):.3f}",
+                    })
+
+                # Pattern 3 features
+                left_tremor = pattern3.get('left_tremor', [])
+                right_tremor = pattern3.get('right_tremor', [])
+                if left_tremor:
+                    features_str = '; '.join([f"{feat[0]}={feat[1]:.3f}" for feat in left_tremor])
+                    csv_data.append({
+                        'Type': 'FEATURES',
+                        'Factor': factor_name,
+                        'Pattern': 'Pattern3_Left_Tremor',
+                        'Features': features_str,
+                        'Count': len(left_tremor),
+                        'Mean_Loading': f"{pattern3.get('left_mean', 0):.3f}",
+                    })
+                if right_tremor:
+                    features_str = '; '.join([f"{feat[0]}={feat[1]:.3f}" for feat in right_tremor])
+                    csv_data.append({
+                        'Type': 'FEATURES',
+                        'Factor': factor_name,
+                        'Pattern': 'Pattern3_Right_Tremor',
+                        'Features': features_str,
+                        'Count': len(right_tremor),
+                        'Mean_Loading': f"{pattern3.get('right_mean', 0):.3f}",
+                    })
+
+                # Add blank row between factors
+                csv_data.append({})
+
+            # Write to CSV (get all possible fieldnames from all rows)
+            if csv_data:
+                all_fieldnames = set()
+                for row in csv_data:
+                    all_fieldnames.update(row.keys())
+                # Order fieldnames logically
+                ordered_fieldnames = ['Type', 'Factor', 'Pattern', 'Features', 'Count', 'Mean_Loading',
+                                     'Pattern_Name', 'Description', 'Threshold',
+                                     'Validation_Score', 'Pattern1_Score', 'Pattern2_Score', 'Pattern3_Score',
+                                     'Pattern1_Dominant', 'Pattern2_Opposite', 'Pattern3_Split',
+                                     'Validation_Status', 'Total_Factors',
+                                     'Factors_Pattern1', 'Factors_Pattern2', 'Factors_Pattern3']
+                # Keep only fieldnames that exist in our data
+                fieldnames = [f for f in ordered_fieldnames if f in all_fieldnames]
+                # Add any remaining fieldnames not in our ordered list
+                fieldnames.extend([f for f in all_fieldnames if f not in fieldnames])
+
+                with open(csv_path, 'w', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(csv_data)
+
+                self.logger.info(f"   ✅ Laterality validation saved to: {csv_path}")
+            else:
+                self.logger.warning("   ⚠️  No laterality validation data to save")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to save laterality validation CSV: {e}")
 
     @experiment_handler("disease_progression_validation")
     @validate_data_types(
