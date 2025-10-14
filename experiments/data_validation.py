@@ -112,6 +112,7 @@ def run_data_validation(config):
             description="Data quality assessment and EDA",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
+            preprocessing_config=config.get("preprocessing", {}),  # Pass preprocessing config!
         )
 
         # Initialize experiment framework
@@ -256,6 +257,21 @@ class DataValidationExperiments(ExperimentFramework):
             "preprocessing_effects": self._analyze_preprocessing_effects(
                 raw_data, preprocessed_data
             ),
+            # Include preprocessed data for downstream experiments
+            "preprocessed_data": {
+                "X_list": preprocessed_data.get("X_list"),
+                "preprocessing_info": {
+                    "strategy": "advanced" if preprocessed_data.get("preprocessing_applied") else "basic",
+                    "select_rois": select_rois,
+                    "regress_confounds": regress_confounds,
+                    "data_summary": {
+                        "view_names": preprocessed_data.get("view_names", []),
+                        "original_data": {
+                            "feature_names": preprocessed_data.get("feature_names", {}),
+                        },
+                    },
+                },
+            },
         }
 
         # Analyze data validation results

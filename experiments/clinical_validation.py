@@ -3107,31 +3107,42 @@ def run_clinical_validation(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Load data with advanced preprocessing for clinical validation
+        # Check if shared data is available from previous experiments
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
         from experiments.framework import ExperimentConfig, ExperimentFramework
-
-        logger.info("🔧 Loading data for clinical validation...")
-        # Get preprocessing strategy from config, with clinical validation override
         from core.config_utils import ConfigHelper
+
         config_dict = ConfigHelper.to_dict(config)
-        preprocessing_config = config_dict.get("preprocessing", {})
-        clinical_config = config_dict.get("clinical_validation", {})
 
-        # Clinical validation can override preprocessing strategy
-        strategy = clinical_config.get("preprocessing_strategy",
-                                     preprocessing_config.get("strategy", "clinical_focused"))
+        # Check for shared data from previous experiments (data_validation, robustness, or factor_stability)
+        if "_shared_data" in config_dict and config_dict["_shared_data"].get("X_list") is not None:
+            logger.info("🔗 Using shared preprocessed data from previous experiments...")
+            X_list = config_dict["_shared_data"]["X_list"]
+            preprocessing_info = config_dict["_shared_data"].get("preprocessing_info", {})
+            logger.info(f"✅ Shared data: {len(X_list)} views for clinical validation")
+            for i, X in enumerate(X_list):
+                logger.info(f"   View {i}: {X.shape}")
+        else:
+            # Load data with advanced preprocessing for clinical validation
+            logger.info("🔧 Loading data for clinical validation...")
+            # Get preprocessing strategy from config, with clinical validation override
+            preprocessing_config = config_dict.get("preprocessing", {})
+            clinical_config = config_dict.get("clinical_validation", {})
 
-        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-            config=config_dict,
-            data_dir=get_data_dir(config_dict),
-            auto_select_strategy=False,
-            preferred_strategy=strategy,  # Use strategy from config
-        )
+            # Clinical validation can override preprocessing strategy
+            strategy = clinical_config.get("preprocessing_strategy",
+                                         preprocessing_config.get("strategy", "clinical_focused"))
 
-        logger.info(f"✅ Data loaded: {len(X_list)} views for clinical validation")
-        for i, X in enumerate(X_list):
-            logger.info(f"   View {i}: {X.shape}")
+            X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                config=config_dict,
+                data_dir=get_data_dir(config_dict),
+                auto_select_strategy=False,
+                preferred_strategy=strategy,  # Use strategy from config
+            )
+
+            logger.info(f"✅ Data loaded: {len(X_list)} views for clinical validation")
+            for i, X in enumerate(X_list):
+                logger.info(f"   View {i}: {X.shape}")
 
         # Load clinical data
         try:

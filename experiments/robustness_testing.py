@@ -2192,27 +2192,38 @@ def run_robustness_testing(config):
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
 
-        # Load data with standard preprocessing for reproducibility testing
+        # Check if shared data is available from previous experiments
         from data.preprocessing_integration import apply_preprocessing_to_pipeline
         from experiments.framework import ExperimentConfig, ExperimentFramework
-
-        logger.info("🔧 Loading data for robustness testing...")
-        # Get preprocessing strategy from config
         from core.config_utils import ConfigHelper
+
         config_dict = ConfigHelper.to_dict(config)
-        preprocessing_config = config_dict.get("preprocessing", {})
-        strategy = preprocessing_config.get("strategy", "standard")
 
-        X_list, preprocessing_info = apply_preprocessing_to_pipeline(
-            config=config_dict,
-            data_dir=get_data_dir(config_dict),
-            auto_select_strategy=False,
-            preferred_strategy=strategy,  # Use strategy from config
-        )
+        # Check for shared data from data_validation
+        if "_shared_data" in config_dict and config_dict["_shared_data"].get("X_list") is not None:
+            logger.info("🔗 Using shared preprocessed data from data_validation...")
+            X_list = config_dict["_shared_data"]["X_list"]
+            preprocessing_info = config_dict["_shared_data"].get("preprocessing_info", {})
+            logger.info(f"✅ Shared data: {len(X_list)} views for robustness testing")
+            for i, X in enumerate(X_list):
+                logger.info(f"   View {i}: {X.shape}")
+        else:
+            # Load data with standard preprocessing for reproducibility testing
+            logger.info("🔧 Loading data for robustness testing...")
+            # Get preprocessing strategy from config
+            preprocessing_config = config_dict.get("preprocessing", {})
+            strategy = preprocessing_config.get("strategy", "standard")
 
-        logger.info(f"✅ Data loaded: {len(X_list)} views for robustness testing")
-        for i, X in enumerate(X_list):
-            logger.info(f"   View {i}: {X.shape}")
+            X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                config=config_dict,
+                data_dir=get_data_dir(config_dict),
+                auto_select_strategy=False,
+                preferred_strategy=strategy,  # Use strategy from config
+            )
+
+            logger.info(f"✅ Data loaded: {len(X_list)} views for robustness testing")
+            for i, X in enumerate(X_list):
+                logger.info(f"   View {i}: {X.shape}")
 
         # Initialize experiment framework
         framework = ExperimentFramework(get_output_dir(config))
