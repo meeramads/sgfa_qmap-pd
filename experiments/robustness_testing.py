@@ -1761,14 +1761,23 @@ class ReproducibilityExperiments(ExperimentFramework):
 
                 chain_results.append(chain_result)
 
-                # Store performance metrics
+                # Store performance metrics (must be inside profiler context)
                 metrics = self.profiler.get_current_metrics()
-                performance_metrics[f"chain_{chain_id}"] = {
-                    "execution_time": metrics.execution_time,
-                    "peak_memory_gb": metrics.peak_memory_gb,
-                    "convergence": result.get("convergence", False),
-                    "log_likelihood": result.get("log_likelihood", np.nan),
-                }
+                if metrics is not None:
+                    performance_metrics[f"chain_{chain_id}"] = {
+                        "execution_time": metrics.execution_time,
+                        "peak_memory_gb": metrics.peak_memory_gb,
+                        "convergence": result.get("convergence", False),
+                        "log_likelihood": result.get("log_likelihood", np.nan),
+                    }
+                else:
+                    self.logger.warning(f"⚠️ Chain {chain_id}: Could not retrieve performance metrics")
+                    performance_metrics[f"chain_{chain_id}"] = {
+                        "execution_time": result.get("execution_time", 0),
+                        "peak_memory_gb": 0,
+                        "convergence": result.get("convergence", False),
+                        "log_likelihood": result.get("log_likelihood", np.nan),
+                    }
 
             # CRITICAL: Memory cleanup after each chain
             import jax
