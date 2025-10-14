@@ -3,94 +3,40 @@ SUBJECT-LEVEL DATA QUALITY FLAGGING REPORT
 ================================================================================
 
 Flagging criterion: >5.0% outlier voxels in any ROI
-Total subjects flagged: 14
+Total subjects flagged: 5
 
 FLAGGED SUBJECTS (sorted by severity):
 --------------------------------------------------------------------------------
 
 Subject ID: 852116
   Index: 78
-  Max outlier percentage: 27.39%
+  Max outlier percentage: 28.05%
   Outlier percentages by ROI:
-    - volume_lentiform_voxels: 27.39% ⚠️ FLAGGED
+    - volume_putamen_voxels: 28.05% ⚠️ FLAGGED
 
-Subject ID: 653499
-  Index: 19
-  Max outlier percentage: 16.53%
+Subject ID: 128105
+  Index: 12
+  Max outlier percentage: 13.88%
   Outlier percentages by ROI:
-    - volume_lentiform_voxels: 16.53% ⚠️ FLAGGED
+    - volume_putamen_voxels: 13.88% ⚠️ FLAGGED
 
-Subject ID: 317718
-  Index: 82
-  Max outlier percentage: 13.14%
+Subject ID: 896255
+  Index: 49
+  Max outlier percentage: 8.30%
   Outlier percentages by ROI:
-    - volume_lentiform_voxels: 13.14% ⚠️ FLAGGED
-
-Subject ID: 720870
-  Index: 48
-  Max outlier percentage: 11.97%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 11.97% ⚠️ FLAGGED
-
-Subject ID: 175200
-  Index: 39
-  Max outlier percentage: 8.47%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 8.47% ⚠️ FLAGGED
-
-Subject ID: 247101
-  Index: 66
-  Max outlier percentage: 8.18%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 8.18% ⚠️ FLAGGED
-
-Subject ID: 808484
-  Index: 3
-  Max outlier percentage: 8.12%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 8.12% ⚠️ FLAGGED
-
-Subject ID: 402521
-  Index: 60
-  Max outlier percentage: 7.36%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 7.36% ⚠️ FLAGGED
-
-Subject ID: 939241
-  Index: 16
-  Max outlier percentage: 6.93%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 6.93% ⚠️ FLAGGED
+    - volume_putamen_voxels: 8.30% ⚠️ FLAGGED
 
 Subject ID: 943012
   Index: 54
-  Max outlier percentage: 6.49%
+  Max outlier percentage: 6.94%
   Outlier percentages by ROI:
-    - volume_lentiform_voxels: 6.49% ⚠️ FLAGGED
+    - volume_putamen_voxels: 6.94% ⚠️ FLAGGED
 
-Subject ID: 834328
-  Index: 50
-  Max outlier percentage: 5.89%
+Subject ID: 529028
+  Index: 33
+  Max outlier percentage: 5.47%
   Outlier percentages by ROI:
-    - volume_lentiform_voxels: 5.89% ⚠️ FLAGGED
-
-Subject ID: 963857
-  Index: 35
-  Max outlier percentage: 5.53%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 5.53% ⚠️ FLAGGED
-
-Subject ID: 149056
-  Index: 74
-  Max outlier percentage: 5.44%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 5.44% ⚠️ FLAGGED
-
-Subject ID: 784696
-  Index: 63
-  Max outlier percentage: 5.19%
-  Outlier percentages by ROI:
-    - volume_lentiform_voxels: 5.19% ⚠️ FLAGGED
+    - volume_putamen_voxels: 5.47% ⚠️ FLAGGED
 
 
 ================================================================================
