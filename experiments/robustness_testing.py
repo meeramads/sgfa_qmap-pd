@@ -607,6 +607,16 @@ class ReproducibilityExperiments(ExperimentFramework):
         import jax
         from numpyro.infer import MCMC, NUTS
 
+        self.logger.info("=" * 80)
+        self.logger.info("_RUN_SGFA_ANALYSIS - STARTING")
+        self.logger.info("=" * 80)
+        self.logger.info(f"Input data: {len(X_list)} views")
+        for i, X in enumerate(X_list):
+            self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}, has_nan {np.isnan(X).any()}")
+        self.logger.info(f"Hyperparameters: {hypers}")
+        self.logger.info(f"MCMC args: {args}")
+        self.logger.info(f"Additional kwargs keys: {list(kwargs.keys())}")
+
         # Check cache first
         from core.config_utils import ConfigHelper
         config_dict = ConfigHelper.to_dict(self.config)
@@ -619,8 +629,8 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         try:
             K = hypers.get("K", 10)
-            self.logger.debug(
-                f"Running SGFA for reproducibility test: K={K}, n_subjects={ X_list[0].shape[0]}, n_features={ sum( X.shape[1] for X in X_list)}"
+            self.logger.info(
+                f"Running SGFA: K={K}, n_subjects={X_list[0].shape[0]}, n_features={sum(X.shape[1] for X in X_list)}"
             )
 
             # Use model factory for consistent model management
@@ -635,22 +645,26 @@ class ReproducibilityExperiments(ExperimentFramework):
             }
 
             # Get optimal model configuration via factory
+            self.logger.info("Setting up model via factory...")
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
                 config={"model": {"type": "sparseGFA"}},
                 X_list=X_list,
                 data_characteristics=data_characteristics
             )
 
-            self.logger.info(f"🏭 Robustness test using model: {model_type}")
+            self.logger.info(f"✅ Model setup complete: {model_type}")
+            self.logger.info(f"   Models summary: {models_summary}")
 
             # Import the SGFA model function via interface
             from core.model_interface import get_model_function
             models = get_model_function()
+            self.logger.info(f"✅ Model function loaded: {models}")
 
             # Setup MCMC configuration for reproducibility testing
             num_warmup = args.get("num_warmup", 50)
             num_samples = args.get("num_samples", 100)
             num_chains = args.get("num_chains", 1)
+            self.logger.info(f"MCMC configuration: warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
 
             # Create args object for model
             import argparse
@@ -664,10 +678,13 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             # Setup MCMC with seed control for reproducibility
             seed = args.get("random_seed", 42)
+            self.logger.info(f"Setting up MCMC with seed: {seed}")
             rng_key = jax.random.PRNGKey(seed)
-            kernel = NUTS(
-                models, target_accept_prob=args.get("target_accept_prob", 0.8)
-            )
+            target_accept_prob = args.get("target_accept_prob", 0.8)
+            self.logger.info(f"Creating NUTS kernel with target_accept_prob={target_accept_prob}")
+            kernel = NUTS(models, target_accept_prob=target_accept_prob)
+
+            self.logger.info("Creating MCMC sampler...")
             mcmc = MCMC(
                 kernel,
                 num_warmup=num_warmup,
@@ -676,11 +693,25 @@ class ReproducibilityExperiments(ExperimentFramework):
             )
 
             # Run inference
+            self.logger.info("=" * 80)
+            self.logger.info("STARTING MCMC SAMPLING")
+            self.logger.info("=" * 80)
+            self.logger.info(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
             start_time = time.time()
-            mcmc.run(
-                rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
-            )
-            elapsed = time.time() - start_time
+
+            try:
+                mcmc.run(
+                    rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+                )
+                elapsed = time.time() - start_time
+                self.logger.info(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+            except Exception as e:
+                elapsed = time.time() - start_time
+                self.logger.error(f"❌ MCMC SAMPLING FAILED after {elapsed:.1f}s")
+                self.logger.error(f"Error: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+                raise
 
             # Get samples
             samples = mcmc.get_samples()
@@ -1644,6 +1675,15 @@ class ReproducibilityExperiments(ExperimentFramework):
             - plots: Stability visualization plots
         """
         # Validate inputs
+        self.logger.info("=" * 80)
+        self.logger.info("FACTOR STABILITY ANALYSIS - STARTING")
+        self.logger.info("=" * 80)
+        self.logger.info(f"Input data: {len(X_list)} views")
+        for i, X in enumerate(X_list):
+            self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}")
+        self.logger.info(f"Hyperparameters: K={hypers.get('K')}, percW={hypers.get('percW')}, Dm={hypers.get('Dm')}")
+        self.logger.info(f"MCMC args: num_samples={args.get('num_samples')}, num_warmup={args.get('num_warmup')}")
+
         ResultValidator.validate_data_matrices(X_list)
         ParameterValidator.validate_positive(n_chains, "n_chains")
 
@@ -1653,6 +1693,8 @@ class ReproducibilityExperiments(ExperimentFramework):
         self.logger.info(f"Running factor stability analysis with {n_chains} independent chains")
         self.logger.info(f"Cosine similarity threshold: {cosine_threshold}")
         self.logger.info(f"Minimum match rate: {min_match_rate}")
+        self.logger.info(f"view_names provided: {kwargs.get('view_names', 'None')}")
+        self.logger.info(f"feature_names provided: {kwargs.get('feature_names', 'None')}")
 
         # Import factor stability utilities
         from analysis.factor_stability import (
@@ -1667,18 +1709,37 @@ class ReproducibilityExperiments(ExperimentFramework):
         base_seed = args.get("random_seed", 42)
 
         for chain_id in range(n_chains):
-            self.logger.info(f"🔗 Running chain {chain_id + 1}/{n_chains} (seed: {base_seed + chain_id * 1000})")
+            self.logger.info("=" * 80)
+            self.logger.info(f"🔗 CHAIN {chain_id + 1}/{n_chains} - STARTING")
+            self.logger.info("=" * 80)
 
             # Unique seed per chain
             chain_seed = base_seed + chain_id * 1000
+            self.logger.info(f"Chain seed: {chain_seed}")
 
             # Update args with chain-specific seed and single chain
             chain_args = args.copy()
             chain_args["random_seed"] = chain_seed
             chain_args["num_chains"] = 1  # Run single chain at a time
+            self.logger.info(f"Chain MCMC config: samples={chain_args.get('num_samples')}, warmup={chain_args.get('num_warmup')}, seed={chain_seed}")
 
             with self.profiler.profile(f"chain_{chain_id}") as p:
-                result = self._run_sgfa_analysis(X_list, hypers, chain_args, **kwargs)
+                self.logger.info(f"Starting SGFA analysis for chain {chain_id}...")
+                try:
+                    result = self._run_sgfa_analysis(X_list, hypers, chain_args, **kwargs)
+                    self.logger.info(f"✅ Chain {chain_id} SGFA analysis completed")
+                    self.logger.info(f"   Result keys: {list(result.keys())}")
+                    if "W" in result:
+                        W = result["W"]
+                        self.logger.info(f"   W shape: {W.shape if hasattr(W, 'shape') else 'N/A'}")
+                    if "Z" in result:
+                        Z = result["Z"]
+                        self.logger.info(f"   Z shape: {Z.shape if hasattr(Z, 'shape') else 'N/A'}")
+                except Exception as e:
+                    self.logger.error(f"❌ Chain {chain_id} SGFA analysis FAILED: {e}")
+                    import traceback
+                    self.logger.error(traceback.format_exc())
+                    raise
 
                 # Extract essential outputs (W, Z, log_likelihood)
                 chain_result = {
@@ -1722,15 +1783,32 @@ class ReproducibilityExperiments(ExperimentFramework):
             )
 
         # Assess factor stability using cosine similarity
-        self.logger.info("Assessing factor stability across chains...")
-        stability_results = assess_factor_stability_cosine(
-            chain_results,
-            threshold=cosine_threshold,
-            min_match_rate=min_match_rate,
-        )
+        self.logger.info("=" * 80)
+        self.logger.info("ASSESSING FACTOR STABILITY ACROSS CHAINS")
+        self.logger.info("=" * 80)
+        self.logger.info(f"Number of chains to analyze: {len(chain_results)}")
+        self.logger.info(f"Cosine threshold: {cosine_threshold}")
+        self.logger.info(f"Min match rate: {min_match_rate}")
+
+        try:
+            stability_results = assess_factor_stability_cosine(
+                chain_results,
+                threshold=cosine_threshold,
+                min_match_rate=min_match_rate,
+            )
+            self.logger.info(f"✅ Stability analysis completed")
+            self.logger.info(f"   Stable factors: {stability_results.get('n_stable_factors', 0)}/{stability_results.get('total_factors', 0)}")
+            self.logger.info(f"   Stability rate: {stability_results.get('stability_rate', 0):.1%}")
+        except Exception as e:
+            self.logger.error(f"❌ Stability analysis FAILED: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            raise
 
         # Count effective factors for each chain
-        self.logger.info("Counting effective factors per chain...")
+        self.logger.info("=" * 80)
+        self.logger.info("COUNTING EFFECTIVE FACTORS PER CHAIN")
+        self.logger.info("=" * 80)
         effective_factors_per_chain = []
         for i, chain_result in enumerate(chain_results):
             W = chain_result["W"]
@@ -1779,16 +1857,39 @@ class ReproducibilityExperiments(ExperimentFramework):
         }
 
         # Generate plots
-        plots = self._plot_factor_stability(
-            chain_results,
-            stability_results,
-            effective_factors_per_chain,
-            performance_metrics,
-            X_list=X_list,
-            data=kwargs,  # Pass any additional data (view_names, feature_names, etc.)
-        )
+        self.logger.info("=" * 80)
+        self.logger.info("GENERATING FACTOR STABILITY PLOTS")
+        self.logger.info("=" * 80)
+        try:
+            plots = self._plot_factor_stability(
+                chain_results,
+                stability_results,
+                effective_factors_per_chain,
+                performance_metrics,
+                X_list=X_list,
+                data=kwargs,  # Pass any additional data (view_names, feature_names, etc.)
+            )
+            self.logger.info(f"✅ Generated {len(plots)} plots")
+            for plot_name in plots.keys():
+                self.logger.info(f"   - {plot_name}")
+        except Exception as e:
+            self.logger.error(f"❌ Plot generation FAILED: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            plots = {}
 
-        return ExperimentResult(
+        # Create final result
+        self.logger.info("=" * 80)
+        self.logger.info("FACTOR STABILITY ANALYSIS - COMPLETED")
+        self.logger.info("=" * 80)
+        self.logger.info(f"Summary:")
+        self.logger.info(f"  - {len(chain_results)} chains completed")
+        self.logger.info(f"  - {stability_results.get('n_stable_factors', 0)}/{stability_results.get('total_factors', 0)} stable factors")
+        self.logger.info(f"  - Stability rate: {stability_results.get('stability_rate', 0):.1%}")
+        self.logger.info(f"  - Mean effective factors: {np.mean([ef['n_effective'] for ef in effective_factors_per_chain]):.1f}")
+        self.logger.info(f"  - {len(plots)} plots generated")
+
+        result = ExperimentResult(
             experiment_id="factor_stability_analysis",
             config=self.config,
             model_results={
@@ -1801,6 +1902,9 @@ class ReproducibilityExperiments(ExperimentFramework):
             performance_metrics=performance_metrics,
             status="completed",
         )
+
+        self.logger.info("Returning ExperimentResult object")
+        return result
 
     def _plot_factor_stability(
         self,

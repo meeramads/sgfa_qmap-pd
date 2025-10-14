@@ -394,10 +394,15 @@ def main():
         results["robustness_testing"] = run_robustness_testing(exp_config)
 
     if "factor_stability" in experiments_to_run:
-        logger.info("🔬 3/4 Starting Factor Stability Analysis...")
+        logger.info("=" * 80)
+        logger.info("🔬 3/4 STARTING FACTOR STABILITY ANALYSIS")
+        logger.info("=" * 80)
         exp_config = config.copy()
         if pipeline_context["X_list"] is not None and use_shared_data:
             logger.info("   → Using shared data from previous experiments")
+            logger.info(f"   → X_list: {len(pipeline_context['X_list'])} views")
+            for i, X in enumerate(pipeline_context["X_list"]):
+                logger.info(f"      View {i}: {X.shape}")
             exp_config["_shared_data"] = {
                 "X_list": pipeline_context["X_list"],
                 "preprocessing_info": pipeline_context["preprocessing_info"],
@@ -412,6 +417,8 @@ def main():
                 logger.info(
                     f"   → Using optimal SGFA params: {pipeline_context['optimal_sgfa_params']['variant_name']}"
                 )
+        else:
+            logger.info("   → Will load fresh data")
 
         # Import and run factor stability analysis
         from experiments.robustness_testing import ReproducibilityExperiments
@@ -490,18 +497,32 @@ def main():
 
         # Run factor stability analysis
         logger.info(f"   Running {experiment_config.num_chains} chains with K={K} factors...")
-        result = repro_exp.run_factor_stability_analysis(
-            X_list=X_list,
-            hypers=hypers,
-            args=mcmc_args,
-            n_chains=experiment_config.num_chains,
-            cosine_threshold=experiment_config.cosine_threshold,
-            min_match_rate=experiment_config.min_match_rate,
-            view_names=view_names,  # Pass view names for plotting
-            feature_names=feature_names,  # Pass feature names for plotting
-        )
+        logger.info(f"   This will take approximately {experiment_config.num_chains * 10} minutes")
+
+        try:
+            result = repro_exp.run_factor_stability_analysis(
+                X_list=X_list,
+                hypers=hypers,
+                args=mcmc_args,
+                n_chains=experiment_config.num_chains,
+                cosine_threshold=experiment_config.cosine_threshold,
+                min_match_rate=experiment_config.min_match_rate,
+                view_names=view_names,  # Pass view names for plotting
+                feature_names=feature_names,  # Pass feature names for plotting
+            )
+            logger.info("   ✅ Factor stability analysis COMPLETED")
+        except Exception as e:
+            logger.error(f"   ❌ Factor stability analysis FAILED: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            result = None
 
         results["factor_stability"] = result
+        logger.info(f"   Result type: {type(result)}")
+        if result:
+            logger.info(f"   Result status: {getattr(result, 'status', 'unknown')}")
+            if hasattr(result, 'model_results'):
+                logger.info(f"   Model results keys: {list(result.model_results.keys())}")
 
         # Save W and Z matrices for each chain + stability analysis results
         if result and hasattr(result, "model_results"):

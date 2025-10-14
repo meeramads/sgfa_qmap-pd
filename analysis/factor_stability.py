@@ -78,8 +78,18 @@ def assess_factor_stability_cosine(
     >>> stability = assess_factor_stability_cosine(chain_results, threshold=0.8)
     >>> print(f"Found {stability['n_stable_factors']} stable factors")
     """
-    logger.info(f"Assessing factor stability across {len(chain_results)} chains")
-    logger.info(f"Similarity threshold: {threshold}, Match rate: {min_match_rate}")
+    logger.info("=" * 80)
+    logger.info("ASSESS_FACTOR_STABILITY_COSINE - STARTING")
+    logger.info("=" * 80)
+    logger.info(f"Number of chains: {len(chain_results)}")
+    logger.info(f"Similarity threshold: {threshold}")
+    logger.info(f"Min match rate: {min_match_rate}")
+
+    # Log chain information
+    for i, result in enumerate(chain_results):
+        chain_id = result.get("chain_id", i)
+        W = result.get("W")
+        logger.info(f"Chain {chain_id}: W type={type(W)}, samples={'samples' in result}")
 
     # Step 1: Average W within each chain across posterior samples
     W_chain_avg = []
@@ -148,6 +158,7 @@ def assess_factor_stability_cosine(
             )
 
     # Step 2: Match factors across chains using cosine similarity
+    logger.info(f"Step 2: Matching {K} factors across {n_chains} chains")
     stable_factors = []
     per_factor_matches = []
 
@@ -156,6 +167,8 @@ def assess_factor_stability_cosine(
     similarity_matrix = np.zeros((n_chains, n_chains, K))
 
     for k in range(K):
+        if k % 5 == 0:  # Log every 5th factor to avoid log spam
+            logger.info(f"  Processing factor {k}/{K}")
         ref_factor = W_chain_avg[0][:, k]  # Reference from chain 0
         matches = 1  # Chain 0 matches itself
         matched_indices = [k]  # Which factor index matched in each chain
@@ -230,6 +243,16 @@ def assess_factor_stability_cosine(
             logger.warning("Not all chains have Z scores - consensus_Z will be None")
 
     # Step 4: Compile results
+    logger.info("=" * 80)
+    logger.info("ASSESS_FACTOR_STABILITY_COSINE - COMPLETED")
+    logger.info("=" * 80)
+    logger.info(f"Results:")
+    logger.info(f"  - Stable factors: {len(stable_factors)}/{K}")
+    logger.info(f"  - Stability rate: {len(stable_factors)/K:.1%}")
+    logger.info(f"  - Stable factor indices: {stable_factors}")
+    logger.info(f"  - Consensus W shape: {consensus_W.shape if consensus_W is not None else 'None'}")
+    logger.info(f"  - Consensus Z shape: {consensus_Z.shape if consensus_Z is not None else 'None'}")
+
     result = {
         "n_stable_factors": len(stable_factors),
         "stable_factor_indices": stable_factors,
