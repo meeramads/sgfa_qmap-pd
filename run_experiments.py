@@ -152,6 +152,18 @@ def main():
         help="Regress out confound variables from all views (e.g., --regress-confounds age sex tiv)",
     )
     parser.add_argument(
+        "--feature-selection",
+        choices=["none", "variance", "statistical", "mutual_info", "combined"],
+        default=None,
+        help="Feature selection method (default: use config.yaml setting). Options: none (no selection), variance (remove low-variance features), statistical, mutual_info, combined",
+    )
+    parser.add_argument(
+        "--variance-threshold",
+        type=float,
+        default=None,
+        help="Variance threshold for feature selection (e.g., 0.02 to remove features with <2%% variance). Only used with --feature-selection variance",
+    )
+    parser.add_argument(
         "--drop-confounds-from-clinical",
         action="store_true",
         default=True,
@@ -205,7 +217,18 @@ def main():
         config["preprocessing"]["drop_confounds_from_clinical"] = args.drop_confounds_from_clinical
 
         action = "dropping" if args.drop_confounds_from_clinical else "residualizing"
-        logger.info(f"Regressing confounds: {args.regress_confounds} ({action} in clinical view)")
+        logger.info(f"Confound regression: {action} {', '.join(args.regress_confounds)}")
+
+    # Configure feature selection if provided
+    if args.feature_selection:
+        if "preprocessing" not in config:
+            config["preprocessing"] = {}
+        config["preprocessing"]["feature_selection_method"] = args.feature_selection
+        logger.info(f"Feature selection method: {args.feature_selection}")
+
+        if args.variance_threshold is not None:
+            config["preprocessing"]["variance_threshold"] = args.variance_threshold
+            logger.info(f"Variance threshold: {args.variance_threshold}")
 
     # Setup unified results directory if requested
     if args.unified_results:

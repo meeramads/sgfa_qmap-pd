@@ -69,8 +69,8 @@ preprocessing:
 
   # Feature selection - ROI-aware for interpretability
   # NOTE: Feature selection preserves spatial remapping through selected voxel indices
-  feature_selection_method: "variance"  # Use variance-based selection (removes uninformative voxels)
-  variance_threshold: 0.02              # Remove voxels with <2% variance (flat/noisy voxels, typically 30-50% reduction)
+  feature_selection_method: "none"      # Skip feature selection - use all voxels (can also use "variance" to filter uninformative voxels)
+  variance_threshold: 0.02              # Remove voxels with <2% variance (only used if feature_selection_method="variance")
   missing_threshold: 0.8                # Remove voxels with >80% missing data
 
   # ROI-aware selection (preserves proportional representation from each brain region)
@@ -119,8 +119,8 @@ data_validation:
     standard:
       enable_advanced_preprocessing: true
       imputation_strategy: "median"
-      feature_selection_method: "variance"
-      variance_threshold: 0.01
+      feature_selection_method: "none"         # Skip feature selection by default
+      variance_threshold: 0.01                 # Only used if feature_selection_method changed to "variance"
 
     statistical:
       enable_advanced_preprocessing: true
@@ -153,8 +153,8 @@ data_validation:
       enable_advanced_preprocessing: true
       enable_spatial_processing: false
       imputation_strategy: "median"
-      feature_selection_method: "variance"         # Use variance-based selection
-      variance_threshold: 0.01
+      feature_selection_method: "none"             # Skip feature selection - preserve all voxels for spatial mapping
+      variance_threshold: 0.01                     # Only used if feature_selection_method changed to "variance"
       missing_threshold: 0.5
       imaging_preserve_voxels: true                # Preserve all imaging voxels for spatial mapping
 
