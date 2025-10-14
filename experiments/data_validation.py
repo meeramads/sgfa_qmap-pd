@@ -226,22 +226,47 @@ class DataValidationExperiments(ExperimentFramework):
             if feature_selection_method:
                 self.logger.info(f"   Feature selection: {feature_selection_method}")
 
-            # Create a copy of preprocessing config and override specific settings
-            raw_config = preprocessing_config.copy()
+            # Extract only the parameters that load_qmap_pd() accepts
+            # (filter out experiment-level config like 'strategy', 'select_rois', etc.)
+            valid_load_params = {
+                "enable_advanced_preprocessing",
+                "enable_spatial_processing",
+                "imputation_strategy",
+                "feature_selection_method",
+                "n_top_features",
+                "missing_threshold",
+                "variance_threshold",
+                "target_variable",
+                "cross_validate_sources",
+                "optimize_preprocessing",
+                "spatial_imputation",
+                "roi_based_selection",
+                "harmonize_scanners",
+                "scanner_info_col",
+                "qc_outlier_threshold",
+                "spatial_neighbor_radius",
+                "min_voxel_distance",
+                "select_rois",
+                "regress_confounds",
+                "drop_confounds_from_clinical",
+            }
+
+            # Filter preprocessing config to only include valid parameters
+            raw_config = {k: v for k, v in preprocessing_config.items() if k in valid_load_params}
             raw_config["enable_advanced_preprocessing"] = False
 
             raw_data = load_qmap_pd(
                 data_dir=data_dir,
-                **raw_config,  # Pass all preprocessing config with advanced preprocessing disabled
+                **raw_config,  # Pass filtered preprocessing config with advanced preprocessing disabled
             )
 
             # Load preprocessed data for comparison
-            preprocessed_config = preprocessing_config.copy()
+            preprocessed_config = {k: v for k, v in preprocessing_config.items() if k in valid_load_params}
             preprocessed_config["enable_advanced_preprocessing"] = True
 
             preprocessed_data = load_qmap_pd(
                 data_dir=data_dir,
-                **preprocessed_config,  # Pass all preprocessing config with advanced preprocessing enabled
+                **preprocessed_config,  # Pass filtered preprocessing config with advanced preprocessing enabled
             )
 
             X_list = preprocessed_data["X_list"]
