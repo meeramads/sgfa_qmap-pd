@@ -318,7 +318,7 @@ class DataValidationExperiments(ExperimentFramework):
         # Run MAD threshold analysis on raw imaging data BEFORE preprocessing
         # This informs optimal threshold selection for outlier detection
         mad_analysis_results = self._run_mad_threshold_eda(
-            raw_data, output_dir=self.config.output_dir
+            raw_data, output_dir=self.base_output_dir
         )
         results["mad_threshold_analysis"] = mad_analysis_results
 
