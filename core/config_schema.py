@@ -470,7 +470,13 @@ class ConfigurationValidator:
 
         # Ensure required sections exist
         if "data" not in fixed_config:
-            fixed_config["data"] = {"data_dir": "./data"}
+            fixed_config["data"] = {}
+
+        # Set default data_dir only for non-synthetic datasets
+        if "data_dir" not in fixed_config["data"]:
+            dataset = fixed_config["data"].get("dataset", "qmap_pd")
+            if dataset not in {"synthetic", "toy"}:
+                fixed_config["data"]["data_dir"] = "./data"
 
         if "experiments" not in fixed_config:
             fixed_config["experiments"] = {"base_output_dir": "./results"}
@@ -486,9 +492,9 @@ class ConfigurationValidator:
                     logger.info("Added default sparsity_lambda=0.1 for sparse_gfa")
 
         # Fix paths to be absolute
-        if "data" in fixed_config:
+        if "data" in fixed_config and "data_dir" in fixed_config["data"]:
             data_dir = fixed_config["data"]["data_dir"]
-            if not Path(data_dir).is_absolute():
+            if data_dir and not Path(data_dir).is_absolute():
                 fixed_config["data"]["data_dir"] = str(Path(data_dir).resolve())
 
         if "experiments" in fixed_config:
