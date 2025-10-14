@@ -98,7 +98,7 @@ class ExperimentConfig:
     create_brain_map_plots: bool = False  # Create 3D visualization plots
     brain_maps_output_dir: str = "brain_maps"  # Subdirectory for brain maps
 
-    # Reproducibility
+    # Random seeds for robustness testing
     random_seeds: List[int] = field(default_factory=lambda: [42, 123, 456])
 
     # Factor Stability Analysis (Ferreira et al. 2024)
@@ -1002,7 +1002,7 @@ class ExperimentFramework:
             },
             "quality_assurance": {
                 "data_quality_checks": "Automated data quality assessment",
-                "reproducibility_testing": "Regular reproducibility validation",
+                "robustness_testing": "Regular robustness validation",
                 "bias_monitoring": "Ongoing assessment of demographic and technical biases"
             }
         }

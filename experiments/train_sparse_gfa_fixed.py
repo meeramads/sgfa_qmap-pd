@@ -32,7 +32,7 @@ sys.path.insert(0, str(project_root))
 from core.config_utils import get_data_dir, get_output_dir
 from core.logger_utils import setup_logger
 from experiments.framework import ExperimentConfig, ExperimentFramework
-from experiments.robustness_testing import ReproducibilityExperiments
+from experiments.robustness_testing import RobustnessExperiments
 
 # Fixed configuration based on Ferreira et al. 2024
 FIXED_CONFIG = {
@@ -260,8 +260,8 @@ def main():
             num_chains=args.num_chains,
         )
 
-        # Initialize reproducibility experiments
-        repro_exp = ReproducibilityExperiments(exp_config, logger)
+        # Initialize robustness experiments
+        repro_exp = RobustnessExperiments(exp_config, logger)
 
         # Run factor stability analysis
         logger.info("\n" + "=" * 80)

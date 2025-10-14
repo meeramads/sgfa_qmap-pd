@@ -109,16 +109,16 @@ jobs:
             experiments_run.append(('Method Comparison', False))
             print(f'Method comparison failed: {e}')
         
-        # Reproducibility
+        # Robustness
         try:
-            repro_tester = ReproducibilityExperiments(config)
-            result = repro_tester.run_seed_reproducibility_test(
+            robustness_tester = RobustnessExperiments(config)
+            result = robustness_tester.run_seed_robustness_test(
                 X_list, {'K': 5}, {'num_samples': 50}, seeds=[42, 123, 456]
             )
-            experiments_run.append(('Reproducibility', result.success))
+            experiments_run.append(('Robustness', result.success))
         except Exception as e:
-            experiments_run.append(('Reproducibility', False))
-            print(f'Reproducibility test failed: {e}')
+            experiments_run.append(('Robustness', False))
+            print(f'Robustness test failed: {e}')
         
         print('\\n=== RELEASE EXPERIMENTAL VALIDATION SUMMARY ===')
         for exp_name, success in experiments_run:

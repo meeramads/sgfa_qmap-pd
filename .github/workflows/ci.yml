@@ -166,19 +166,19 @@ jobs:
         python -c "
         import sys
         sys.path.insert(0, '.')
-        from experiments.robustness_testing import ReproducibilityExperiments
+        from experiments.robustness_testing import RobustnessExperiments
         from experiments.framework import ExperimentConfig
         from data.synthetic import generate_synthetic_data
-        
-        # Test seed reproducibility
+
+        # Test seed robustness
         data = generate_synthetic_data(num_sources=2, K=3)
         X_list = [data['X1'], data['X2']]
-        
-        config = ExperimentConfig(output_dir='./repro_results')
-        repro_tester = ReproducibilityExperiments(config)
-        
-        print('Testing seed reproducibility...')
-        result = repro_tester.run_seed_reproducibility_test(
+
+        config = ExperimentConfig(output_dir='./robustness_results')
+        robustness_tester = RobustnessExperiments(config)
+
+        print('Testing seed robustness...')
+        result = robustness_tester.run_seed_robustness_test(
             X_list, {'K': 3}, {'num_samples': 100}, seeds=[42, 123]
         )
         

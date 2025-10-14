@@ -442,7 +442,7 @@ def main():
             logger.info("   → Will load fresh data")
 
         # Import and run factor stability analysis
-        from experiments.robustness_testing import ReproducibilityExperiments
+        from experiments.robustness_testing import RobustnessExperiments
         from experiments.framework import ExperimentConfig
         from core.config_utils import get_data_dir
 
@@ -463,8 +463,8 @@ def main():
             min_nonzero_pct=fs_config.get("min_nonzero_pct", 0.05),
         )
 
-        # Initialize reproducibility experiments
-        repro_exp = ReproducibilityExperiments(experiment_config, logger)
+        # Initialize robustness experiments
+        repro_exp = RobustnessExperiments(experiment_config, logger)
 
         # Load data if not already available
         if exp_config.get("_shared_data") and exp_config["_shared_data"].get("X_list"):

@@ -1,4 +1,4 @@
-"""Reproducibility and robustness experiments for SGFA qMAP-PD analysis."""
+"""Robustness experiments for SGFA qMAP-PD analysis."""
 
 import hashlib
 import logging
@@ -29,8 +29,8 @@ from optimization.experiment_mixins import performance_optimized_experiment
 
 
 @performance_optimized_experiment()
-class ReproducibilityExperiments(ExperimentFramework):
-    """Comprehensive reproducibility and robustness testing for SGFA analysis."""
+class RobustnessExperiments(ExperimentFramework):
+    """Comprehensive Robustness testing for SGFA analysis."""
 
     def __init__(
         self, config: ExperimentConfig, logger: Optional[logging.Logger] = None
@@ -38,16 +38,16 @@ class ReproducibilityExperiments(ExperimentFramework):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
 
-        # Reproducibility settings from config
+        # Robustness settings from config
         from core.config_utils import ConfigHelper
         config_dict = ConfigHelper.to_dict(config)
-        repro_config = config_dict.get("reproducibility", {})
+        repro_config = config_dict.get("robustness", {})
 
         self.random_seeds = repro_config.get("seed_values", [42, 123, 456, 789, 999, 1234, 5678, 9999])
         perturbation_config = repro_config.get("perturbation", {})
         self.perturbation_types = perturbation_config.get("types", ["gaussian", "uniform", "dropout", "permutation"])
 
-    @experiment_handler("seed_reproducibility_test")
+    @experiment_handler("seed_robustness_test")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
     @validate_parameters(
         X_list=lambda x: len(x) > 0,
@@ -57,7 +57,7 @@ class ReproducibilityExperiments(ExperimentFramework):
             "seeds must be None or list of integers",
         ),
     )
-    def run_seed_reproducibility_test(
+    def run_seed_robustness_test(
         self,
         X_list: List[np.ndarray],
         hypers: Dict,
@@ -65,7 +65,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         seeds: List[int] = None,
         **kwargs,
     ) -> ExperimentResult:
-        """Test reproducibility across different random seeds."""
+        """Test robustness across different random seeds."""
         # Validate inputs
         ResultValidator.validate_data_matrices(X_list)
 
@@ -79,7 +79,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         for seed in seeds:
             self.logger.info(f"Testing with seed: {seed}")
 
-            # Set random seed for reproducibility
+            # Set random seed for robustness
             np.random.seed(seed)
 
             # Update args with seed
@@ -114,21 +114,21 @@ class ReproducibilityExperiments(ExperimentFramework):
             jax.clear_caches()
             gc.collect()
 
-        # Analyze reproducibility
-        analysis = self._analyze_seed_reproducibility(results, performance_metrics)
+        # Analyze robustness
+        analysis = self._analyze_seed_robustness(results, performance_metrics)
 
         # Generate basic plots
-        plots = self._plot_seed_reproducibility(results, performance_metrics)
+        plots = self._plot_seed_robustness(results, performance_metrics)
 
-        # Add comprehensive reproducibility visualizations (focus on stability &
+        # Add comprehensive robustness visualizations (focus on stability &
         # consensus)
-        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
-            X_list, results, "seed_reproducibility"
+        advanced_plots = self._create_comprehensive_robustness_visualizations(
+            X_list, results, "seed_robustness"
         )
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_id="seed_reproducibility_test",
+            experiment_id="seed_robustness_test",
             config=self.config,
             model_results=results,
             diagnostics=analysis,
@@ -244,8 +244,8 @@ class ReproducibilityExperiments(ExperimentFramework):
         # Generate basic plots
         plots = self._plot_data_perturbation_robustness(results)
 
-        # Add comprehensive reproducibility visualizations (focus on robustness)
-        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+        # Add comprehensive robustness visualizations (focus on robustness)
+        advanced_plots = self._create_comprehensive_robustness_visualizations(
             X_list, results, "data_perturbation_robustness"
         )
         plots.update(advanced_plots)
@@ -354,8 +354,8 @@ class ReproducibilityExperiments(ExperimentFramework):
         # Generate basic plots
         plots = self._plot_initialization_robustness(results, performance_metrics)
 
-        # Add comprehensive reproducibility visualizations
-        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
+        # Add comprehensive robustness visualizations
+        advanced_plots = self._create_comprehensive_robustness_visualizations(
             X_list, results, "initialization_robustness"
         )
         plots.update(advanced_plots)
@@ -370,20 +370,20 @@ class ReproducibilityExperiments(ExperimentFramework):
             status="completed",
         )
 
-    @experiment_handler("computational_reproducibility_audit")
+    @experiment_handler("computational_robustness_audit")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
     @validate_parameters(X_list=lambda x: len(x) > 0)
-    def run_computational_reproducibility_audit(
+    def run_computational_robustness_audit(
         self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
     ) -> ExperimentResult:
-        """Comprehensive computational reproducibility audit."""
+        """Comprehensive computational robustness audit."""
         # Validate inputs
         ResultValidator.validate_data_matrices(X_list)
 
         self.logger.info("Running computational robustness audit")
 
         results = {}
-        # 1. Exact reproducibility test (same seed, same everything)
+        # 1. Exact robustness test (same seed, same everything)
         self.logger.info("Testing exact robustness...")
         exact_results = []
         fixed_seed = 42
@@ -405,13 +405,13 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             exact_results.append(result)
 
-            # Cleanup memory after each exact reproducibility run
+            # Cleanup memory after each exact robustness run
             import jax
             import gc
             jax.clear_caches()
             gc.collect()
 
-        results["exact_reproducibility"] = exact_results
+        results["exact_robustness"] = exact_results
 
         # 2. Numerical stability test
         self.logger.info("Testing numerical stability...")
@@ -432,20 +432,20 @@ class ReproducibilityExperiments(ExperimentFramework):
         checksums = self._compute_result_checksums(results)
         results["checksums"] = checksums
 
-        # Analyze computational reproducibility
-        analysis = self._analyze_computational_reproducibility(results)
+        # Analyze computational robustness
+        analysis = self._analyze_computational_robustness(results)
 
         # Generate basic plots
-        plots = self._plot_computational_reproducibility(results)
+        plots = self._plot_computational_robustness(results)
 
-        # Add comprehensive reproducibility visualizations
-        advanced_plots = self._create_comprehensive_reproducibility_visualizations(
-            X_list, results, "computational_reproducibility"
+        # Add comprehensive robustness visualizations
+        advanced_plots = self._create_comprehensive_robustness_visualizations(
+            X_list, results, "computational_robustness"
         )
         plots.update(advanced_plots)
 
         return ExperimentResult(
-            experiment_id="computational_reproducibility_audit",
+            experiment_id="computational_robustness_audit",
             config=self.config,
             model_results=results,
             diagnostics=analysis,
@@ -575,7 +575,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         return consistency_results
 
     def _compute_result_checksums(self, results: Dict) -> Dict:
-        """Compute checksums for reproducibility verification."""
+        """Compute checksums for robustness verification."""
         checksums = {}
 
         for experiment_name, experiment_results in results.items():
@@ -601,7 +601,7 @@ class ReproducibilityExperiments(ExperimentFramework):
     def _run_sgfa_analysis(
         self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
     ) -> Dict:
-        """Run actual SGFA analysis for reproducibility testing."""
+        """Run actual SGFA analysis for robustness testing."""
         import time
 
         import jax
@@ -660,7 +660,7 @@ class ReproducibilityExperiments(ExperimentFramework):
             models = get_model_function()
             self.logger.info(f"✅ Model function loaded: {models}")
 
-            # Setup MCMC configuration for reproducibility testing
+            # Setup MCMC configuration for robustness testing
             num_warmup = args.get("num_warmup", 50)
             num_samples = args.get("num_samples", 100)
             num_chains = args.get("num_chains", 1)
@@ -676,7 +676,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                 reghsZ=args.get("reghsZ", True),
             )
 
-            # Setup MCMC with seed control for reproducibility
+            # Setup MCMC with seed control for robustness
             seed = args.get("random_seed", 42)
             self.logger.info(f"Setting up MCMC with seed: {seed}")
             rng_key = jax.random.PRNGKey(seed)
@@ -684,12 +684,15 @@ class ReproducibilityExperiments(ExperimentFramework):
             self.logger.info(f"Creating NUTS kernel with target_accept_prob={target_accept_prob}")
             kernel = NUTS(models, target_accept_prob=target_accept_prob)
 
-            self.logger.info("Creating MCMC sampler...")
+            # Get chain method from args (parallel, sequential, or vectorized)
+            chain_method = args.get("chain_method", "sequential")
+            self.logger.info(f"Creating MCMC sampler with chain_method={chain_method}...")
             mcmc = MCMC(
                 kernel,
                 num_warmup=num_warmup,
                 num_samples=num_samples,
                 num_chains=num_chains,
+                chain_method=chain_method,
             )
 
             # Run inference
@@ -713,8 +716,13 @@ class ReproducibilityExperiments(ExperimentFramework):
                 self.logger.error(traceback.format_exc())
                 raise
 
-            # Get samples
-            samples = mcmc.get_samples()
+            # Get samples - group by chain if running multiple chains
+            if num_chains > 1:
+                samples = mcmc.get_samples(group_by_chain=True)
+                self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
+            else:
+                samples = mcmc.get_samples()
+                self.logger.info(f"Got samples from single chain")
 
             # Calculate log likelihood (approximate)
             extra_fields = mcmc.get_extra_fields()
@@ -724,39 +732,67 @@ class ReproducibilityExperiments(ExperimentFramework):
             )
 
             # Extract mean parameters
-            W_samples = samples["W"]  # Shape: (num_samples, D, K)
-            Z_samples = samples["Z"]  # Shape: (num_samples, N, K)
+            W_samples = samples["W"]  # Shape: (num_chains, num_samples, D, K) or (num_samples, D, K)
+            Z_samples = samples["Z"]  # Shape: (num_chains, num_samples, N, K) or (num_samples, N, K)
 
-            W_mean = np.mean(W_samples, axis=0)
-            Z_mean = np.mean(Z_samples, axis=0)
+            # For parallel chains, we return per-chain results
+            # For single chain, we return the mean as before
+            if num_chains > 1:
+                # Return all chains for factor stability analysis
+                self.logger.info(f"W_samples shape: {W_samples.shape}")
+                self.logger.info(f"Z_samples shape: {Z_samples.shape}")
 
-            # Split W back into views
-            W_list = []
-            start_idx = 0
-            for X in X_list:
-                end_idx = start_idx + X.shape[1]
-                W_list.append(W_mean[start_idx:end_idx, :])
-                start_idx = end_idx
-
-            result = {
-                "W": W_list,
-                "Z": Z_mean,
-                "W_samples": W_samples,
-                "Z_samples": Z_samples,
-                "samples": samples,
-                "log_likelihood": float(log_likelihood),
-                "n_iterations": num_samples,
-                "convergence": True,
-                "execution_time": elapsed,
-                "reproducibility_info": {
-                    "seed_used": seed,
-                    "mcmc_config": {
-                        "num_warmup": num_warmup,
-                        "num_samples": num_samples,
-                        "num_chains": num_chains,
+                result = {
+                    "W_samples": W_samples,
+                    "Z_samples": Z_samples,
+                    "samples": samples,
+                    "log_likelihood": float(log_likelihood),
+                    "n_iterations": num_samples,
+                    "num_chains": num_chains,
+                    "convergence": True,
+                    "execution_time": elapsed,
+                    "robustness_info": {
+                        "seed_used": seed,
+                        "mcmc_config": {
+                            "num_warmup": num_warmup,
+                            "num_samples": num_samples,
+                            "num_chains": num_chains,
+                            "chain_method": chain_method,
+                        },
                     },
-                },
-            }
+                }
+            else:
+                # Single chain: compute mean and split as before
+                W_mean = np.mean(W_samples, axis=0)
+                Z_mean = np.mean(Z_samples, axis=0)
+
+                # Split W back into views
+                W_list = []
+                start_idx = 0
+                for X in X_list:
+                    end_idx = start_idx + X.shape[1]
+                    W_list.append(W_mean[start_idx:end_idx, :])
+                    start_idx = end_idx
+
+                result = {
+                    "W": W_list,
+                    "Z": Z_mean,
+                    "W_samples": W_samples,
+                    "Z_samples": Z_samples,
+                    "samples": samples,
+                    "log_likelihood": float(log_likelihood),
+                    "n_iterations": num_samples,
+                    "convergence": True,
+                    "execution_time": elapsed,
+                    "robustness_info": {
+                        "seed_used": seed,
+                        "mcmc_config": {
+                            "num_warmup": num_warmup,
+                            "num_samples": num_samples,
+                            "num_chains": num_chains,
+                        },
+                    },
+                }
 
             # Cache the result for reuse by later experiments
             if results_cache:
@@ -773,12 +809,12 @@ class ReproducibilityExperiments(ExperimentFramework):
                 "log_likelihood": float("-inf"),
             }
 
-    def _analyze_seed_reproducibility(
+    def _analyze_seed_robustness(
         self, results: Dict, performance_metrics: Dict
     ) -> Dict:
-        """Analyze seed reproducibility results."""
+        """Analyze seed robustness results."""
         analysis = {
-            "reproducibility_metrics": {},
+            "robustness_metrics": {},
             "convergence_consistency": {},
             "likelihood_variation": {},
             "performance_variation": {},
@@ -807,7 +843,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                 "std": ll_std,
                 "coefficient_of_variation": ll_std / abs(ll_mean),
                 "range": ll_range,
-                "reproducibility_score": 1.0
+                "robustness_score": 1.0
                 / (1.0 + ll_std),  # Higher is more reproducible
             }
 
@@ -927,24 +963,24 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         return analysis
 
-    def _analyze_computational_reproducibility(self, results: Dict) -> Dict:
-        """Analyze computational reproducibility results."""
+    def _analyze_computational_robustness(self, results: Dict) -> Dict:
+        """Analyze computational robustness results."""
         analysis = {
-            "exact_reproducibility": {},
+            "exact_robustness": {},
             "numerical_stability": {},
             "platform_consistency": {},
             "checksum_verification": {},
         }
 
-        # Exact reproducibility analysis
-        exact_results = results.get("exact_reproducibility", [])
+        # Exact robustness analysis
+        exact_results = results.get("exact_robustness", [])
         if len(exact_results) > 1:
             likelihoods = [r.get("log_likelihood", np.nan) for r in exact_results]
             valid_likelihoods = [ll for ll in likelihoods if not np.isnan(ll)]
 
             if len(valid_likelihoods) > 1:
                 ll_std = np.std(valid_likelihoods)
-                analysis["exact_reproducibility"] = {
+                analysis["exact_robustness"] = {
                     "is_exactly_reproducible": ll_std < 1e-10,
                     "likelihood_std": ll_std,
                     "max_difference": max(valid_likelihoods) - min(valid_likelihoods),
@@ -984,10 +1020,10 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         return analysis
 
-    def _plot_seed_reproducibility(
+    def _plot_seed_robustness(
         self, results: Dict, performance_metrics: Dict
     ) -> Dict:
-        """Generate plots for seed reproducibility analysis."""
+        """Generate plots for seed robustness analysis."""
         plots = {}
 
         try:
@@ -1056,7 +1092,7 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         except Exception as e:
             self.logger.warning(
-                f"Failed to create seed reproducibility plots: {str(e)}"
+                f"Failed to create seed robustness plots: {str(e)}"
             )
 
         return plots
@@ -1311,8 +1347,8 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         return plots
 
-    def _plot_computational_reproducibility(self, results: Dict) -> Dict:
-        """Generate plots for computational reproducibility analysis."""
+    def _plot_computational_robustness(self, results: Dict) -> Dict:
+        """Generate plots for computational robustness analysis."""
         self.logger.info("📊 Generating computational robustness plots...")
         plots = {}
 
@@ -1321,8 +1357,8 @@ class ReproducibilityExperiments(ExperimentFramework):
             fig, axes = plt.subplots(2, 2, figsize=(15, 10))
             fig.suptitle("Computational Robustness Analysis", fontsize=16)
 
-            # Plot 1: Exact reproducibility
-            exact_results = results.get("exact_reproducibility", [])
+            # Plot 1: Exact robustness
+            exact_results = results.get("exact_robustness", [])
             if len(exact_results) > 1:
                 likelihoods = [r.get("log_likelihood", np.nan) for r in exact_results]
                 valid_likelihoods = [ll for ll in likelihoods if not np.isnan(ll)]
@@ -1400,44 +1436,44 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         except Exception as e:
             self.logger.warning(
-                f"Failed to create computational reproducibility plots: {str(e)}"
+                f"Failed to create computational robustness plots: {str(e)}"
             )
 
         self.logger.info(f"📊 Computational robustness plots completed: {len(plots)} plots generated")
         return plots
 
-    def _create_comprehensive_reproducibility_visualizations(
+    def _create_comprehensive_robustness_visualizations(
         self, X_list: List[np.ndarray], results: Dict, experiment_name: str
     ) -> Dict:
-        """Create comprehensive reproducibility visualizations focusing on consensus and stability."""
+        """Create comprehensive robustness visualizations focusing on consensus and stability."""
         advanced_plots = {}
 
         try:
             self.logger.info(
-                f"🎨 Creating comprehensive reproducibility visualizations for {experiment_name}"
+                f"🎨 Creating comprehensive robustness visualizations for {experiment_name}"
             )
 
             # Import visualization system
             from core.config_utils import ConfigAccessor
             from visualization.manager import VisualizationManager
 
-            # Create a reproducibility-focused config for visualization
+            # Create a robustness-focused config for visualization
             viz_config = ConfigAccessor(
                 {
                     "visualization": {
-                        "create_brain_viz": True,  # Include brain maps for reproducibility assessment
+                        "create_brain_viz": True,  # Include brain maps for robustness assessment
                         "output_format": ["png", "pdf"],
                         "dpi": 300,
-                        "reproducibility_focus": True,
+                        "robustness_focus": True,
                     },
-                    "output_dir": f"/tmp/reproducibility_viz_{experiment_name}",
+                    "output_dir": f"/tmp/robustness_viz_{experiment_name}",
                 }
             )
 
             # Initialize visualization manager
             viz_manager = VisualizationManager(viz_config)
 
-            # Prepare reproducibility data structure
+            # Prepare robustness data structure
             data = {
                 "X_list": X_list,
                 "view_names": [f"view_{i}" for i in range(len(X_list))],
@@ -1445,7 +1481,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                 "view_dimensions": [X.shape[1] for X in X_list],
                 "preprocessing": {
                     "status": "completed",
-                    "strategy": "reproducibility_analysis",
+                    "strategy": "robustness_analysis",
                 },
             }
 
@@ -1453,27 +1489,27 @@ class ReproducibilityExperiments(ExperimentFramework):
             best_repro_result = self._extract_best_reproducible_result(results)
 
             if best_repro_result:
-                # Prepare reproducibility analysis results
+                # Prepare robustness analysis results
                 analysis_results = {
                     "best_run": best_repro_result,
                     "all_runs": results,
-                    "model_type": "reproducibility_sparseGFA",
+                    "model_type": "robustness_sparseGFA",
                     "convergence": best_repro_result.get("convergence", False),
-                    "reproducibility_analysis": True,
+                    "robustness_analysis": True,
                 }
 
                 # Add cross-validation style results for consensus analysis
                 cv_results = {
                     "consensus_analysis": {
                         "multiple_runs": results,
-                        "stability_metrics": self._extract_reproducibility_metrics(
+                        "stability_metrics": self._extract_robustness_metrics(
                             results
                         ),
                         "seed_variations": self._extract_seed_variations(results),
                     }
                 }
 
-                # Create comprehensive visualizations with reproducibility focus
+                # Create comprehensive visualizations with robustness focus
                 viz_manager.create_all_visualizations(
                     data=data, analysis_results=analysis_results, cv_results=cv_results
                 )
@@ -1483,7 +1519,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                     plot_files = list(viz_manager.plot_dir.glob("**/*.png"))
 
                     for plot_file in plot_files:
-                        plot_name = f"reproducibility_{plot_file.stem}"
+                        plot_name = f"robustness_{plot_file.stem}"
 
                         try:
                             import matplotlib.image as mpimg
@@ -1494,29 +1530,29 @@ class ReproducibilityExperiments(ExperimentFramework):
                             ax.imshow(img)
                             ax.axis("off")
                             ax.set_title(
-                                f"Reproducibility Analysis: {plot_name}", fontsize=14
+                                f"Robustness Analysis: {plot_name}", fontsize=14
                             )
 
                             advanced_plots[plot_name] = fig
 
                         except Exception as e:
                             self.logger.warning(
-                                f"Could not load reproducibility plot {plot_name}: {e}"
+                                f"Could not load robustness plot {plot_name}: {e}"
                             )
 
                     self.logger.info(
-                        f"✅ Created { len(plot_files)} comprehensive reproducibility visualizations"
+                        f"✅ Created { len(plot_files)} comprehensive robustness visualizations"
                     )
                     self.logger.info(
                         "   → Consensus factor analysis and stability plots generated"
                     )
                     self.logger.info(
-                        "   → Cross-seed reproducibility and robustness visualizations generated"
+                        "   → Cross-seed robustness visualizations generated"
                     )
 
                 else:
                     self.logger.warning(
-                        "Reproducibility visualization manager did not create plot directory"
+                        "Robustness visualization manager did not create plot directory"
                     )
             else:
                 self.logger.warning(
@@ -1525,7 +1561,7 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         except Exception as e:
             self.logger.warning(
-                f"Failed to create comprehensive reproducibility visualizations: {e}"
+                f"Failed to create comprehensive robustness visualizations: {e}"
             )
 
         return advanced_plots
@@ -1535,7 +1571,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         best_result = None
         best_consistency = 0
 
-        # Look through different reproducibility result structures
+        # Look through different robustness result structures
         if isinstance(results, list):
             # Multiple seed results
             convergence_count = sum(1 for r in results if r.get("convergence", False))
@@ -1572,8 +1608,8 @@ class ReproducibilityExperiments(ExperimentFramework):
 
         return best_result
 
-    def _extract_reproducibility_metrics(self, results: Dict) -> Dict:
-        """Extract reproducibility metrics for visualization."""
+    def _extract_robustness_metrics(self, results: Dict) -> Dict:
+        """Extract robustness metrics for visualization."""
         metrics = {
             "convergence_rates": {},
             "likelihood_stability": {},
@@ -1581,7 +1617,7 @@ class ReproducibilityExperiments(ExperimentFramework):
             "computational_stability": {},
         }
 
-        # Process different types of reproducibility results
+        # Process different types of robustness results
         if isinstance(results, list):
             # Multiple seed results
             convergence_rate = sum(
@@ -1703,93 +1739,114 @@ class ReproducibilityExperiments(ExperimentFramework):
             save_stability_results,
         )
 
-        # Run multiple chains sequentially
+        # Get chain method from experiment config
+        from core.config_utils import ConfigHelper
+        config_dict = ConfigHelper.to_dict(self.config)
+        factor_stability_config = config_dict.get("factor_stability", {})
+        chain_method = factor_stability_config.get("chain_method", "parallel")
+
+        self.logger.info("=" * 80)
+        self.logger.info(f"RUNNING {n_chains} CHAINS WITH METHOD: {chain_method}")
+        self.logger.info("=" * 80)
+
+        # Prepare args for multi-chain execution
+        base_seed = args.get("random_seed", 42)
+        multi_chain_args = args.copy()
+        multi_chain_args["num_chains"] = n_chains
+        multi_chain_args["chain_method"] = chain_method
+        multi_chain_args["random_seed"] = base_seed
+
+        self.logger.info(f"Base seed: {base_seed}")
+        self.logger.info(f"MCMC config: samples={multi_chain_args.get('num_samples')}, "
+                        f"warmup={multi_chain_args.get('num_warmup')}, chains={n_chains}")
+        self.logger.info(f"JAX will automatically split PRNG key for independent chains")
+
+        # Run all chains in one MCMC call (NumPyro handles parallelization)
         chain_results = []
         performance_metrics = {}
-        base_seed = args.get("random_seed", 42)
 
+        with self.profiler.profile("all_chains") as p:
+            self.logger.info(f"Starting SGFA analysis with {n_chains} chains...")
+            try:
+                result = self._run_sgfa_analysis(X_list, hypers, multi_chain_args, **kwargs)
+                self.logger.info(f"✅ All {n_chains} chains completed")
+                self.logger.info(f"   Result keys: {list(result.keys())}")
+            except Exception as e:
+                self.logger.error(f"❌ Multi-chain SGFA analysis FAILED: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+                raise
+
+        # Extract per-chain results from grouped samples
+        W_samples = result.get("W_samples")  # Shape: (num_chains, num_samples, D, K)
+        Z_samples = result.get("Z_samples")  # Shape: (num_chains, num_samples, N, K)
+
+        self.logger.info(f"W_samples shape: {W_samples.shape}")
+        self.logger.info(f"Z_samples shape: {Z_samples.shape}")
+
+        # Process each chain's results
         for chain_id in range(n_chains):
-            self.logger.info("=" * 80)
-            self.logger.info(f"🔗 CHAIN {chain_id + 1}/{n_chains} - STARTING")
-            self.logger.info("=" * 80)
+            self.logger.info(f"Processing chain {chain_id + 1}/{n_chains}...")
 
-            # Unique seed per chain
-            chain_seed = base_seed + chain_id * 1000
-            self.logger.info(f"Chain seed: {chain_seed}")
+            # Extract this chain's samples: (num_samples, D, K)
+            W_chain = W_samples[chain_id]  # (num_samples, D, K)
+            Z_chain = Z_samples[chain_id]  # (num_samples, N, K)
 
-            # Update args with chain-specific seed and single chain
-            chain_args = args.copy()
-            chain_args["random_seed"] = chain_seed
-            chain_args["num_chains"] = 1  # Run single chain at a time
-            self.logger.info(f"Chain MCMC config: samples={chain_args.get('num_samples')}, warmup={chain_args.get('num_warmup')}, seed={chain_seed}")
+            # Compute mean over samples for this chain
+            W_mean = np.mean(W_chain, axis=0)  # (D, K)
+            Z_mean = np.mean(Z_chain, axis=0)  # (N, K)
 
-            with self.profiler.profile(f"chain_{chain_id}") as p:
-                self.logger.info(f"Starting SGFA analysis for chain {chain_id}...")
-                try:
-                    result = self._run_sgfa_analysis(X_list, hypers, chain_args, **kwargs)
-                    self.logger.info(f"✅ Chain {chain_id} SGFA analysis completed")
-                    self.logger.info(f"   Result keys: {list(result.keys())}")
-                    if "W" in result:
-                        W = result["W"]
-                        self.logger.info(f"   W shape: {W.shape if hasattr(W, 'shape') else 'N/A'}")
-                    if "Z" in result:
-                        Z = result["Z"]
-                        self.logger.info(f"   Z shape: {Z.shape if hasattr(Z, 'shape') else 'N/A'}")
-                except Exception as e:
-                    self.logger.error(f"❌ Chain {chain_id} SGFA analysis FAILED: {e}")
-                    import traceback
-                    self.logger.error(traceback.format_exc())
-                    raise
+            # Split W back into views
+            W_list = []
+            start_idx = 0
+            for X in X_list:
+                end_idx = start_idx + X.shape[1]
+                W_list.append(W_mean[start_idx:end_idx, :])
+                start_idx = end_idx
 
-            # Extract essential outputs (W, Z, log_likelihood) - AFTER profiler context exits
             chain_result = {
                 "chain_id": chain_id,
-                "seed": chain_seed,
-                "W": result.get("W"),
-                "Z": result.get("Z"),
-                "log_likelihood": result.get("log_likelihood"),
+                "seed": base_seed + chain_id * 1000,  # Report equivalent seed
+                "W": W_list,
+                "Z": Z_mean,
+                "log_likelihood": result.get("log_likelihood", np.nan),
                 "convergence": result.get("convergence", False),
-                "execution_time": result.get("execution_time", 0),
-            }
-
-            # Store samples if available (for averaging W)
-            if "samples" in result:
-                chain_result["samples"] = {
-                    "W": result["samples"].get("W"),
-                    "Z": result["samples"].get("Z"),
+                "execution_time": result.get("execution_time", 0) / n_chains,  # Approximate per-chain time
+                "samples": {
+                    "W": W_chain,
+                    "Z": Z_chain,
                 }
+            }
 
             chain_results.append(chain_result)
 
-            # Store performance metrics (AFTER profiler context exits, metrics are now available)
-            metrics = self.profiler.get_current_metrics()
-            if metrics is not None:
+            self.logger.info(
+                f"Chain {chain_id} processed: "
+                f"W shape: {W_list[0].shape if W_list else 'N/A'}, "
+                f"Z shape: {Z_mean.shape}"
+            )
+
+        # Store overall performance metrics
+        metrics = self.profiler.get_current_metrics()
+        if metrics is not None:
+            performance_metrics["all_chains"] = {
+                "total_execution_time": metrics.execution_time,
+                "peak_memory_gb": metrics.peak_memory_gb,
+                "convergence": result.get("convergence", False),
+                "log_likelihood": result.get("log_likelihood", np.nan),
+                "num_chains": n_chains,
+                "chain_method": chain_method,
+            }
+            # Estimate per-chain metrics
+            for chain_id in range(n_chains):
                 performance_metrics[f"chain_{chain_id}"] = {
-                    "execution_time": metrics.execution_time,
+                    "execution_time": metrics.execution_time / n_chains,
                     "peak_memory_gb": metrics.peak_memory_gb,
                     "convergence": result.get("convergence", False),
                     "log_likelihood": result.get("log_likelihood", np.nan),
                 }
-            else:
-                self.logger.warning(f"⚠️ Chain {chain_id}: Could not retrieve performance metrics")
-                performance_metrics[f"chain_{chain_id}"] = {
-                    "execution_time": result.get("execution_time", 0),
-                    "peak_memory_gb": 0,
-                    "convergence": result.get("convergence", False),
-                    "log_likelihood": result.get("log_likelihood", np.nan),
-                }
 
-            # CRITICAL: Memory cleanup after each chain
-            import jax
-            import gc
-            jax.clear_caches()
-            gc.collect()
-
-            self.logger.info(
-                f"Chain {chain_id} completed: "
-                f"LL={result.get('log_likelihood', np.nan):.2f}, "
-                f"converged={result.get('convergence', False)}"
-            )
+        self.logger.info(f"✅ All chains completed in {metrics.execution_time:.1f}s ({metrics.execution_time/60:.1f} min)")
 
         # Assess factor stability using cosine similarity
         self.logger.info("=" * 80)
@@ -2217,7 +2274,7 @@ def run_robustness_testing(config):
             for i, X in enumerate(X_list):
                 logger.info(f"   View {i}: {X.shape}")
         else:
-            # Load data with standard preprocessing for reproducibility testing
+            # Load data with standard preprocessing for robustness testing
             logger.info("🔧 Loading data for robustness testing...")
             # Get preprocessing strategy from config
             preprocessing_config = config_dict.get("preprocessing", {})
@@ -2245,7 +2302,7 @@ def run_robustness_testing(config):
         )
 
         # Create robustness experiment instance
-        repro_exp = ReproducibilityExperiments(exp_config, logger)
+        repro_exp = RobustnessExperiments(exp_config, logger)
 
         # Setup base hyperparameters
         base_hypers = {
@@ -2269,7 +2326,7 @@ def run_robustness_testing(config):
         }
 
         # Run the experiment
-        def reproducibility_experiment(config, output_dir, **kwargs):
+        def robustness_experiment(config, output_dir, **kwargs):
             logger.info("🔄 Running comprehensive robustness tests...")
 
             # Normalize config input using standard ConfigHelper
@@ -2279,7 +2336,7 @@ def run_robustness_testing(config):
             # Get robustness testing configuration
             repro_config = config_dict.get("robustness_testing", {})
             seed_values = repro_config.get("seed_values", [42, 123, 456])
-            test_scenarios = repro_config.get("test_scenarios", ["seed_reproducibility", "data_perturbation", "initialization_robustness"])
+            test_scenarios = repro_config.get("test_scenarios", ["seed_robustness", "data_perturbation", "initialization_robustness"])
             perturbation_config = repro_config.get("perturbation", {
                 "types": ["gaussian", "uniform", "dropout"],
                 "levels": [0.01, 0.05, 0.1]
@@ -2289,15 +2346,15 @@ def run_robustness_testing(config):
             total_tests = 0
             successful_tests = 0
 
-            # 1. Test seed reproducibility (if configured)
-            if "seed_reproducibility" in test_scenarios:
+            # 1. Test seed robustness (if configured)
+            if "seed_robustness" in test_scenarios:
                 logger.info("📊 Testing seed robustness...")
                 seeds = seed_values
                 seed_results = {}
 
                 for seed in seeds:
                     try:
-                        # Set seed for reproducibility
+                        # Set seed for robustness
                         np.random.seed(seed)
                         test_args = base_args.copy()
                         test_args["random_seed"] = seed
@@ -2337,7 +2394,7 @@ def run_robustness_testing(config):
 
                     total_tests += 1
 
-                results["seed_reproducibility"] = seed_results
+                results["seed_robustness"] = seed_results
 
             # 2. Test data perturbation robustness (if configured)
             if "data_perturbation" in test_scenarios:
@@ -2430,13 +2487,13 @@ def run_robustness_testing(config):
             logger.info("🔄 Robustness tests completed!")
             logger.info(f"   Successful tests: {successful_tests}/{total_tests}")
 
-            # Generate reproducibility plots
+            # Generate robustness plots
             import matplotlib.pyplot as plt
             plots = {}
 
             try:
                 # Determine which tests were run to create appropriate grid
-                has_seed = "seed_reproducibility" in results and any("error" not in results["seed_reproducibility"][k] for k in results["seed_reproducibility"].keys())
+                has_seed = "seed_robustness" in results and any("error" not in results["seed_robustness"][k] for k in results["seed_robustness"].keys())
                 has_perturbation = "data_perturbation" in results and any("error" not in results["data_perturbation"][k] for k in results["data_perturbation"].keys())
                 has_init = "initialization_robustness" in results and any("error" not in results["initialization_robustness"][k] for k in results["initialization_robustness"].keys())
 
@@ -2459,9 +2516,9 @@ def run_robustness_testing(config):
 
                 plot_idx = 0
 
-                # Plot 1: Seed reproducibility (if run)
+                # Plot 1: Seed robustness (if run)
                 if has_seed:
-                    seed_data = results["seed_reproducibility"]
+                    seed_data = results["seed_robustness"]
                     seeds = [seed_data[k]["seed"] for k in sorted(seed_data.keys()) if "error" not in seed_data[k]]
                     lls = [seed_data[k]["performance"]["log_likelihood"] for k in sorted(seed_data.keys()) if "error" not in seed_data[k]]
                     axes[plot_idx].plot(seeds, lls, 'o-', linewidth=2, markersize=8)
@@ -2499,8 +2556,8 @@ def run_robustness_testing(config):
                 test_names = []
                 test_success = []
                 if has_seed:
-                    test_names.append("Seed\nReproducibility")
-                    test_success.append(len([k for k in results["seed_reproducibility"].keys() if "error" not in results["seed_reproducibility"][k]]))
+                    test_names.append("Seed\nrobustness")
+                    test_success.append(len([k for k in results["seed_robustness"].keys() if "error" not in results["seed_robustness"][k]]))
                 if has_perturbation:
                     test_names.append("Data\nPerturbation")
                     test_success.append(len([k for k in results["data_perturbation"].keys() if "error" not in results["data_perturbation"][k]]))
@@ -2522,7 +2579,7 @@ def run_robustness_testing(config):
 
             return {
                 "status": "completed",
-                "reproducibility_results": results,
+                "robustness_results": results,
                 "plots": plots,
                 "summary": {
                     "total_tests": total_tests,
@@ -2531,7 +2588,7 @@ def run_robustness_testing(config):
                         successful_tests / total_tests if total_tests > 0 else 0
                     ),
                     "test_categories": [
-                        "seed_reproducibility",
+                        "seed_robustness",
                         "perturbation_robustness",
                         "initialization_robustness",
                     ],
@@ -2545,7 +2602,7 @@ def run_robustness_testing(config):
 
         # Run experiment using framework
         result = framework.run_experiment(
-            experiment_function=reproducibility_experiment,
+            experiment_function=robustness_experiment,
             config=exp_config,
             model_results={"X_list": X_list, "preprocessing_info": preprocessing_info},
         )

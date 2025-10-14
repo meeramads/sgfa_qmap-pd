@@ -40,14 +40,14 @@ class ExperimentRunner:
         comparison_exp = ModelArchitectureComparison(self.framework)
         return comparison_exp.compare_methods(base_config, methods)
 
-    def run_reproducibility_test(
+    def run_robustness_test(
         self, config: ExperimentConfig, num_repetitions: int = 10
     ) -> List[ExperimentResult]:
-        """Run reproducibility test."""
-        from experiments.robustness_testing import ReproducibilityExperiments
+        """Run robustness test."""
+        from experiments.robustness_testing import RobustnessExperiments
 
-        repro_exp = ReproducibilityExperiments(self.framework)
-        return repro_exp.test_reproducibility(config, num_repetitions)
+        robustness_exp = RobustnessExperiments(self.framework)
+        return robustness_exp.test_robustness(config, num_repetitions)
 
     def run_clinical_validation(
         self, config: ExperimentConfig, clinical_outcomes: List[str]
