@@ -8,9 +8,6 @@ with proper configuration, validation, and extensibility.
 Note: This project primarily uses Sparse GFA (sparseGFA/sparse_gfa).
 Standard GFA models are registered for completeness but are NOT actively
 used due to memory constraints with high-dimensional neuroimaging data.
-
-LCA (Latent Class Analysis) has been removed - it's a clustering method, not
-factor analysis, and should not be compared to GFA methods.
 """
 
 from __future__ import annotations
@@ -81,9 +78,6 @@ class ModelFactory:
             "required_params": ["K", "spatial_info"],
             "optional_params": ["spatial_weight"],
         },
-        # NOTE: LCA (Latent Class Analysis) removed - it's a clustering/mixture model,
-        # not a factor analysis method. LCA finds discrete latent classes (categorical)
-        # whereas GFA finds continuous latent factors. They solve different problems.
     }
 
     @classmethod

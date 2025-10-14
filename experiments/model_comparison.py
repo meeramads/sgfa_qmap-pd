@@ -116,9 +116,6 @@ class ModelArchitectureComparison(ExperimentFramework):
                 "implemented": False,
                 "reason": "Research idea not yet implemented - future work for spatial brain data",
             },
-            # NOTE: LCA (Latent Class Analysis) removed - it's a clustering/mixture model, not factor analysis
-            # LCA finds discrete latent classes (similar to K-means/GMM), whereas factor analysis
-            # finds continuous latent factors. They solve fundamentally different problems.
         }
 
         # Load comparison parameters from config

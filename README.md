@@ -75,7 +75,6 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `base.py`: Base model class and shared functionality **IMPLEMENTED**
   - `standard_gfa.py`: Standard Group Factor Analysis with ARD priors **HIGH GPU USAGE**
   - `sparse_gfa.py`: Sparse GFA with regularized horseshoe priors **IMPLEMENTED**
-  - `latent_class_analysis.py`: Patient subtyping and clustering models **VERY HIGH GPU USAGE**
   - `factory.py`: Model factory for instantiation and configuration **IMPLEMENTED**
   - `variants/neuroimaging_gfa.py`: Specialized neuroimaging variants **NEEDS DEVELOPMENT**
 
@@ -157,13 +156,7 @@ The following features have **framework infrastructure** in place but require **
 - **Recommendation**: Use sparse_gfa for most applications
 - **Alternative**: Reduce K (number of factors) or data size
 
-#### **Latent Class Analysis** (`latent_class_analysis.py`)
-
-- **GPU Memory**: Very high usage (16GB+ typical, may exceed most GPU limits)
-- **Recommendation**: Use for small datasets only or powerful GPU clusters
-- **Alternative**: Use clustering post-hoc on sparse_gfa factors
-
-#### **Safe Default**: `sparse_gfa.py`
+#### **Recommended Default**: `sparse_gfa.py`
 
 - **GPU Memory**: Moderate usage (2-8GB typical)
 - **Recommendation**: Start here for most neuroimaging applications
