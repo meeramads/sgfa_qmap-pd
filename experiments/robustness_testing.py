@@ -1741,43 +1741,43 @@ class ReproducibilityExperiments(ExperimentFramework):
                     self.logger.error(traceback.format_exc())
                     raise
 
-                # Extract essential outputs (W, Z, log_likelihood)
-                chain_result = {
-                    "chain_id": chain_id,
-                    "seed": chain_seed,
-                    "W": result.get("W"),
-                    "Z": result.get("Z"),
-                    "log_likelihood": result.get("log_likelihood"),
-                    "convergence": result.get("convergence", False),
-                    "execution_time": result.get("execution_time", 0),
+            # Extract essential outputs (W, Z, log_likelihood) - AFTER profiler context exits
+            chain_result = {
+                "chain_id": chain_id,
+                "seed": chain_seed,
+                "W": result.get("W"),
+                "Z": result.get("Z"),
+                "log_likelihood": result.get("log_likelihood"),
+                "convergence": result.get("convergence", False),
+                "execution_time": result.get("execution_time", 0),
+            }
+
+            # Store samples if available (for averaging W)
+            if "samples" in result:
+                chain_result["samples"] = {
+                    "W": result["samples"].get("W"),
+                    "Z": result["samples"].get("Z"),
                 }
 
-                # Store samples if available (for averaging W)
-                if "samples" in result:
-                    chain_result["samples"] = {
-                        "W": result["samples"].get("W"),
-                        "Z": result["samples"].get("Z"),
-                    }
+            chain_results.append(chain_result)
 
-                chain_results.append(chain_result)
-
-                # Store performance metrics (must be inside profiler context)
-                metrics = self.profiler.get_current_metrics()
-                if metrics is not None:
-                    performance_metrics[f"chain_{chain_id}"] = {
-                        "execution_time": metrics.execution_time,
-                        "peak_memory_gb": metrics.peak_memory_gb,
-                        "convergence": result.get("convergence", False),
-                        "log_likelihood": result.get("log_likelihood", np.nan),
-                    }
-                else:
-                    self.logger.warning(f"⚠️ Chain {chain_id}: Could not retrieve performance metrics")
-                    performance_metrics[f"chain_{chain_id}"] = {
-                        "execution_time": result.get("execution_time", 0),
-                        "peak_memory_gb": 0,
-                        "convergence": result.get("convergence", False),
-                        "log_likelihood": result.get("log_likelihood", np.nan),
-                    }
+            # Store performance metrics (AFTER profiler context exits, metrics are now available)
+            metrics = self.profiler.get_current_metrics()
+            if metrics is not None:
+                performance_metrics[f"chain_{chain_id}"] = {
+                    "execution_time": metrics.execution_time,
+                    "peak_memory_gb": metrics.peak_memory_gb,
+                    "convergence": result.get("convergence", False),
+                    "log_likelihood": result.get("log_likelihood", np.nan),
+                }
+            else:
+                self.logger.warning(f"⚠️ Chain {chain_id}: Could not retrieve performance metrics")
+                performance_metrics[f"chain_{chain_id}"] = {
+                    "execution_time": result.get("execution_time", 0),
+                    "peak_memory_gb": 0,
+                    "convergence": result.get("convergence", False),
+                    "log_likelihood": result.get("log_likelihood", np.nan),
+                }
 
             # CRITICAL: Memory cleanup after each chain
             import jax
