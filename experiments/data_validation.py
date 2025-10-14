@@ -211,17 +211,27 @@ class DataValidationExperiments(ExperimentFramework):
             # Get data_dir directly from config (ExperimentConfig has it as top-level attr)
             data_dir = config_dict.get("data_dir") or "./qMAP-PD_data"
 
-            # Extract ROI selection and confound regression from config
-            preprocessing_config = config_dict.get("preprocessing", {})
+            # Extract ROI selection, confound regression, and feature selection from preprocessing_config
+            # (This comes from ExperimentConfig.preprocessing_config field, which was set from main config["preprocessing"])
+            preprocessing_config = config_dict.get("preprocessing_config", {})
             select_rois = preprocessing_config.get("select_rois")
             regress_confounds = preprocessing_config.get("regress_confounds")
+            feature_selection_method = preprocessing_config.get("feature_selection_method")
+
+            # Log preprocessing settings
+            if select_rois:
+                self.logger.info(f"   ROI selection: {select_rois}")
+            if regress_confounds:
+                self.logger.info(f"   Confound regression: {regress_confounds}")
+            if feature_selection_method:
+                self.logger.info(f"   Feature selection: {feature_selection_method}")
 
             raw_data = load_qmap_pd(
                 data_dir=data_dir,
                 enable_advanced_preprocessing=False,
                 select_rois=select_rois,
                 regress_confounds=regress_confounds,
-                **config_dict.get("preprocessing_config", {}),
+                **preprocessing_config,  # Pass all preprocessing config (includes feature_selection_method, variance_threshold, etc.)
             )
 
             # Load preprocessed data for comparison
@@ -230,7 +240,7 @@ class DataValidationExperiments(ExperimentFramework):
                 enable_advanced_preprocessing=True,
                 select_rois=select_rois,
                 regress_confounds=regress_confounds,
-                **config_dict.get("preprocessing_config", {}),
+                **preprocessing_config,  # Pass all preprocessing config
             )
 
             X_list = preprocessed_data["X_list"]
@@ -264,6 +274,8 @@ class DataValidationExperiments(ExperimentFramework):
                     "strategy": "advanced" if preprocessed_data.get("preprocessing_applied") else "basic",
                     "select_rois": select_rois,
                     "regress_confounds": regress_confounds,
+                    "feature_selection_method": feature_selection_method,
+                    "variance_threshold": preprocessing_config.get("variance_threshold"),
                     "data_summary": {
                         "view_names": preprocessed_data.get("view_names", []),
                         "original_data": {
