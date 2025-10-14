@@ -175,6 +175,12 @@ def main():
         action="store_false",
         help="Residualize confounds in clinical view instead of dropping them",
     )
+    parser.add_argument(
+        "--qc-outlier-threshold",
+        type=float,
+        default=None,
+        help="MAD threshold for QC outlier detection (default: 3.0). Higher values are more permissive. Example: --qc-outlier-threshold 5.0 to keep more voxels",
+    )
 
     args = parser.parse_args()
 
@@ -229,6 +235,13 @@ def main():
         if args.variance_threshold is not None:
             config["preprocessing"]["variance_threshold"] = args.variance_threshold
             logger.info(f"Variance threshold: {args.variance_threshold}")
+
+    # Configure QC outlier threshold if provided
+    if args.qc_outlier_threshold is not None:
+        if "preprocessing" not in config:
+            config["preprocessing"] = {}
+        config["preprocessing"]["qc_outlier_threshold"] = args.qc_outlier_threshold
+        logger.info(f"QC outlier threshold (MAD): {args.qc_outlier_threshold}")
 
     # Setup unified results directory if requested
     if args.unified_results:

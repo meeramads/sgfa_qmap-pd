@@ -286,6 +286,16 @@ class DataValidationExperiments(ExperimentFramework):
             },
         }
 
+        # =====================================================================
+        # MAD THRESHOLD EXPLORATORY DATA ANALYSIS
+        # =====================================================================
+        # Run MAD threshold analysis on raw imaging data BEFORE preprocessing
+        # This informs optimal threshold selection for outlier detection
+        mad_analysis_results = self._run_mad_threshold_eda(
+            raw_data, output_dir=self.config.output_dir
+        )
+        results["mad_threshold_analysis"] = mad_analysis_results
+
         # Analyze data validation results
         analysis = self._analyze_data_validation_results(
             results, raw_data, preprocessed_data
@@ -1660,6 +1670,765 @@ class DataValidationExperiments(ExperimentFramework):
 
         logger.info(f"🎨 Comprehensive data validation plots completed: {len(advanced_plots)} advanced plots generated")
         return advanced_plots
+
+    # =========================================================================
+    # MAD THRESHOLD EXPLORATORY DATA ANALYSIS
+    # =========================================================================
+
+    def _run_mad_threshold_eda(self, raw_data: Dict, output_dir: str) -> Dict[str, Any]:
+        """
+        Run comprehensive MAD threshold exploratory data analysis.
+
+        This analysis helps determine optimal MAD threshold values for outlier detection
+        in imaging data preprocessing. Analysis runs on RAW data before preprocessing.
+
+        Parameters
+        ----------
+        raw_data : Dict
+            Raw data dictionary containing X_list and view_names
+        output_dir : str
+            Directory to save analysis outputs
+
+        Returns
+        -------
+        Dict[str, Any]
+            MAD threshold analysis results including recommendations
+        """
+        logger.info("=" * 80)
+        logger.info("🔍 MAD THRESHOLD EXPLORATORY DATA ANALYSIS")
+        logger.info("=" * 80)
+        logger.info("Analyzing optimal MAD threshold values for outlier detection...")
+
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        X_list = raw_data.get("X_list", [])
+        view_names = raw_data.get("view_names", [f"View_{i}" for i in range(len(X_list))])
+
+        # Filter to imaging views only (exclude clinical data)
+        imaging_views = []
+        imaging_names = []
+        for X, name in zip(X_list, view_names):
+            if "volume_" in name.lower():  # Imaging views have 'volume_' prefix
+                imaging_views.append(X)
+                imaging_names.append(name)
+
+        if not imaging_views:
+            logger.warning("No imaging views found for MAD threshold analysis")
+            return {"status": "skipped", "reason": "no_imaging_views"}
+
+        logger.info(f"Analyzing {len(imaging_views)} imaging views: {imaging_names}")
+
+        # Define candidate thresholds to evaluate
+        candidate_thresholds = [2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
+
+        # Run comprehensive analysis
+        mad_distributions = self._analyze_mad_distributions(
+            imaging_views, imaging_names, candidate_thresholds, output_path
+        )
+
+        elbow_analysis = self._perform_elbow_analysis(
+            imaging_views, imaging_names, mad_distributions, output_path
+        )
+
+        spatial_analysis = self._analyze_spatial_distribution(
+            imaging_views, imaging_names, mad_distributions,
+            raw_data.get("data_dir", "./qMAP-PD_data"), output_path
+        )
+
+        info_preservation = self._analyze_information_preservation(
+            imaging_views, imaging_names, mad_distributions, output_path
+        )
+
+        summary_table = self._generate_threshold_summary(
+            imaging_names, mad_distributions, elbow_analysis,
+            spatial_analysis, info_preservation, candidate_thresholds, output_path
+        )
+
+        logger.info("=" * 80)
+        logger.info("✅ MAD threshold EDA completed successfully")
+        logger.info("=" * 80)
+
+        return {
+            "status": "completed",
+            "imaging_views_analyzed": imaging_names,
+            "candidate_thresholds": candidate_thresholds,
+            "mad_distributions": mad_distributions,
+            "elbow_analysis": elbow_analysis,
+            "spatial_analysis": spatial_analysis,
+            "information_preservation": info_preservation,
+            "summary_table": summary_table,
+        }
+
+    def _analyze_mad_distributions(
+        self,
+        imaging_views: List[np.ndarray],
+        view_names: List[str],
+        candidate_thresholds: List[float],
+        output_path: Path
+    ) -> Dict[str, Any]:
+        """
+        Analyze MAD value distributions across voxels in each imaging view.
+
+        Creates histogram and cumulative distribution plots showing how many voxels
+        would be retained at different threshold values.
+        """
+        logger.info("📊 Analyzing MAD distributions...")
+
+        mad_results = {}
+
+        for X, view_name in zip(imaging_views, view_names):
+            logger.info(f"   Processing {view_name}: {X.shape}")
+
+            # Calculate MAD for each voxel
+            mad_values = self._calculate_voxel_mad(X)
+
+            # Calculate retention rates at candidate thresholds
+            retention_rates = {}
+            for threshold in candidate_thresholds:
+                n_retained = np.sum(mad_values <= threshold)
+                retention_rates[threshold] = {
+                    "n_retained": int(n_retained),
+                    "n_total": len(mad_values),
+                    "retention_pct": 100.0 * n_retained / len(mad_values),
+                    "n_removed": int(len(mad_values) - n_retained),
+                }
+
+            mad_results[view_name] = {
+                "mad_values": mad_values,
+                "retention_rates": retention_rates,
+                "n_voxels": len(mad_values),
+                "mad_min": float(np.min(mad_values)),
+                "mad_max": float(np.max(mad_values)),
+                "mad_median": float(np.median(mad_values)),
+                "mad_mean": float(np.mean(mad_values)),
+            }
+
+            # Create visualization
+            self._plot_mad_distribution(
+                mad_values, view_name, candidate_thresholds,
+                retention_rates, output_path
+            )
+
+        logger.info(f"   ✅ MAD distributions analyzed for {len(imaging_views)} views")
+        return mad_results
+
+    def _calculate_voxel_mad(self, X: np.ndarray) -> np.ndarray:
+        """
+        Calculate MAD (Median Absolute Deviation) for each voxel.
+
+        Uses the same methodology as the preprocessing outlier detection:
+        MAD score = |value - median| / (MAD × 1.4826)
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Data matrix (n_subjects × n_voxels)
+
+        Returns
+        -------
+        np.ndarray
+            MAD scores for each voxel
+        """
+        n_voxels = X.shape[1]
+        mad_scores = np.zeros(n_voxels)
+
+        for i in range(n_voxels):
+            voxel_data = X[:, i]
+            # Remove NaN values
+            clean_data = voxel_data[~np.isnan(voxel_data)]
+
+            if len(clean_data) > 0:
+                median = np.median(clean_data)
+                mad = np.median(np.abs(clean_data - median))
+
+                if mad > 0:
+                    # Calculate maximum MAD score across all subjects for this voxel
+                    voxel_mad_scores = np.abs(clean_data - median) / (mad * 1.4826)
+                    mad_scores[i] = np.max(voxel_mad_scores)  # Max score determines if voxel is outlier
+                else:
+                    mad_scores[i] = 0.0
+            else:
+                mad_scores[i] = np.nan
+
+        return mad_scores
+
+    def _plot_mad_distribution(
+        self,
+        mad_values: np.ndarray,
+        view_name: str,
+        candidate_thresholds: List[float],
+        retention_rates: Dict,
+        output_path: Path
+    ):
+        """Create MAD distribution histogram and cumulative distribution plots."""
+        # Clean view name for filename
+        clean_name = view_name.replace("volume_", "").replace("_voxels", "")
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+        # Histogram with threshold lines
+        ax1.hist(mad_values, bins=50, alpha=0.7, color='skyblue', edgecolor='black')
+        ax1.set_xlabel('MAD Score', fontsize=12)
+        ax1.set_ylabel('Number of Voxels', fontsize=12)
+        ax1.set_title(f'MAD Distribution - {view_name}', fontsize=14, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+
+        # Add threshold lines
+        colors = plt.cm.RdYlGn_r(np.linspace(0.2, 0.8, len(candidate_thresholds)))
+        for threshold, color in zip(candidate_thresholds, colors):
+            retention_pct = retention_rates[threshold]["retention_pct"]
+            ax1.axvline(threshold, color=color, linestyle='--', linewidth=2,
+                       label=f'{threshold:.1f} ({retention_pct:.1f}% retained)')
+
+        ax1.legend(fontsize=10, loc='best')
+
+        # Cumulative distribution
+        sorted_mad = np.sort(mad_values)
+        cumulative_pct = 100.0 * np.arange(1, len(sorted_mad) + 1) / len(sorted_mad)
+
+        ax2.plot(sorted_mad, cumulative_pct, linewidth=2, color='navy')
+        ax2.set_xlabel('MAD Threshold', fontsize=12)
+        ax2.set_ylabel('Voxels Retained (%)', fontsize=12)
+        ax2.set_title(f'Cumulative Retention Curve - {view_name}', fontsize=14, fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+
+        # Add threshold markers
+        for threshold, color in zip(candidate_thresholds, colors):
+            retention_pct = retention_rates[threshold]["retention_pct"]
+            ax2.axvline(threshold, color=color, linestyle='--', linewidth=2, alpha=0.7)
+            ax2.axhline(retention_pct, color=color, linestyle=':', linewidth=1, alpha=0.5)
+            ax2.plot(threshold, retention_pct, 'o', color=color, markersize=10,
+                    markeredgecolor='black', markeredgewidth=1.5)
+            ax2.text(threshold, retention_pct + 2, f'{retention_pct:.1f}%',
+                    ha='center', fontsize=9, fontweight='bold')
+
+        plt.tight_layout()
+        plot_file = output_path / f"mad_distribution_{clean_name}.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved MAD distribution plot: {plot_file.name}")
+
+    def _perform_elbow_analysis(
+        self,
+        imaging_views: List[np.ndarray],
+        view_names: List[str],
+        mad_distributions: Dict[str, Any],
+        output_path: Path
+    ) -> Dict[str, Any]:
+        """
+        Identify elbow points in retention vs threshold curves.
+
+        The elbow point represents a natural breakpoint where increasing the threshold
+        starts retaining proportionally fewer additional voxels.
+        """
+        logger.info("📈 Performing elbow analysis...")
+
+        elbow_results = {}
+
+        # Create threshold range for fine-grained analysis
+        threshold_range = np.linspace(1.0, 6.0, 100)
+
+        fig, axes = plt.subplots(len(view_names), 1, figsize=(12, 5 * len(view_names)))
+        if len(view_names) == 1:
+            axes = [axes]
+
+        for idx, (view_name, ax) in enumerate(zip(view_names, axes)):
+            mad_values = mad_distributions[view_name]["mad_values"]
+
+            # Calculate retention rates across threshold range
+            retention_pcts = []
+            for threshold in threshold_range:
+                retention_pct = 100.0 * np.sum(mad_values <= threshold) / len(mad_values)
+                retention_pcts.append(retention_pct)
+
+            retention_pcts = np.array(retention_pcts)
+
+            # Calculate rate of change (first derivative)
+            rate_of_change = np.gradient(retention_pcts, threshold_range)
+
+            # Find elbow point (where rate of change stabilizes)
+            # Use second derivative to find inflection point
+            second_derivative = np.gradient(rate_of_change, threshold_range)
+            elbow_idx = np.argmax(np.abs(second_derivative))
+            elbow_threshold = threshold_range[elbow_idx]
+            elbow_retention = retention_pcts[elbow_idx]
+
+            elbow_results[view_name] = {
+                "elbow_threshold": float(elbow_threshold),
+                "retention_at_elbow": float(elbow_retention),
+                "interpretation": self._interpret_elbow(elbow_threshold),
+            }
+
+            # Plot retention curve with elbow point
+            ax.plot(threshold_range, retention_pcts, linewidth=2, color='navy', label='Retention Rate')
+            ax.axvline(elbow_threshold, color='red', linestyle='--', linewidth=2,
+                      label=f'Elbow Point: {elbow_threshold:.2f}')
+            ax.axhline(elbow_retention, color='red', linestyle=':', linewidth=1, alpha=0.5)
+            ax.plot(elbow_threshold, elbow_retention, 'ro', markersize=12,
+                   markeredgecolor='black', markeredgewidth=2)
+
+            ax.set_xlabel('MAD Threshold', fontsize=12)
+            ax.set_ylabel('Voxels Retained (%)', fontsize=12)
+            ax.set_title(f'Elbow Analysis - {view_name}\n'
+                        f'Recommended Threshold: {elbow_threshold:.2f} '
+                        f'(retains {elbow_retention:.1f}% voxels)',
+                        fontsize=13, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=11)
+
+            logger.info(f"   {view_name}: Elbow at {elbow_threshold:.2f} ({elbow_retention:.1f}% retention)")
+
+        plt.tight_layout()
+        plot_file = output_path / "elbow_analysis_all_views.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"   ✅ Elbow analysis completed, saved to {plot_file.name}")
+        return elbow_results
+
+    def _interpret_elbow(self, elbow_threshold: float) -> str:
+        """Provide interpretation of elbow threshold value."""
+        if elbow_threshold < 2.5:
+            return "Very strict - may remove too many voxels with biological variability"
+        elif elbow_threshold < 3.5:
+            return "Moderate - balanced removal of artifacts while preserving signal"
+        elif elbow_threshold < 4.5:
+            return "Permissive - retains most voxels, may include some artifacts"
+        else:
+            return "Very permissive - retains nearly all voxels including likely artifacts"
+
+    def _analyze_spatial_distribution(
+        self,
+        imaging_views: List[np.ndarray],
+        view_names: List[str],
+        mad_distributions: Dict[str, Any],
+        data_dir: str,
+        output_path: Path
+    ) -> Dict[str, Any]:
+        """
+        Analyze spatial distribution of voxels that would be removed at different thresholds.
+
+        This helps identify whether removed voxels cluster at ROI boundaries (edge artifacts)
+        or are distributed throughout the structure.
+        """
+        logger.info("🗺️  Analyzing spatial distribution of removed voxels...")
+
+        spatial_results = {}
+
+        for view_name in view_names:
+            # Extract ROI name for loading position lookup
+            roi_name = view_name.replace("volume_", "").replace("_voxels", "")
+
+            try:
+                # Try to load position lookup file
+                position_file = Path(data_dir) / "position_lookup" / f"position_{roi_name}_voxels.tsv"
+                if not position_file.exists():
+                    # Try alternative location
+                    position_file = Path(data_dir) / "volume_matrices" / f"{roi_name}_position_lookup.tsv"
+
+                if position_file.exists():
+                    positions = pd.read_csv(position_file, sep='\t')
+                    logger.info(f"   Loaded position lookup for {view_name}: {len(positions)} voxels")
+
+                    # Analyze at threshold 3.0 (current default)
+                    mad_values = mad_distributions[view_name]["mad_values"]
+                    removed_mask = mad_values > 3.0
+
+                    if np.any(removed_mask):
+                        removed_positions = positions[removed_mask][['x', 'y', 'z']].values
+                        retained_positions = positions[~removed_mask][['x', 'y', 'z']].values
+
+                        # Calculate spatial clustering metrics
+                        spatial_metrics = self._calculate_spatial_clustering(
+                            removed_positions, retained_positions
+                        )
+
+                        spatial_results[view_name] = {
+                            "position_file_found": True,
+                            "n_removed": int(np.sum(removed_mask)),
+                            "n_retained": int(np.sum(~removed_mask)),
+                            "clustering_metrics": spatial_metrics,
+                        }
+
+                        # Create spatial visualization
+                        self._plot_spatial_distribution(
+                            removed_positions, retained_positions,
+                            view_name, output_path
+                        )
+                    else:
+                        spatial_results[view_name] = {
+                            "position_file_found": True,
+                            "n_removed": 0,
+                            "message": "No voxels would be removed at threshold 3.0"
+                        }
+                else:
+                    logger.warning(f"   Position lookup not found for {view_name}")
+                    spatial_results[view_name] = {
+                        "position_file_found": False,
+                        "message": f"Position file not found: {position_file}"
+                    }
+
+            except Exception as e:
+                logger.warning(f"   Failed spatial analysis for {view_name}: {e}")
+                spatial_results[view_name] = {
+                    "position_file_found": False,
+                    "error": str(e)
+                }
+
+        logger.info(f"   ✅ Spatial analysis completed for {len(spatial_results)} views")
+        return spatial_results
+
+    def _calculate_spatial_clustering(
+        self,
+        removed_positions: np.ndarray,
+        retained_positions: np.ndarray
+    ) -> Dict[str, float]:
+        """Calculate spatial clustering metrics for removed voxels."""
+        from scipy.spatial.distance import cdist
+
+        # Calculate mean distance from each removed voxel to nearest retained voxel
+        if len(removed_positions) > 0 and len(retained_positions) > 0:
+            distances = cdist(removed_positions, retained_positions)
+            min_distances = np.min(distances, axis=1)
+
+            # Calculate centroid of removed vs retained voxels
+            removed_centroid = np.mean(removed_positions, axis=0)
+            retained_centroid = np.mean(retained_positions, axis=0)
+            centroid_distance = np.linalg.norm(removed_centroid - retained_centroid)
+
+            return {
+                "mean_nearest_neighbor_distance": float(np.mean(min_distances)),
+                "median_nearest_neighbor_distance": float(np.median(min_distances)),
+                "centroid_separation": float(centroid_distance),
+                "interpretation": "Edge clustering" if centroid_distance > 5.0 else "Distributed throughout ROI"
+            }
+        else:
+            return {"message": "Insufficient data for spatial metrics"}
+
+    def _plot_spatial_distribution(
+        self,
+        removed_positions: np.ndarray,
+        retained_positions: np.ndarray,
+        view_name: str,
+        output_path: Path
+    ):
+        """Create 3D scatter plot showing spatial distribution of removed vs retained voxels."""
+        from mpl_toolkits.mplot3d import Axes3D
+
+        fig = plt.figure(figsize=(14, 10))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Plot retained voxels (smaller, semi-transparent)
+        ax.scatter(retained_positions[:, 0], retained_positions[:, 1], retained_positions[:, 2],
+                  c='lightblue', marker='.', s=20, alpha=0.3, label=f'Retained (n={len(retained_positions)})')
+
+        # Plot removed voxels (larger, more opaque)
+        ax.scatter(removed_positions[:, 0], removed_positions[:, 1], removed_positions[:, 2],
+                  c='red', marker='o', s=50, alpha=0.7, edgecolors='darkred', linewidths=0.5,
+                  label=f'Removed at threshold=3.0 (n={len(removed_positions)})')
+
+        ax.set_xlabel('X (mm)', fontsize=11)
+        ax.set_ylabel('Y (mm)', fontsize=11)
+        ax.set_zlabel('Z (mm)', fontsize=11)
+        ax.set_title(f'Spatial Distribution of Removed Voxels - {view_name}\n'
+                    f'{100*len(removed_positions)/(len(removed_positions)+len(retained_positions)):.1f}% voxels flagged as outliers',
+                    fontsize=13, fontweight='bold')
+        ax.legend(fontsize=10)
+
+        plt.tight_layout()
+        clean_name = view_name.replace("volume_", "").replace("_voxels", "")
+        plot_file = output_path / f"spatial_distribution_{clean_name}.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved spatial distribution plot: {plot_file.name}")
+
+    def _analyze_information_preservation(
+        self,
+        imaging_views: List[np.ndarray],
+        view_names: List[str],
+        mad_distributions: Dict[str, Any],
+        output_path: Path
+    ) -> Dict[str, Any]:
+        """
+        Quantify information preservation at different MAD thresholds.
+
+        Measures:
+        1. Variance preserved (what % of total variance remains)
+        2. Correlation structure preservation (how well voxel-voxel correlations are maintained)
+        """
+        logger.info("📊 Analyzing information preservation...")
+
+        info_results = {}
+        threshold_range = [2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
+
+        for X, view_name in zip(imaging_views, view_names):
+            logger.info(f"   Processing {view_name}...")
+            mad_values = mad_distributions[view_name]["mad_values"]
+
+            # Calculate original variance and correlation structure
+            original_variance = np.var(X)
+
+            # Sample 100 random voxels for correlation analysis (full correlation matrix too large)
+            n_sample = min(100, X.shape[1])
+            sample_indices = np.random.choice(X.shape[1], n_sample, replace=False)
+            original_corr = np.corrcoef(X[:, sample_indices].T)
+
+            threshold_results = {}
+            for threshold in threshold_range:
+                # Identify retained voxels
+                retained_mask = mad_values <= threshold
+                X_retained = X[:, retained_mask]
+
+                if X_retained.shape[1] > 0:
+                    # Variance preservation
+                    retained_variance = np.var(X_retained)
+                    variance_ratio = retained_variance / original_variance
+
+                    # Correlation preservation (for sampled voxels that are retained)
+                    sample_retained = retained_mask[sample_indices]
+                    if np.sum(sample_retained) > 1:
+                        retained_corr = np.corrcoef(X_retained[:, sample_retained].T)
+
+                        # Compare correlation matrices (only for voxels present in both)
+                        corr_similarity = self._correlation_matrix_similarity(
+                            original_corr[np.ix_(sample_retained, sample_retained)],
+                            retained_corr
+                        )
+                    else:
+                        corr_similarity = np.nan
+
+                    threshold_results[threshold] = {
+                        "n_retained": int(np.sum(retained_mask)),
+                        "variance_ratio": float(variance_ratio),
+                        "correlation_preservation": float(corr_similarity) if not np.isnan(corr_similarity) else None,
+                    }
+                else:
+                    threshold_results[threshold] = {
+                        "n_retained": 0,
+                        "variance_ratio": 0.0,
+                        "correlation_preservation": None,
+                    }
+
+            info_results[view_name] = threshold_results
+
+        # Create visualization
+        self._plot_information_preservation(info_results, view_names, threshold_range, output_path)
+
+        logger.info(f"   ✅ Information preservation analyzed for {len(imaging_views)} views")
+        return info_results
+
+    def _correlation_matrix_similarity(self, corr1: np.ndarray, corr2: np.ndarray) -> float:
+        """Calculate similarity between two correlation matrices using Frobenius norm."""
+        if corr1.shape != corr2.shape:
+            return np.nan
+
+        # Use normalized Frobenius norm
+        diff = corr1 - corr2
+        similarity = 1.0 - (np.linalg.norm(diff, 'fro') / np.sqrt(corr1.size))
+        return max(0.0, similarity)  # Clamp to [0, 1]
+
+    def _plot_information_preservation(
+        self,
+        info_results: Dict[str, Any],
+        view_names: List[str],
+        threshold_range: List[float],
+        output_path: Path
+    ):
+        """Create visualization of information preservation across thresholds."""
+        fig, axes = plt.subplots(len(view_names), 2, figsize=(14, 5 * len(view_names)))
+        if len(view_names) == 1:
+            axes = axes.reshape(1, -1)
+
+        for idx, view_name in enumerate(view_names):
+            view_data = info_results[view_name]
+
+            # Extract metrics
+            variance_ratios = [view_data[t]["variance_ratio"] for t in threshold_range]
+            corr_preservation = [view_data[t]["correlation_preservation"] or 0.0 for t in threshold_range]
+
+            # Plot variance preservation
+            axes[idx, 0].plot(threshold_range, variance_ratios, marker='o', linewidth=2, markersize=8)
+            axes[idx, 0].axhline(0.9, color='green', linestyle='--', alpha=0.5, label='90% threshold')
+            axes[idx, 0].axhline(0.95, color='orange', linestyle='--', alpha=0.5, label='95% threshold')
+            axes[idx, 0].set_xlabel('MAD Threshold', fontsize=11)
+            axes[idx, 0].set_ylabel('Variance Ratio', fontsize=11)
+            axes[idx, 0].set_title(f'Variance Preservation - {view_name}', fontsize=12, fontweight='bold')
+            axes[idx, 0].grid(True, alpha=0.3)
+            axes[idx, 0].legend()
+
+            # Plot correlation preservation
+            axes[idx, 1].plot(threshold_range, corr_preservation, marker='s', linewidth=2, markersize=8, color='purple')
+            axes[idx, 1].axhline(0.9, color='green', linestyle='--', alpha=0.5, label='90% threshold')
+            axes[idx, 1].axhline(0.95, color='orange', linestyle='--', alpha=0.5, label='95% threshold')
+            axes[idx, 1].set_xlabel('MAD Threshold', fontsize=11)
+            axes[idx, 1].set_ylabel('Correlation Preservation', fontsize=11)
+            axes[idx, 1].set_title(f'Correlation Structure Preservation - {view_name}', fontsize=12, fontweight='bold')
+            axes[idx, 1].grid(True, alpha=0.3)
+            axes[idx, 1].legend()
+
+        plt.tight_layout()
+        plot_file = output_path / "information_preservation_all_views.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved information preservation plot: {plot_file.name}")
+
+    def _generate_threshold_summary(
+        self,
+        view_names: List[str],
+        mad_distributions: Dict[str, Any],
+        elbow_analysis: Dict[str, Any],
+        spatial_analysis: Dict[str, Any],
+        info_preservation: Dict[str, Any],
+        candidate_thresholds: List[float],
+        output_path: Path
+    ) -> pd.DataFrame:
+        """
+        Generate comprehensive summary table comparing thresholds across all ROIs.
+
+        Also creates a text file with data-driven recommendations.
+        """
+        logger.info("📋 Generating threshold comparison summary...")
+
+        # Build summary table
+        summary_rows = []
+
+        for view_name in view_names:
+            elbow_threshold = elbow_analysis[view_name]["elbow_threshold"]
+            elbow_retention = elbow_analysis[view_name]["retention_at_elbow"]
+
+            for threshold in candidate_thresholds:
+                retention_data = mad_distributions[view_name]["retention_rates"][threshold]
+                info_data = info_preservation[view_name][threshold]
+
+                row = {
+                    "ROI": view_name,
+                    "Threshold": threshold,
+                    "Voxels_Retained": retention_data["n_retained"],
+                    "Retention_Pct": retention_data["retention_pct"],
+                    "Voxels_Removed": retention_data["n_removed"],
+                    "Variance_Ratio": info_data["variance_ratio"],
+                    "Correlation_Preservation": info_data["correlation_preservation"],
+                    "Is_Elbow": abs(threshold - elbow_threshold) < 0.3,
+                }
+                summary_rows.append(row)
+
+        summary_df = pd.DataFrame(summary_rows)
+
+        # Save summary table
+        summary_file = output_path / "mad_threshold_summary_table.csv"
+        summary_df.to_csv(summary_file, index=False)
+        logger.info(f"   Saved summary table: {summary_file.name}")
+
+        # Generate recommendations text file
+        self._write_threshold_recommendations(
+            view_names, mad_distributions, elbow_analysis,
+            spatial_analysis, info_preservation, output_path
+        )
+
+        return summary_df
+
+    def _write_threshold_recommendations(
+        self,
+        view_names: List[str],
+        mad_distributions: Dict[str, Any],
+        elbow_analysis: Dict[str, Any],
+        spatial_analysis: Dict[str, Any],
+        info_preservation: Dict[str, Any],
+        output_path: Path
+    ):
+        """Write data-driven recommendations to text file."""
+        rec_file = output_path / "mad_threshold_recommendations.txt"
+
+        with open(rec_file, 'w') as f:
+            f.write("=" * 80 + "\n")
+            f.write("MAD THRESHOLD RECOMMENDATIONS\n")
+            f.write("Data-Driven Analysis of Optimal Outlier Detection Thresholds\n")
+            f.write("=" * 80 + "\n\n")
+
+            f.write("CURRENT CONFIGURATION: threshold = 3.0\n\n")
+
+            for view_name in view_names:
+                f.write(f"\n{view_name}\n")
+                f.write("-" * 80 + "\n")
+
+                # Elbow analysis recommendation
+                elbow_threshold = elbow_analysis[view_name]["elbow_threshold"]
+                elbow_retention = elbow_analysis[view_name]["retention_at_elbow"]
+                interpretation = elbow_analysis[view_name]["interpretation"]
+
+                f.write(f"ELBOW POINT: {elbow_threshold:.2f}\n")
+                f.write(f"  - Retention at elbow: {elbow_retention:.1f}%\n")
+                f.write(f"  - Interpretation: {interpretation}\n\n")
+
+                # Current threshold (3.0) performance
+                current_retention = mad_distributions[view_name]["retention_rates"][3.0]
+                current_info = info_preservation[view_name][3.0]
+
+                f.write(f"CURRENT THRESHOLD (3.0) PERFORMANCE:\n")
+                f.write(f"  - Voxels retained: {current_retention['n_retained']} ({current_retention['retention_pct']:.1f}%)\n")
+                f.write(f"  - Voxels removed: {current_retention['n_removed']}\n")
+                f.write(f"  - Variance preserved: {100*current_info['variance_ratio']:.1f}%\n")
+                if current_info['correlation_preservation']:
+                    f.write(f"  - Correlation preserved: {100*current_info['correlation_preservation']:.1f}%\n")
+                f.write("\n")
+
+                # Spatial distribution insights
+                if view_name in spatial_analysis and spatial_analysis[view_name].get("position_file_found"):
+                    spatial_data = spatial_analysis[view_name]
+                    if "clustering_metrics" in spatial_data:
+                        metrics = spatial_data["clustering_metrics"]
+                        f.write(f"SPATIAL DISTRIBUTION:\n")
+                        f.write(f"  - Pattern: {metrics['interpretation']}\n")
+                        f.write(f"  - Centroid separation: {metrics['centroid_separation']:.2f} mm\n\n")
+
+                # Recommendation
+                f.write("RECOMMENDATION:\n")
+                if abs(elbow_threshold - 3.0) < 0.5:
+                    f.write(f"  ✓ Current threshold (3.0) is appropriate - close to elbow point\n")
+                    f.write(f"    Provides good balance between artifact removal and signal preservation\n")
+                elif elbow_threshold > 3.5:
+                    f.write(f"  → Consider INCREASING threshold to {elbow_threshold:.1f}\n")
+                    f.write(f"    Current threshold may be too strict, removing biological variability\n")
+                    f.write(f"    Elbow analysis suggests {elbow_threshold:.1f} provides better data retention\n")
+                else:
+                    f.write(f"  → Current threshold (3.0) is reasonable but conservative\n")
+                    f.write(f"    Elbow suggests {elbow_threshold:.1f} but current value retains more signal\n")
+                f.write("\n")
+
+            f.write("\n" + "=" * 80 + "\n")
+            f.write("OVERALL RECOMMENDATIONS\n")
+            f.write("=" * 80 + "\n\n")
+
+            # Calculate average elbow across all views
+            avg_elbow = np.mean([elbow_analysis[v]["elbow_threshold"] for v in view_names])
+            f.write(f"Average elbow point across all ROIs: {avg_elbow:.2f}\n\n")
+
+            if avg_elbow > 3.5:
+                f.write("RECOMMENDATION: Consider INCREASING threshold to ~4.0 or 4.5\n")
+                f.write("  - Current threshold (3.0) appears too strict for your data\n")
+                f.write("  - You are removing substantial biological variability\n")
+                f.write("  - Higher threshold would improve spatial coverage and signal preservation\n")
+            elif avg_elbow < 2.5:
+                f.write("RECOMMENDATION: Consider DECREASING threshold to ~2.0 or 2.5\n")
+                f.write("  - Current threshold (3.0) may be too permissive\n")
+                f.write("  - Lower threshold would provide cleaner data by removing more artifacts\n")
+            else:
+                f.write("RECOMMENDATION: Current threshold (3.0) is appropriate\n")
+                f.write("  - Well-aligned with data-driven elbow analysis\n")
+                f.write("  - Provides good balance for your dataset\n")
+
+            f.write("\nFor exploratory factor analysis seeking biological subtypes:\n")
+            f.write("  → Consider threshold range 3.5-5.0 to preserve heterogeneous patterns\n")
+            f.write("  → 'Outliers' may represent distinct disease subtypes\n")
+            f.write("\nFor clean signal extraction and hypothesis testing:\n")
+            f.write("  → Consider threshold range 2.5-3.5 for better signal-to-noise ratio\n")
+            f.write("  → Removes artifacts while preserving main effects\n")
+
+        logger.info(f"   📝 Saved recommendations: {rec_file.name}")
 
     def _create_failure_result(
         self, experiment_name: str, error_message: str
