@@ -2194,11 +2194,17 @@ class RobustnessExperiments(ExperimentFramework):
                 for k in range(K):
                     # Get similarities from chain 0 to all other chains for factor k
                     chain_similarities = similarity_matrix[0, 1:, k]
-                    avg_similarity_per_factor[k] = np.mean(chain_similarities[chain_similarities > 0])
+                    # Handle case where all similarities might be 0 or filtered out
+                    valid_sims = chain_similarities[chain_similarities > 0]
+                    if len(valid_sims) > 0:
+                        avg_similarity_per_factor[k] = np.mean(valid_sims)
+                    else:
+                        # If no valid similarities, use the mean of all (including 0s)
+                        avg_similarity_per_factor[k] = np.mean(chain_similarities) if len(chain_similarities) > 0 else 0.0
 
                 # Bar plot of average similarity per factor
                 factor_indices = np.arange(K)
-                colors_factors = ['green' if sim >= stability_results["threshold"] else 'red'
+                colors_factors = ['green' if not np.isnan(sim) and sim >= stability_results["threshold"] else 'red'
                                  for sim in avg_similarity_per_factor]
 
                 axes[0].bar(factor_indices, avg_similarity_per_factor, color=colors_factors, alpha=0.7)

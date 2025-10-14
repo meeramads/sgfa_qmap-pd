@@ -526,6 +526,9 @@ def save_stability_results(
     stability_results: Dict,
     effective_results: Dict,
     output_dir: str,
+    subject_ids: Optional[List[str]] = None,
+    view_names: Optional[List[str]] = None,
+    feature_names: Optional[Dict[str, List[str]]] = None,
 ) -> None:
     """Save factor stability and effectiveness results to files.
 
@@ -537,6 +540,12 @@ def save_stability_results(
         Output from count_effective_factors()
     output_dir : str
         Directory to save results
+    subject_ids : Optional[List[str]], default=None
+        Patient/subject IDs for indexing Z scores. If None, uses generic labels.
+    view_names : Optional[List[str]], default=None
+        Names of data views (e.g., ['clinical', 'imaging']). Used with feature_names.
+    feature_names : Optional[Dict[str, List[str]]], default=None
+        Feature names for each view. Keys are view names, values are feature name lists.
     """
     from pathlib import Path
     from core.io_utils import save_csv, save_json, save_numpy
@@ -581,6 +590,26 @@ def save_stability_results(
             consensus_W,
             columns=factor_names,
         )
+
+        # Construct concatenated feature names from all views if available
+        if view_names and feature_names:
+            concatenated_feature_names = []
+            for view_name in view_names:
+                if view_name in feature_names:
+                    concatenated_feature_names.extend(feature_names[view_name])
+
+            # Use concatenated feature names if the length matches
+            if len(concatenated_feature_names) == consensus_W.shape[0]:
+                consensus_W_df.index = concatenated_feature_names
+            else:
+                consensus_W_df.index = [f"Feature_{j}" for j in range(consensus_W.shape[0])]
+                logger.warning(
+                    f"Feature names length mismatch: {len(concatenated_feature_names)} names "
+                    f"vs {consensus_W.shape[0]} rows. Using generic labels."
+                )
+        else:
+            consensus_W_df.index = [f"Feature_{j}" for j in range(consensus_W.shape[0])]
+
         consensus_W_df.index.name = "Feature"
         save_csv(consensus_W_df, output_path / "consensus_factor_loadings.csv", index=True)
         logger.info(f"  ✅ Saved consensus factor loadings (W): {consensus_W.shape}")
@@ -593,7 +622,12 @@ def save_stability_results(
             consensus_Z,
             columns=factor_names,
         )
-        consensus_Z_df.index.name = "Subject"
+        # Use patient IDs if available, otherwise use generic subject labels
+        if subject_ids and len(subject_ids) == consensus_Z.shape[0]:
+            consensus_Z_df.index = subject_ids
+        else:
+            consensus_Z_df.index = [f"Subject_{j}" for j in range(consensus_Z.shape[0])]
+        consensus_Z_df.index.name = "Patient ID"
         save_csv(consensus_Z_df, output_path / "consensus_factor_scores.csv", index=True)
         logger.info(f"  ✅ Saved consensus factor scores (Z): {consensus_Z.shape}")
 

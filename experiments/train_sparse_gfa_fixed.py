@@ -231,6 +231,15 @@ def main():
         for i, X in enumerate(X_list):
             logger.info(f"  View {i}: {X.shape}")
 
+        # Extract subject_ids, feature_names, and view_names from preprocessing_info
+        subject_ids = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("subject_ids", None)
+        feature_names = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("feature_names", {})
+        view_names = preprocessing_info.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
+        if subject_ids:
+            logger.info(f"  Subject IDs: {len(subject_ids)} patients")
+        if feature_names:
+            logger.info(f"  Feature names available for {len(feature_names)} views")
+
         # Prepare hyperparameters and args
         hypers = prepare_hyperparameters(X_list, args.K)
         mcmc_args = prepare_mcmc_args(args)
@@ -275,6 +284,7 @@ def main():
             n_chains=args.num_chains,
             cosine_threshold=STABILITY_CONFIG["cosine_threshold"],
             min_match_rate=STABILITY_CONFIG["min_match_rate"],
+            subject_ids=subject_ids,  # Pass subject IDs for Z score indexing
         )
 
         # Extract results
@@ -322,6 +332,9 @@ def main():
                 stability_results,
                 effective_factors[0],  # Use first chain for effective factor stats
                 str(stability_dir),
+                subject_ids=subject_ids,  # Pass subject IDs for Z score indexing
+                view_names=view_names,  # Pass view names for W indexing
+                feature_names=feature_names,  # Pass feature names for W indexing
             )
 
             # Save chain results
@@ -344,7 +357,16 @@ def main():
                             W_view,
                             columns=[f"Factor_{k}" for k in range(W_view.shape[1])],
                         )
-                        W_df.index = [f"Feature_{j}" for j in range(W_view.shape[0])]
+                        # Use feature names if available for this view
+                        view_name = view_names[view_idx] if view_idx < len(view_names) else f"view_{view_idx}"
+                        if feature_names and view_name in feature_names:
+                            view_feature_names = feature_names[view_name]
+                            if len(view_feature_names) == W_view.shape[0]:
+                                W_df.index = view_feature_names
+                            else:
+                                W_df.index = [f"Feature_{j}" for j in range(W_view.shape[0])]
+                        else:
+                            W_df.index = [f"Feature_{j}" for j in range(W_view.shape[0])]
                         W_df.index.name = "Feature"
                         save_csv(W_df, chain_dir / f"W_view_{view_idx}.csv", index=True)
                 else:
@@ -363,8 +385,12 @@ def main():
                     Z,
                     columns=[f"Factor_{k}" for k in range(Z.shape[1])],
                 )
-                Z_df.index = [f"Subject_{j}" for j in range(Z.shape[0])]
-                Z_df.index.name = "Subject"
+                # Use patient IDs if available, otherwise use generic subject labels
+                if subject_ids and len(subject_ids) == Z.shape[0]:
+                    Z_df.index = subject_ids
+                else:
+                    Z_df.index = [f"Subject_{j}" for j in range(Z.shape[0])]
+                Z_df.index.name = "Patient ID"
                 save_csv(Z_df, chain_dir / "Z.csv", index=True)
 
                 # Save metadata
