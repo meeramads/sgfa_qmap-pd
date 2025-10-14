@@ -118,6 +118,13 @@ class ModelConfig:
     group_lambda: Optional[float] = None
     random_seed: Optional[int] = None
 
+    # SGFA-specific hyperparameters (for sparse_gfa model)
+    percW: Optional[float] = None  # Sparsity percentage (% of non-zero loadings)
+    slab_df: Optional[float] = None  # Slab degrees of freedom for regularized horseshoe
+    slab_scale: Optional[float] = None  # Slab scale parameter for regularized horseshoe
+    a_sigma: Optional[float] = None  # Noise precision prior shape
+    b_sigma: Optional[float] = None  # Noise precision prior rate
+
     def validate(self) -> List[str]:
         """Validate model configuration."""
         errors = []
