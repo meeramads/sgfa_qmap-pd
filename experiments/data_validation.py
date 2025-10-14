@@ -2373,7 +2373,7 @@ class DataValidationExperiments(ExperimentFramework):
 
         # Identify flagged subjects (>5% outlier voxels in any ROI)
         flagged_subjects = self._identify_flagged_subjects(
-            subject_results, view_names, subject_ids, threshold_pct=5.0, output_path
+            subject_results, view_names, subject_ids, threshold_pct=5.0, output_path=output_path
         )
 
         logger.info(f"   ✅ Subject-level analysis completed: {len(flagged_subjects)} subjects flagged")
