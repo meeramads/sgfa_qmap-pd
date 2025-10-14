@@ -1,0 +1,16 @@
+experiment_run_info:
+  config_used: config_test_sequential.yaml
+  duration_formatted: '0:03:33.163579'
+  duration_seconds: 213.163579
+  end_time: '2025-10-14T14:59:21.711334'
+  start_time: '2025-10-14T14:55:48.547755'
+  unified_results: true
+experiments_executed:
+  factor_stability:
+    duration: 5.0e-06
+    experiment_id: factor_stability_analysis
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 1
+  total_experiments: 1

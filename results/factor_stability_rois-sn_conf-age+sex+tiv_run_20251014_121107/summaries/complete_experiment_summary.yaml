@@ -1,0 +1,16 @@
+experiment_run_info:
+  config_used: config.yaml
+  duration_formatted: '0:32:41.375997'
+  duration_seconds: 1961.375997
+  end_time: '2025-10-14T12:43:49.189700'
+  start_time: '2025-10-14T12:11:07.813703'
+  unified_results: true
+experiments_executed:
+  factor_stability:
+    duration: 0
+    experiment_id: N/A
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 1
+  total_experiments: 1
