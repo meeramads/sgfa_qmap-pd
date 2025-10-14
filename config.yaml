@@ -52,7 +52,7 @@ model:
   sparsity_lambda: 0.05                  # Sparsity penalty (≥0, typically 0.01-1.0)
   group_lambda: 0.1                      # OPTIONAL: Group sparsity penalty
 
-  # Reproducibility (OPTIONAL)
+  # Random Seed (OPTIONAL)
   random_seed: 42                        # Random seed for reproducible results
 
 # =============================================================================
@@ -205,7 +205,7 @@ clinical_validation:
       - "clinical_validation_speed"       # Speed of clinical correlation analysis
       - "optimal_k_detection_time"        # Time to find optimal number of subtypes
       - "clustering_quality_score"        # Silhouette/Calinski-Harabasz scores
-      - "subtype_reproducibility"         # Consistency across random seeds
+      - "subtype_robustness"              # Consistency across random seeds
 
     clinical_translation_metrics:
       - "factor_interpretability_score"   # Clinical meaningfulness of factors
@@ -216,7 +216,7 @@ clinical_validation:
     # Performance-Discovery trade-off analysis
     trade_off_analysis:
       - "speed_vs_subtype_quality"        # SGFA speed impact on subtype quality
-      - "memory_vs_stability"             # Memory optimization impact on reproducibility
+      - "memory_vs_stability"             # Memory optimization impact on robustness
       - "convergence_vs_clinical_validity" # Fast convergence vs clinical correlation
 
 # Robustness Testing Experiment
@@ -235,7 +235,7 @@ robustness_testing:
     - "reconstruction_consistency"      # Consistency of reconstructed data
 
   tolerance_thresholds:
-    correlation_threshold: 0.95         # Minimum correlation for reproducibility
+    correlation_threshold: 0.95         # Minimum correlation for robustness
     parameter_relative_error: 0.05      # Maximum relative error in parameters
     reconstruction_error_ratio: 0.02    # Maximum reconstruction error difference
 
@@ -246,6 +246,7 @@ factor_stability:
   num_chains: 4                         # Number of independent chains (4+ recommended)
   num_samples: 5000                     # MCMC samples per chain (2000-10000)
   num_warmup: 1000                      # MCMC warmup samples (500-2000)
+  chain_method: 'parallel'              # Chain execution: 'parallel' (2x faster on GPU), 'sequential', or 'vectorized'
 
   # Factor matching parameters (Ferreira et al. 2024)
   cosine_threshold: 0.8                 # Minimum cosine similarity for matching (0.7-0.9)

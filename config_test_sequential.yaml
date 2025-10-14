@@ -1,0 +1,48 @@
+# Lightweight test configuration for sequential chain execution (comparison)
+# Identical to config_test_parallel.yaml except chain_method='sequential'
+
+# Data Configuration
+data:
+  qmap_pd:
+    data_dir: "data/qMAP-PD"
+    metadata_file: "data/qMAP-PD/metadata.csv"
+    roi_map_file: "data/qMAP-PD/roi_map.csv"
+
+# Preprocessing Configuration
+preprocessing:
+  imputation_strategy: "median"
+  feature_selection_method: "none"
+  variance_threshold: 0.95
+
+# Factor Stability Analysis Configuration - LIGHTWEIGHT TEST
+factor_stability:
+  K: 5                                  # Reduced from 20 for fast testing
+  num_chains: 4                         # Keep 4 to test comparison
+  num_samples: 100                      # Reduced from 5000 for fast testing
+  num_warmup: 50                        # Reduced from 1000 for fast testing
+  chain_method: 'sequential'            # Test sequential execution for comparison
+
+  # Factor matching parameters
+  cosine_threshold: 0.8
+  min_match_rate: 0.5
+
+  # Effective factor counting
+  sparsity_threshold: 0.01
+  min_nonzero_pct: 0.05
+
+  # Fixed parameters
+  percW: 33
+  slab_df: 4
+  slab_scale: 2
+  reghsZ: true
+  target_accept_prob: 0.8
+
+# Experiment Selection
+experiments:
+  run: ["factor_stability"]              # Only run factor_stability
+
+# Output Configuration
+output:
+  results_dir: "results"
+  save_intermediate: false
+  verbose: true
