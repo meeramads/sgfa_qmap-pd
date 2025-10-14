@@ -72,7 +72,7 @@ class ReproducibilityExperiments(ExperimentFramework):
         if seeds is None:
             seeds = self.random_seeds
 
-        self.logger.info(f"Running seed reproducibility test with seeds: {seeds}")
+        self.logger.info(f"Running seed robustness test with seeds: {seeds}")
 
         results = {}
         performance_metrics = {}
@@ -380,11 +380,11 @@ class ReproducibilityExperiments(ExperimentFramework):
         # Validate inputs
         ResultValidator.validate_data_matrices(X_list)
 
-        self.logger.info("Running computational reproducibility audit")
+        self.logger.info("Running computational robustness audit")
 
         results = {}
         # 1. Exact reproducibility test (same seed, same everything)
-        self.logger.info("Testing exact reproducibility...")
+        self.logger.info("Testing exact robustness...")
         exact_results = []
         fixed_seed = 42
 
@@ -765,7 +765,7 @@ class ReproducibilityExperiments(ExperimentFramework):
             return result
 
         except Exception as e:
-            self.logger.error(f"SGFA reproducibility analysis failed: {str(e)}")
+            self.logger.error(f"SGFA robustness analysis failed: {str(e)}")
             return {
                 "error": str(e),
                 "convergence": False,
@@ -1002,7 +1002,7 @@ class ReproducibilityExperiments(ExperimentFramework):
 
             # Create plots
             fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-            fig.suptitle("Seed Reproducibility Analysis", fontsize=16)
+            fig.suptitle("Seed Robustness Analysis", fontsize=16)
 
             # Plot 1: Log likelihood by seed
             axes[0, 0].scatter(seeds, log_likelihoods)
@@ -1052,7 +1052,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                 axes[1, 1].grid(True, alpha=0.3)
 
             plt.tight_layout()
-            plots["seed_reproducibility"] = fig
+            plots["seed_robustness"] = fig
 
         except Exception as e:
             self.logger.warning(
@@ -1313,13 +1313,13 @@ class ReproducibilityExperiments(ExperimentFramework):
 
     def _plot_computational_reproducibility(self, results: Dict) -> Dict:
         """Generate plots for computational reproducibility analysis."""
-        self.logger.info("📊 Generating computational reproducibility plots...")
+        self.logger.info("📊 Generating computational robustness plots...")
         plots = {}
 
         try:
-            self.logger.info("   Creating 4-panel computational reproducibility plot...")
+            self.logger.info("   Creating 4-panel computational robustness plot...")
             fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-            fig.suptitle("Computational Reproducibility Analysis", fontsize=16)
+            fig.suptitle("Computational Robustness Analysis", fontsize=16)
 
             # Plot 1: Exact reproducibility
             exact_results = results.get("exact_reproducibility", [])
@@ -1332,7 +1332,7 @@ class ReproducibilityExperiments(ExperimentFramework):
                     axes[0, 0].plot(run_numbers, valid_likelihoods, "o-")
                     axes[0, 0].set_xlabel("Run Number")
                     axes[0, 0].set_ylabel("Log Likelihood")
-                    axes[0, 0].set_title("Exact Reproducibility Test")
+                    axes[0, 0].set_title("Exact Robustness Test")
                     axes[0, 0].grid(True, alpha=0.3)
 
                     # Add variability info
@@ -1395,15 +1395,15 @@ class ReproducibilityExperiments(ExperimentFramework):
                 axes[1, 1].set_ylim([0, 1.2])
 
             plt.tight_layout()
-            plots["computational_reproducibility"] = fig
-            self.logger.info("   ✅ Computational reproducibility plot created")
+            plots["computational_robustness"] = fig
+            self.logger.info("   ✅ Computational robustness plot created")
 
         except Exception as e:
             self.logger.warning(
                 f"Failed to create computational reproducibility plots: {str(e)}"
             )
 
-        self.logger.info(f"📊 Computational reproducibility plots completed: {len(plots)} plots generated")
+        self.logger.info(f"📊 Computational robustness plots completed: {len(plots)} plots generated")
         return plots
 
     def _create_comprehensive_reproducibility_visualizations(
@@ -2229,13 +2229,13 @@ def run_robustness_testing(config):
         framework = ExperimentFramework(get_output_dir(config))
 
         exp_config = ExperimentConfig(
-            experiment_name="reproducibility_tests",
-            description="Reproducibility and robustness testing for SGFA",
+            experiment_name="robustness_tests",
+            description="Robustness testing for SGFA",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
         )
 
-        # Create reproducibility experiment instance
+        # Create robustness experiment instance
         repro_exp = ReproducibilityExperiments(exp_config, logger)
 
         # Setup base hyperparameters
@@ -2282,7 +2282,7 @@ def run_robustness_testing(config):
 
             # 1. Test seed reproducibility (if configured)
             if "seed_reproducibility" in test_scenarios:
-                logger.info("📊 Testing seed reproducibility...")
+                logger.info("📊 Testing seed robustness...")
                 seeds = seed_values
                 seed_results = {}
 
@@ -2446,7 +2446,7 @@ def run_robustness_testing(config):
                     if n_plots == 1:
                         axes = [axes]
 
-                fig.suptitle("Reproducibility and Robustness Analysis", fontsize=16)
+                fig.suptitle("Robustness Analysis", fontsize=16)
 
                 plot_idx = 0
 
@@ -2458,7 +2458,7 @@ def run_robustness_testing(config):
                     axes[plot_idx].plot(seeds, lls, 'o-', linewidth=2, markersize=8)
                     axes[plot_idx].set_xlabel("Random Seed")
                     axes[plot_idx].set_ylabel("Log Likelihood")
-                    axes[plot_idx].set_title("Seed Reproducibility")
+                    axes[plot_idx].set_title("Seed Robustness")
                     axes[plot_idx].grid(True, alpha=0.3)
                     plot_idx += 1
 
@@ -2506,10 +2506,10 @@ def run_robustness_testing(config):
                     axes[plot_idx].grid(True, alpha=0.3, axis='y')
 
                 plt.tight_layout()
-                plots["reproducibility_summary"] = fig
+                plots["robustness_summary"] = fig
 
             except Exception as e:
-                logger.warning(f"Failed to create reproducibility plots: {e}")
+                logger.warning(f"Failed to create robustness plots: {e}")
 
             return {
                 "status": "completed",
