@@ -1,0 +1,42 @@
+================================================================================
+MAD THRESHOLD RECOMMENDATIONS
+Data-Driven Analysis of Optimal Outlier Detection Thresholds
+================================================================================
+
+CURRENT CONFIGURATION: threshold = 3.0
+
+
+volume_sn_voxels
+--------------------------------------------------------------------------------
+ELBOW POINT: 2.87
+  - Retention at elbow: 21.5%
+  - Interpretation: Moderate - balanced removal of artifacts while preserving signal
+
+CURRENT THRESHOLD (3.0) PERFORMANCE:
+  - Voxels retained: 531 (29.6%)
+  - Voxels removed: 1263
+  - Variance preserved: 100.0%
+  - Correlation preserved: 100.0%
+
+RECOMMENDATION:
+  ✓ Current threshold (3.0) is appropriate - close to elbow point
+    Provides good balance between artifact removal and signal preservation
+
+
+================================================================================
+OVERALL RECOMMENDATIONS
+================================================================================
+
+Average elbow point across all ROIs: 2.87
+
+RECOMMENDATION: Current threshold (3.0) is appropriate
+  - Well-aligned with data-driven elbow analysis
+  - Provides good balance for your dataset
+
+For exploratory factor analysis seeking biological subtypes:
+  → Consider threshold range 3.5-5.0 to preserve heterogeneous patterns
+  → 'Outliers' may represent distinct disease subtypes
+
+For clean signal extraction and hypothesis testing:
+  → Consider threshold range 2.5-3.5 for better signal-to-noise ratio
+  → Removes artifacts while preserving main effects

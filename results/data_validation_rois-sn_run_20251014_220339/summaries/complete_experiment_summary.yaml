@@ -1,0 +1,16 @@
+experiment_run_info:
+  config_used: config_K50_full_voxels.yaml
+  duration_formatted: '0:00:01.414427'
+  duration_seconds: 1.414427
+  end_time: '2025-10-14T22:03:41.018635'
+  start_time: '2025-10-14T22:03:39.604208'
+  unified_results: true
+experiments_executed:
+  data_validation:
+    duration: 0.241998
+    experiment_id: data_validation_20251014_220339
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 1
+  total_experiments: 1

@@ -8,3 +8,48 @@
 2025-10-14 21:56:44,029 - experiments.framework - INFO - GPU memory cleanup attempted
 2025-10-14 21:56:45,030 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
 2025-10-14 21:56:45,035 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-14 22:02:03,198 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251014_220203
+2025-10-14 22:02:03,198 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 0.0 seconds
+2025-10-14 22:02:03,198 - experiments.framework - INFO - 🕐 Started: 2025-10-14 22:02:03
+2025-10-14 22:02:03,198 - experiments.framework - INFO - 🕑 Finished: 2025-10-14 22:02:03
+2025-10-14 22:02:03,199 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251014_220203
+2025-10-14 22:02:03,199 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-14 22:02:03,227 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-14 22:02:03,321 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-14 22:02:04,322 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-14 22:02:04,327 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-14 22:03:39,847 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251014_220339
+2025-10-14 22:03:39,847 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 0.2 seconds
+2025-10-14 22:03:39,847 - experiments.framework - INFO - 🕐 Started: 2025-10-14 22:03:39
+2025-10-14 22:03:39,847 - experiments.framework - INFO - 🕑 Finished: 2025-10-14 22:03:39
+2025-10-14 22:03:39,847 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251014_220339
+2025-10-14 22:03:39,847 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-14 22:03:39,874 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-14 22:03:39,968 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-14 22:03:40,969 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-14 22:03:40,974 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-14 22:04:56,346 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251014_220455
+2025-10-14 22:04:56,346 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 0.9 seconds
+2025-10-14 22:04:56,346 - experiments.framework - INFO - 🕐 Started: 2025-10-14 22:04:55
+2025-10-14 22:04:56,346 - experiments.framework - INFO - 🕑 Finished: 2025-10-14 22:04:56
+2025-10-14 22:04:56,346 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251014_220455
+2025-10-14 22:04:56,346 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-14 22:04:56,378 - experiments.framework - INFO - Garbage collection freed 16281 objects
+2025-10-14 22:04:56,476 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-14 22:04:57,477 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-14 22:04:57,482 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-14 22:07:11,955 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251014_220709
+2025-10-14 22:07:11,955 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 2.4 seconds
+2025-10-14 22:07:11,955 - experiments.framework - INFO - 🕐 Started: 2025-10-14 22:07:09
+2025-10-14 22:07:11,955 - experiments.framework - INFO - 🕑 Finished: 2025-10-14 22:07:11
+2025-10-14 22:07:11,955 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251014_220709
+2025-10-14 22:07:11,955 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-14 22:07:11,989 - experiments.framework - INFO - Garbage collection freed 18534 objects
+2025-10-14 22:07:12,098 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-14 22:07:13,099 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-14 22:07:13,171 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-14 22:07:13,175 - experiments.framework - INFO - Saving 3 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_run_20251014_220709/data_validation_20251014_220709/plots
+2025-10-14 22:07:14,303 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-14 22:07:15,311 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-14 22:07:15,664 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-14 22:07:15,664 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_run_20251014_220709/data_validation_20251014_220709/plots
