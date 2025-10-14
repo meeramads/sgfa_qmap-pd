@@ -6,12 +6,9 @@ Runs the complete experimental framework optimized for university GPU resources.
 This modular version imports experiments from separate modules for better organization.
 """
 
-from experiments.sgfa_configuration_comparison import run_sgfa_configuration_comparison
-from experiments.sensitivity_analysis import run_sensitivity_analysis
-from experiments.model_comparison import run_model_comparison
 from experiments.data_validation import run_data_validation
-from experiments.clinical_validation import run_clinical_validation
 from experiments.robustness_testing import run_robustness_testing
+from experiments.clinical_validation import run_clinical_validation
 from core.config_utils import (
     check_configuration_warnings,
     ensure_directories,
@@ -117,19 +114,13 @@ def main():
         nargs="+",
         choices=[
             "data_validation",
-            "sgfa_configuration_comparison",
-            "model_comparison",
-            "sensitivity_analysis",
-            "clinical_validation",
             "robustness_testing",
             "factor_stability",
-            "neuroimaging_hyperopt",
-            "neuroimaging_cv_benchmarks",
+            "clinical_validation",
             "all",
-            "all_extended",
         ],
         default=["all"],
-        help="Experiments to run (use 'all' for core pipeline, 'all_extended' for full pipeline with comparison studies)",
+        help="Experiments to run (default: 'all' runs the core analysis pipeline)",
     )
     parser.add_argument("--data-dir", help="Override data directory")
     parser.add_argument(
@@ -171,12 +162,6 @@ def main():
         dest="drop_confounds_from_clinical",
         action="store_false",
         help="Residualize confounds in clinical view instead of dropping them",
-    )
-    parser.add_argument(
-        "--test-k",
-        nargs="+",
-        type=int,
-        help="Specify K values to test in parameter comparison (e.g., --test-k 2 3)",
     )
 
     args = parser.parse_args()
@@ -222,33 +207,6 @@ def main():
         action = "dropping" if args.drop_confounds_from_clinical else "residualizing"
         logger.info(f"Regressing confounds: {args.regress_confounds} ({action} in clinical view)")
 
-    # Configure K values for parameter comparison if provided
-    # This overrides ALL n_factors settings across all experiments
-    if args.test_k:
-        logger.info(f"⚙️  Overriding all n_factors configurations with --test-k: {args.test_k}")
-
-        # Override sgfa_configuration_comparison
-        if "sgfa_configuration_comparison" not in config:
-            config["sgfa_configuration_comparison"] = {}
-        if "parameter_ranges" not in config["sgfa_configuration_comparison"]:
-            config["sgfa_configuration_comparison"]["parameter_ranges"] = {}
-        config["sgfa_configuration_comparison"]["parameter_ranges"]["n_factors"] = args.test_k
-
-        # Override model_comparison
-        if "model_comparison" in config and "models" in config["model_comparison"]:
-            for model in config["model_comparison"]["models"]:
-                if "n_factors" in model:
-                    model["n_factors"] = args.test_k
-
-        # Override sensitivity_analysis
-        if "sensitivity_analysis" not in config:
-            config["sensitivity_analysis"] = {}
-        if "parameter_ranges" not in config["sensitivity_analysis"]:
-            config["sensitivity_analysis"]["parameter_ranges"] = {}
-        config["sensitivity_analysis"]["parameter_ranges"]["n_factors"] = args.test_k
-
-        logger.info(f"✓ All n_factors overridden to: {args.test_k}")
-
     # Setup unified results directory if requested
     if args.unified_results:
         # Create single timestamped directory for all experiments
@@ -272,10 +230,6 @@ def main():
             config_suffix += f"_conf-{'+'.join(args.regress_confounds)}"
             if not args.drop_confounds_from_clinical:
                 config_suffix += "_residualized"
-
-        # Add K values info
-        if args.test_k:
-            config_suffix += f"_K-{'+'.join(map(str, args.test_k))}"
 
         # Create directory name based on what's actually running
         if len(args.experiments) == 1:
@@ -349,22 +303,7 @@ def main():
             "factor_stability",
             "clinical_validation",
         ]
-        logger.info("ℹ️  Running core analysis pipeline (comparison studies skipped by default)")
-        logger.info("   To include comparison studies, use: --experiments all_extended")
-
-    if "all_extended" in experiments_to_run:
-        # Extended: Include all comparison and sensitivity studies
-        # Order: validate → compare configs → compare models → sensitivity → reproduce → stability → clinical
-        experiments_to_run = [
-            "data_validation",
-            "sgfa_configuration_comparison",
-            "model_comparison",
-            "sensitivity_analysis",
-            "robustness_testing",
-            "factor_stability",
-            "clinical_validation",
-        ]
-        logger.info("ℹ️  Running extended pipeline with all comparison and sensitivity studies")
+        logger.info("ℹ️  Running core analysis pipeline following Ferreira et al. 2024 methodology")
 
     # Determine execution mode
     use_shared_data = not args.no_shared_data and not args.independent_mode
@@ -693,170 +632,6 @@ def main():
 
         results["clinical_validation"] = run_clinical_validation(exp_config)
 
-    if "sgfa_configuration_comparison" in experiments_to_run:
-        logger.info("🔬 2/6 Starting SGFA Hyperparameter Tuning Experiment...")
-        exp_config = config.copy()
-        if pipeline_context["X_list"] is not None and use_shared_data:
-            logger.info("   → Using shared data from data_validation")
-            exp_config["_shared_data"] = {
-                "X_list": pipeline_context["X_list"],
-                "preprocessing_info": pipeline_context["preprocessing_info"],
-                "mode": "shared",
-            }
-        sgfa_result = run_sgfa_configuration_comparison(exp_config)
-        results["sgfa_configuration_comparison"] = sgfa_result
-
-        # Extract optimal parameters for downstream experiments
-        if sgfa_result and use_shared_data:
-            try:
-                # Extract best performing variant info
-                # ExperimentResult is a dataclass, access attributes not dict keys
-                if hasattr(sgfa_result, "model_results") and sgfa_result.model_results:
-                    model_results = sgfa_result.model_results
-                    if "sgfa_variants" in model_results:
-                        # Find best variant by execution time and convergence
-                        best_variant = None
-                        best_score = float("inf")
-
-                        for variant_name, variant_data in model_results[
-                            "sgfa_variants"
-                        ].items():
-                            if variant_data.get("convergence", False):
-                                exec_time = variant_data.get(
-                                    "execution_time", float("inf")
-                                )
-                                if exec_time < best_score:
-                                    best_score = exec_time
-                                    best_variant = variant_name
-
-                        if best_variant:
-                            # Parse K, percW, and group_lambda from variant name (e.g., "K5_percW25_grp0.0")
-                            import re
-
-                            match = re.match(r"K(\d+)_percW([\d.]+)(?:_grp([\d.]+))?", best_variant)
-                            if match:
-                                optimal_K = int(match.group(1))
-                                optimal_percW = float(match.group(2))
-                                optimal_grp_lambda = float(match.group(3)) if match.group(3) else 0.0
-
-                                pipeline_context["optimal_sgfa_params"] = {
-                                    "K": optimal_K,
-                                    "percW": optimal_percW,
-                                    "grp_lambda": optimal_grp_lambda,
-                                    "variant_name": best_variant,
-                                    "execution_time": best_score,
-                                }
-
-                                logger.info(
-                                    f"🎯 Identified optimal SGFA parameters: {best_variant} (K={optimal_K}, percW={optimal_percW}, grp_λ={optimal_grp_lambda}, {best_score:.1f}s)"
-                                )
-
-            except Exception as e:
-                logger.warning(f"Could not extract optimal parameters: {e}")
-                pipeline_context["optimal_sgfa_params"] = None
-
-    if "model_comparison" in experiments_to_run:
-        logger.info("🧠 3/6 Starting Model Architecture Comparison Experiment...")
-        exp_config = config.copy()
-
-        # Debug: Log data sharing status
-        logger.info(f"   DEBUG: X_list available: {pipeline_context['X_list'] is not None}")
-        logger.info(f"   DEBUG: use_shared_data: {use_shared_data}")
-        logger.info(f"   DEBUG: optimal_sgfa_params available: {pipeline_context['optimal_sgfa_params'] is not None}")
-
-        if pipeline_context["X_list"] is not None and use_shared_data:
-            logger.info("   → Using shared data from previous experiments")
-            exp_config["_shared_data"] = {
-                "X_list": pipeline_context["X_list"],
-                "preprocessing_info": pipeline_context["preprocessing_info"],
-                "mode": "shared",
-            }
-
-            # Pass optimal SGFA parameters if available
-            if pipeline_context["optimal_sgfa_params"] is not None:
-                exp_config["_optimal_sgfa_params"] = pipeline_context[
-                    "optimal_sgfa_params"
-                ]
-                logger.info(
-                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
-                )
-
-        results["model_comparison"] = run_model_comparison(exp_config)
-
-    if "sensitivity_analysis" in experiments_to_run:
-        logger.info("📊 4/6 Starting Sensitivity Analysis Experiment...")
-        exp_config = config.copy()
-        if pipeline_context["X_list"] is not None and use_shared_data:
-            logger.info("   → Using shared data from previous experiments")
-            exp_config["_shared_data"] = {
-                "X_list": pipeline_context["X_list"],
-                "preprocessing_info": pipeline_context["preprocessing_info"],
-                "mode": "shared",
-            }
-
-            # Pass optimal SGFA parameters if available
-            if pipeline_context["optimal_sgfa_params"] is not None:
-                exp_config["_optimal_sgfa_params"] = pipeline_context[
-                    "optimal_sgfa_params"
-                ]
-                logger.info(
-                    f" → Using optimal SGFA params: { pipeline_context['optimal_sgfa_params']['variant_name']}"
-                )
-
-        results["sensitivity_analysis"] = run_sensitivity_analysis(exp_config)
-
-    if "neuroimaging_hyperopt" in experiments_to_run:
-        logger.info("🔬 7/8 Starting Neuroimaging Hyperparameter Optimization...")
-        exp_config = config.copy()
-        if pipeline_context["X_list"] is not None and use_shared_data:
-            logger.info("   → Using shared data from previous experiments")
-            exp_config["_shared_data"] = {
-                "X_list": pipeline_context["X_list"],
-                "preprocessing_info": pipeline_context["preprocessing_info"],
-                "mode": "shared",
-            }
-
-        # Run neuroimaging configuration optimization from sgfa_configuration_comparison
-        from experiments.sgfa_configuration_comparison import SGFAConfigurationComparison
-        from experiments.framework import ExperimentConfig
-
-        experiment_config = ExperimentConfig.from_dict(exp_config)
-        sgfa_exp = SGFAConfigurationComparison(experiment_config)
-
-        # Generate synthetic data if shared data not available
-        if pipeline_context["X_list"] is None:
-            logger.info("   → No shared data available, will use synthetic data")
-
-        results["neuroimaging_hyperopt"] = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
-            X_list=pipeline_context.get("X_list"),
-            hypers=exp_config.get("hypers", {}),
-            args=exp_config.get("args", {})
-        )
-
-    if "neuroimaging_cv_benchmarks" in experiments_to_run:
-        logger.info("📊 8/8 Starting Neuroimaging CV Benchmarks...")
-        exp_config = config.copy()
-        if pipeline_context["X_list"] is not None and use_shared_data:
-            logger.info("   → Using shared data from previous experiments")
-            exp_config["_shared_data"] = {
-                "X_list": pipeline_context["X_list"],
-                "preprocessing_info": pipeline_context["preprocessing_info"],
-                "mode": "shared",
-            }
-
-        # Run clinical-aware CV benchmarks from clinical_validation (functionality moved)
-        from experiments.clinical_validation import ClinicalValidationExperiments
-        from experiments.framework import ExperimentConfig
-
-        experiment_config = ExperimentConfig.from_dict(exp_config)
-        clinical_exp = ClinicalValidationExperiments(experiment_config)
-
-        # Use integrated SGFA + clinical validation instead of separate CV benchmarks
-        results["neuroimaging_cv_benchmarks"] = clinical_exp.run_sgfa_clinical_validation(
-            X_base=pipeline_context.get("X_list"),
-            hypers=exp_config.get("hypers", {}),
-            args=exp_config.get("args", {})
-        )
 
     # Summary
     end_time = datetime.now()

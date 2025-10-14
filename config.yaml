@@ -170,100 +170,6 @@ data_validation:
       n_top_features: 300
       variance_threshold: 0.005           # More stringent for clinical applications
 
-# Model Comparison Experiment
-model_comparison:
-  models:
-    - name: "sparse_gfa"
-      n_factors: [20]                    # K = 20 only
-      sparsity_lambda: [0.01, 0.1, 0.5]  # Different sparsity levels
-      group_lambda: [0.1, 0.5]           # Group sparsity options
-
-    - name: "standard_gfa"
-      n_factors: [20]                    # K = 20 only
-
-  cross_validation:
-    n_folds: 5                          # Cross-validation for model comparison
-    n_repeats: 2
-
-  evaluation_metrics:
-    - "reconstruction_error"            # Model fit quality
-    - "factor_interpretability"         # How interpretable are the factors
-    - "clinical_correlation"            # Correlation with clinical measures
-
-  # Comparative Benchmarks (moved from performance_benchmarks)
-  comparative_benchmarks:
-    baseline_methods: ["pca", "ica", "factor_analysis", "nmf"]  # Traditional methods for comparison
-    test_configurations:
-      small_scale:
-        n_subjects: 500
-        n_features_per_view: 100
-        n_views: 2
-      medium_scale:
-        n_subjects: 1000
-        n_features_per_view: 200
-        n_views: 3
-      large_scale:
-        n_subjects: 2000
-        n_features_per_view: 150
-        n_views: 4
-    comparison_metrics:
-      - "execution_time"                # Method execution time comparison
-      - "memory_usage"                  # Peak memory consumption comparison
-      - "success_rate"                  # Method reliability comparison
-      - "performance_efficiency"       # Time vs memory trade-offs
-
-# SGFA Configuration Comparison Experiment
-# NOTE: This compares different SGFA configurations on the full dataset (unsupervised)
-# to identify which settings produce the most interpretable and stable factors.
-# No train/test split needed - we're not predicting outcomes or validating generalization.
-sgfa_configuration_comparison:
-  parameter_ranges:
-    n_factors: [20]                     # Range of factor numbers (K = 20 only)
-    sparsity_lambda: [0.1, 0.25, 0.33]  # Element-wise sparsity (percW: 10%, 25%, 33%) - controls sparsity within each factor
-    group_lambda: [0.0, 0.05, 0.1, 0.2] # Group sparsity - encourages entire features (rows of W) to be zero across all factors
-                                        # 0.0 = no group sparsity (baseline), higher values = stronger shrinkage (useful for multi-view feature selection)
-    # learning_rate: [0.005, 0.01, 0.05]  # NOT APPLICABLE - NumPyro uses automatic step size adaptation
-
-  # Comprehensive Scalability Analysis (moved from performance_benchmarks)
-  scalability_analysis:
-    sample_size_ranges: [50, 100, 250, 500, 1000, 2000, 5000]
-    feature_size_ranges: [10, 25, 50, 100, 250, 500, 1000]
-    component_ranges: [20]
-    chain_ranges: [1, 2, 4, 8]
-
-    benchmark_configs:
-      small_scale:
-        n_subjects: 50
-        n_features_per_view: [500, 300]   # Small dataset for testing
-      medium_scale:
-        n_subjects: 100
-        n_features_per_view: [1000, 800]  # Medium dataset
-      full_scale:
-        n_subjects: 200
-        n_features_per_view: [2000, 1500] # Full dataset size
-
-    scalability_metrics:
-      - "training_time"                   # How long does SGFA training take
-      - "memory_usage"                    # Peak memory consumption during SGFA
-      - "convergence_rate"                # How quickly SGFA converges
-      - "factor_extraction_time"          # Time to extract factor scores
-      - "mcmc_sampling_efficiency"        # Effective sample size per second
-
-  stability_tests:
-    n_random_inits: 5                   # Test stability across random initializations
-    convergence_threshold: 1e-5         # Convergence criterion
-
-# Sensitivity Analysis Experiment
-sensitivity_analysis:
-  parameter_ranges:
-    n_factors: [20]                     # K = 20 only
-    sparsity_lambda: [0.01, 0.1, 0.5, 1.0]  # Range of sparsity values
-    learning_rate: [0.005, 0.01, 0.05]  # MCMC learning rates
-
-  stability_tests:
-    n_random_inits: 5                   # Test stability across random initializations
-    convergence_threshold: 1e-5         # Convergence criterion
-
 # Clinical Validation Experiment
 clinical_validation:
   validation_types:
@@ -277,14 +183,9 @@ clinical_validation:
     # - "clinical_stratified_cv"          # CV is ONLY for supervised tasks with known labels
     #                                     # For unsupervised subtyping, use "pd_subtype_discovery" which trains on all data
 
-  # NOTE: Classification metrics only applicable if real clinical labels are available
-  # For unsupervised subtype discovery, use clustering metrics instead (silhouette, stability, etc.)
-  classification_metrics:
-    - "accuracy"                        # Classification accuracy (requires labels)
-    - "precision"                       # Precision score (requires labels)
-    - "recall"                          # Recall score (requires labels)
-    - "f1_score"                        # F1 score (requires labels)
-    - "roc_auc"                         # ROC AUC (requires labels)
+  # NOTE: classification_metrics section removed - not applicable for unsupervised subtype discovery
+  # If you add "subtype_classification" validation type (requires ground truth labels),
+  # you'll need to add the classification_metrics configuration back.
 
   cross_validation:
     n_folds: 10                         # Robust CV for clinical validation
