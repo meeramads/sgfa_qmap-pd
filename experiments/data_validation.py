@@ -2067,6 +2067,17 @@ class DataValidationExperiments(ExperimentFramework):
                     mad_values = mad_distributions[view_name]["mad_values"]
                     removed_mask = mad_values > 3.0
 
+                    # Check if dimensions match
+                    if len(removed_mask) != len(positions):
+                        logger.warning(f"   Dimension mismatch for {view_name}: {len(removed_mask)} MAD values vs {len(positions)} positions. Skipping spatial analysis.")
+                        spatial_results[view_name] = {
+                            "position_file_found": True,
+                            "dimension_mismatch": True,
+                            "n_mad_values": len(removed_mask),
+                            "n_positions": len(positions),
+                        }
+                        continue
+
                     if np.any(removed_mask):
                         removed_positions = positions[removed_mask][['x', 'y', 'z']].values
                         retained_positions = positions[~removed_mask][['x', 'y', 'z']].values
@@ -2219,13 +2230,24 @@ class DataValidationExperiments(ExperimentFramework):
                     variance_ratio = retained_variance / original_variance
 
                     # Correlation preservation (for sampled voxels that are retained)
-                    sample_retained = retained_mask[sample_indices]
-                    if np.sum(sample_retained) > 1:
-                        retained_corr = np.corrcoef(X_retained[:, sample_retained].T)
+                    # Check which of our sampled voxels were retained
+                    sample_retained_mask = retained_mask[sample_indices]
+                    n_sample_retained = np.sum(sample_retained_mask)
+
+                    if n_sample_retained > 1:
+                        # Get the actual retained sample indices in the original data
+                        retained_sample_indices = sample_indices[sample_retained_mask]
+
+                        # Extract these columns from X_retained by mapping to its new column space
+                        # Create mapping from original indices to X_retained indices
+                        retained_indices_mapping = np.where(retained_mask)[0]
+                        new_positions = np.searchsorted(retained_indices_mapping, retained_sample_indices)
+
+                        retained_corr = np.corrcoef(X_retained[:, new_positions].T)
 
                         # Compare correlation matrices (only for voxels present in both)
                         corr_similarity = self._correlation_matrix_similarity(
-                            original_corr[np.ix_(sample_retained, sample_retained)],
+                            original_corr[np.ix_(sample_retained_mask, sample_retained_mask)],
                             retained_corr
                         )
                     else:
