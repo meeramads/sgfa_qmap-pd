@@ -226,21 +226,22 @@ class DataValidationExperiments(ExperimentFramework):
             if feature_selection_method:
                 self.logger.info(f"   Feature selection: {feature_selection_method}")
 
+            # Create a copy of preprocessing config and override specific settings
+            raw_config = preprocessing_config.copy()
+            raw_config["enable_advanced_preprocessing"] = False
+
             raw_data = load_qmap_pd(
                 data_dir=data_dir,
-                enable_advanced_preprocessing=False,
-                select_rois=select_rois,
-                regress_confounds=regress_confounds,
-                **preprocessing_config,  # Pass all preprocessing config (includes feature_selection_method, variance_threshold, etc.)
+                **raw_config,  # Pass all preprocessing config with advanced preprocessing disabled
             )
 
             # Load preprocessed data for comparison
+            preprocessed_config = preprocessing_config.copy()
+            preprocessed_config["enable_advanced_preprocessing"] = True
+
             preprocessed_data = load_qmap_pd(
                 data_dir=data_dir,
-                enable_advanced_preprocessing=True,
-                select_rois=select_rois,
-                regress_confounds=regress_confounds,
-                **preprocessing_config,  # Pass all preprocessing config
+                **preprocessed_config,  # Pass all preprocessing config with advanced preprocessing enabled
             )
 
             X_list = preprocessed_data["X_list"]
