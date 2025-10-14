@@ -38,10 +38,19 @@ python run_experiments.py \
 This automatically runs MAD threshold EDA and generates:
 
 **Outputs** (in `results/data_validation_run_YYYYMMDD_HHMMSS/`):
-- `mad_distribution_{roi}.png` - Shows distribution of MAD scores
+
+**Voxel-Level Analysis** (which voxels are unreliable?):
+- `mad_distribution_{roi}.png` - Distribution of MAD scores
 - `elbow_analysis_all_views.png` - Data-driven threshold recommendation
+- `spatial_distribution_{roi}.png` - 3D visualization of removed voxels
+- `information_preservation_all_views.png` - Variance/correlation preservation
 - `mad_threshold_recommendations.txt` - Detailed recommendations
 - `mad_threshold_summary_table.csv` - Comparison table
+
+**Subject-Level Analysis** (which subjects have quality problems?):
+- `subject_outlier_distributions.png` - Distribution of outlier % across subjects
+- `flagged_subjects.csv` - Table of subjects with >5% outlier voxels
+- `flagged_subjects_report.txt` - Recommendations for flagged subjects
 
 ### Step 2: Review the Recommendations
 
@@ -246,6 +255,81 @@ Retention % = YYY / (YYY + XXX) × 100
 - Exploratory: 75-90%
 - Balanced: 50-75%
 - Conservative: 40-60%
+
+## Subject-Level Quality Assessment
+
+In addition to voxel-level MAD analysis, data validation now includes **subject-level outlier detection** to identify individual subjects with pervasive data quality problems.
+
+### What It Detects
+
+For each subject, counts how many voxels show extreme values (>3 MAD from group median). Subjects with high percentages of outlier voxels may have:
+- Motion artifacts during scanning
+- Scanner technical issues
+- Protocol deviations
+- Or potentially real biological extremes (PD subtypes)
+
+### Interpreting Results
+
+**Check** `subject_outlier_distributions.png`:
+- Most subjects should have 0-5% outlier voxels
+- Distribution should be right-skewed (most subjects clean, few problematic)
+
+**Review** `flagged_subjects.csv`:
+- Lists subjects with >5% outlier voxels in any ROI
+- Sorted by severity (worst first)
+
+**Read** `flagged_subjects_report.txt`:
+- Detailed recommendations for each flagged subject
+- Guidance on exclusion vs. retention decisions
+
+### Decision Criteria
+
+| Outlier % | Severity | Recommendation |
+|-----------|----------|----------------|
+| **0-5%** | Normal | Retain - typical biological variability |
+| **5-10%** | Mild | Inspect - may be biological or mild artifacts |
+| **10-20%** | Moderate | Consider exclusion - likely quality issues |
+| **>20%** | Severe | Exclude - pervasive scan problems |
+
+### Example Workflow
+
+1. **Run data validation**:
+```bash
+python run_experiments.py --config config.yaml --experiments data_validation
+```
+
+2. **Check how many subjects flagged**:
+```bash
+wc -l results/data_validation_run_*/flagged_subjects.csv
+# Should be small (header + few subjects)
+```
+
+3. **Review flagged subjects**:
+```bash
+cat results/data_validation_run_*/flagged_subjects_report.txt
+```
+
+4. **If subjects need exclusion**, create exclusion list:
+```bash
+# Extract subject IDs with >10% outliers
+awk -F',' '$3 > 10 {print $1}' results/data_validation_run_*/flagged_subjects.csv > subjects_to_exclude.txt
+```
+
+5. **Document exclusion criteria** for methods section of paper
+
+### Important Distinction
+
+- **Voxel-level MAD**: Removes unreliable measurements (bad voxels across all subjects)
+- **Subject-level outliers**: Identifies problematic scans (bad subjects across all voxels)
+
+Both analyses are complementary and provide complete data quality picture.
+
+### Your Dataset
+
+With N=86 subjects, expect:
+- **0-4 flagged subjects**: Good data quality
+- **5-10 flagged subjects**: Typical quality issues, inspect carefully
+- **>10 flagged subjects**: Systematic quality problems, investigate causes
 
 ## Further Reading
 
