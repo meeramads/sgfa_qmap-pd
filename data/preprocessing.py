@@ -647,6 +647,11 @@ class AdvancedPreprocessor(BasePreprocessor):
             logging.info(f"DEBUG: PCA disabled for {view_name}, returning original X with shape {X.shape}")
             return X
 
+        # Only apply PCA to imaging views, not clinical views
+        if not self._is_imaging_view(view_name):
+            logging.info(f"DEBUG: Skipping PCA for non-imaging view {view_name}, returning original X with shape {X.shape}")
+            return X
+
         n_features_before = X.shape[1]
         logging.info(
             f"Applying PCA dimensionality reduction to {view_name} "
