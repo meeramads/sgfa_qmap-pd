@@ -122,6 +122,7 @@ class ModelConfig:
     percW: Optional[float] = None  # Sparsity percentage (% of non-zero loadings)
     slab_df: Optional[float] = None  # Slab degrees of freedom for regularized horseshoe
     slab_scale: Optional[float] = None  # Slab scale parameter for regularized horseshoe
+    reghsZ: Optional[bool] = None  # Apply regularized horseshoe to latent factors Z
     a_sigma: Optional[float] = None  # Noise precision prior shape
     b_sigma: Optional[float] = None  # Noise precision prior rate
 
