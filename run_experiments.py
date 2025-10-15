@@ -344,6 +344,25 @@ def main():
             if not args.drop_confounds_from_clinical:
                 config_suffix += "_residualized"
 
+        # Add K info if overridden
+        if args.K:
+            config_suffix += f"_K{args.K}"
+
+        # Add PCA info
+        if args.pca_strategy:
+            config_suffix += f"_PCA-{args.pca_strategy}"
+        elif args.enable_pca:
+            if args.pca_components:
+                config_suffix += f"_PCA-{args.pca_components}comp"
+            elif args.pca_variance:
+                config_suffix += f"_PCA-{int(args.pca_variance*100)}pct"
+            else:
+                config_suffix += "_PCA-85pct"
+
+        # Add MAD threshold info
+        if args.qc_outlier_threshold:
+            config_suffix += f"_MAD{args.qc_outlier_threshold}"
+
         # Create directory name based on what's actually running
         if len(args.experiments) == 1:
             unified_dir = output_dir / f"{args.experiments[0]}{config_suffix}_run_{run_timestamp}"
