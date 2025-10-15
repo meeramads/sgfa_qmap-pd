@@ -142,8 +142,8 @@ def get_advanced_preprocessing_data(
         # Use global preprocessing config as defaults
         global_preprocessing = config.get("preprocessing", {})
 
-        # Merge global config with strategy-specific config (strategy takes precedence)
-        merged_config = {**global_preprocessing, **strategy_config}
+        # Merge global config with strategy-specific config (global takes precedence for command-line overrides)
+        merged_config = {**strategy_config, **global_preprocessing}
 
         if not strategy_config and not global_preprocessing:
             logger.warning(

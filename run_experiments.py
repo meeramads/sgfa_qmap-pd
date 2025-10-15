@@ -273,7 +273,9 @@ def main():
         if "preprocessing" not in config:
             config["preprocessing"] = {}
         config["preprocessing"]["qc_outlier_threshold"] = args.qc_outlier_threshold
+        config["preprocessing"]["enable_spatial_processing"] = True  # Required for MAD filtering
         logger.info(f"QC outlier threshold (MAD): {args.qc_outlier_threshold}")
+        logger.info(f"   Enabled spatial processing for MAD filtering")
 
     # Configure K (number of factors) if provided
     if args.K is not None:
@@ -287,6 +289,9 @@ def main():
         if "preprocessing" not in config:
             config["preprocessing"] = {}
 
+        # Enable spatial processing (required for PCA on imaging data)
+        config["preprocessing"]["enable_spatial_processing"] = True
+
         # Handle PCA strategy shorthand
         if args.pca_strategy:
             strategy_map = {
@@ -299,6 +304,7 @@ def main():
             config["preprocessing"]["pca_variance_threshold"] = strategy_map[args.pca_strategy]
             config["preprocessing"]["pca_whiten"] = False
             logger.info(f"PCA strategy: {args.pca_strategy} ({strategy_map[args.pca_strategy]*100:.0f}% variance)")
+            logger.info(f"   Enabled spatial processing for PCA")
 
         # Handle explicit PCA configuration
         elif args.enable_pca:
@@ -319,6 +325,7 @@ def main():
                 logger.info(f"PCA enabled: 85% variance (default)")
 
             config["preprocessing"]["pca_whiten"] = False
+            logger.info(f"   Enabled spatial processing for PCA")
 
     # Setup unified results directory if requested
     if args.unified_results:
@@ -797,6 +804,15 @@ def main():
                     view_names=view_names,  # Pass view names for W indexing
                     feature_names=feature_names,  # Pass feature names for W indexing
                 )
+
+            # Save R-hat convergence diagnostics
+            if hasattr(result, "diagnostics") and result.diagnostics:
+                convergence_summary = result.diagnostics.get("convergence_summary", {})
+                rhat_diagnostics = convergence_summary.get("rhat_diagnostics", {})
+                if rhat_diagnostics:
+                    rhat_file = fs_output_dir / "stability_analysis" / "rhat_convergence_diagnostics.json"
+                    save_json(rhat_diagnostics, rhat_file, indent=2)
+                    logger.info(f"   Saved R-hat convergence diagnostics to {rhat_file.name}")
 
             # Save plots
             if hasattr(result, "plots") and result.plots:

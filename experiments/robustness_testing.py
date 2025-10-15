@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from numpyro.diagnostics import split_gelman_rubin, effective_sample_size
 
 from core.config_utils import get_data_dir, get_output_dir
 from core.experiment_utils import (
@@ -1906,6 +1907,89 @@ class RobustnessExperiments(ExperimentFramework):
                 f"effective factors"
             )
 
+        # Compute R-hat (Gelman-Rubin) convergence diagnostics
+        self.logger.info("=" * 80)
+        self.logger.info("COMPUTING R-HAT CONVERGENCE DIAGNOSTICS")
+        self.logger.info("=" * 80)
+
+        rhat_diagnostics = {}
+        try:
+            # Get W and Z samples from all chains
+            # W_samples shape: (num_chains, num_samples, D, K)
+            # Z_samples shape: (num_chains, num_samples, N, K)
+            if W_samples is not None and len(W_samples.shape) == 4:
+                # Compute R-hat for W (factor loadings)
+                # For each factor k, compute R-hat across all features
+                K = W_samples.shape[3]
+                D = W_samples.shape[2]
+
+                rhat_W = split_gelman_rubin(W_samples)  # Shape: (D, K)
+
+                # Summary statistics for W
+                rhat_W_max_per_factor = np.max(rhat_W, axis=0)  # Max R-hat per factor
+                rhat_W_mean_per_factor = np.mean(rhat_W, axis=0)  # Mean R-hat per factor
+                rhat_W_max_overall = np.max(rhat_W)
+                rhat_W_mean_overall = np.mean(rhat_W)
+
+                rhat_diagnostics["W"] = {
+                    "max_rhat_per_factor": rhat_W_max_per_factor.tolist(),
+                    "mean_rhat_per_factor": rhat_W_mean_per_factor.tolist(),
+                    "max_rhat_overall": float(rhat_W_max_overall),
+                    "mean_rhat_overall": float(rhat_W_mean_overall),
+                }
+
+                self.logger.info(f"R-hat for W (factor loadings):")
+                self.logger.info(f"  Overall: max={rhat_W_max_overall:.4f}, mean={rhat_W_mean_overall:.4f}")
+                for k in range(K):
+                    max_rhat_k = rhat_W_max_per_factor[k]
+                    mean_rhat_k = rhat_W_mean_per_factor[k]
+                    status = "✓" if max_rhat_k < 1.1 else "⚠️"
+                    self.logger.info(f"  Factor {k}: max={max_rhat_k:.4f}, mean={mean_rhat_k:.4f} {status}")
+
+                # Check for convergence issues
+                if rhat_W_max_overall > 1.1:
+                    self.logger.warning(f"⚠️  High R-hat detected for W: {rhat_W_max_overall:.4f} > 1.1")
+                    self.logger.warning(f"     Chains may not have converged. Consider more MCMC samples.")
+                else:
+                    self.logger.info(f"✓ W converged: all R-hat < 1.1")
+
+            if Z_samples is not None and len(Z_samples.shape) == 4:
+                # Compute R-hat for Z (factor scores)
+                rhat_Z = split_gelman_rubin(Z_samples)  # Shape: (N, K)
+
+                # Summary statistics for Z
+                rhat_Z_max_per_factor = np.max(rhat_Z, axis=0)  # Max R-hat per factor
+                rhat_Z_mean_per_factor = np.mean(rhat_Z, axis=0)  # Mean R-hat per factor
+                rhat_Z_max_overall = np.max(rhat_Z)
+                rhat_Z_mean_overall = np.mean(rhat_Z)
+
+                rhat_diagnostics["Z"] = {
+                    "max_rhat_per_factor": rhat_Z_max_per_factor.tolist(),
+                    "mean_rhat_per_factor": rhat_Z_mean_per_factor.tolist(),
+                    "max_rhat_overall": float(rhat_Z_max_overall),
+                    "mean_rhat_overall": float(rhat_Z_mean_overall),
+                }
+
+                self.logger.info(f"R-hat for Z (factor scores):")
+                self.logger.info(f"  Overall: max={rhat_Z_max_overall:.4f}, mean={rhat_Z_mean_overall:.4f}")
+                for k in range(K):
+                    max_rhat_k = rhat_Z_max_per_factor[k]
+                    mean_rhat_k = rhat_Z_mean_per_factor[k]
+                    status = "✓" if max_rhat_k < 1.1 else "⚠️"
+                    self.logger.info(f"  Factor {k}: max={max_rhat_k:.4f}, mean={mean_rhat_k:.4f} {status}")
+
+                # Check for convergence issues
+                if rhat_Z_max_overall > 1.1:
+                    self.logger.warning(f"⚠️  High R-hat detected for Z: {rhat_Z_max_overall:.4f} > 1.1")
+                    self.logger.warning(f"     Chains may not have converged. Consider more MCMC samples.")
+                else:
+                    self.logger.info(f"✓ Z converged: all R-hat < 1.1")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to compute R-hat diagnostics: {e}")
+            import traceback
+            self.logger.warning(traceback.format_exc())
+
         # Compile diagnostics
         diagnostics = {
             "stability_summary": {
@@ -1934,6 +2018,7 @@ class RobustnessExperiments(ExperimentFramework):
                 "convergence_rate": sum(
                     1 for pm in performance_metrics.values() if pm["convergence"]
                 ) / n_chains,
+                "rhat_diagnostics": rhat_diagnostics,  # Add R-hat diagnostics
             },
         }
 
@@ -1968,6 +2053,20 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info(f"  - {stability_results.get('n_stable_factors', 0)}/{stability_results.get('total_factors', 0)} stable factors")
         self.logger.info(f"  - Stability rate: {stability_results.get('stability_rate', 0):.1%}")
         self.logger.info(f"  - Mean effective factors: {np.mean([ef['n_effective'] for ef in effective_factors_per_chain]):.1f}")
+
+        # Add R-hat summary to final output
+        if rhat_diagnostics:
+            if "W" in rhat_diagnostics:
+                rhat_W_max = rhat_diagnostics["W"]["max_rhat_overall"]
+                rhat_W_mean = rhat_diagnostics["W"]["mean_rhat_overall"]
+                W_converged = "✓" if rhat_W_max < 1.1 else "⚠️"
+                self.logger.info(f"  - R-hat (W): max={rhat_W_max:.4f}, mean={rhat_W_mean:.4f} {W_converged}")
+            if "Z" in rhat_diagnostics:
+                rhat_Z_max = rhat_diagnostics["Z"]["max_rhat_overall"]
+                rhat_Z_mean = rhat_diagnostics["Z"]["mean_rhat_overall"]
+                Z_converged = "✓" if rhat_Z_max < 1.1 else "⚠️"
+                self.logger.info(f"  - R-hat (Z): max={rhat_Z_max:.4f}, mean={rhat_Z_mean:.4f} {Z_converged}")
+
         self.logger.info(f"  - {len(plots)} plots generated")
 
         result = ExperimentResult(

@@ -642,7 +642,9 @@ class AdvancedPreprocessor(BasePreprocessor):
         np.ndarray
             PCA-transformed data (n_samples, n_components)
         """
+        logging.info(f"DEBUG: fit_transform_pca called for {view_name}, enable_pca={self.enable_pca}")
         if not self.enable_pca:
+            logging.info(f"DEBUG: PCA disabled for {view_name}, returning original X with shape {X.shape}")
             return X
 
         n_features_before = X.shape[1]
@@ -1234,9 +1236,12 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
             # Step 3: Scaling
             X_scaled = self.fit_transform_scaling(X_selected, view_name)
 
-            X_processed.append(X_scaled)
+            # Step 4: PCA dimensionality reduction (if enabled)
+            X_final = self.fit_transform_pca(X_scaled, view_name)
 
-            logging.info(f"Final shape for {view_name}: {X_scaled.shape}")
+            X_processed.append(X_final)
+
+            logging.info(f"Final shape for {view_name}: {X_final.shape}")
 
         return X_processed
 

@@ -228,6 +228,8 @@ class DataValidationExperiments(ExperimentFramework):
 
             # Extract only the parameters that load_qmap_pd() accepts
             # (filter out experiment-level config like 'strategy', 'select_rois', etc.)
+            # NOTE: PCA parameters are NOT included here because load_qmap_pd() doesn't support them.
+            # PCA is handled by apply_preprocessing_to_pipeline() which is called by downstream experiments.
             valid_load_params = {
                 "enable_advanced_preprocessing",
                 "enable_spatial_processing",
@@ -1050,13 +1052,25 @@ class DataValidationExperiments(ExperimentFramework):
                     # Create a temporary config with this strategy
                     temp_config_dict = config_dict.copy()
 
-                    # Preserve select_rois and regress_confounds from original config
+                    # Preserve command-line overrides from original config
                     original_preprocessing = config_dict.get("preprocessing", {})
                     merged_preprocessing = strategy_params.copy()
-                    if "select_rois" in original_preprocessing:
-                        merged_preprocessing["select_rois"] = original_preprocessing["select_rois"]
-                    if "regress_confounds" in original_preprocessing:
-                        merged_preprocessing["regress_confounds"] = original_preprocessing["regress_confounds"]
+
+                    # Preserve all command-line overrides (ROI selection, confounds, MAD, PCA, etc.)
+                    preserve_keys = [
+                        "select_rois",
+                        "regress_confounds",
+                        "drop_confounds_from_clinical",
+                        "enable_spatial_processing",  # Required for MAD and spatial features
+                        "qc_outlier_threshold",       # MAD threshold
+                        "enable_pca",                 # PCA settings
+                        "pca_n_components",
+                        "pca_variance_threshold",
+                        "pca_whiten",
+                    ]
+                    for key in preserve_keys:
+                        if key in original_preprocessing:
+                            merged_preprocessing[key] = original_preprocessing[key]
 
                     temp_config_dict["preprocessing"] = merged_preprocessing
                     temp_config = ConfigAccessor(temp_config_dict)
