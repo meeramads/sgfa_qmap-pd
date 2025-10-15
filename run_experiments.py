@@ -276,6 +276,13 @@ def main():
         config["preprocessing"]["enable_spatial_processing"] = True  # Required for MAD filtering
         logger.info(f"QC outlier threshold (MAD): {args.qc_outlier_threshold}")
         logger.info(f"   Enabled spatial processing for MAD filtering")
+    else:
+        # If no MAD threshold specified, disable MAD filtering (set to None)
+        # This allows PCA without MAD filtering
+        if "preprocessing" not in config:
+            config["preprocessing"] = {}
+        if "qc_outlier_threshold" not in config["preprocessing"]:
+            config["preprocessing"]["qc_outlier_threshold"] = None
 
     # Configure K (number of factors) if provided
     if args.K is not None:

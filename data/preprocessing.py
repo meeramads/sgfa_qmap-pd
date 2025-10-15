@@ -974,6 +974,11 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         if not self._is_imaging_view(view_name):
             return X
 
+        # Skip MAD filtering if threshold is None or disabled (> 100)
+        if self.qc_outlier_threshold is None or self.qc_outlier_threshold > 100:
+            logging.info(f"MAD filtering disabled for {view_name} (threshold={self.qc_outlier_threshold})")
+            return X
+
         n_voxels_before = X.shape[1]
         logging.info(
             f"Applying MAD-based quality control to {view_name} "
