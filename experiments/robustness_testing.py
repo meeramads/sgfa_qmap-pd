@@ -650,13 +650,14 @@ class RobustnessExperiments(ExperimentFramework):
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
                 config={"model": {"type": "sparseGFA"}},
                 X_list=X_list,
-                data_characteristics=data_characteristics
+                data_characteristics=data_characteristics,
+                hypers=hypers  # Pass hypers to ensure correct percW, slab_df, slab_scale
             )
 
             self.logger.info(f"✅ Model setup complete: {model_type}")
-            # Log only key hyperparameters, not full models summary
+            # Log only key hyperparameters (not full models summary with available_models list)
             hypers_log = models_summary.get('hyperparameters', {})
-            self.logger.info(f"   Hyperparameters: K={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
+            self.logger.info(f"   Hyperparameters: Dm={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
 
             # Import the SGFA model function via interface
             from core.model_interface import get_model_function
