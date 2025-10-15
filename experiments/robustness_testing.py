@@ -2220,34 +2220,35 @@ class RobustnessExperiments(ExperimentFramework):
                                linestyle='--', label=f'Threshold ({stability_results["threshold"]})')
                 axes[0].set_xlabel('Factor Index')
                 axes[0].set_ylabel('Average Cosine Similarity')
-                axes[0].set_title('Average Factor Matching Across Chains')
+                axes[0].set_title('Average Factor Matching Across Chains (vs Chain 0)')
                 axes[0].legend()
                 axes[0].grid(True, alpha=0.3)
                 axes[0].set_ylim([0, 1])
 
-                # Plot 2: Heatmap showing chain-to-chain factor matching
-                # Show maximum similarity for each chain pair (across all factors)
-                chain_pair_matrix = np.zeros((n_chains, n_chains))
-                for i in range(n_chains):
-                    for j in range(n_chains):
-                        if i != j:
-                            # For each chain pair, show the average max similarity across factors
-                            chain_pair_matrix[i, j] = np.mean(similarity_matrix[i, j, :])
-                        else:
-                            chain_pair_matrix[i, j] = 1.0  # Self-similarity is 1
+                # Plot 2: Heatmap showing per-factor similarity across chains
+                # Show similarity of each factor to its best match in other chains
+                # similarity_matrix[0, j, k] = similarity of factor k in chain 0 to best match in chain j
+                factor_chain_matrix = similarity_matrix[0, :, :]  # Shape: (n_chains, K)
 
-                im = axes[1].imshow(chain_pair_matrix, cmap='RdYlGn', vmin=0, vmax=1, aspect='auto')
+                # Transpose to show factors on Y-axis, chains on X-axis
+                factor_chain_matrix = factor_chain_matrix.T  # Shape: (K, n_chains)
+
+                im = axes[1].imshow(factor_chain_matrix, cmap='RdYlGn', vmin=0, vmax=1, aspect='auto')
                 axes[1].set_xticks(range(n_chains))
-                axes[1].set_yticks(range(n_chains))
+                axes[1].set_yticks(range(K))
                 axes[1].set_xticklabels([f'Chain {i}' for i in range(n_chains)])
-                axes[1].set_yticklabels([f'Chain {i}' for i in range(n_chains)])
-                axes[1].set_title('Average Factor Similarity Between Chain Pairs')
+                axes[1].set_yticklabels([f'F{k}' for k in range(K)])
+                axes[1].set_xlabel('Chain')
+                axes[1].set_ylabel('Factor')
+                axes[1].set_title('Factor Similarity Matrix (Reference: Chain 0)')
 
                 # Add text annotations
-                for i in range(n_chains):
+                for k in range(K):
                     for j in range(n_chains):
-                        text = axes[1].text(j, i, f'{chain_pair_matrix[i, j]:.2f}',
-                                          ha="center", va="center", color="black", fontsize=10)
+                        val = factor_chain_matrix[k, j]
+                        if val > 0:  # Only annotate non-zero values
+                            text = axes[1].text(j, k, f'{val:.2f}',
+                                              ha="center", va="center", color="black", fontsize=8)
 
                 plt.colorbar(im, ax=axes[1], label='Cosine Similarity')
                 plt.tight_layout()
@@ -2257,6 +2258,8 @@ class RobustnessExperiments(ExperimentFramework):
 
         except Exception as e:
             self.logger.warning(f"Failed to create factor stability heatmap: {str(e)}")
+            import traceback
+            self.logger.warning(f"Traceback: {traceback.format_exc()}")
 
         return plots
 
