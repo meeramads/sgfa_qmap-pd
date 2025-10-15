@@ -315,39 +315,57 @@ def load_qmap_pd(
         feature_names_processed = {}
         for i, view_name in enumerate(view_names):
             original_features = feature_names[view_name]
+
+            # Start with original features
+            current_features = original_features.copy()
+
+            # Apply outlier mask if available (from QC outlier detection)
+            if hasattr(preprocessor, "outlier_masks_") and view_name in preprocessor.outlier_masks_:
+                outlier_mask = preprocessor.outlier_masks_[view_name]
+                if len(outlier_mask) == len(current_features):
+                    # Filter features based on which voxels were kept
+                    current_features = [
+                        feat for feat, keep in zip(current_features, outlier_mask) if keep
+                    ]
+                    logging.info(
+                        f"  Filtered {view_name} feature names by QC outlier mask: "
+                        f"{len(original_features)} → {len(current_features)}"
+                    )
+
+            # Then apply feature selection indices if available
             if hasattr(preprocessor, "selected_features_"):
                 # Try to get the actual selected feature names
                 if f"{view_name}_variance_indices" in preprocessor.selected_features_:
                     indices = preprocessor.selected_features_[
                         f"{view_name}_variance_indices"
                     ]
-                    feature_names_processed[view_name] = [
-                        original_features[idx]
+                    current_features = [
+                        current_features[idx]
                         for idx in indices
-                        if idx < len(original_features)
+                        if idx < len(current_features)
                     ]
                 elif f"{view_name}_roi_indices" in preprocessor.selected_features_:
                     indices = preprocessor.selected_features_[
                         f"{view_name}_roi_indices"
                     ]
-                    feature_names_processed[view_name] = [
-                        original_features[idx]
+                    current_features = [
+                        current_features[idx]
                         for idx in indices
-                        if idx < len(original_features)
+                        if idx < len(current_features)
                     ]
-                elif X_list[i].shape[1] < len(original_features):
-                    # Features were filtered but we don't have exact mapping
-                    feature_names_processed[view_name] = [
-                        f"{view_name}_feature_{j}" for j in range(X_list[i].shape[1])
-                    ]
-                else:
-                    feature_names_processed[view_name] = original_features[
-                        : X_list[i].shape[1]
-                    ]
-            else:
-                feature_names_processed[view_name] = original_features[
-                    : X_list[i].shape[1]
+
+            # Verify final feature count matches data
+            if len(current_features) != X_list[i].shape[1]:
+                logging.warning(
+                    f"  Feature name count mismatch for {view_name}: "
+                    f"{len(current_features)} names vs {X_list[i].shape[1]} features. "
+                    f"Using generic labels."
+                )
+                current_features = [
+                    f"{view_name}_feature_{j}" for j in range(X_list[i].shape[1])
                 ]
+
+            feature_names_processed[view_name] = current_features
 
         feature_names = feature_names_processed
 
@@ -505,7 +523,8 @@ def load_qmap_pd(
 
             # Regress confounds from each view
             X_list_deconfounded = []
-            updated_feature_names = {}
+            # Start with existing feature names to preserve preprocessing updates
+            updated_feature_names = feature_names.copy()
 
             for i, (X, view_name) in enumerate(zip(X_list, view_names)):
                 # Special handling for clinical view
@@ -552,6 +571,21 @@ def load_qmap_pd(
                 "confounds_regressed": confounds_to_regress,
                 "confound_matrix_shape": confound_matrix.shape,
             }
+
+    # === VERIFY FEATURE NAME TRACKING ===
+    # Log final feature counts to verify feature names match data dimensions
+    for i, view_name in enumerate(view_names):
+        n_features_data = X_list[i].shape[1]
+        n_features_names = len(feature_names.get(view_name, []))
+        if n_features_data != n_features_names:
+            logging.warning(
+                f"Feature count mismatch for {view_name}: "
+                f"{n_features_data} features in data vs {n_features_names} feature names"
+            )
+        else:
+            logging.info(
+                f"✓ Feature names verified for {view_name}: {n_features_names} features"
+            )
 
     # === CONSTRUCT RESULT ===
     result = {
