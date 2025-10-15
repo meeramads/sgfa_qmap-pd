@@ -182,6 +182,38 @@ def main():
         help="MAD threshold for QC outlier detection (default: 3.0). Higher values are more permissive. Example: --qc-outlier-threshold 5.0 to keep more voxels",
     )
 
+    # PCA and model configuration arguments
+    parser.add_argument(
+        "--K",
+        type=int,
+        default=None,
+        help="Number of latent factors (overrides config.yaml). Example: --K 8",
+    )
+    parser.add_argument(
+        "--enable-pca",
+        action="store_true",
+        default=False,
+        help="Enable PCA dimensionality reduction",
+    )
+    parser.add_argument(
+        "--pca-variance",
+        type=float,
+        default=None,
+        help="PCA variance threshold (e.g., 0.85 for 85%% variance). Example: --pca-variance 0.85",
+    )
+    parser.add_argument(
+        "--pca-components",
+        type=int,
+        default=None,
+        help="Fixed number of PCA components (alternative to --pca-variance). Example: --pca-components 120",
+    )
+    parser.add_argument(
+        "--pca-strategy",
+        choices=["aggressive", "balanced", "conservative"],
+        default=None,
+        help="Pre-configured PCA strategy: aggressive (80%% var), balanced (85%% var), conservative (90%% var)",
+    )
+
     args = parser.parse_args()
 
     # Load and validate configuration
@@ -242,6 +274,51 @@ def main():
             config["preprocessing"] = {}
         config["preprocessing"]["qc_outlier_threshold"] = args.qc_outlier_threshold
         logger.info(f"QC outlier threshold (MAD): {args.qc_outlier_threshold}")
+
+    # Configure K (number of factors) if provided
+    if args.K is not None:
+        if "model" not in config:
+            config["model"] = {}
+        config["model"]["K"] = args.K
+        logger.info(f"Override K (latent factors): {args.K}")
+
+    # Configure PCA if provided
+    if args.enable_pca or args.pca_strategy or args.pca_variance or args.pca_components:
+        if "preprocessing" not in config:
+            config["preprocessing"] = {}
+
+        # Handle PCA strategy shorthand
+        if args.pca_strategy:
+            strategy_map = {
+                "aggressive": 0.80,
+                "balanced": 0.85,
+                "conservative": 0.90,
+            }
+            config["preprocessing"]["enable_pca"] = True
+            config["preprocessing"]["pca_n_components"] = None
+            config["preprocessing"]["pca_variance_threshold"] = strategy_map[args.pca_strategy]
+            config["preprocessing"]["pca_whiten"] = False
+            logger.info(f"PCA strategy: {args.pca_strategy} ({strategy_map[args.pca_strategy]*100:.0f}% variance)")
+
+        # Handle explicit PCA configuration
+        elif args.enable_pca:
+            config["preprocessing"]["enable_pca"] = True
+
+            if args.pca_components:
+                config["preprocessing"]["pca_n_components"] = args.pca_components
+                config["preprocessing"]["pca_variance_threshold"] = None
+                logger.info(f"PCA enabled: {args.pca_components} components (fixed)")
+            elif args.pca_variance:
+                config["preprocessing"]["pca_n_components"] = None
+                config["preprocessing"]["pca_variance_threshold"] = args.pca_variance
+                logger.info(f"PCA enabled: {args.pca_variance*100:.0f}% variance threshold")
+            else:
+                # Default to balanced strategy
+                config["preprocessing"]["pca_n_components"] = None
+                config["preprocessing"]["pca_variance_threshold"] = 0.85
+                logger.info(f"PCA enabled: 85% variance (default)")
+
+            config["preprocessing"]["pca_whiten"] = False
 
     # Setup unified results directory if requested
     if args.unified_results:
@@ -587,6 +664,10 @@ def main():
             chains_dir = fs_output_dir / "chains"
             chains_dir.mkdir(exist_ok=True)
 
+            # Check if PCA was used in preprocessing
+            preprocessor = preprocessing_info.get("preprocessing_results", {}).get("preprocessor")
+            pca_enabled = preprocessing_info.get("preprocessing_results", {}).get("preprocessing_details", {}).get("pca_enabled", False)
+
             for chain_data in chain_results_data:
                 chain_id = chain_data.get("chain_id", 0)
                 chain_dir = chains_dir / f"chain_{chain_id}"
@@ -598,22 +679,56 @@ def main():
                     if isinstance(W, list):
                         # Multi-view: save each view
                         for view_idx, W_view in enumerate(W):
-                            W_df = pd.DataFrame(
-                                W_view,
-                                columns=[f"Factor_{k}" for k in range(W_view.shape[1])],
-                            )
-                            # Use feature names if available for this view
                             view_name = view_names[view_idx] if view_idx < len(view_names) else f"view_{view_idx}"
-                            if feature_names and view_name in feature_names:
-                                view_feature_names = feature_names[view_name]
-                                if len(view_feature_names) == W_view.shape[0]:
-                                    W_df.index = view_feature_names
+
+                            # Save W_pcs (PC-space loadings) if PCA was used
+                            if pca_enabled and preprocessor and hasattr(preprocessor, 'has_pca') and preprocessor.has_pca(view_name):
+                                # This is in PC space - save as W_pcs
+                                W_pcs_df = pd.DataFrame(
+                                    W_view,
+                                    columns=[f"Factor_{k}" for k in range(W_view.shape[1])],
+                                )
+                                W_pcs_df.index = [f"PC_{j}" for j in range(W_view.shape[0])]
+                                W_pcs_df.index.name = "Component"
+                                save_csv(W_pcs_df, chain_dir / f"W_pcs_view_{view_idx}.csv", index=True)
+                                logger.info(f"      Saved W_pcs for {view_name}: {W_view.shape}")
+
+                                # Transform back to voxel space for brain remapping
+                                W_voxels = preprocessor.inverse_transform_pca_loadings(W_view, view_name)
+                                if W_voxels is not None:
+                                    W_voxels_df = pd.DataFrame(
+                                        W_voxels,
+                                        columns=[f"Factor_{k}" for k in range(W_voxels.shape[1])],
+                                    )
+                                    # Use feature names if available
+                                    if feature_names and view_name in feature_names:
+                                        view_feature_names = feature_names[view_name]
+                                        if len(view_feature_names) == W_voxels.shape[0]:
+                                            W_voxels_df.index = view_feature_names
+                                        else:
+                                            W_voxels_df.index = [f"Feature_{j}" for j in range(W_voxels.shape[0])]
+                                    else:
+                                        W_voxels_df.index = [f"Feature_{j}" for j in range(W_voxels.shape[0])]
+                                    W_voxels_df.index.name = "Feature"
+                                    save_csv(W_voxels_df, chain_dir / f"W_voxels_view_{view_idx}.csv", index=True)
+                                    logger.info(f"      Saved W_voxels for {view_name}: {W_voxels.shape} (ready for brain remapping)")
+                            else:
+                                # No PCA - save directly as W (already in feature/voxel space)
+                                W_df = pd.DataFrame(
+                                    W_view,
+                                    columns=[f"Factor_{k}" for k in range(W_view.shape[1])],
+                                )
+                                # Use feature names if available for this view
+                                if feature_names and view_name in feature_names:
+                                    view_feature_names = feature_names[view_name]
+                                    if len(view_feature_names) == W_view.shape[0]:
+                                        W_df.index = view_feature_names
+                                    else:
+                                        W_df.index = [f"Feature_{j}" for j in range(W_view.shape[0])]
                                 else:
                                     W_df.index = [f"Feature_{j}" for j in range(W_view.shape[0])]
-                            else:
-                                W_df.index = [f"Feature_{j}" for j in range(W_view.shape[0])]
-                            W_df.index.name = "Feature"
-                            save_csv(W_df, chain_dir / f"W_view_{view_idx}.csv", index=True)
+                                W_df.index.name = "Feature"
+                                save_csv(W_df, chain_dir / f"W_view_{view_idx}.csv", index=True)
                     else:
                         # Single matrix
                         W_df = pd.DataFrame(
@@ -671,13 +786,56 @@ def main():
                         save_plot(plots_dir / f"{plot_name}.png", dpi=300, close_after=False)
                         save_plot(plots_dir / f"{plot_name}.pdf", close_after=True)
 
+            # Save PCA information README if PCA was used
+            if pca_enabled and preprocessor:
+                readme_path = fs_output_dir / "PCA_BRAIN_REMAPPING_README.md"
+                with open(readme_path, "w") as f:
+                    f.write("# PCA Dimensionality Reduction - Brain Remapping Guide\n\n")
+                    f.write("This experiment used PCA dimensionality reduction during preprocessing.\n\n")
+                    f.write("## Files Saved\n\n")
+                    f.write("For each imaging view with PCA, two sets of factor loadings are saved:\n\n")
+                    f.write("1. **W_pcs_view_X.csv**: Factor loadings in PC space (n_components × K)\n")
+                    f.write("   - Direct output from Sparse GFA\n")
+                    f.write("   - Rows: Principal components\n")
+                    f.write("   - Columns: Latent factors\n\n")
+                    f.write("2. **W_voxels_view_X.csv**: Factor loadings in voxel space (n_voxels × K)\n")
+                    f.write("   - Transformed back through PCA: W_voxels = PCA.components_.T @ W_pcs\n")
+                    f.write("   - Rows: Individual voxels (matched to position lookup)\n")
+                    f.write("   - Columns: Latent factors\n")
+                    f.write("   - **USE THIS FOR BRAIN REMAPPING IN MATLAB**\n\n")
+                    f.write("## Brain Remapping Workflow\n\n")
+                    f.write("```matlab\n")
+                    f.write("% Load voxel-space loadings (already transformed)\n")
+                    f.write("W_voxels = readmatrix('W_voxels_view_0.csv');\n\n")
+                    f.write("% Load position lookup (use filtered version if available)\n")
+                    f.write("positions = readtable('position_sn_voxels.tsv');\n\n")
+                    f.write("% Multiply to create brain map for factor k\n")
+                    f.write("k = 1;  % Factor index\n")
+                    f.write("brain_map = positions;\n")
+                    f.write("brain_map.loading = W_voxels(:, k);\n\n")
+                    f.write("% Convert to NIfTI...\n")
+                    f.write("```\n\n")
+                    f.write("## PCA Details\n\n")
+                    pca_info = preprocessing_info.get("preprocessing_results", {}).get("pca_info", {})
+                    for view_name, info in pca_info.items():
+                        f.write(f"### {view_name}\n")
+                        f.write(f"- Original features: {info['n_features_original']}\n")
+                        f.write(f"- PCA components: {info['n_components']}\n")
+                        f.write(f"- Variance retained: {info['total_variance']:.2%}\n")
+                        f.write(f"- Dimensionality reduction: {info['n_features_original']} → {info['n_components']} ")
+                        f.write(f"({100 * info['n_components'] / info['n_features_original']:.1f}% of original)\n\n")
+                logger.info(f"   ✓ Saved PCA brain remapping README: {readme_path}")
+
             logger.info(f"   ✓ Results saved to: {fs_output_dir}")
 
             # Log summary
             stability = result.model_results.get("stability_results", {})
             logger.info(f"   ✓ Found {stability.get('n_stable_factors', 0)}/{stability.get('total_factors', 0)} stable factors")
             logger.info(f"   ✓ Stability rate: {stability.get('stability_rate', 0):.1%}")
-            logger.info(f"   ✓ Factor loadings (W) and scores (Z) saved for all {len(chain_results_data)} chains")
+            if pca_enabled:
+                logger.info(f"   ✓ Factor loadings saved in both PC space (W_pcs) and voxel space (W_voxels) for brain remapping")
+            else:
+                logger.info(f"   ✓ Factor loadings (W) and scores (Z) saved for all {len(chain_results_data)} chains")
 
     if "clinical_validation" in experiments_to_run:
         logger.info("🏥 4/4 Starting Clinical Validation with Neuroimaging CV...")

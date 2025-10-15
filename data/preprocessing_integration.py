@@ -324,6 +324,11 @@ def _apply_advanced_preprocessing(
             qc_outlier_threshold=strategy_config.get("qc_outlier_threshold", 3.0),
             spatial_neighbor_radius=strategy_config.get("spatial_neighbor_radius", 5.0),
             min_voxel_distance=strategy_config.get("min_voxel_distance", 3.0),
+            # PCA parameters
+            enable_pca=strategy_config.get("enable_pca", False),
+            pca_n_components=strategy_config.get("pca_n_components", None),
+            pca_variance_threshold=strategy_config.get("pca_variance_threshold", 0.95),
+            pca_whiten=strategy_config.get("pca_whiten", False),
         )
 
         # Validate configuration
@@ -352,6 +357,7 @@ def _apply_advanced_preprocessing(
             "status": "completed",
             "strategy": strategy_config,
             "preprocessor_type": "NeuroImagingPreprocessor",
+            "preprocessor": preprocessor,  # Store the preprocessor for PCA inverse transform
             "steps_applied": steps_applied,
             "config": preprocessing_config.to_dict(),
             "n_views": len(X_list),
@@ -364,6 +370,7 @@ def _apply_advanced_preprocessing(
                 "feature_selection": preprocessing_config.feature_selection_method,
                 "spatial_processing_enabled": preprocessing_config.enable_spatial_processing,
                 "scanner_harmonization_enabled": preprocessing_config.harmonize_scanners,
+                "pca_enabled": preprocessing_config.enable_pca,
             },
         }
 
@@ -391,6 +398,20 @@ def _apply_advanced_preprocessing(
             if saved_positions:
                 preprocessing_info["filtered_position_lookups"] = saved_positions
                 logger.info(f"   Saved {len(saved_positions)} filtered position lookup files")
+
+        # Add PCA information if PCA was used
+        if preprocessing_config.enable_pca:
+            pca_info = {}
+            for view_name in view_names:
+                view_pca_info = preprocessor.get_pca_info(view_name)
+                if view_pca_info:
+                    pca_info[view_name] = view_pca_info
+                    logger.info(
+                        f"   PCA for {view_name}: {view_pca_info['n_features_original']} → "
+                        f"{view_pca_info['n_components']} components "
+                        f"({view_pca_info['total_variance']:.2%} variance)"
+                    )
+            preprocessing_info["pca_info"] = pca_info
 
         logger.info(f"✅ Advanced preprocessing completed")
         logger.info(f"   Applied steps: {steps_applied}")
@@ -668,6 +689,10 @@ def _apply_differentiated_preprocessing(
                     enable_spatial_processing=strategy_config.get("enable_spatial_processing", False),
                     roi_based_selection=strategy_config.get("roi_based_selection", False),
                     spatial_imputation=strategy_config.get("spatial_imputation", False),
+                    enable_pca=strategy_config.get("enable_pca", False),
+                    pca_n_components=strategy_config.get("pca_n_components", None),
+                    pca_variance_threshold=strategy_config.get("pca_variance_threshold", 0.95),
+                    pca_whiten=strategy_config.get("pca_whiten", False),
                 )
 
                 # Apply neuroimaging preprocessing including feature selection
@@ -689,6 +714,10 @@ def _apply_differentiated_preprocessing(
                     variance_threshold=strategy_config.get("variance_threshold", 0.01),
                     missing_threshold=strategy_config.get("missing_threshold", 0.5),
                     enable_spatial_processing=False,  # Clinical data isn't spatial
+                    enable_pca=strategy_config.get("enable_pca", False),
+                    pca_n_components=strategy_config.get("pca_n_components", None),
+                    pca_variance_threshold=strategy_config.get("pca_variance_threshold", 0.95),
+                    pca_whiten=strategy_config.get("pca_whiten", False),
                 )
 
                 # Apply full preprocessing to clinical data

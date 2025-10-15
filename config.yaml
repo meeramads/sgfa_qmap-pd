@@ -62,6 +62,8 @@ model:
 # Preprocessing Configuration (OPTIONAL)
 # Controls data preprocessing and feature selection
 preprocessing:
+  # Default: no feature selection, no PCA (use all voxels)
+  # For PCA: use strategy: "pca_balanced", "pca_aggressive", or "pca_conservative" (see data_validation section)
   strategy: "full_preprocessing_all_views"  # Apply feature selection to ALL views (imaging + clinical)
   enable_advanced_preprocessing: true   # Enable smart preprocessing for speed
   enable_spatial_processing: false      # Spatial processing (harmonization, etc) - can be slow
@@ -80,6 +82,16 @@ preprocessing:
 
   # Confound handling (NEW)
   drop_confounds_from_clinical: true    # Drop confounds from clinical view (vs residualize)
+
+  # PCA Dimensionality Reduction (OPTIONAL)
+  # NOTE: For optimized PCA configs based on MAD elbow analysis, use the pre-configured strategies:
+  #   - strategy: "pca_balanced"      → 85% variance, ~120 components (RECOMMENDED)
+  #   - strategy: "pca_aggressive"    → 80% variance, ~90 components (best N/D ratio)
+  #   - strategy: "pca_conservative"  → 90% variance, ~150 components (more information)
+  enable_pca: false                     # Enable PCA dimensionality reduction
+  pca_n_components: null                # Fixed number of components (null = use variance threshold)
+  pca_variance_threshold: 0.95          # Retain 95% of variance (only used if pca_n_components is null)
+  pca_whiten: false                     # Whiten PCA components (normalize variance)
 
 # Cross-Validation Configuration (OPTIONAL)
 # Configures model evaluation and validation
@@ -157,6 +169,10 @@ data_validation:
       variance_threshold: 0.01                     # Only used if feature_selection_method changed to "variance"
       missing_threshold: 0.5
       imaging_preserve_voxels: true                # Preserve all imaging voxels for spatial mapping
+      enable_pca: false                            # PCA dimensionality reduction (disabled by default)
+      pca_n_components: null                       # Number of PCA components (null = use variance threshold)
+      pca_variance_threshold: 0.95                 # Retain 95% of variance if pca_n_components is null
+      pca_whiten: false                            # Whiten PCA components
 
     optimized:
       enable_advanced_preprocessing: true
@@ -169,6 +185,43 @@ data_validation:
       feature_selection_method: "statistical"
       n_top_features: 300
       variance_threshold: 0.005           # More stringent for clinical applications
+
+    # PCA-based dimensionality reduction strategies
+    # Based on MAD elbow analysis (21.5% retention) and N/D ratio optimization
+
+    pca_balanced:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "none"    # Use PCA instead of feature selection
+      enable_pca: true
+      pca_n_components: null
+      pca_variance_threshold: 0.85        # 85% variance (~120 components, N/D≈0.74:1)
+      pca_whiten: false
+      # RECOMMENDED: Best balance of compression and information retention
+      # Use with K=10 factors
+
+    pca_aggressive:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "none"
+      enable_pca: true
+      pca_n_components: null
+      pca_variance_threshold: 0.80        # 80% variance (~90 components, N/D≈0.89:1)
+      pca_whiten: false
+      # Most aggressive compression, best N/D ratio
+      # Use with K=10 factors
+      # Closest to MAD elbow (21.5% retention)
+
+    pca_conservative:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "none"
+      enable_pca: true
+      pca_n_components: null
+      pca_variance_threshold: 0.90        # 90% variance (~150 components, N/D≈0.59:1)
+      pca_whiten: false
+      # More information retained, less compression
+      # Use with K=8 factors (reduced to improve N/D ratio)
 
 # Clinical Validation Experiment
 clinical_validation:
