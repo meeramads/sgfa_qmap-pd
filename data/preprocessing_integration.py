@@ -171,6 +171,15 @@ def get_advanced_preprocessing_data(
             advanced_features.append(f"missing_threshold: {strategy_config.get('missing_threshold')}")
         if strategy_config.get("enable_spatial_processing"):
             advanced_features.append("spatial_processing: enabled")
+        if strategy_config.get("qc_outlier_threshold"):
+            advanced_features.append(f"MAD_threshold: {strategy_config.get('qc_outlier_threshold')}")
+        if strategy_config.get("enable_pca"):
+            pca_var = strategy_config.get("pca_variance_threshold", 0.95)
+            pca_comp = strategy_config.get("pca_n_components")
+            if pca_comp:
+                advanced_features.append(f"PCA: {pca_comp} components")
+            else:
+                advanced_features.append(f"PCA: {pca_var*100:.0f}% variance")
 
         if advanced_features:
             logger.info(f"🚀 Advanced preprocessing features: {', '.join(advanced_features)}")

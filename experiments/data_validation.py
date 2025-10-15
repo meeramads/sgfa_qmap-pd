@@ -263,13 +263,43 @@ class DataValidationExperiments(ExperimentFramework):
             )
 
             # Load preprocessed data for comparison
-            preprocessed_config = {k: v for k, v in preprocessing_config.items() if k in valid_load_params}
-            preprocessed_config["enable_advanced_preprocessing"] = True
+            # Check if PCA is requested - if so, use apply_preprocessing_to_pipeline
+            # because load_qmap_pd() doesn't support PCA parameters
+            use_pca = preprocessing_config.get("enable_pca", False)
+            logger.info(f"   PCA enabled in preprocessing_config: {use_pca}")
+            if use_pca:
+                logger.info(f"   PCA variance threshold: {preprocessing_config.get('pca_variance_threshold')}")
+                logger.info(f"   PCA n_components: {preprocessing_config.get('pca_n_components')}")
 
-            preprocessed_data = load_qmap_pd(
-                data_dir=data_dir,
-                **preprocessed_config,  # Pass filtered preprocessing config with advanced preprocessing enabled
-            )
+            if use_pca:
+                # Use apply_preprocessing_to_pipeline for full preprocessing including PCA
+                from data.preprocessing_integration import apply_preprocessing_to_pipeline
+                logger.info("   Using apply_preprocessing_to_pipeline for PCA support...")
+
+                X_list, preprocessing_info = apply_preprocessing_to_pipeline(
+                    config={"preprocessing": preprocessing_config, "data": {"data_dir": data_dir}},
+                    data_dir=data_dir,
+                    auto_select_strategy=False,
+                    preferred_strategy=preprocessing_config.get("strategy", "standard"),
+                )
+
+                # Convert to load_qmap_pd format for compatibility
+                preprocessed_data = {
+                    "X_list": X_list,
+                    "view_names": preprocessing_info.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))]),
+                    "feature_names": preprocessing_info.get("data_summary", {}).get("original_data", {}).get("feature_names", {}),
+                    "preprocessing_applied": True,
+                    "preprocessing_info": preprocessing_info,
+                }
+            else:
+                # Use load_qmap_pd for standard preprocessing without PCA
+                preprocessed_config = {k: v for k, v in preprocessing_config.items() if k in valid_load_params}
+                preprocessed_config["enable_advanced_preprocessing"] = True
+
+                preprocessed_data = load_qmap_pd(
+                    data_dir=data_dir,
+                    **preprocessed_config,  # Pass filtered preprocessing config with advanced preprocessing enabled
+                )
 
             X_list = preprocessed_data["X_list"]
         else:
