@@ -702,6 +702,8 @@ def main():
 
                             # Save W_pcs (PC-space loadings) if PCA was used
                             if pca_enabled and preprocessor and hasattr(preprocessor, 'has_pca') and preprocessor.has_pca(view_name):
+                                logger.info(f"      🔄 PCA-transformed view detected: {view_name}")
+
                                 # This is in PC space - save as W_pcs
                                 W_pcs_df = pd.DataFrame(
                                     W_view,
@@ -710,7 +712,7 @@ def main():
                                 W_pcs_df.index = [f"PC_{j}" for j in range(W_view.shape[0])]
                                 W_pcs_df.index.name = "Component"
                                 save_csv(W_pcs_df, chain_dir / f"W_pcs_view_{view_idx}.csv", index=True)
-                                logger.info(f"      Saved W_pcs for {view_name}: {W_view.shape}")
+                                logger.info(f"      ✓ Saved W_pcs (PC space): {W_view.shape}")
 
                                 # Transform back to voxel space for brain remapping
                                 W_voxels = preprocessor.inverse_transform_pca_loadings(W_view, view_name)
@@ -730,7 +732,8 @@ def main():
                                         W_voxels_df.index = [f"Feature_{j}" for j in range(W_voxels.shape[0])]
                                     W_voxels_df.index.name = "Feature"
                                     save_csv(W_voxels_df, chain_dir / f"W_voxels_view_{view_idx}.csv", index=True)
-                                    logger.info(f"      Saved W_voxels for {view_name}: {W_voxels.shape} (ready for brain remapping)")
+                                    logger.info(f"      ✓ Saved W_voxels (voxel space): {W_voxels.shape}")
+                                    logger.info(f"      📍 Brain remapping ready: use W_voxels_view_{view_idx}.csv with position lookup vectors")
                             else:
                                 # No PCA - save directly as W (already in feature/voxel space)
                                 W_df = pd.DataFrame(

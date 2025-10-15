@@ -205,6 +205,12 @@ class PreprocessingConfig:
     # Confound handling
     drop_confounds_from_clinical: bool = True  # Drop confounds from clinical view vs residualize
 
+    # PCA dimensionality reduction
+    enable_pca: bool = False
+    pca_n_components: Optional[int] = None
+    pca_variance_threshold: float = 0.95
+    pca_whiten: bool = False
+
     def validate(self) -> List[str]:
         """Validate preprocessing configuration."""
         errors = []
@@ -235,6 +241,14 @@ class PreprocessingConfig:
 
         if self.qc_outlier_threshold <= 0:
             errors.append("qc_outlier_threshold must be positive")
+
+        # Check PCA parameters
+        if self.enable_pca:
+            if self.pca_n_components is not None and self.pca_n_components <= 0:
+                errors.append("pca_n_components must be positive if specified")
+
+            if not 0 < self.pca_variance_threshold <= 1:
+                errors.append("pca_variance_threshold must be between 0 and 1")
 
         return errors
 

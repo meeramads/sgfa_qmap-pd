@@ -229,6 +229,7 @@ class SpatialProcessingUtils:
     def detect_outlier_voxels(X: np.ndarray, threshold: float = 3.0) -> np.ndarray:
         """Detect voxels with outlier intensities that may indicate artifacts"""
         outlier_mask = np.zeros(X.shape[1], dtype=bool)
+        outlier_scores = []  # Track max MAD scores for reporting
 
         for i in range(X.shape[1]):
             voxel_data = X[:, i]
@@ -242,8 +243,20 @@ class SpatialProcessingUtils:
                     # Check for extreme outliers using MAD (more robust than std)
                     if mad > 0:  # Avoid division by zero
                         mad_scores = np.abs(clean_data - median) / (mad * 1.4826)
-                        if np.any(mad_scores > threshold):
+                        max_mad_score = np.max(mad_scores)
+                        outlier_scores.append(max_mad_score)
+                        if max_mad_score > threshold:
                             outlier_mask[i] = True
+
+        # Log summary statistics
+        if len(outlier_scores) > 0:
+            outlier_scores = np.array(outlier_scores)
+            logging.info(
+                f"  MAD outlier detection: threshold={threshold:.1f}, "
+                f"max_score={np.max(outlier_scores):.2f}, "
+                f"median_score={np.median(outlier_scores):.2f}, "
+                f"outliers={np.sum(outlier_mask)}/{len(outlier_mask)} voxels"
+            )
 
         return outlier_mask
 
@@ -632,7 +645,11 @@ class AdvancedPreprocessor(BasePreprocessor):
         if not self.enable_pca:
             return X
 
-        logging.info(f"Applying PCA dimensionality reduction to {view_name}")
+        n_features_before = X.shape[1]
+        logging.info(
+            f"Applying PCA dimensionality reduction to {view_name} "
+            f"({n_features_before} features)"
+        )
 
         from sklearn.decomposition import PCA
 
@@ -640,12 +657,16 @@ class AdvancedPreprocessor(BasePreprocessor):
         if self.pca_n_components is not None:
             # Use fixed number of components
             n_components = min(self.pca_n_components, X.shape[0], X.shape[1])
-            logging.info(f"  Using fixed n_components={n_components}")
+            logging.info(
+                f"  Strategy: fixed number of components (n={n_components})"
+            )
         else:
             # Use variance threshold to determine components
             # First fit with max components to see variance explained
             n_components = min(X.shape[0], X.shape[1])
-            logging.info(f"  Using variance threshold={self.pca_variance_threshold}")
+            logging.info(
+                f"  Strategy: variance threshold ({self.pca_variance_threshold*100:.0f}% variance)"
+            )
 
         # Fit PCA
         pca = PCA(
@@ -662,7 +683,11 @@ class AdvancedPreprocessor(BasePreprocessor):
             n_components_selected = min(n_components_selected, X_pca.shape[1])
 
             if n_components_selected < X_pca.shape[1]:
-                logging.info(f"  Selecting {n_components_selected} components (explaining {cumsum_variance[n_components_selected-1]:.2%} variance)")
+                actual_variance = cumsum_variance[n_components_selected-1]
+                logging.info(
+                    f"  Selected {n_components_selected} components "
+                    f"(actual variance: {actual_variance:.2%})"
+                )
                 X_pca = X_pca[:, :n_components_selected]
 
                 # Refit PCA with selected number of components for cleaner transform
@@ -676,12 +701,22 @@ class AdvancedPreprocessor(BasePreprocessor):
         # Store PCA transformer
         self.pca_transformers_[view_name] = pca
 
-        # Log transformation info
+        # Log transformation summary
         total_variance = pca.explained_variance_ratio_.sum()
+        n_components_final = X_pca.shape[1]
+        reduction_pct = ((n_features_before - n_components_final) / n_features_before) * 100
+
         logging.info(
-            f"  PCA: {X.shape[1]} features → {X_pca.shape[1]} components "
-            f"(explaining {total_variance:.2%} variance)"
+            f"  PCA complete: {n_features_before} features → {n_components_final} components "
+            f"({reduction_pct:.1f}% reduction, {total_variance:.2%} variance retained)"
         )
+
+        # Log top principal components contribution
+        if n_components_final >= 5:
+            top5_variance = pca.explained_variance_ratio_[:5].sum()
+            logging.info(
+                f"  Top 5 PCs explain {top5_variance:.2%} of variance"
+            )
 
         return X_pca
 
@@ -724,6 +759,15 @@ class AdvancedPreprocessor(BasePreprocessor):
             return None
 
         pca = self.pca_transformers_[view_name]
+        n_factors = W_pcs.shape[1] if len(W_pcs.shape) > 1 else 1
+
+        logging.info(
+            f"Performing inverse PCA transform for brain remapping: {view_name}"
+        )
+        logging.info(
+            f"  Input: W_pcs shape = {W_pcs.shape} "
+            f"({W_pcs.shape[0]} principal components × {n_factors} factors)"
+        )
 
         # Transform: W_features = PCA.components_.T @ W_pcs
         # PCA.components_ shape: (n_components, n_features)
@@ -733,8 +777,11 @@ class AdvancedPreprocessor(BasePreprocessor):
         W_features = pca.components_.T @ W_pcs
 
         logging.info(
-            f"Inverse PCA transform for {view_name}: "
-            f"{W_pcs.shape[0]} components → {W_features.shape[0]} features"
+            f"  Output: W_voxels shape = {W_features.shape} "
+            f"({W_features.shape[0]} voxels × {n_factors} factors)"
+        )
+        logging.info(
+            f"  Brain remapping ready: W_voxels can be used with position lookup vectors"
         )
 
         return W_features
@@ -920,7 +967,11 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         if not self._is_imaging_view(view_name):
             return X
 
-        logging.info(f"Applying quality control to {view_name}")
+        n_voxels_before = X.shape[1]
+        logging.info(
+            f"Applying MAD-based quality control to {view_name} "
+            f"({n_voxels_before} voxels, threshold={self.qc_outlier_threshold:.1f})"
+        )
 
         # Detect outlier voxels
         outlier_mask = SpatialProcessingUtils.detect_outlier_voxels(
@@ -928,12 +979,22 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         )
 
         if np.any(outlier_mask):
+            n_outliers = np.sum(outlier_mask)
+            n_retained = n_voxels_before - n_outliers
+            retention_pct = (n_retained / n_voxels_before) * 100
+
             logging.warning(
-                f"Removing {np.sum(outlier_mask)} outlier voxels from {view_name}"
+                f"  Outlier voxels detected: {n_outliers}/{n_voxels_before} "
+                f"({(n_outliers/n_voxels_before)*100:.1f}%)"
             )
+            logging.info(
+                f"  Voxels retained: {n_retained}/{n_voxels_before} ({retention_pct:.1f}%)"
+            )
+
             X_clean = X[:, ~outlier_mask]
             self.outlier_masks_[view_name] = ~outlier_mask  # Store kept voxels
         else:
+            logging.info(f"  No outlier voxels detected - all {n_voxels_before} voxels retained")
             X_clean = X
             self.outlier_masks_[view_name] = np.ones(X.shape[1], dtype=bool)
 

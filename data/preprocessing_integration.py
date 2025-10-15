@@ -370,6 +370,7 @@ def _apply_advanced_preprocessing(
                 "feature_selection": preprocessing_config.feature_selection_method,
                 "spatial_processing_enabled": preprocessing_config.enable_spatial_processing,
                 "scanner_harmonization_enabled": preprocessing_config.harmonize_scanners,
+                "qc_outlier_threshold": preprocessing_config.qc_outlier_threshold,
                 "pca_enabled": preprocessing_config.enable_pca,
             },
         }
@@ -416,8 +417,23 @@ def _apply_advanced_preprocessing(
         logger.info(f"✅ Advanced preprocessing completed")
         logger.info(f"   Applied steps: {steps_applied}")
         logger.info(
-            f" Feature reduction: {total_features_before} → {total_features_after} ({ reduction_ratio:.3f} ratio)"
+            f"   Feature reduction: {total_features_before} → {total_features_after} ({reduction_ratio:.3f} ratio)"
         )
+
+        # Log key preprocessing parameters
+        if preprocessing_config.enable_spatial_processing:
+            logger.info(
+                f"   MAD outlier threshold: {preprocessing_config.qc_outlier_threshold:.1f}"
+            )
+        if preprocessing_config.enable_pca:
+            if preprocessing_config.pca_n_components:
+                logger.info(
+                    f"   PCA: fixed {preprocessing_config.pca_n_components} components"
+                )
+            else:
+                logger.info(
+                    f"   PCA: {preprocessing_config.pca_variance_threshold*100:.0f}% variance threshold"
+                )
 
         return X_processed, preprocessing_info
 
