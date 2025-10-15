@@ -564,12 +564,19 @@ def main():
 
         # Create experiment configuration
         fs_config = exp_config.get("factor_stability", {})
+        logger.info(f"   Factor stability config from config.yaml: K={fs_config.get('K')}, percW={fs_config.get('percW')}, num_chains={fs_config.get('num_chains')}")
+
+        # Check for command-line K override
+        K_override = exp_config.get("model", {}).get("K", None)
+        K_value = K_override if K_override is not None else fs_config.get("K", 20)
+        if K_override is not None:
+            logger.info(f"   Using command-line K override: {K_value} (config.yaml has {fs_config.get('K', 20)})")
         experiment_config = ExperimentConfig(
             experiment_name="factor_stability_analysis",
             description="Factor stability analysis with fixed parameters (Ferreira et al. 2024)",
             dataset="qmap_pd",
             data_dir=get_data_dir(exp_config),
-            K_values=[fs_config.get("K", 20)],
+            K_values=[K_value],
             num_samples=fs_config.get("num_samples", 5000),
             num_warmup=fs_config.get("num_warmup", 1000),
             num_chains=fs_config.get("num_chains", 4),
@@ -607,17 +614,20 @@ def main():
         if subject_ids:
             logger.info(f"   Subject IDs: {len(subject_ids)} patients")
 
-        # Prepare hyperparameters (read from config.yaml)
-        K = fs_config.get("K", 20)
+        # Prepare hyperparameters (use K_value which respects command-line override)
+        # Read from global model section for consistency across pipeline
+        model_config = exp_config.get("model", {})
+        K = K_value
         hypers = {
             "Dm": [X.shape[1] for X in X_list],
             "K": K,
             "a_sigma": 1.0,
             "b_sigma": 1.0,
-            "slab_df": fs_config.get("slab_df", 4),
-            "slab_scale": fs_config.get("slab_scale", 2),
-            "percW": fs_config.get("percW", 33),
+            "slab_df": model_config.get("slab_df", 4),
+            "slab_scale": model_config.get("slab_scale", 2),
+            "percW": model_config.get("percW", 20),
         }
+        logger.info(f"   Using global model hyperparameters: percW={hypers['percW']}, slab_df={hypers['slab_df']}, slab_scale={hypers['slab_scale']}")
 
         # Prepare MCMC args (read from config.yaml)
         mcmc_args = {

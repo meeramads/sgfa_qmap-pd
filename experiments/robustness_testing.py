@@ -654,12 +654,14 @@ class RobustnessExperiments(ExperimentFramework):
             )
 
             self.logger.info(f"✅ Model setup complete: {model_type}")
-            self.logger.info(f"   Models summary: {models_summary}")
+            # Log only key hyperparameters, not full models summary
+            hypers_log = models_summary.get('hyperparameters', {})
+            self.logger.info(f"   Hyperparameters: K={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
 
             # Import the SGFA model function via interface
             from core.model_interface import get_model_function
             models = get_model_function()
-            self.logger.info(f"✅ Model function loaded: {models}")
+            self.logger.info(f"✅ Model function loaded: SparseGFA")
 
             # Setup MCMC configuration for robustness testing
             num_warmup = args.get("num_warmup", 50)
@@ -2427,20 +2429,33 @@ def run_robustness_testing(config):
         # Create robustness experiment instance
         repro_exp = RobustnessExperiments(exp_config, logger)
 
+        # Check for command-line K override
+        K_override = config_dict.get("model", {}).get("K", None)
+        K_value = K_override if K_override is not None else 10
+        if K_override is not None:
+            logger.info(f"   Using command-line K override: {K_value} (default is 10)")
+
+        # Read hyperparameters from global model section for consistency across pipeline
+        model_config = config_dict.get("model", {})
+        percW_value = model_config.get("percW", 20)  # Default 20
+        slab_df_value = model_config.get("slab_df", 4)
+        slab_scale_value = model_config.get("slab_scale", 2)
+        logger.info(f"   Using global model hyperparameters: K={K_value}, percW={percW_value}, slab_df={slab_df_value}, slab_scale={slab_scale_value}")
+
         # Setup base hyperparameters
         base_hypers = {
             "Dm": [X.shape[1] for X in X_list],
             "a_sigma": 1.0,
             "b_sigma": 1.0,
-            "slab_df": 4.0,
-            "slab_scale": 2.0,
-            "percW": 33.0,
-            "K": 10,  # Base number of factors
+            "slab_df": slab_df_value,
+            "slab_scale": slab_scale_value,
+            "percW": percW_value,
+            "K": K_value,  # Use K_value which respects command-line override
         }
 
         # Setup base args
         base_args = {
-            "K": 10,
+            "K": K_value,  # Use K_value which respects command-line override
             "num_warmup": 50,  # Reduced for robustness testing speed
             "num_samples": 100,  # Reduced for robustness testing speed
             "num_chains": 1,

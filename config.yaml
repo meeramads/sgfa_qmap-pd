@@ -52,6 +52,13 @@ model:
   sparsity_lambda: 0.05                  # Sparsity penalty (≥0, typically 0.01-1.0)
   group_lambda: 0.1                      # OPTIONAL: Group sparsity penalty
 
+  # Regularized Horseshoe Prior Hyperparameters (GLOBAL - used by all experiments)
+  # These control sparsity and shrinkage behavior across the entire pipeline
+  percW: 20                              # Element-wise sparsity level (% non-zero loadings, 10-50 typical)
+  slab_df: 4                             # Slab degrees of freedom for regularized horseshoe (3-10 typical)
+  slab_scale: 2                          # Slab scale for regularized horseshoe (1-5 typical)
+  reghsZ: true                           # Apply regularized horseshoe to latent factors Z
+
   # Random Seed (OPTIONAL)
   random_seed: 42                        # Random seed for reproducible results
 
@@ -273,6 +280,7 @@ clinical_validation:
       - "convergence_vs_clinical_validity" # Fast convergence vs clinical correlation
 
 # Robustness Testing Experiment
+# NOTE: Uses global model hyperparameters (percW, slab_df, slab_scale) from model section above
 robustness_testing:
   test_scenarios:
     - "identical_seeds"                 # Same random seed should give same results
@@ -294,6 +302,7 @@ robustness_testing:
 
 # Factor Stability Analysis Configuration
 # Implements Ferreira et al. 2024 methodology for assessing factor robustness
+# NOTE: Uses global model hyperparameters (percW, slab_df, slab_scale, reghsZ) from model section above
 factor_stability:
   K: 30                                 # Number of latent factors - balanced for GPU memory and shrinkage detection
   num_chains: 4                         # Number of independent chains (4+ recommended)
@@ -308,12 +317,6 @@ factor_stability:
   # Effective factor counting parameters
   sparsity_threshold: 0.01              # Minimum loading magnitude to be non-zero
   min_nonzero_pct: 0.05                 # Minimum fraction of non-zero loadings (5%)
-
-  # Fixed parameters from Ferreira et al. 2024 Section 2.7
-  percW: 20                             # Sparsity level (reduced from 33 for stronger shrinkage)
-  slab_df: 4                            # Slab degrees of freedom
-  slab_scale: 2                         # Slab scale
-  reghsZ: true                          # Regularized horseshoe on Z
   target_accept_prob: 0.8               # MCMC acceptance probability
 
 # =============================================================================
