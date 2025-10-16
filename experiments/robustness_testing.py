@@ -2485,6 +2485,7 @@ class RobustnessExperiments(ExperimentFramework):
                                 self.logger.info(f"      ❌ POOR shrinkage - check convergence (ratio={shrinkage_ratio:.1f})")
 
                         # Compare to stability results if available
+                        n_stable_factors = stability_results.get("n_stable_factors", 0)
                         if n_stable_factors > 0:
                             self.logger.info(f"   🔍 Cross-check: {n_stable_factors} stable factors vs {n_active} active factors")
                             if abs(n_stable_factors - n_active) > 2:
