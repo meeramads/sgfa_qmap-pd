@@ -191,7 +191,11 @@ def models(X_list, hypers, args):
 
 def run_inference(model, args, rng_key, X_list, hypers):
     """Run MCMC inference using Hamiltonian Monte Carlo"""
-    kernel = NUTS(model, target_accept_prob=0.9, max_tree_depth=12)
+    # Use NUTS parameters from args if available, otherwise use defaults
+    max_tree_depth = getattr(args, 'max_tree_depth', 12)
+    target_accept_prob = getattr(args, 'target_accept_prob', 0.9)
+
+    kernel = NUTS(model, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth)
     mcmc = MCMC(
         kernel,
         num_warmup=args.num_warmup,

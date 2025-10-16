@@ -136,9 +136,12 @@ class ModelRunner:
         # Initialize model
         model = SparseGFAModel(self.config, hypers)
 
-        # Setup MCMC
+        # Setup MCMC - use config parameters or defaults
+        max_tree_depth = getattr(self.config, 'max_tree_depth', 12)
+        target_accept_prob = getattr(self.config, 'target_accept_prob', 0.9)
+
         rng_key = jax.random.PRNGKey(np.random.randint(0, 10000))
-        kernel = NUTS(model, target_accept_prob=0.9, max_tree_depth=12)
+        kernel = NUTS(model, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth)
         mcmc = MCMC(
             kernel,
             num_warmup=self.config.num_warmup,

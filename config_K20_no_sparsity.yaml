@@ -1,25 +1,35 @@
 # =============================================================================
-# DIAGNOSTIC CONFIG: NO SPARSITY - SIMPLE GAUSSIAN PRIORS
+# OVERPARAMETERIZATION TEST: K=20 WITH SIMPLE PRIORS
 #
-# 🎯 PURPOSE: Test if convergence issues are caused by horseshoe priors
+# 🎯 PURPOSE: Test if overparameterization leads to stable factors
 #
-# KEY CHANGES FROM PRODUCTION:
+# HYPOTHESIS TO TEST:
+#   Sometimes high K leads to a few stable factors emerging even when
+#   low K fails to converge. This tests if stability measurement is:
+#   - Real phenomenon (overparam → better exploration → stable factors)
+#   - Artifact of measurement (more factors → easier to match by chance)
+#
+# KEY SETTINGS:
 #   ✓ model_type: "standard_gfa" (uses ARD priors, NOT horseshoe)
-#   ✓ K = 2 factors (minimal)
+#   ✓ K = 20 factors (moderate overparameterization)
 #   ✓ No percW constraint (no sparsity)
-#   ✓ No horseshoe regularization on W or Z
-#   ✓ Simple Gamma ARD priors instead
-#   ✓ 1000 warmup, 2000 samples (as requested)
-#   ✓ 4 chains for convergence diagnostics
+#   ✓ ARD will automatically shrink unused factors
+#   ✓ 1000 warmup, 2000 samples
+#   ✓ 4 chains for stability assessment
 #   ✓ MAD-filtered voxels (no PCA)
 #
-# 📊 WHAT TO EXPECT:
-#   - If this converges (R-hat < 1.1): Problem is horseshoe priors
-#   - If this still doesn't converge: Problem is more fundamental
-#     (multimodality, model misspecification, data issues)
+# 📊 WHAT TO LOOK FOR:
+#   - How many factors survive ARD shrinkage?
+#   - Are the surviving factors stable across chains?
+#   - R-hat convergence for W and Z
+#   - Effective factors per chain (via ARD)
+#
+# COMPARISON POINTS:
+#   - vs K=2: Does more flexibility help convergence?
+#   - vs K=50: Is K=20 a sweet spot?
 #
 # 📝 Usage:
-#   python run_experiments.py --config config_K2_no_sparsity.yaml
+#   python run_experiments.py --config config_K20_no_sparsity.yaml
 #
 # =============================================================================
 
@@ -43,7 +53,7 @@ experiments:
 # Model Configuration - STANDARD GFA (NO HORSESHOE)
 model:
   model_type: "standard_gfa"               # ⭐ KEY: Use standard GFA with ARD priors
-  K: 2                                     # ⭐ KEY: Minimal number of factors
+  K: 20                                    # ⭐ KEY: Moderate overparameterization
 
   # MCMC Parameters - AS REQUESTED
   num_samples: 2000                        # ⭐ KEY: 2000 sampling iterations

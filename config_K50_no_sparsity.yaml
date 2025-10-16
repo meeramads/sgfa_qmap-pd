@@ -1,25 +1,45 @@
 # =============================================================================
-# DIAGNOSTIC CONFIG: NO SPARSITY - SIMPLE GAUSSIAN PRIORS
+# EXTREME OVERPARAMETERIZATION TEST: K=50 WITH SIMPLE PRIORS
 #
-# 🎯 PURPOSE: Test if convergence issues are caused by horseshoe priors
+# 🎯 PURPOSE: Test extreme overparameterization for stable factor emergence
 #
-# KEY CHANGES FROM PRODUCTION:
+# HYPOTHESIS TO TEST:
+#   With K=50 >> true dimensionality, ARD should:
+#   1. Shrink most factors to near-zero (automatic model selection)
+#   2. Leave a few strong factors that are stable across chains
+#   3. Potentially improve exploration and convergence
+#
+# This tests the "blessing of overparameterization" hypothesis:
+#   - More parameters → richer posterior geometry → better mixing
+#   - ARD acts as automatic model selection
+#   - Stable factors = those not shrunk by ARD + matched across chains
+#
+# KEY SETTINGS:
 #   ✓ model_type: "standard_gfa" (uses ARD priors, NOT horseshoe)
-#   ✓ K = 2 factors (minimal)
-#   ✓ No percW constraint (no sparsity)
-#   ✓ No horseshoe regularization on W or Z
-#   ✓ Simple Gamma ARD priors instead
-#   ✓ 1000 warmup, 2000 samples (as requested)
-#   ✓ 4 chains for convergence diagnostics
+#   ✓ K = 50 factors (extreme overparameterization)
+#   ✓ No percW constraint (no sparsity beyond ARD)
+#   ✓ ARD will shrink most of the 50 factors
+#   ✓ 1000 warmup, 2000 samples
+#   ✓ 4 chains for stability assessment
 #   ✓ MAD-filtered voxels (no PCA)
 #
-# 📊 WHAT TO EXPECT:
-#   - If this converges (R-hat < 1.1): Problem is horseshoe priors
-#   - If this still doesn't converge: Problem is more fundamental
-#     (multimodality, model misspecification, data issues)
+# 📊 WHAT TO LOOK FOR:
+#   - How many of 50 factors survive ARD? (expect: 2-10)
+#   - Do surviving factors match across chains?
+#   - R-hat: Does overparameterization help convergence?
+#   - Factor loadings: Are they interpretable?
+#
+# COMPARISON POINTS:
+#   - vs K=2: Does flexibility overcome underparameterization?
+#   - vs K=20: Is K=50 too many (slow, worse convergence)?
+#
+# ⚠️  CAUTION:
+#   - K=50 is computationally expensive (50x more parameters)
+#   - May take 2-3x longer than K=2 or K=20
+#   - May need more memory
 #
 # 📝 Usage:
-#   python run_experiments.py --config config_K2_no_sparsity.yaml
+#   python run_experiments.py --config config_K50_no_sparsity.yaml
 #
 # =============================================================================
 
@@ -43,7 +63,7 @@ experiments:
 # Model Configuration - STANDARD GFA (NO HORSESHOE)
 model:
   model_type: "standard_gfa"               # ⭐ KEY: Use standard GFA with ARD priors
-  K: 2                                     # ⭐ KEY: Minimal number of factors
+  K: 50                                    # ⭐ KEY: Extreme overparameterization
 
   # MCMC Parameters - AS REQUESTED
   num_samples: 2000                        # ⭐ KEY: 2000 sampling iterations
