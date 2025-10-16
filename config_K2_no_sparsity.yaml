@@ -50,6 +50,10 @@ model:
   num_warmup: 1000                         # ⭐ KEY: 1000 warmup iterations
   num_chains: 4                            # ⭐ KEY: 4 chains for convergence assessment
 
+  # NUTS Sampler Parameters
+  max_tree_depth: 13                       # ⭐ KEY: Increased from default 12 to 13
+  target_accept_prob: 0.9                  # Target acceptance probability
+
   # NO SPARSITY PARAMETERS (not used by standard_gfa)
   # sparsity_lambda: N/A
   # group_lambda: N/A

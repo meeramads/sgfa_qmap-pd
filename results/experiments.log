@@ -83,3 +83,4 @@
 2025-10-14 22:19:59,349 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
 2025-10-14 22:19:59,704 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
 2025-10-14 22:19:59,704 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-putamen_run_20251014_221947/data_validation_20251014_221947/plots
+2025-10-16 12:44:54,520 - experiments.framework - INFO - Starting experiment: robustness_tests_20251016_124454

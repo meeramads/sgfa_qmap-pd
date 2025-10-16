@@ -118,6 +118,10 @@ class ModelConfig:
     group_lambda: Optional[float] = None
     random_seed: Optional[int] = None
 
+    # NUTS sampler parameters
+    max_tree_depth: int = 12  # Maximum tree depth for NUTS sampler (10-15 typical)
+    target_accept_prob: float = 0.9  # Target acceptance probability (0.8-0.99 typical)
+
     # SGFA-specific hyperparameters (for sparse_gfa model)
     percW: Optional[float] = None  # Sparsity percentage (% of non-zero loadings)
     slab_df: Optional[float] = None  # Slab degrees of freedom for regularized horseshoe
