@@ -6,34 +6,32 @@ Data-Driven Analysis of Optimal Outlier Detection Thresholds
 CURRENT CONFIGURATION: threshold = 3.0
 
 
-volume_putamen_voxels
+volume_sn_voxels
 --------------------------------------------------------------------------------
-ELBOW POINT: 4.08
-  - Retention at elbow: 72.6%
-  - Interpretation: Permissive - retains most voxels, may include some artifacts
+ELBOW POINT: 2.26
+  - Retention at elbow: 7.1%
+  - Interpretation: Very strict - may remove too many voxels with biological variability
 
 CURRENT THRESHOLD (3.0) PERFORMANCE:
-  - Voxels retained: 6114 (28.5%)
-  - Voxels removed: 15330
-  - Variance preserved: 100.0%
+  - Voxels retained: 850 (47.4%)
+  - Voxels removed: 944
+  - Variance preserved: 99.0%
   - Correlation preserved: 100.0%
 
 RECOMMENDATION:
-  → Consider INCREASING threshold to 4.1
-    Current threshold may be too strict, removing biological variability
-    Elbow analysis suggests 4.1 provides better data retention
+  → Current threshold (3.0) is reasonable but conservative
+    Elbow suggests 2.3 but current value retains more signal
 
 
 ================================================================================
 OVERALL RECOMMENDATIONS
 ================================================================================
 
-Average elbow point across all ROIs: 4.08
+Average elbow point across all ROIs: 2.26
 
-RECOMMENDATION: Consider INCREASING threshold to ~4.0 or 4.5
-  - Current threshold (3.0) appears too strict for your data
-  - You are removing substantial biological variability
-  - Higher threshold would improve spatial coverage and signal preservation
+RECOMMENDATION: Consider DECREASING threshold to ~2.0 or 2.5
+  - Current threshold (3.0) may be too permissive
+  - Lower threshold would provide cleaner data by removing more artifacts
 
 For exploratory factor analysis seeking biological subtypes:
   → Consider threshold range 3.5-5.0 to preserve heterogeneous patterns

@@ -3,40 +3,22 @@ SUBJECT-LEVEL DATA QUALITY FLAGGING REPORT
 ================================================================================
 
 Flagging criterion: >5.0% outlier voxels in any ROI
-Total subjects flagged: 5
+Total subjects flagged: 2
 
 FLAGGED SUBJECTS (sorted by severity):
 --------------------------------------------------------------------------------
 
+Subject ID: 784696
+  Index: 63
+  Max outlier percentage: 17.50%
+  Outlier percentages by ROI:
+    - volume_sn_voxels: 17.50% ⚠️ FLAGGED
+
 Subject ID: 852116
   Index: 78
-  Max outlier percentage: 28.05%
+  Max outlier percentage: 17.39%
   Outlier percentages by ROI:
-    - volume_putamen_voxels: 28.05% ⚠️ FLAGGED
-
-Subject ID: 128105
-  Index: 12
-  Max outlier percentage: 13.88%
-  Outlier percentages by ROI:
-    - volume_putamen_voxels: 13.88% ⚠️ FLAGGED
-
-Subject ID: 896255
-  Index: 49
-  Max outlier percentage: 8.30%
-  Outlier percentages by ROI:
-    - volume_putamen_voxels: 8.30% ⚠️ FLAGGED
-
-Subject ID: 943012
-  Index: 54
-  Max outlier percentage: 6.94%
-  Outlier percentages by ROI:
-    - volume_putamen_voxels: 6.94% ⚠️ FLAGGED
-
-Subject ID: 529028
-  Index: 33
-  Max outlier percentage: 5.47%
-  Outlier percentages by ROI:
-    - volume_putamen_voxels: 5.47% ⚠️ FLAGGED
+    - volume_sn_voxels: 17.39% ⚠️ FLAGGED
 
 
 ================================================================================
