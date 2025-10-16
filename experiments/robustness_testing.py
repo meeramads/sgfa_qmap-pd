@@ -2363,6 +2363,95 @@ class RobustnessExperiments(ExperimentFramework):
             import traceback
             self.logger.warning(f"Traceback: {traceback.format_exc()}")
 
+        # Add MCMC trace diagnostic plots
+        if len(chain_results) > 0:
+            try:
+                from analysis.mcmc_diagnostics import (
+                    plot_trace_diagnostics,
+                    plot_parameter_distributions,
+                    plot_hyperparameter_posteriors,
+                    plot_hyperparameter_traces,
+                )
+
+                self.logger.info("Creating MCMC trace diagnostic plots...")
+
+                # Extract W and Z samples from chain results
+                # Expected format: chain_results contains samples with shape (n_chains, n_samples, ...)
+                W_samples_list = []
+                Z_samples_list = []
+                samples_by_chain = []
+
+                for result in chain_results:
+                    samples = result.get("samples", {})
+                    if "W" in samples and "Z" in samples:
+                        W_samples_list.append(samples["W"])
+                        Z_samples_list.append(samples["Z"])
+                        samples_by_chain.append(samples)
+
+                if len(W_samples_list) > 0:
+                    # Stack samples from different chains
+                    # W_samples: (n_chains, n_samples, D, K)
+                    # Z_samples: (n_chains, n_samples, N, K)
+                    W_samples = np.stack(W_samples_list, axis=0)
+                    Z_samples = np.stack(Z_samples_list, axis=0)
+
+                    self.logger.info(f"  W_samples shape: {W_samples.shape}")
+                    self.logger.info(f"  Z_samples shape: {Z_samples.shape}")
+
+                    # Create trace diagnostic plots
+                    fig_trace = plot_trace_diagnostics(
+                        W_samples=W_samples,
+                        Z_samples=Z_samples,
+                        save_path=None,
+                        max_factors=min(4, W_samples.shape[3]),
+                        thin=max(1, W_samples.shape[1] // 1000),  # Thin for readability
+                    )
+                    plots["mcmc_trace_diagnostics"] = fig_trace
+                    self.logger.info("   ✅ MCMC trace diagnostics created")
+
+                    # Create parameter distribution plots
+                    fig_dist = plot_parameter_distributions(
+                        W_samples=W_samples,
+                        Z_samples=Z_samples,
+                        save_path=None,
+                        max_factors=min(4, W_samples.shape[3]),
+                    )
+                    plots["mcmc_parameter_distributions"] = fig_dist
+                    self.logger.info("   ✅ Parameter distribution plots created")
+
+                    # Create hyperparameter posterior plots (tauW, tauZ)
+                    if len(samples_by_chain) > 0:
+                        self.logger.info("Creating hyperparameter posterior plots...")
+
+                        # Infer number of sources from X_list
+                        num_sources = len(X_list) if X_list is not None else None
+
+                        fig_hyper_post = plot_hyperparameter_posteriors(
+                            samples_by_chain=samples_by_chain,
+                            save_path=None,
+                            num_sources=num_sources,
+                        )
+                        plots["hyperparameter_posteriors"] = fig_hyper_post
+                        self.logger.info("   ✅ Hyperparameter posterior plots created")
+
+                        # Create hyperparameter trace plots
+                        fig_hyper_trace = plot_hyperparameter_traces(
+                            samples_by_chain=samples_by_chain,
+                            save_path=None,
+                            num_sources=num_sources,
+                            thin=max(1, W_samples.shape[1] // 1000),
+                        )
+                        plots["hyperparameter_traces"] = fig_hyper_trace
+                        self.logger.info("   ✅ Hyperparameter trace plots created")
+
+                else:
+                    self.logger.warning("  ⚠️  No samples found in chain_results for trace plots")
+
+            except Exception as e:
+                self.logger.warning(f"Failed to create MCMC trace plots: {str(e)}")
+                import traceback
+                self.logger.warning(f"Traceback: {traceback.format_exc()}")
+
         return plots
 
 
