@@ -66,27 +66,27 @@ preprocessing:
   enable_spatial_processing: false
   imputation_strategy: "median"
 
-  # Feature selection - MAD-based variance filtering
-  feature_selection_method: "mad"          # ⭐ KEY: MAD filtering (as in your current run)
-  mad_threshold: 4.0                       # ⭐ KEY: Same MAD threshold as current
-  variance_threshold: 0.0                  # Not used with MAD
+  # Feature selection - Use QC outlier detection (MAD-based)
+  feature_selection_method: "none"         # ⭐ KEY: No additional feature selection
+  variance_threshold: 0.0                  # Not used
   missing_threshold: 0.8
 
-  # ROI filtering
-  roi_filter: "sn"                         # ⭐ KEY: Substantia nigra only (same as current)
-  roi_based_selection: true
+  # Quality control - MAD threshold for outlier voxel detection
+  qc_outlier_threshold: 4.0                # ⭐ KEY: MAD threshold = 4.0 (same as current)
+
+  # ROI filtering - handled in data loading, not here
+  roi_based_selection: false               # Disabled - ROI filter applied at data level
   n_top_features: null
   min_voxel_distance: 3.0
 
   # Confound handling
-  confounds: ["age", "sex", "tiv"]         # ⭐ KEY: Same confounds as current
-  drop_confounds_from_clinical: true
+  drop_confounds_from_clinical: true       # ⭐ KEY: Drop age, sex, tiv from clinical view
 
   # PCA - DISABLED
   enable_pca: false                        # ⭐ KEY: No PCA (use MAD-filtered voxels directly)
   pca_n_components: null
-  pca_variance_threshold: null
-  pca_apply_to_views: []
+  pca_variance_threshold: 0.95
+  pca_whiten: false
 
 # Cross-Validation Configuration
 cross_validation:
