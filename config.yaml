@@ -54,7 +54,7 @@ model:
 
   # Regularized Horseshoe Prior Hyperparameters (GLOBAL - used by all experiments)
   # These control sparsity and shrinkage behavior across the entire pipeline
-  percW: 20                              # Element-wise sparsity level (% non-zero loadings, 10-50 typical)
+  percW: 33                              # Element-wise sparsity level (% non-zero loadings, 10-50 typical)
   slab_df: 4                             # Slab degrees of freedom for regularized horseshoe (3-10 typical)
   slab_scale: 2                          # Slab scale for regularized horseshoe (1-5 typical)
   reghsZ: true                           # Apply regularized horseshoe to latent factors Z
@@ -306,8 +306,8 @@ robustness_testing:
 factor_stability:
   K: 30                                 # Number of latent factors - balanced for GPU memory and shrinkage detection
   num_chains: 4                         # Number of independent chains (4+ recommended)
-  num_samples: 5000                     # MCMC samples per chain (2000-10000)
-  num_warmup: 1000                      # MCMC warmup samples (500-2000)
+  num_samples: 10000                    # MCMC samples per chain (doubled for better convergence)
+  num_warmup: 2000                      # MCMC warmup samples (doubled for better convergence)
   chain_method: 'parallel'              # Chain execution: 'parallel' (2x faster on GPU), 'sequential', or 'vectorized'
 
   # Factor matching parameters (Ferreira et al. 2024)
