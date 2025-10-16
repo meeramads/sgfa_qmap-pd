@@ -1,0 +1,29 @@
+2025-10-15 14:12:55,775 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_K5_MAD3.0_run_20251015_141255
+2025-10-15 14:12:55,780 - experiments.framework - INFO - Starting experiment: data_validation_20251015_141255
+2025-10-15 14:13:21,001 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251015_141255
+2025-10-15 14:13:21,002 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 25.2 seconds
+2025-10-15 14:13:21,002 - experiments.framework - INFO - 🕐 Started: 2025-10-15 14:12:55
+2025-10-15 14:13:21,002 - experiments.framework - INFO - 🕑 Finished: 2025-10-15 14:13:21
+2025-10-15 14:13:21,002 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251015_141255
+2025-10-15 14:13:21,002 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-15 14:13:21,084 - experiments.framework - INFO - Garbage collection freed 25373 objects
+2025-10-15 14:13:21,333 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-15 14:13:22,334 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-15 14:13:22,548 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-15 14:13:22,553 - experiments.framework - INFO - Saving 3 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_K5_MAD3.0_run_20251015_141255/data_validation_20251015_141255/plots
+2025-10-15 14:13:25,647 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-15 14:13:27,681 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-15 14:13:28,394 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-15 14:13:28,394 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_K5_MAD3.0_run_20251015_141255/data_validation_20251015_141255/plots
+2025-10-15 14:13:28,486 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_K5_MAD3.0_run_20251015_141255
+2025-10-15 14:13:28,486 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_K5_MAD3.0_run_20251015_141255
+2025-10-15 14:13:28,500 - experiments.framework - INFO - Starting experiment: robustness_tests_20251015_141328
+2025-10-15 14:13:28,500 - experiments.framework - INFO - Starting experiment: robustness_tests_20251015_141328
+2025-10-15 14:15:25,815 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-15 14:15:25,815 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-15 14:15:25,950 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-15 14:15:25,950 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-15 14:15:26,419 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-15 14:15:26,419 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-15 14:15:27,420 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-15 14:15:27,420 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed

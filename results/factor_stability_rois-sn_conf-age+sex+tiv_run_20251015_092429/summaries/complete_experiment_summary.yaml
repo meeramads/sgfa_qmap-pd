@@ -1,0 +1,16 @@
+experiment_run_info:
+  config_used: config_K5_diagnostic.yaml
+  duration_formatted: '4:03:39.598234'
+  duration_seconds: 14619.598234
+  end_time: '2025-10-15T13:28:08.824528'
+  start_time: '2025-10-15T09:24:29.226294'
+  unified_results: true
+experiments_executed:
+  factor_stability:
+    duration: 2.0e-06
+    experiment_id: factor_stability_analysis
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 1
+  total_experiments: 1

@@ -1,0 +1,16 @@
+{
+  "stability": {
+    "n_stable_factors": 1,
+    "total_factors": 5,
+    "stability_rate": 0.2,
+    "threshold": 0.8,
+    "min_match_rate": 0.5,
+    "n_chains": 4
+  },
+  "effectiveness": {
+    "n_effective": 5,
+    "total_factors": 5,
+    "shrinkage_rate": 0.0,
+    "sparsity_threshold": 0.01
+  }
+}

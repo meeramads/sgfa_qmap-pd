@@ -1,0 +1,16 @@
+experiment_run_info:
+  config_used: config_K2_no_sparsity.yaml
+  duration_formatted: '0:10:25.579679'
+  duration_seconds: 625.579679
+  end_time: '2025-10-16T13:01:04.090325'
+  start_time: '2025-10-16T12:50:38.510646'
+  unified_results: true
+experiments_executed:
+  robustness_testing:
+    duration: 623.275045
+    experiment_id: robustness_tests_20251016_125038
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 1
+  total_experiments: 1

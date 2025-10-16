@@ -1,0 +1,5 @@
+2025-10-16 13:30:02,857 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/robustness_testing_rois-sn_conf-age+sex+tiv_run_20251016_133002
+2025-10-16 13:30:02,870 - experiments.framework - INFO - Starting experiment: robustness_tests_20251016_133002
+2025-10-16 13:30:03,503 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-16 13:30:03,534 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-16 13:30:03,629 - experiments.framework - INFO - GPU memory cleanup attempted

@@ -1,0 +1,29 @@
+2025-10-15 14:16:20,721 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_conf-age+sex+tiv_K5_MAD4.0_run_20251015_141620
+2025-10-15 14:16:20,724 - experiments.framework - INFO - Starting experiment: data_validation_20251015_141620
+2025-10-15 14:16:35,594 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251015_141620
+2025-10-15 14:16:35,594 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 14.9 seconds
+2025-10-15 14:16:35,594 - experiments.framework - INFO - 🕐 Started: 2025-10-15 14:16:20
+2025-10-15 14:16:35,594 - experiments.framework - INFO - 🕑 Finished: 2025-10-15 14:16:35
+2025-10-15 14:16:35,594 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251015_141620
+2025-10-15 14:16:35,594 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-15 14:16:35,630 - experiments.framework - INFO - Garbage collection freed 25466 objects
+2025-10-15 14:16:35,738 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-15 14:16:36,739 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-15 14:16:36,844 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-15 14:16:36,847 - experiments.framework - INFO - Saving 3 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_conf-age+sex+tiv_K5_MAD4.0_run_20251015_141620/data_validation_20251015_141620/plots
+2025-10-15 14:16:38,285 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-15 14:16:39,286 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-15 14:16:39,653 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-15 14:16:39,653 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_conf-age+sex+tiv_K5_MAD4.0_run_20251015_141620/data_validation_20251015_141620/plots
+2025-10-15 14:16:39,693 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_conf-age+sex+tiv_K5_MAD4.0_run_20251015_141620
+2025-10-15 14:16:39,693 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_conf-age+sex+tiv_K5_MAD4.0_run_20251015_141620
+2025-10-15 14:16:39,698 - experiments.framework - INFO - Starting experiment: robustness_tests_20251015_141639
+2025-10-15 14:16:39,698 - experiments.framework - INFO - Starting experiment: robustness_tests_20251015_141639
+2025-10-15 14:20:42,405 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-15 14:20:42,405 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-15 14:20:42,472 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-15 14:20:42,472 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-15 14:20:42,678 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-15 14:20:42,678 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-15 14:20:43,680 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-15 14:20:43,680 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed

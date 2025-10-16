@@ -1,0 +1,28 @@
+experiment_run_info:
+  config_used: config.yaml
+  duration_formatted: '2:02:32.007386'
+  duration_seconds: 7352.007386
+  end_time: '2025-10-15T23:19:25.789616'
+  start_time: '2025-10-15T21:16:53.782230'
+  unified_results: true
+experiments_executed:
+  clinical_validation:
+    duration: 166.433556
+    experiment_id: clinical_validation_20251015_231635
+    status: completed
+  data_validation:
+    duration: 5.394838
+    experiment_id: data_validation_20251015_211653
+    status: completed
+  factor_stability:
+    duration: 4.0e-06
+    experiment_id: factor_stability_analysis
+    status: completed
+  robustness_testing:
+    duration: 400.836481
+    experiment_id: robustness_tests_20251015_211705
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 4
+  total_experiments: 4

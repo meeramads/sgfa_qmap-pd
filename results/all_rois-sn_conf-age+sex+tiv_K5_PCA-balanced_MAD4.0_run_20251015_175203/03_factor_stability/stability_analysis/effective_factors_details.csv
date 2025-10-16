@@ -1,0 +1,6 @@
+factor_index,max_loading,mean_loading,median_loading,std_loading,nonzero_count,nonzero_pct,is_effective
+0,1.4442,0.4537,0.3881,0.3632,23,0.9583,True
+1,2.3267,0.2757,0.1035,0.4801,22,0.9167,True
+2,1.2423,0.4998,0.2976,0.4256,24,1.0,True
+3,1.3126,0.5246,0.2793,0.4757,23,0.9583,True
+4,1.2212,0.5653,0.5949,0.4393,24,1.0,True
