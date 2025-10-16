@@ -264,7 +264,7 @@ class MCMCMemoryOptimizer:
             nuts_kernel = NUTS(
                 efficient_model,
                 dense_mass=False,  # Use diagonal mass matrix to save memory
-                max_tree_depth=8,  # Limit tree depth to control memory
+                max_tree_depth=13,  # Limit tree depth to control memory
             )
 
             # Run MCMC

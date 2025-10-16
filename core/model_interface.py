@@ -122,7 +122,7 @@ def execute_sgfa_model(
     kernel = NUTS(
         models,
         target_accept_prob=mcmc_config.get("target_accept_prob", 0.8),
-        max_tree_depth=mcmc_config.get("max_tree_depth", 10),
+        max_tree_depth=mcmc_config.get("max_tree_depth", 13),
     )
 
     rng_key = jax.random.PRNGKey(mcmc_config.get("random_seed", 42))

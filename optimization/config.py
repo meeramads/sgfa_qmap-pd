@@ -104,7 +104,7 @@ class MCMCConfig:
 
     # Chain optimization
     use_diagonal_mass: bool = True  # Less memory than full mass matrix
-    max_tree_depth: int = 8
+    max_tree_depth: int = 13
 
     # Convergence and efficiency
     target_accept_prob: float = 0.8
@@ -410,7 +410,7 @@ class PerformanceConfig:
             config.memory.target_dtype = "float64"
             config.data.enable_compression = False
             config.mcmc.use_diagonal_mass = False
-            config.mcmc.max_tree_depth = 12
+            config.mcmc.max_tree_depth = 13
             config.mcmc.enable_thinning = False
             config.profiling.enable_profiling = True
             config.profiling.enable_comparisons = True

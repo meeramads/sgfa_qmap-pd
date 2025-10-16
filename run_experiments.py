@@ -439,13 +439,12 @@ def main():
     # Determine which experiments to run
     experiments_to_run = args.experiments
     if "all" in experiments_to_run:
-        # Default: Core analysis pipeline (skip comparison/sensitivity studies)
-        # Order: validate data → robustness testing → stability → clinical validation
+        # Default: Core analysis pipeline (skip comparison/sensitivity studies and clinical validation)
+        # Order: validate data → robustness testing → stability
         experiments_to_run = [
             "data_validation",
             "robustness_testing",
             "factor_stability",
-            "clinical_validation",
         ]
         logger.info("ℹ️  Running core analysis pipeline following Ferreira et al. 2024 methodology")
 

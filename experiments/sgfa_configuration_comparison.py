@@ -1040,15 +1040,15 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 gc.collect()
                 jax.clear_caches()
 
-                kernel = NUTS(models, target_accept_prob=0.6, max_tree_depth=8)
+                kernel = NUTS(models, target_accept_prob=0.6, max_tree_depth=13)
                 self.logger.info(
-                    f"High-memory config (K={K}, percW={percW}, group_lambda={group_lambda}): max_tree_depth=8, target_accept_prob=0.6"
+                    f"High-memory config (K={K}, percW={percW}, group_lambda={group_lambda}): max_tree_depth=13, target_accept_prob=0.6"
                 )
             else:
-                # Standard config: use default max_tree_depth=10 for better exploration
-                kernel = NUTS(models, target_accept_prob=target_accept, max_tree_depth=10)
+                # Standard config: use default max_tree_depth=13 for better exploration
+                kernel = NUTS(models, target_accept_prob=target_accept, max_tree_depth=13)
                 self.logger.info(
-                    f"Standard config (K={K}, percW={percW}, group_lambda={group_lambda}): max_tree_depth=10 (default), target_accept_prob={target_accept}"
+                    f"Standard config (K={K}, percW={percW}, group_lambda={group_lambda}): max_tree_depth=13 (default), target_accept_prob={target_accept}"
                 )
 
             # Setup MCMC
@@ -2444,7 +2444,7 @@ def run_sgfa_configuration_comparison(config):
                             "num_samples": 600,  # Reduced for faster testing
                             "num_chains": 1,  # Single chain to avoid GPU OOM
                             "target_accept_prob": 0.8,
-                            "max_tree_depth": 8,  # Reduced from default 10 to save GPU memory
+                            "max_tree_depth": 13,  # Increased for better convergence
                             "reghsZ": True,
                         }
 

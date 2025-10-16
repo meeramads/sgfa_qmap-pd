@@ -119,7 +119,7 @@ class ModelConfig:
     random_seed: Optional[int] = None
 
     # NUTS sampler parameters
-    max_tree_depth: int = 12  # Maximum tree depth for NUTS sampler (10-15 typical)
+    max_tree_depth: int = 13  # Maximum tree depth for NUTS sampler (10-15 typical)
     target_accept_prob: float = 0.9  # Target acceptance probability (0.8-0.99 typical)
 
     # SGFA-specific hyperparameters (for sparse_gfa model)
