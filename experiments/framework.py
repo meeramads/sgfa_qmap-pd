@@ -66,6 +66,12 @@ class ExperimentConfig:
     num_sources: int = 3
     percW_values: List[float] = field(default_factory=lambda: [25.0, 33.0, 50.0])
 
+    # Single-value model parameters (for specific runs)
+    K: Optional[int] = None  # Number of factors for this specific run
+    percW: Optional[float] = None  # Sparsity level for this specific run
+    slab_df: Optional[float] = None  # Slab degrees of freedom
+    slab_scale: Optional[float] = None  # Slab scale parameter
+
     # MCMC configuration
     num_samples: int = 2000
     num_chains: int = 1  # Single chain for GPU memory constraints
@@ -316,21 +322,81 @@ class ExperimentFramework:
         # Add handler to logger
         logger.addHandler(file_handler)
 
-    def create_experiment_dir(self, experiment_name: str) -> Path:
-        """Create directory for specific experiment."""
+    def _generate_semantic_experiment_name(self, base_name: str, config: Optional[ExperimentConfig] = None) -> str:
+        """
+        Generate a semantic experiment name that includes key model parameters.
+
+        Format: {base_name}_K{K}_percW{percW}_slab{slab_df}_{slab_scale}
+        Example: robustness_tests_K10_percW20_slab4_2
+
+        Parameters
+        ----------
+        base_name : str
+            Base experiment name (e.g., "robustness_tests", "model_comparison")
+        config : ExperimentConfig, optional
+            Experiment configuration containing model parameters
+
+        Returns
+        -------
+        str
+            Semantic experiment name with model parameters
+        """
+        if config is None:
+            return base_name
+
+        # Build semantic name components
+        name_parts = [base_name]
+
+        # Add K (number of factors) if specified
+        if config.K is not None:
+            name_parts.append(f"K{config.K}")
+
+        # Add percW (sparsity level) if specified
+        if config.percW is not None:
+            name_parts.append(f"percW{config.percW:.0f}")
+
+        # Add slab parameters if specified
+        if config.slab_df is not None and config.slab_scale is not None:
+            name_parts.append(f"slab{config.slab_df:.0f}_{config.slab_scale:.0f}")
+        elif config.slab_df is not None:
+            name_parts.append(f"slabdf{config.slab_df:.0f}")
+        elif config.slab_scale is not None:
+            name_parts.append(f"slabsc{config.slab_scale:.0f}")
+
+        return "_".join(name_parts)
+
+    def create_experiment_dir(self, experiment_name: str, config: Optional[ExperimentConfig] = None) -> Path:
+        """
+        Create directory for specific experiment with semantic naming.
+
+        Parameters
+        ----------
+        experiment_name : str
+            Base experiment name
+        config : ExperimentConfig, optional
+            Experiment configuration with model parameters for semantic naming
+
+        Returns
+        -------
+        Path
+            Path to created experiment directory
+        """
+        # Generate semantic name if config is provided
+        semantic_name = self._generate_semantic_experiment_name(experiment_name, config)
+
         # Check if we're in debug mode by looking at the base output directory
         is_debug_mode = "debug" in str(self.base_output_dir).lower()
 
         if is_debug_mode:
-            # Debug mode: simple directory structure
-            exp_dir = self.base_output_dir / experiment_name
+            # Debug mode: simple directory structure with semantic naming
+            exp_dir = self.base_output_dir / semantic_name
             exp_dir.mkdir(parents=True, exist_ok=True)
             self.logger.info(f"🐛 Debug mode: Using simple directory structure: {exp_dir}")
             return exp_dir
         else:
-            # Production mode: timestamped directories
+            # Production mode: semantic name + timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            exp_dir = self.base_output_dir / f"{experiment_name}_{timestamp}"
+            exp_dir = self.base_output_dir / f"{semantic_name}_{timestamp}"
             exp_dir.mkdir(parents=True, exist_ok=True)
             return exp_dir
 
@@ -353,8 +419,8 @@ class ExperimentFramework:
         -------
         ExperimentResult : Results of the experiment.
         """
-        # Create experiment directory
-        exp_dir = self.create_experiment_dir(config.experiment_name)
+        # Create experiment directory with semantic naming
+        exp_dir = self.create_experiment_dir(config.experiment_name, config)
 
         # Generate experiment ID
         experiment_id = (

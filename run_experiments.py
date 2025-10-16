@@ -572,17 +572,28 @@ def main():
         fs_config = exp_config.get("factor_stability", {})
         logger.info(f"   Factor stability config from config.yaml: K={fs_config.get('K')}, percW={fs_config.get('percW')}, num_chains={fs_config.get('num_chains')}")
 
-        # Check for command-line K override
-        K_override = exp_config.get("model", {}).get("K", None)
+        # Check for command-line K override and read hyperparameters
+        model_config = exp_config.get("model", {})
+        K_override = model_config.get("K", None)
         K_value = K_override if K_override is not None else fs_config.get("K", 20)
         if K_override is not None:
             logger.info(f"   Using command-line K override: {K_value} (config.yaml has {fs_config.get('K', 20)})")
+
+        # Read other model hyperparameters for semantic naming
+        percW_value = model_config.get("percW", fs_config.get("percW", 20))
+        slab_df_value = model_config.get("slab_df", 4)
+        slab_scale_value = model_config.get("slab_scale", 2)
+
         experiment_config = ExperimentConfig(
             experiment_name="factor_stability_analysis",
             description="Factor stability analysis with fixed parameters (Ferreira et al. 2024)",
             dataset="qmap_pd",
             data_dir=get_data_dir(exp_config),
             K_values=[K_value],
+            K=K_value,  # For semantic naming
+            percW=percW_value,  # For semantic naming
+            slab_df=slab_df_value,  # For semantic naming
+            slab_scale=slab_scale_value,  # For semantic naming
             num_samples=fs_config.get("num_samples", 5000),
             num_warmup=fs_config.get("num_warmup", 1000),
             num_chains=fs_config.get("num_chains", 4),

@@ -2564,28 +2564,33 @@ def run_robustness_testing(config):
         # Initialize experiment framework
         framework = ExperimentFramework(get_output_dir(config))
 
-        exp_config = ExperimentConfig(
-            experiment_name="robustness_tests",
-            description="Robustness testing for SGFA",
-            dataset="qmap_pd",
-            data_dir=get_data_dir(config),
-        )
-
-        # Create robustness experiment instance
-        repro_exp = RobustnessExperiments(exp_config, logger)
-
-        # Check for command-line K override
-        K_override = config_dict.get("model", {}).get("K", None)
+        # Check for command-line K override and read hyperparameters first
+        model_config = config_dict.get("model", {})
+        K_override = model_config.get("K", None)
         K_value = K_override if K_override is not None else 10
         if K_override is not None:
             logger.info(f"   Using command-line K override: {K_value} (default is 10)")
 
         # Read hyperparameters from global model section for consistency across pipeline
-        model_config = config_dict.get("model", {})
         percW_value = model_config.get("percW", 20)  # Default 20
         slab_df_value = model_config.get("slab_df", 4)
         slab_scale_value = model_config.get("slab_scale", 2)
         logger.info(f"   Using global model hyperparameters: K={K_value}, percW={percW_value}, slab_df={slab_df_value}, slab_scale={slab_scale_value}")
+
+        # Create ExperimentConfig with model parameters for semantic naming
+        exp_config = ExperimentConfig(
+            experiment_name="robustness_tests",
+            description="Robustness testing for SGFA",
+            dataset="qmap_pd",
+            data_dir=get_data_dir(config),
+            K=K_value,
+            percW=percW_value,
+            slab_df=slab_df_value,
+            slab_scale=slab_scale_value,
+        )
+
+        # Create robustness experiment instance
+        repro_exp = RobustnessExperiments(exp_config, logger)
 
         # Setup base hyperparameters
         base_hypers = {
