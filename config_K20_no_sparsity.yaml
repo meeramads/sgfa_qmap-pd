@@ -1,0 +1,187 @@
+# =============================================================================
+# OVERPARAMETERIZATION TEST: K=20 WITH SIMPLE PRIORS
+#
+# 🎯 PURPOSE: Test if overparameterization leads to stable factors
+#
+# HYPOTHESIS TO TEST:
+#   Sometimes high K leads to a few stable factors emerging even when
+#   low K fails to converge. This tests if stability measurement is:
+#   - Real phenomenon (overparam → better exploration → stable factors)
+#   - Artifact of measurement (more factors → easier to match by chance)
+#
+# KEY SETTINGS:
+#   ✓ model_type: "standard_gfa" (uses ARD priors, NOT horseshoe)
+#   ✓ K = 20 factors (moderate overparameterization)
+#   ✓ No percW constraint (no sparsity)
+#   ✓ ARD will automatically shrink unused factors
+#   ✓ 1000 warmup, 2000 samples
+#   ✓ 4 chains for stability assessment
+#   ✓ MAD-filtered voxels (no PCA)
+#
+# 📊 WHAT TO LOOK FOR:
+#   - How many factors survive ARD shrinkage?
+#   - Are the surviving factors stable across chains?
+#   - R-hat convergence for W and Z
+#   - Effective factors per chain (via ARD)
+#
+# COMPARISON POINTS:
+#   - vs K=2: Does more flexibility help convergence?
+#   - vs K=50: Is K=20 a sweet spot?
+#
+# 📝 Usage:
+#   python run_experiments.py --config config_K20_no_sparsity.yaml
+#
+# =============================================================================
+
+# Data Configuration
+data:
+  data_dir: "./qMAP-PD_data"
+  clinical_file: "data_clinical/clinical.tsv"
+  volume_dir: "volume_matrices"
+  imaging_as_single_view: true            # Concatenate imaging data into single view
+
+# Experiment Configuration
+experiments:
+  base_output_dir: "./results"
+  save_intermediate: false
+  generate_plots: true                     # Generate trace plots to diagnose convergence
+  enable_spatial_analysis: false
+  save_pickle_results: false
+  save_numpy_arrays: true                  # Save for later analysis
+  max_parallel_jobs: 1
+
+# Model Configuration - STANDARD GFA (NO HORSESHOE)
+model:
+  model_type: "standard_gfa"               # ⭐ KEY: Use standard GFA with ARD priors
+  K: 20                                    # ⭐ KEY: Moderate overparameterization
+
+  # MCMC Parameters - AS REQUESTED
+  num_samples: 2000                        # ⭐ KEY: 2000 sampling iterations
+  num_warmup: 1000                         # ⭐ KEY: 1000 warmup iterations
+  num_chains: 4                            # ⭐ KEY: 4 chains for convergence assessment
+
+  # NUTS Sampler Parameters
+  max_tree_depth: 13                       # ⭐ KEY: Increased from default 12 to 13
+  target_accept_prob: 0.9                  # Target acceptance probability
+
+  # NO SPARSITY PARAMETERS (not used by standard_gfa)
+  # sparsity_lambda: N/A
+  # group_lambda: N/A
+  # percW: N/A                             # ⭐ KEY: No sparsity constraint
+  # reghsZ: N/A                            # ⭐ KEY: No horseshoe on Z
+
+  # Random Seed
+  random_seed: 42
+
+# Preprocessing Configuration - MAD FILTERING ONLY (NO PCA)
+preprocessing:
+  strategy: "full_preprocessing_all_views"
+  enable_advanced_preprocessing: true
+  enable_spatial_processing: false
+  imputation_strategy: "median"
+
+  # Feature selection - Use QC outlier detection (MAD-based)
+  feature_selection_method: "none"         # ⭐ KEY: No additional feature selection
+  variance_threshold: 0.0                  # Not used
+  missing_threshold: 0.8
+
+  # Quality control - MAD threshold for outlier voxel detection
+  qc_outlier_threshold: 4.0                # ⭐ KEY: MAD threshold = 4.0 (same as current)
+
+  # ROI filtering - handled in data loading, not here
+  roi_based_selection: false               # Disabled - ROI filter applied at data level
+  n_top_features: null
+  min_voxel_distance: 3.0
+
+  # Confound handling
+  drop_confounds_from_clinical: true       # ⭐ KEY: Drop age, sex, tiv from clinical view
+
+  # PCA - DISABLED
+  enable_pca: false                        # ⭐ KEY: No PCA (use MAD-filtered voxels directly)
+  pca_n_components: null
+  pca_variance_threshold: 0.95
+  pca_whiten: false
+
+# Cross-Validation Configuration
+cross_validation:
+  n_folds: 5
+  n_repeats: 1
+  stratified: true
+  group_aware: false
+  random_seed: 42
+
+# Monitoring Configuration
+monitoring:
+  checkpoint_dir: "./results/checkpoints"
+  log_level: "INFO"
+  save_checkpoints: false
+  checkpoint_interval: 100
+
+# System Configuration
+system:
+  use_gpu: true                            # Use GPU if available
+  memory_limit_gb: 16.0
+  n_cpu_cores: 4
+
+# =============================================================================
+# EXPERIMENT-SPECIFIC CONFIGURATIONS
+# =============================================================================
+
+# Factor Stability Analysis - PRIMARY EXPERIMENT
+factor_stability:
+  n_chains: 4                              # ⭐ KEY: 4 independent chains
+  chain_method: "sequential"               # Run chains one after another
+  cosine_threshold: 0.8                    # Factor matching threshold
+  min_match_rate: 0.5                      # >50% chains for robust factor
+
+  # Convergence diagnostics
+  compute_rhat: true                       # Compute R-hat statistics
+  rhat_threshold: 1.1                      # Acceptable R-hat threshold
+  compute_ess: true                        # Compute effective sample size
+  ess_threshold: 100                       # Minimum ESS desired
+
+# Data Validation Experiment - MINIMAL
+data_validation:
+  preprocessing_strategies:
+    mad_only:
+      feature_selection_method: "mad"
+      mad_threshold: 4.0
+      enable_pca: false
+
+# Robustness Testing Experiment - FOCUSED ON CONVERGENCE
+robustness_testing:
+  test_types:
+    - "factor_stability"                   # Primary: test factor stability
+
+  # Factor stability parameters
+  factor_stability_params:
+    n_chains: 4
+    n_samples: 2000
+    n_warmup: 1000
+    cosine_threshold: 0.8
+    min_match_rate: 0.5
+
+# =============================================================================
+# EXPECTED RESULTS
+# =============================================================================
+#
+# IF CONVERGENCE IMPROVES (R-hat < 1.1):
+#   → Problem is horseshoe priors being too complex/restrictive
+#   → Action: Relax horseshoe priors (increase scale, decrease percW)
+#   → Action: Try simpler sparsity-inducing priors (Laplace, Spike-and-Slab)
+#
+# IF CONVERGENCE STILL POOR (R-hat > 1.1):
+#   → Problem is more fundamental:
+#     • Multimodality in posterior (different factor orderings)
+#     • Model misspecification (K too small/large)
+#     • Data issues (high noise, low signal)
+#   → Action: Check trace plots for multimodality
+#   → Action: Try different K values (K=3, K=5)
+#   → Action: Check data quality (MAD filtering may be too aggressive)
+#
+# DIAGNOSTIC PLOTS TO CHECK:
+#   ✓ mcmc_trace_diagnostics.png - Look for chain separation
+#   ✓ hyperparameter_posteriors.png - No tauW/tauZ (standard_gfa uses alpha)
+#   ✓ factor_stability_heatmap.png - Factor matching across chains
+#
+# =============================================================================
