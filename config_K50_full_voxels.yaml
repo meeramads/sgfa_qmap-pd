@@ -256,7 +256,7 @@ factor_stability:
   min_nonzero_pct: 0.05                 # Minimum fraction of non-zero loadings (5%)
 
   # Fixed parameters from Ferreira et al. 2024 Section 2.7
-  percW: 20                             # Sparsity level (reduced from 33 for stronger shrinkage)
+  percW: 33                             # Sparsity level (33% for balanced sparsity/expressiveness)
   slab_df: 4                            # Slab degrees of freedom
   slab_scale: 2                         # Slab scale
   reghsZ: true                          # Regularized horseshoe on Z

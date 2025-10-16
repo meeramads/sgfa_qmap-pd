@@ -39,7 +39,7 @@ class DataManagerConfig:
     # Synthetic data params
     num_sources: int = 4
     K: int = 10
-    percW: float = 25.0
+    percW: float = 33.0
 
     @classmethod
     def from_dict(cls, d: Dict) -> 'DataManagerConfig':

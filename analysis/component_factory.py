@@ -392,7 +392,7 @@ def prepare_experiment_data(
 def quick_sgfa_run(
     X_list: List[np.ndarray],
     K: int = 5,
-    percW: float = 25.0,
+    percW: float = 33.0,
     model: str = "sparseGFA",
     **kwargs
 ) -> Dict:

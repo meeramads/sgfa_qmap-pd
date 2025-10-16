@@ -64,7 +64,7 @@ class ExperimentConfig:
     # Model configuration
     K_values: List[int] = field(default_factory=lambda: [5, 10, 15])
     num_sources: int = 3
-    percW_values: List[float] = field(default_factory=lambda: [25.0, 33.0, 50.0])
+    percW_values: List[float] = field(default_factory=lambda: [33.0, 50.0])
 
     # Single-value model parameters (for specific runs)
     K: Optional[int] = None  # Number of factors for this specific run

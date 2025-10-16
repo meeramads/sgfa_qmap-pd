@@ -3238,7 +3238,7 @@ def run_model_comparison(config, **kwargs):
     else:
         logger.info("   → Using default parameters (no optimal parameters available)")
         optimal_K = 5
-        optimal_percW = 25.0
+        optimal_percW = 33.0
         optimal_grp_lambda = 0.0
 
     # Setup hyperparameters

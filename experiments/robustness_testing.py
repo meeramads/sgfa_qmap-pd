@@ -2572,7 +2572,7 @@ def run_robustness_testing(config):
             logger.info(f"   Using command-line K override: {K_value} (default is 10)")
 
         # Read hyperparameters from global model section for consistency across pipeline
-        percW_value = model_config.get("percW", 20)  # Default 20
+        percW_value = model_config.get("percW", 33)  # Default 33
         slab_df_value = model_config.get("slab_df", 4)
         slab_scale_value = model_config.get("slab_scale", 2)
         logger.info(f"   Using global model hyperparameters: K={K_value}, percW={percW_value}, slab_df={slab_df_value}, slab_scale={slab_scale_value}")

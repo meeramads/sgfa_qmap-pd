@@ -580,7 +580,7 @@ def main():
             logger.info(f"   Using command-line K override: {K_value} (config.yaml has {fs_config.get('K', 20)})")
 
         # Read other model hyperparameters for semantic naming
-        percW_value = model_config.get("percW", fs_config.get("percW", 20))
+        percW_value = model_config.get("percW", fs_config.get("percW", 33))
         slab_df_value = model_config.get("slab_df", 4)
         slab_scale_value = model_config.get("slab_scale", 2)
 
