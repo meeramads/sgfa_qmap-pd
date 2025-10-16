@@ -888,3 +888,286 @@ def plot_hyperparameter_traces(
     logger.info("  ✓ Hyperparameter trace plots completed")
 
     return fig
+
+
+def analyze_factor_variance_profile(
+    Z_samples: np.ndarray,
+    variance_threshold: float = 0.1,
+    save_path: Optional[str] = None,
+) -> Dict[str, Union[np.ndarray, int, List[int]]]:
+    """Analyze factor variance profile to assess ARD shrinkage effectiveness.
+
+    This function computes the variance of each factor across subjects to identify
+    which factors capture real signal vs. which are shrunk to near-zero by ARD priors.
+    Critical for understanding effective dimensionality in overparameterized models.
+
+    Parameters
+    ----------
+    Z_samples : np.ndarray
+        Factor score samples, shape (n_chains, n_samples, n_subjects, K)
+    variance_threshold : float, default=0.1
+        Minimum variance for a factor to be considered "active"
+        Factors below this are considered shrunk away by ARD
+    save_path : str, optional
+        Path to save diagnostic plot
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'factor_variances': np.ndarray, variance of each factor (length K)
+        - 'sorted_variances': np.ndarray, variances in descending order
+        - 'sorted_indices': np.ndarray, factor indices in variance order
+        - 'n_active_factors': int, count of factors above threshold
+        - 'active_factor_indices': list, indices of active factors
+        - 'variance_ratios': np.ndarray, each variance / max variance
+        - 'cumulative_variance_explained': np.ndarray, cumulative proportion
+        - 'effective_dimensionality': int, factors explaining 90% variance
+
+    Notes
+    -----
+    Healthy ARD shrinkage shows a "spiky" variance profile:
+    - Few factors with variance > 1.0 (capturing real signal)
+    - Sharp drop-off to near-zero for remaining factors
+    - Example: [1.5, 1.2, 0.8, 0.03, 0.01, 0.01, ...] suggests 3 real factors
+
+    Poor shrinkage shows gradual decline:
+    - Many factors with intermediate variance (0.2-0.6)
+    - Suggests model uncertainty or convergence issues
+    - Example: [1.2, 0.9, 0.7, 0.5, 0.4, 0.3, ...] suggests overfitting
+
+    References
+    ----------
+    - Archambeau & Bach 2008: "Sparse Bayesian Factor Analysis"
+    - Tipping 2001: "Sparse Bayesian Learning and the Relevance Vector Machine"
+    """
+    logger.info("📊 Analyzing factor variance profile (ARD shrinkage assessment)...")
+
+    # Z_samples shape: (n_chains, n_samples, n_subjects, K)
+    n_chains, n_samples, n_subjects, K = Z_samples.shape
+
+    logger.info(f"   Z_samples shape: {n_chains} chains × {n_samples} samples × {n_subjects} subjects × {K} factors")
+
+    # Calculate variance of each factor across subjects
+    # For each chain and sample, compute variance across subjects, then average
+    # This preserves the scale of variance while accounting for MCMC uncertainty
+    factor_variances = np.zeros(K)
+    for k in range(K):
+        # Extract this factor across all chains, samples, subjects
+        # Shape: (n_chains, n_samples, n_subjects)
+        factor_k = Z_samples[:, :, :, k]
+
+        # Compute variance across subjects for each (chain, sample) combination
+        # Shape: (n_chains, n_samples)
+        variances_per_sample = factor_k.var(axis=2)
+
+        # Average across chains and samples
+        factor_variances[k] = variances_per_sample.mean()
+
+    # Sort variances in descending order
+    sorted_indices = np.argsort(factor_variances)[::-1]
+    sorted_variances = factor_variances[sorted_indices]
+
+    # Identify active factors (above threshold)
+    active_mask = factor_variances >= variance_threshold
+    n_active_factors = active_mask.sum()
+    active_factor_indices = np.where(active_mask)[0].tolist()
+
+    # Compute variance ratios (normalized by max)
+    max_variance = factor_variances.max()
+    variance_ratios = factor_variances / max_variance if max_variance > 0 else factor_variances
+
+    # Cumulative variance explained
+    cumulative_variance = np.cumsum(sorted_variances) / sorted_variances.sum()
+
+    # Effective dimensionality (factors needed to explain 90% variance)
+    effective_dim = np.searchsorted(cumulative_variance, 0.90) + 1
+
+    # Log summary
+    logger.info(f"   Total factors (K): {K}")
+    logger.info(f"   Active factors (var > {variance_threshold}): {n_active_factors}")
+    logger.info(f"   Effective dimensionality (90% variance): {effective_dim}")
+    logger.info(f"   Max factor variance: {max_variance:.4f}")
+    logger.info(f"   Top 5 factor variances: {sorted_variances[:5]}")
+
+    # Check for healthy vs poor shrinkage
+    if K >= 10:
+        top_5_mean = sorted_variances[:5].mean()
+        next_10_mean = sorted_variances[5:15].mean() if K >= 15 else sorted_variances[5:].mean()
+        shrinkage_ratio = top_5_mean / (next_10_mean + 1e-10)
+
+        if shrinkage_ratio > 10:
+            logger.info(f"   ✅ HEALTHY ARD SHRINKAGE: Sharp drop-off detected (ratio={shrinkage_ratio:.1f})")
+        elif shrinkage_ratio > 3:
+            logger.info(f"   ⚠️  MODERATE SHRINKAGE: Some drop-off but gradual (ratio={shrinkage_ratio:.1f})")
+        else:
+            logger.info(f"   ❌ POOR SHRINKAGE: Variance spread across many factors (ratio={shrinkage_ratio:.1f})")
+            logger.info(f"       → Suggests model uncertainty or convergence issues")
+
+    # Create comprehensive visualization
+    if save_path or True:  # Always create figure
+        fig = plt.figure(figsize=(16, 10))
+        gs = GridSpec(3, 3, figure=fig, hspace=0.3, wspace=0.3)
+
+        # 1. Variance profile (bar plot, sorted)
+        ax1 = fig.add_subplot(gs[0, :2])
+        colors = ['#2ecc71' if v >= variance_threshold else '#e74c3c' for v in sorted_variances]
+        ax1.bar(range(K), sorted_variances, color=colors, alpha=0.7, edgecolor='black', linewidth=0.5)
+        ax1.axhline(variance_threshold, color='#e74c3c', linestyle='--', linewidth=2,
+                   label=f'Threshold ({variance_threshold})')
+        ax1.set_xlabel('Factor Rank (sorted by variance)', fontsize=11)
+        ax1.set_ylabel('Variance Across Subjects', fontsize=11)
+        ax1.set_title(f'Factor Variance Profile (K={K}): {n_active_factors} Active Factors',
+                     fontsize=12, fontweight='bold')
+        ax1.legend(loc='upper right')
+        ax1.grid(True, alpha=0.3, axis='y')
+
+        # Add text annotation
+        ax1.text(0.98, 0.95, f'Active: {n_active_factors}/{K}\nEffective: {effective_dim}',
+                transform=ax1.transAxes, ha='right', va='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
+                fontsize=10)
+
+        # 2. Log-scale variance (better for seeing drop-off)
+        ax2 = fig.add_subplot(gs[0, 2])
+        ax2.semilogy(range(K), sorted_variances, 'o-', color='#3498db',
+                    markersize=5, linewidth=2, alpha=0.7)
+        ax2.axhline(variance_threshold, color='#e74c3c', linestyle='--', linewidth=2)
+        ax2.set_xlabel('Factor Rank', fontsize=10)
+        ax2.set_ylabel('Variance (log scale)', fontsize=10)
+        ax2.set_title('Log-Scale Variance\n(Sharp drop = good ARD)', fontsize=10)
+        ax2.grid(True, alpha=0.3, which='both')
+
+        # 3. Cumulative variance explained
+        ax3 = fig.add_subplot(gs[1, 0])
+        ax3.plot(range(1, K+1), cumulative_variance * 100, 'o-',
+                color='#9b59b6', markersize=4, linewidth=2)
+        ax3.axhline(90, color='#e74c3c', linestyle='--', linewidth=1.5, label='90% threshold')
+        ax3.axvline(effective_dim, color='#e74c3c', linestyle='--', linewidth=1.5)
+        ax3.set_xlabel('Number of Factors', fontsize=10)
+        ax3.set_ylabel('Cumulative Variance (%)', fontsize=10)
+        ax3.set_title(f'Cumulative Variance\n(90% @ {effective_dim} factors)', fontsize=10)
+        ax3.legend(loc='lower right')
+        ax3.grid(True, alpha=0.3)
+
+        # 4. Variance ratios (normalized by max)
+        ax4 = fig.add_subplot(gs[1, 1])
+        sorted_ratios = variance_ratios[sorted_indices]
+        ax4.bar(range(K), sorted_ratios, color='#f39c12', alpha=0.7, edgecolor='black', linewidth=0.5)
+        ax4.set_xlabel('Factor Rank', fontsize=10)
+        ax4.set_ylabel('Variance Ratio (vs Max)', fontsize=10)
+        ax4.set_title('Normalized Variance Profile', fontsize=10)
+        ax4.grid(True, alpha=0.3, axis='y')
+
+        # 5. Top 15 factors (detailed view)
+        ax5 = fig.add_subplot(gs[1, 2])
+        n_top = min(15, K)
+        top_colors = ['#2ecc71' if sorted_variances[i] >= variance_threshold else '#e74c3c'
+                     for i in range(n_top)]
+        ax5.barh(range(n_top), sorted_variances[:n_top], color=top_colors,
+                alpha=0.7, edgecolor='black', linewidth=0.5)
+        ax5.set_yticks(range(n_top))
+        ax5.set_yticklabels([f'F{sorted_indices[i]+1}' for i in range(n_top)], fontsize=8)
+        ax5.invert_yaxis()
+        ax5.set_xlabel('Variance', fontsize=10)
+        ax5.set_title(f'Top {n_top} Factors', fontsize=10)
+        ax5.grid(True, alpha=0.3, axis='x')
+
+        # 6. Histogram of variances
+        ax6 = fig.add_subplot(gs[2, 0])
+        ax6.hist(factor_variances, bins=30, color='#16a085', alpha=0.7, edgecolor='black')
+        ax6.axvline(variance_threshold, color='#e74c3c', linestyle='--', linewidth=2,
+                   label=f'Threshold ({variance_threshold})')
+        ax6.set_xlabel('Variance Value', fontsize=10)
+        ax6.set_ylabel('Count', fontsize=10)
+        ax6.set_title('Distribution of Factor Variances', fontsize=10)
+        ax6.legend()
+        ax6.grid(True, alpha=0.3, axis='y')
+
+        # 7. Scatter: Factor index vs variance
+        ax7 = fig.add_subplot(gs[2, 1])
+        colors_scatter = ['#2ecc71' if v >= variance_threshold else '#e74c3c'
+                         for v in factor_variances]
+        ax7.scatter(range(K), factor_variances, c=colors_scatter, s=50, alpha=0.6, edgecolor='black')
+        ax7.axhline(variance_threshold, color='#e74c3c', linestyle='--', linewidth=2)
+        ax7.set_xlabel('Original Factor Index', fontsize=10)
+        ax7.set_ylabel('Variance', fontsize=10)
+        ax7.set_title('Variance by Original Factor Order', fontsize=10)
+        ax7.grid(True, alpha=0.3)
+
+        # 8. Diagnostic text summary
+        ax8 = fig.add_subplot(gs[2, 2])
+        ax8.axis('off')
+
+        # Compute diagnostics
+        if K >= 10:
+            top_5_mean = sorted_variances[:5].mean()
+            next_10_mean = sorted_variances[5:15].mean() if K >= 15 else sorted_variances[5:].mean()
+            shrinkage_ratio = top_5_mean / (next_10_mean + 1e-10)
+            shrinkage_status = "HEALTHY ✅" if shrinkage_ratio > 10 else \
+                             "MODERATE ⚠️" if shrinkage_ratio > 3 else "POOR ❌"
+        else:
+            shrinkage_ratio = np.nan
+            shrinkage_status = "N/A (K < 10)"
+
+        # Build top variances text
+        top_vars_text = ""
+        for i in range(min(3, K)):
+            top_vars_text += f"\n  #{sorted_indices[i]+1}: {sorted_variances[i]:.4f}"
+
+        summary_text = f"""
+VARIANCE PROFILE SUMMARY
+{'=' * 25}
+
+Total Factors (K):     {K}
+Active Factors:        {n_active_factors}
+Effective Dim (90%):   {effective_dim}
+
+Max Variance:          {max_variance:.4f}
+Mean Variance:         {factor_variances.mean():.4f}
+Median Variance:       {np.median(factor_variances):.4f}
+
+Top {min(3, K)} Variances:{top_vars_text}
+
+ARD Shrinkage:         {shrinkage_status}
+Shrinkage Ratio:       {shrinkage_ratio:.2f}
+
+INTERPRETATION:
+{'─' * 25}
+""".strip()
+
+        if shrinkage_ratio > 10:
+            interp = "Sharp drop-off indicates\nhealthy ARD shrinkage.\nModel confidently identified\nfew real factors."
+        elif shrinkage_ratio > 3:
+            interp = "Moderate shrinkage.\nModel somewhat uncertain.\nCheck convergence."
+        else:
+            interp = "Poor shrinkage suggests:\n• Convergence issues\n• Overfitting\n• Need longer sampling"
+
+        summary_text += f"\n{interp}"
+
+        ax8.text(0.05, 0.95, summary_text, transform=ax8.transAxes,
+                fontsize=9, verticalalignment='top', family='monospace',
+                bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.3))
+
+        plt.suptitle(f'Factor Variance Analysis: ARD Shrinkage Assessment (K={K})',
+                    fontsize=14, fontweight='bold', y=0.995)
+
+        if save_path:
+            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            logger.info(f"  ✓ Saved variance profile plot to {save_path}")
+
+    logger.info("  ✓ Factor variance analysis completed")
+
+    return {
+        'factor_variances': factor_variances,
+        'sorted_variances': sorted_variances,
+        'sorted_indices': sorted_indices,
+        'n_active_factors': n_active_factors,
+        'active_factor_indices': active_factor_indices,
+        'variance_ratios': variance_ratios,
+        'cumulative_variance_explained': cumulative_variance,
+        'effective_dimensionality': effective_dim,
+        'max_variance': max_variance,
+        'mean_variance': factor_variances.mean(),
+        'median_variance': np.median(factor_variances),
+    }

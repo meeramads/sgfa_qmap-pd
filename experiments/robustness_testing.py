@@ -2444,6 +2444,60 @@ class RobustnessExperiments(ExperimentFramework):
                         plots["hyperparameter_traces"] = fig_hyper_trace
                         self.logger.info("   ✅ Hyperparameter trace plots created")
 
+                    # Create factor variance profile analysis (ARD shrinkage assessment)
+                    try:
+                        from analysis.mcmc_diagnostics import analyze_factor_variance_profile
+
+                        self.logger.info("Creating factor variance profile analysis (ARD shrinkage)...")
+
+                        # Analyze variance profile to assess effective dimensionality
+                        variance_results = analyze_factor_variance_profile(
+                            Z_samples=Z_samples,
+                            variance_threshold=0.1,  # Factors below this are shrunk away
+                            save_path=None,
+                        )
+
+                        # Create the plot figure that was generated
+                        # (analyze_factor_variance_profile returns data dict and generates figure)
+                        plots["factor_variance_profile"] = plt.gcf()
+
+                        # Log key insights
+                        K = Z_samples.shape[3]
+                        n_active = variance_results['n_active_factors']
+                        effective_dim = variance_results['effective_dimensionality']
+
+                        self.logger.info(f"   📊 Variance Profile Summary:")
+                        self.logger.info(f"      Total factors (K): {K}")
+                        self.logger.info(f"      Active factors (var > 0.1): {n_active}")
+                        self.logger.info(f"      Effective dimensionality (90% var): {effective_dim}")
+
+                        if K >= 10:
+                            sorted_vars = variance_results['sorted_variances']
+                            top_5_mean = sorted_vars[:5].mean()
+                            next_10_mean = sorted_vars[5:15].mean() if K >= 15 else sorted_vars[5:].mean()
+                            shrinkage_ratio = top_5_mean / (next_10_mean + 1e-10)
+
+                            if shrinkage_ratio > 10:
+                                self.logger.info(f"      ✅ HEALTHY ARD shrinkage (ratio={shrinkage_ratio:.1f})")
+                            elif shrinkage_ratio > 3:
+                                self.logger.info(f"      ⚠️  MODERATE shrinkage (ratio={shrinkage_ratio:.1f})")
+                            else:
+                                self.logger.info(f"      ❌ POOR shrinkage - check convergence (ratio={shrinkage_ratio:.1f})")
+
+                        # Compare to stability results if available
+                        if n_stable_factors > 0:
+                            self.logger.info(f"   🔍 Cross-check: {n_stable_factors} stable factors vs {n_active} active factors")
+                            if abs(n_stable_factors - n_active) > 2:
+                                self.logger.warning(f"      ⚠️  Mismatch between stability ({n_stable_factors}) and variance ({n_active})")
+                                self.logger.warning(f"         → May indicate measurement artifact or convergence issues")
+
+                        self.logger.info("   ✅ Factor variance profile analysis created")
+
+                    except Exception as e:
+                        self.logger.warning(f"Failed to create variance profile: {str(e)}")
+                        import traceback
+                        self.logger.warning(f"Traceback: {traceback.format_exc()}")
+
                 else:
                     self.logger.warning("  ⚠️  No samples found in chain_results for trace plots")
 
