@@ -601,6 +601,12 @@ def main():
         slab_df_value = model_config.get("slab_df", 4)
         slab_scale_value = model_config.get("slab_scale", 2)
 
+        # Get QC outlier threshold (MAD) from preprocessing config for semantic naming
+        preprocessing_config = exp_config.get("preprocessing", {})
+        qc_outlier_threshold = preprocessing_config.get("qc_outlier_threshold", None)
+        if qc_outlier_threshold:
+            logger.info(f"   QC outlier threshold (MAD): {qc_outlier_threshold}")
+
         experiment_config = ExperimentConfig(
             experiment_name="factor_stability_analysis",
             description="Factor stability analysis with fixed parameters (Ferreira et al. 2024)",
@@ -611,6 +617,7 @@ def main():
             percW=percW_value,  # For semantic naming
             slab_df=slab_df_value,  # For semantic naming
             slab_scale=slab_scale_value,  # For semantic naming
+            qc_outlier_threshold=qc_outlier_threshold,  # For semantic naming
             num_samples=fs_config.get("num_samples", 5000),
             num_warmup=fs_config.get("num_warmup", 1000),
             num_chains=fs_config.get("num_chains", 4),

@@ -72,6 +72,9 @@ class ExperimentConfig:
     slab_df: Optional[float] = None  # Slab degrees of freedom
     slab_scale: Optional[float] = None  # Slab scale parameter
 
+    # Preprocessing parameters (for semantic naming)
+    qc_outlier_threshold: Optional[float] = None  # MAD threshold for QC outlier detection
+
     # MCMC configuration
     num_samples: int = 2000
     num_chains: int = 1  # Single chain for GPU memory constraints
@@ -362,6 +365,10 @@ class ExperimentFramework:
             name_parts.append(f"slabdf{config.slab_df:.0f}")
         elif config.slab_scale is not None:
             name_parts.append(f"slabsc{config.slab_scale:.0f}")
+
+        # Add MAD threshold (QC outlier threshold) if specified
+        if config.qc_outlier_threshold is not None:
+            name_parts.append(f"MAD{config.qc_outlier_threshold:.1f}")
 
         return "_".join(name_parts)
 

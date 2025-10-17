@@ -2689,6 +2689,12 @@ def run_robustness_testing(config):
         slab_scale_value = model_config.get("slab_scale", 2)
         logger.info(f"   Using global model hyperparameters: K={K_value}, percW={percW_value}, slab_df={slab_df_value}, slab_scale={slab_scale_value}")
 
+        # Get QC outlier threshold (MAD) from preprocessing config for semantic naming
+        preprocessing_config = config_dict.get("preprocessing", {})
+        qc_outlier_threshold = preprocessing_config.get("qc_outlier_threshold", None)
+        if qc_outlier_threshold:
+            logger.info(f"   QC outlier threshold (MAD): {qc_outlier_threshold}")
+
         # Create ExperimentConfig with model parameters for semantic naming
         exp_config = ExperimentConfig(
             experiment_name="robustness_tests",
@@ -2699,6 +2705,7 @@ def run_robustness_testing(config):
             percW=percW_value,
             slab_df=slab_df_value,
             slab_scale=slab_scale_value,
+            qc_outlier_threshold=qc_outlier_threshold,
         )
 
         # Create robustness experiment instance
