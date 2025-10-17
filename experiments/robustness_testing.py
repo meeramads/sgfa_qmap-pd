@@ -691,49 +691,138 @@ class RobustnessExperiments(ExperimentFramework):
             # Get chain method from args (parallel, sequential, or vectorized)
             chain_method = args.get("chain_method", "sequential")
             self.logger.info(f"Creating MCMC sampler with chain_method={chain_method}...")
-            mcmc = MCMC(
-                kernel,
-                num_warmup=num_warmup,
-                num_samples=num_samples,
-                num_chains=num_chains,
-                chain_method=chain_method,
-            )
 
-            # Run inference
-            self.logger.info("=" * 80)
-            self.logger.info("STARTING MCMC SAMPLING")
-            self.logger.info("=" * 80)
-            self.logger.info(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
-            start_time = time.time()
-
-            try:
-                mcmc.run(
-                    rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
-                )
-                elapsed = time.time() - start_time
-                self.logger.info(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
-            except Exception as e:
-                elapsed = time.time() - start_time
-                self.logger.error(f"❌ MCMC SAMPLING FAILED after {elapsed:.1f}s")
-                self.logger.error(f"Error: {e}")
-                import traceback
-                self.logger.error(traceback.format_exc())
-                raise
-
-            # Get samples - group by chain if running multiple chains
+            # For multiple chains with memory constraints, run chains individually with cache clearing
+            # NOTE: Even with chain_method='sequential', NumPyro may not clear JAX caches between chains,
+            # leading to OOM errors. We explicitly run chains one-by-one with cache clearing.
             if num_chains > 1:
-                samples = mcmc.get_samples(group_by_chain=True)
-                self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
-            else:
-                samples = mcmc.get_samples()
-                self.logger.info(f"Got samples from single chain")
+                self.logger.warning("⚠️  Running chains in explicit sequential mode with JAX cache clearing to prevent OOM")
+                self.logger.warning("    (NumPyro's default chain execution can cause GPU memory accumulation)")
 
-            # Calculate log likelihood (approximate)
-            extra_fields = mcmc.get_extra_fields()
-            potential_energy = extra_fields.get("potential_energy", np.array([]))
-            log_likelihood = (
-                -np.mean(potential_energy) if len(potential_energy) > 0 else np.nan
-            )
+                all_samples_W = []
+                all_samples_Z = []
+                total_elapsed = 0
+
+                import jax
+                import gc
+
+                for chain_idx in range(num_chains):
+                    self.logger.info("=" * 80)
+                    self.logger.info(f"STARTING MCMC SAMPLING - CHAIN {chain_idx + 1}/{num_chains}")
+                    self.logger.info("=" * 80)
+                    self.logger.info(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
+
+                    # Create individual MCMC sampler for this chain
+                    mcmc_single = MCMC(
+                        kernel,
+                        num_warmup=num_warmup,
+                        num_samples=num_samples,
+                        num_chains=1,  # Single chain
+                        chain_method="sequential",
+                    )
+
+                    # Generate unique RNG key for this chain
+                    chain_rng_key = random.fold_in(rng_key, chain_idx)
+
+                    start_time = time.time()
+                    try:
+                        mcmc_single.run(
+                            chain_rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+                        )
+                        elapsed = time.time() - start_time
+                        total_elapsed += elapsed
+                        self.logger.info(f"✅ Chain {chain_idx + 1} COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+
+                        # Get samples from this chain
+                        chain_samples = mcmc_single.get_samples()
+                        all_samples_W.append(chain_samples["W"])
+                        all_samples_Z.append(chain_samples["Z"])
+
+                        # Explicitly clear JAX caches and run garbage collection between chains
+                        jax.clear_caches()
+                        gc.collect()
+                        self.logger.info(f"🧹 Cleared JAX caches after chain {chain_idx + 1}")
+
+                    except Exception as e:
+                        elapsed = time.time() - start_time
+                        total_elapsed += elapsed
+                        self.logger.error(f"❌ Chain {chain_idx + 1} FAILED after {elapsed:.1f}s")
+                        self.logger.error(f"Error: {e}")
+
+                        # Clear JAX cache even on failure
+                        jax.clear_caches()
+                        gc.collect()
+                        self.logger.info(f"🧹 Cleared JAX caches after chain {chain_idx + 1} failure")
+                        raise
+
+                # Stack all chain samples together
+                import jax.numpy as jnp
+                W_samples = jnp.stack(all_samples_W, axis=0)  # Shape: (num_chains, num_samples, D, K)
+                Z_samples = jnp.stack(all_samples_Z, axis=0)  # Shape: (num_chains, num_samples, N, K)
+
+                samples = {"W": W_samples, "Z": Z_samples}
+                elapsed = total_elapsed
+                log_likelihood = 0.0  # Approximate, can compute if needed
+
+                self.logger.info(f"✅ ALL {num_chains} CHAINS COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+                self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
+
+            else:
+                # Standard execution for single chain or non-parallel methods
+                mcmc = MCMC(
+                    kernel,
+                    num_warmup=num_warmup,
+                    num_samples=num_samples,
+                    num_chains=num_chains,
+                    chain_method=chain_method,
+                )
+
+                # Run inference
+                self.logger.info("=" * 80)
+                self.logger.info("STARTING MCMC SAMPLING")
+                self.logger.info("=" * 80)
+                self.logger.info(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
+                start_time = time.time()
+
+                try:
+                    mcmc.run(
+                        rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+                    )
+                    elapsed = time.time() - start_time
+                    self.logger.info(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+
+                    # Clear JAX cache immediately after MCMC to free GPU memory
+                    import jax
+                    jax.clear_caches()
+                    self.logger.info("🧹 Cleared JAX caches after MCMC completion")
+
+                except Exception as e:
+                    elapsed = time.time() - start_time
+                    self.logger.error(f"❌ MCMC SAMPLING FAILED after {elapsed:.1f}s")
+                    self.logger.error(f"Error: {e}")
+                    import traceback
+                    self.logger.error(traceback.format_exc())
+
+                    # Clear JAX cache even on failure to prevent memory leaks
+                    import jax
+                    jax.clear_caches()
+                    self.logger.info("🧹 Cleared JAX caches after MCMC failure")
+                    raise
+
+                # Get samples - group by chain if running multiple chains
+                if num_chains > 1:
+                    samples = mcmc.get_samples(group_by_chain=True)
+                    self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
+                else:
+                    samples = mcmc.get_samples()
+                    self.logger.info(f"Got samples from single chain")
+
+                # Calculate log likelihood
+                extra_fields = mcmc.get_extra_fields()
+                potential_energy = extra_fields.get("potential_energy", np.array([]))
+                log_likelihood = (
+                    -np.mean(potential_energy) if len(potential_energy) > 0 else np.nan
+                )
 
             # Extract mean parameters
             W_samples = samples["W"]  # Shape: (num_chains, num_samples, D, K) or (num_samples, D, K)

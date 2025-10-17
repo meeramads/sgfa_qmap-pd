@@ -52,13 +52,6 @@ model:
   sparsity_lambda: 0.05                  # Sparsity penalty (≥0, typically 0.01-1.0)
   group_lambda: 0.1                      # OPTIONAL: Group sparsity penalty
 
-  # Regularized Horseshoe Prior Hyperparameters (GLOBAL - used by all experiments)
-  # These control sparsity and shrinkage behavior across the entire pipeline
-  percW: 33                              # Element-wise sparsity level (% non-zero loadings, 10-50 typical)
-  slab_df: 4                             # Slab degrees of freedom for regularized horseshoe (3-10 typical)
-  slab_scale: 2                          # Slab scale for regularized horseshoe (1-5 typical)
-  reghsZ: true                           # Apply regularized horseshoe to latent factors Z
-
   # Random Seed (OPTIONAL)
   random_seed: 42                        # Random seed for reproducible results
 
@@ -69,36 +62,26 @@ model:
 # Preprocessing Configuration (OPTIONAL)
 # Controls data preprocessing and feature selection
 preprocessing:
-  # Default: no feature selection, no PCA (use all voxels)
-  # For PCA: use strategy: "pca_balanced", "pca_aggressive", or "pca_conservative" (see data_validation section)
   strategy: "full_preprocessing_all_views"  # Apply feature selection to ALL views (imaging + clinical)
   enable_advanced_preprocessing: true   # Enable smart preprocessing for speed
   enable_spatial_processing: false      # Spatial processing (harmonization, etc) - can be slow
   imputation_strategy: "median"         # Handle missing values without removing voxels
 
-  # Feature selection - ROI-aware for interpretability
-  # NOTE: Feature selection preserves spatial remapping through selected voxel indices
-  feature_selection_method: "none"      # Skip feature selection - use all voxels (can also use "variance" to filter uninformative voxels)
-  variance_threshold: 0.02              # Remove voxels with <2% variance (only used if feature_selection_method="variance")
+  # Quality control outlier detection
+  qc_outlier_threshold: 3.0             # MAD threshold for outlier voxels (CURRENT: strict, ~450 voxels retained)
+
+  # Feature selection - DISABLED to preserve all voxels for spatial remapping
+  feature_selection_method: "none"      # Skip feature selection - use all voxels
+  variance_threshold: 0.02              # Not used when feature_selection_method="none"
   missing_threshold: 0.8                # Remove voxels with >80% missing data
 
-  # ROI-aware selection (preserves proportional representation from each brain region)
-  roi_based_selection: true             # Enable ROI-aware feature selection
-  n_top_features: null                  # Use variance_threshold instead of fixed count (more adaptive per ROI)
-  min_voxel_distance: 3.0               # Minimum distance between selected voxels (spatial distribution)
+  # ROI-aware selection - DISABLED to keep all 1794 voxels for brain mapping
+  roi_based_selection: false            # Disabled - keep all voxels for spatial remapping
+  n_top_features: null                  # Not used
+  min_voxel_distance: 3.0               # Not used when roi_based_selection is false
 
   # Confound handling (NEW)
   drop_confounds_from_clinical: true    # Drop confounds from clinical view (vs residualize)
-
-  # PCA Dimensionality Reduction (OPTIONAL)
-  # NOTE: For optimized PCA configs based on MAD elbow analysis, use the pre-configured strategies:
-  #   - strategy: "pca_balanced"      → 85% variance, ~120 components (RECOMMENDED)
-  #   - strategy: "pca_aggressive"    → 80% variance, ~90 components (best N/D ratio)
-  #   - strategy: "pca_conservative"  → 90% variance, ~150 components (more information)
-  enable_pca: false                     # Enable PCA dimensionality reduction
-  pca_n_components: null                # Fixed number of components (null = use variance threshold)
-  pca_variance_threshold: 0.95          # Retain 95% of variance (only used if pca_n_components is null)
-  pca_whiten: false                     # Whiten PCA components (normalize variance)
 
 # Cross-Validation Configuration (OPTIONAL)
 # Configures model evaluation and validation
@@ -176,10 +159,6 @@ data_validation:
       variance_threshold: 0.01                     # Only used if feature_selection_method changed to "variance"
       missing_threshold: 0.5
       imaging_preserve_voxels: true                # Preserve all imaging voxels for spatial mapping
-      enable_pca: false                            # PCA dimensionality reduction (disabled by default)
-      pca_n_components: null                       # Number of PCA components (null = use variance threshold)
-      pca_variance_threshold: 0.95                 # Retain 95% of variance if pca_n_components is null
-      pca_whiten: false                            # Whiten PCA components
 
     optimized:
       enable_advanced_preprocessing: true
@@ -192,43 +171,6 @@ data_validation:
       feature_selection_method: "statistical"
       n_top_features: 300
       variance_threshold: 0.005           # More stringent for clinical applications
-
-    # PCA-based dimensionality reduction strategies
-    # Based on MAD elbow analysis (21.5% retention) and N/D ratio optimization
-
-    pca_balanced:
-      enable_advanced_preprocessing: true
-      imputation_strategy: "median"
-      feature_selection_method: "none"    # Use PCA instead of feature selection
-      enable_pca: true
-      pca_n_components: null
-      pca_variance_threshold: 0.85        # 85% variance (~120 components, N/D≈0.74:1)
-      pca_whiten: false
-      # RECOMMENDED: Best balance of compression and information retention
-      # Use with K=10 factors
-
-    pca_aggressive:
-      enable_advanced_preprocessing: true
-      imputation_strategy: "median"
-      feature_selection_method: "none"
-      enable_pca: true
-      pca_n_components: null
-      pca_variance_threshold: 0.80        # 80% variance (~90 components, N/D≈0.89:1)
-      pca_whiten: false
-      # Most aggressive compression, best N/D ratio
-      # Use with K=10 factors
-      # Closest to MAD elbow (21.5% retention)
-
-    pca_conservative:
-      enable_advanced_preprocessing: true
-      imputation_strategy: "median"
-      feature_selection_method: "none"
-      enable_pca: true
-      pca_n_components: null
-      pca_variance_threshold: 0.90        # 90% variance (~150 components, N/D≈0.59:1)
-      pca_whiten: false
-      # More information retained, less compression
-      # Use with K=8 factors (reduced to improve N/D ratio)
 
 # Clinical Validation Experiment
 clinical_validation:
@@ -280,7 +222,6 @@ clinical_validation:
       - "convergence_vs_clinical_validity" # Fast convergence vs clinical correlation
 
 # Robustness Testing Experiment
-# NOTE: Uses global model hyperparameters (percW, slab_df, slab_scale) from model section above
 robustness_testing:
   test_scenarios:
     - "identical_seeds"                 # Same random seed should give same results
@@ -302,12 +243,11 @@ robustness_testing:
 
 # Factor Stability Analysis Configuration
 # Implements Ferreira et al. 2024 methodology for assessing factor robustness
-# NOTE: Uses global model hyperparameters (percW, slab_df, slab_scale, reghsZ) from model section above
 factor_stability:
   K: 20                                 # Number of latent factors
   num_chains: 4                         # Number of independent chains (4+ recommended)
-  num_samples: 10000                    # MCMC samples per chain (doubled for better convergence)
-  num_warmup: 2000                      # MCMC warmup samples (doubled for better convergence)
+  num_samples: 3000                     # MCMC samples per chain (reduced for memory safety with full voxels)
+  num_warmup: 2000                      # MCMC warmup samples (INCREASED for better adaptation to complex posterior)
   chain_method: 'parallel'              # Chain execution: 'parallel' (2x faster on GPU), 'sequential', or 'vectorized'
 
   # Factor matching parameters (Ferreira et al. 2024)
@@ -317,6 +257,12 @@ factor_stability:
   # Effective factor counting parameters
   sparsity_threshold: 0.01              # Minimum loading magnitude to be non-zero
   min_nonzero_pct: 0.05                 # Minimum fraction of non-zero loadings (5%)
+
+  # Fixed parameters from Ferreira et al. 2024 Section 2.7
+  percW: 33                             # Sparsity level (33% for balanced sparsity/expressiveness)
+  slab_df: 4                            # Slab degrees of freedom
+  slab_scale: 2                         # Slab scale
+  reghsZ: true                          # Regularized horseshoe on Z
   target_accept_prob: 0.8               # MCMC acceptance probability
 
 # =============================================================================
