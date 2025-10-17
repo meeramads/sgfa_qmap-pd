@@ -307,7 +307,7 @@ factor_stability:
   K: 20                                 # Number of latent factors
   num_chains: 4                         # Number of independent chains (4+ recommended)
   num_samples: 10000                    # MCMC samples per chain (doubled for better convergence)
-  num_warmup: 2000                      # MCMC warmup samples (doubled for better convergence)
+  num_warmup: 3000                      # MCMC warmup samples (increased for diagonal mass matrix)
   chain_method: 'parallel'              # Chain execution: 'parallel' (2x faster on GPU), 'sequential', or 'vectorized'
 
   # Factor matching parameters (Ferreira et al. 2024)
@@ -321,6 +321,7 @@ factor_stability:
   # MCMC sampler parameters
   target_accept_prob: 0.8               # MCMC acceptance probability (0.6-0.95, default: 0.8)
   max_tree_depth: 13                    # Maximum tree depth for NUTS sampler (10-15, default: 13)
+  dense_mass: false                     # Use diagonal mass matrix (false) for memory efficiency vs dense (true) for better adaptation
 
 # =============================================================================
 # CONFIGURATION EXAMPLES FOR DIFFERENT USE CASES

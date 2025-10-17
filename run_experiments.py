@@ -678,6 +678,7 @@ def main():
             "num_chains": 1,  # Sequential execution (run_factor_stability_analysis handles multiple chains)
             "target_accept_prob": fs_config.get("target_accept_prob", 0.8),
             "max_tree_depth": fs_config.get("max_tree_depth", 13),
+            "dense_mass": fs_config.get("dense_mass", False),
             "reghsZ": fs_config.get("reghsZ", True),
             "random_seed": 42,
         }
@@ -685,7 +686,7 @@ def main():
         logger.info(f"   Using parameters from config.yaml:")
         logger.info(f"   - K={K}, percW={hypers['percW']}, slab_df={hypers['slab_df']}, slab_scale={hypers['slab_scale']}")
         logger.info(f"   - num_samples={mcmc_args['num_samples']}, num_warmup={mcmc_args['num_warmup']}")
-        logger.info(f"   - target_accept_prob={mcmc_args['target_accept_prob']}, max_tree_depth={mcmc_args['max_tree_depth']}")
+        logger.info(f"   - target_accept_prob={mcmc_args['target_accept_prob']}, max_tree_depth={mcmc_args['max_tree_depth']}, dense_mass={mcmc_args['dense_mass']}")
         logger.info(f"   - cosine_threshold={experiment_config.cosine_threshold}, min_match_rate={experiment_config.min_match_rate}")
 
         # Run factor stability analysis

@@ -690,10 +690,14 @@ class RobustnessExperiments(ExperimentFramework):
             seed = args.get("random_seed", 42)
             self.logger.info(f"Setting up MCMC with seed: {seed}")
             rng_key = jax.random.PRNGKey(seed)
+
+            # Store kernel parameters for reuse (create fresh kernel per chain to avoid state accumulation)
             target_accept_prob = args.get("target_accept_prob", 0.8)
             max_tree_depth = args.get("max_tree_depth", 13)
-            self.logger.info(f"Creating NUTS kernel with target_accept_prob={target_accept_prob}, max_tree_depth={max_tree_depth}")
-            kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth)
+            dense_mass = args.get("dense_mass", False)  # Use diagonal mass matrix for memory efficiency
+            self.logger.info(f"NUTS kernel parameters: target_accept_prob={target_accept_prob}, max_tree_depth={max_tree_depth}, dense_mass={dense_mass}")
+            if not dense_mass:
+                self.logger.info("   Using diagonal mass matrix for ~5GB memory savings per chain")
 
             # Get chain method from args (parallel, sequential, or vectorized)
             chain_method = args.get("chain_method", "sequential")
@@ -724,11 +728,41 @@ class RobustnessExperiments(ExperimentFramework):
                     # Extra cleanup before starting new chain
                     if chain_idx > 0:
                         import time
-                        self.logger.info("⏳ Waiting 5 seconds for GPU memory to fully release...")
+                        self.logger.info("⏳ Performing aggressive memory cleanup before next chain...")
+
+                        # Multiple rounds of cache clearing and garbage collection
+                        for cleanup_round in range(3):
+                            jax.clear_caches()
+                            gc.collect()
+                            time.sleep(2)  # Give GPU driver time to process deallocations
+
+                        self.logger.info("🧹 Aggressive cleanup complete, waiting 5 seconds for GPU...")
                         time.sleep(5)
-                        jax.clear_caches()
-                        gc.collect()
-                        self.logger.info("🧹 Pre-chain cleanup complete")
+
+                    # Monitor GPU memory before starting chain
+                    try:
+                        device = jax.devices()[0]
+                        mem_stats = device.memory_stats()
+                        total_memory_gb = mem_stats.get('bytes_limit', 0) / (1024**3)
+                        allocated_memory_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                        available_memory_gb = total_memory_gb - allocated_memory_gb
+
+                        self.logger.info(f"📊 GPU Memory Stats BEFORE Chain {chain_idx + 1}:")
+                        self.logger.info(f"   Total: {total_memory_gb:.2f} GB")
+                        self.logger.info(f"   Allocated: {allocated_memory_gb:.2f} GB")
+                        self.logger.info(f"   Available: {available_memory_gb:.2f} GB")
+
+                        if chain_idx > 0:
+                            # Check if memory leaked from previous chains
+                            if allocated_memory_gb > 0.5:  # More than 500MB still allocated
+                                self.logger.warning(f"⚠️  WARNING: {allocated_memory_gb:.2f} GB still allocated after cleanup!")
+                                self.logger.warning("   Memory may be leaking between chains")
+                    except Exception as mem_error:
+                        self.logger.warning(f"Could not get GPU memory stats: {mem_error}")
+
+                    # Create fresh NUTS kernel for this chain (avoid state accumulation)
+                    self.logger.info(f"Creating fresh NUTS kernel for chain {chain_idx + 1}...")
+                    kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
 
                     # Create individual MCMC sampler for this chain
                     mcmc_single = MCMC(
@@ -753,19 +787,59 @@ class RobustnessExperiments(ExperimentFramework):
 
                         # Get samples from this chain and convert to numpy to break JAX references
                         chain_samples = mcmc_single.get_samples()
+
+                        # Monitor GPU memory right after sampling (before cleanup)
+                        allocated_after_sampling_gb = 0.0  # Initialize to avoid scope issues
+                        try:
+                            device = jax.devices()[0]
+                            mem_stats = device.memory_stats()
+                            allocated_after_sampling_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                            self.logger.info(f"📊 GPU Memory AFTER sampling: {allocated_after_sampling_gb:.2f} GB allocated")
+                        except Exception:
+                            pass
+
                         # Convert JAX arrays to numpy arrays to free device memory
                         W_np = np.array(chain_samples["W"])
                         Z_np = np.array(chain_samples["Z"])
                         all_samples_W.append(W_np)
                         all_samples_Z.append(Z_np)
 
-                        # Delete references to free memory
-                        del chain_samples, W_np, Z_np, mcmc_single
+                        # Delete ALL references to free memory - be very explicit
+                        del chain_samples, W_np, Z_np
+                        del mcmc_single  # Delete MCMC object
+                        del kernel  # Delete NUTS kernel object
 
-                        # Explicitly clear JAX caches and run garbage collection between chains
-                        jax.clear_caches()
+                        # Aggressive multi-stage cleanup
+                        self.logger.info(f"🧹 Starting aggressive cleanup after chain {chain_idx + 1}...")
+
+                        # Stage 1: Clear caches and collect garbage multiple times
+                        for cleanup_round in range(3):
+                            jax.clear_caches()
+                            gc.collect()
+                            import time
+                            time.sleep(1)  # Brief pause between rounds
+
+                        # Stage 2: Final garbage collection
                         gc.collect()
-                        self.logger.info(f"🧹 Cleared JAX caches and freed device memory after chain {chain_idx + 1}")
+
+                        # Monitor GPU memory after cleanup
+                        try:
+                            device = jax.devices()[0]
+                            mem_stats = device.memory_stats()
+                            allocated_after_cleanup_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                            freed_memory_gb = allocated_after_sampling_gb - allocated_after_cleanup_gb
+
+                            self.logger.info(f"📊 GPU Memory AFTER cleanup:")
+                            self.logger.info(f"   Allocated: {allocated_after_cleanup_gb:.2f} GB")
+                            self.logger.info(f"   Freed: {freed_memory_gb:.2f} GB")
+
+                            if freed_memory_gb < 1.0:
+                                self.logger.warning(f"⚠️  WARNING: Only {freed_memory_gb:.2f} GB freed - expected ~2-3 GB")
+                                self.logger.warning("   Memory leak detected!")
+                        except Exception:
+                            pass
+
+                        self.logger.info(f"✅ Chain {chain_idx + 1} cleanup complete")
 
                     except Exception as e:
                         elapsed = time.time() - start_time
@@ -783,6 +857,9 @@ class RobustnessExperiments(ExperimentFramework):
                 W_samples = np.stack(all_samples_W, axis=0)  # Shape: (num_chains, num_samples, D, K)
                 Z_samples = np.stack(all_samples_Z, axis=0)  # Shape: (num_chains, num_samples, N, K)
 
+                # Delete intermediate lists to free memory immediately
+                del all_samples_W, all_samples_Z
+
                 samples = {"W": W_samples, "Z": Z_samples}
                 elapsed = total_elapsed
                 log_likelihood = 0.0  # Approximate, can compute if needed
@@ -792,6 +869,10 @@ class RobustnessExperiments(ExperimentFramework):
 
             else:
                 # Standard execution for single chain or non-parallel methods
+                # Create NUTS kernel for standard execution
+                self.logger.info("Creating NUTS kernel for standard MCMC execution...")
+                kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
+
                 mcmc = MCMC(
                     kernel,
                     num_warmup=num_warmup,
