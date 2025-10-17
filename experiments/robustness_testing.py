@@ -704,6 +704,7 @@ class RobustnessExperiments(ExperimentFramework):
                 total_elapsed = 0
 
                 import jax
+                from jax import random as jax_random
                 import gc
 
                 for chain_idx in range(num_chains):
@@ -722,7 +723,7 @@ class RobustnessExperiments(ExperimentFramework):
                     )
 
                     # Generate unique RNG key for this chain
-                    chain_rng_key = random.fold_in(rng_key, chain_idx)
+                    chain_rng_key = jax_random.fold_in(rng_key, chain_idx)
 
                     start_time = time.time()
                     try:
