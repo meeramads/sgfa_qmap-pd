@@ -691,8 +691,9 @@ class RobustnessExperiments(ExperimentFramework):
             self.logger.info(f"Setting up MCMC with seed: {seed}")
             rng_key = jax.random.PRNGKey(seed)
             target_accept_prob = args.get("target_accept_prob", 0.8)
-            self.logger.info(f"Creating NUTS kernel with target_accept_prob={target_accept_prob}")
-            kernel = NUTS(models, target_accept_prob=target_accept_prob)
+            max_tree_depth = args.get("max_tree_depth", 13)
+            self.logger.info(f"Creating NUTS kernel with target_accept_prob={target_accept_prob}, max_tree_depth={max_tree_depth}")
+            kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth)
 
             # Get chain method from args (parallel, sequential, or vectorized)
             chain_method = args.get("chain_method", "sequential")

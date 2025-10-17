@@ -317,7 +317,10 @@ factor_stability:
   # Effective factor counting parameters
   sparsity_threshold: 0.01              # Minimum loading magnitude to be non-zero
   min_nonzero_pct: 0.05                 # Minimum fraction of non-zero loadings (5%)
-  target_accept_prob: 0.8               # MCMC acceptance probability
+
+  # MCMC sampler parameters
+  target_accept_prob: 0.8               # MCMC acceptance probability (0.6-0.95, default: 0.8)
+  max_tree_depth: 13                    # Maximum tree depth for NUTS sampler (10-15, default: 13)
 
 # =============================================================================
 # CONFIGURATION EXAMPLES FOR DIFFERENT USE CASES
