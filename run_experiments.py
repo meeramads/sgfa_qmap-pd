@@ -190,6 +190,12 @@ def main():
         help="Number of latent factors (overrides config.yaml). Example: --K 8",
     )
     parser.add_argument(
+        "--percW",
+        type=float,
+        default=None,
+        help="Sparsity level - percentage of non-zero loadings (overrides config.yaml). Example: --percW 20 for 20%% non-zero (80%% sparse)",
+    )
+    parser.add_argument(
         "--enable-pca",
         action="store_true",
         default=False,
@@ -291,6 +297,13 @@ def main():
         config["model"]["K"] = args.K
         logger.info(f"Override K (latent factors): {args.K}")
 
+    # Configure percW (sparsity level) if provided
+    if args.percW is not None:
+        if "model" not in config:
+            config["model"] = {}
+        config["model"]["percW"] = args.percW
+        logger.info(f"Override percW (sparsity): {args.percW}% non-zero ({100-args.percW:.0f}% sparse)")
+
     # Configure PCA if provided
     if args.enable_pca or args.pca_strategy or args.pca_variance or args.pca_components:
         if "preprocessing" not in config:
@@ -361,6 +374,10 @@ def main():
         # Add K info if overridden
         if args.K:
             config_suffix += f"_K{args.K}"
+
+        # Add percW info if overridden
+        if args.percW:
+            config_suffix += f"_percW{args.percW:.0f}"
 
         # Add PCA info
         if args.pca_strategy:
