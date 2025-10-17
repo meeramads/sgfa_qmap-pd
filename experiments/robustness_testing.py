@@ -2700,6 +2700,17 @@ class RobustnessExperiments(ExperimentFramework):
                 import traceback
                 self.logger.warning(f"Traceback: {traceback.format_exc()}")
 
+        # Save all plots as individual files
+        try:
+            from core.io_utils import save_all_plots_individually
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(self.config)
+            output_dir = get_output_dir(config_dict) / "factor_stability" / "individual_plots"
+            save_all_plots_individually(plots, output_dir, dpi=300)
+            self.logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
+        except Exception as e:
+            self.logger.warning(f"Failed to save individual plots: {e}")
+
         return plots
 
 
