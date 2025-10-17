@@ -604,6 +604,12 @@ class RobustnessExperiments(ExperimentFramework):
     ) -> Dict:
         """Run actual SGFA analysis for robustness testing."""
         import time
+        import os
+
+        # Configure JAX memory settings BEFORE importing JAX
+        # This prevents JAX from pre-allocating 90% of GPU memory
+        os.environ.setdefault('XLA_PYTHON_CLIENT_PREALLOCATE', 'false')
+        os.environ.setdefault('XLA_PYTHON_CLIENT_ALLOCATOR', 'platform')
 
         import jax
         from numpyro.infer import MCMC, NUTS
@@ -698,6 +704,7 @@ class RobustnessExperiments(ExperimentFramework):
             if num_chains > 1:
                 self.logger.warning("⚠️  Running chains in explicit sequential mode with JAX cache clearing to prevent OOM")
                 self.logger.warning("    (NumPyro's default chain execution can cause GPU memory accumulation)")
+                self.logger.info("    (JAX memory preallocation disabled at function entry)")
 
                 all_samples_W = []
                 all_samples_Z = []
@@ -712,6 +719,15 @@ class RobustnessExperiments(ExperimentFramework):
                     self.logger.info(f"STARTING MCMC SAMPLING - CHAIN {chain_idx + 1}/{num_chains}")
                     self.logger.info("=" * 80)
                     self.logger.info(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
+
+                    # Extra cleanup before starting new chain
+                    if chain_idx > 0:
+                        import time
+                        self.logger.info("⏳ Waiting 5 seconds for GPU memory to fully release...")
+                        time.sleep(5)
+                        jax.clear_caches()
+                        gc.collect()
+                        self.logger.info("🧹 Pre-chain cleanup complete")
 
                     # Create individual MCMC sampler for this chain
                     mcmc_single = MCMC(
@@ -734,15 +750,21 @@ class RobustnessExperiments(ExperimentFramework):
                         total_elapsed += elapsed
                         self.logger.info(f"✅ Chain {chain_idx + 1} COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
-                        # Get samples from this chain
+                        # Get samples from this chain and convert to numpy to break JAX references
                         chain_samples = mcmc_single.get_samples()
-                        all_samples_W.append(chain_samples["W"])
-                        all_samples_Z.append(chain_samples["Z"])
+                        # Convert JAX arrays to numpy arrays to free device memory
+                        W_np = np.array(chain_samples["W"])
+                        Z_np = np.array(chain_samples["Z"])
+                        all_samples_W.append(W_np)
+                        all_samples_Z.append(Z_np)
+
+                        # Delete references to free memory
+                        del chain_samples, W_np, Z_np, mcmc_single
 
                         # Explicitly clear JAX caches and run garbage collection between chains
                         jax.clear_caches()
                         gc.collect()
-                        self.logger.info(f"🧹 Cleared JAX caches after chain {chain_idx + 1}")
+                        self.logger.info(f"🧹 Cleared JAX caches and freed device memory after chain {chain_idx + 1}")
 
                     except Exception as e:
                         elapsed = time.time() - start_time
@@ -756,10 +778,9 @@ class RobustnessExperiments(ExperimentFramework):
                         self.logger.info(f"🧹 Cleared JAX caches after chain {chain_idx + 1} failure")
                         raise
 
-                # Stack all chain samples together
-                import jax.numpy as jnp
-                W_samples = jnp.stack(all_samples_W, axis=0)  # Shape: (num_chains, num_samples, D, K)
-                Z_samples = jnp.stack(all_samples_Z, axis=0)  # Shape: (num_chains, num_samples, N, K)
+                # Stack all chain samples together using numpy (already converted above)
+                W_samples = np.stack(all_samples_W, axis=0)  # Shape: (num_chains, num_samples, D, K)
+                Z_samples = np.stack(all_samples_Z, axis=0)  # Shape: (num_chains, num_samples, N, K)
 
                 samples = {"W": W_samples, "Z": Z_samples}
                 elapsed = total_elapsed
