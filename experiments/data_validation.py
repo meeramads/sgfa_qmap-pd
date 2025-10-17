@@ -369,7 +369,15 @@ class DataValidationExperiments(ExperimentFramework):
         advanced_plots = self._create_comprehensive_data_validation_visualizations(
             X_list, results, "data_quality_assessment"
         )
+
+        # Log what plots we have before and after merging
+        logger.debug(f"Basic plots keys: {list(plots.keys())}")
+        logger.debug(f"Advanced plots keys: {list(advanced_plots.keys())}")
+
         plots.update(advanced_plots)
+
+        logger.debug(f"Merged plots keys: {list(plots.keys())}")
+        logger.info(f"📊 Total plots ready for saving: {len(plots)}")
 
         # Save all plots as individual files
         try:
@@ -1556,10 +1564,13 @@ class DataValidationExperiments(ExperimentFramework):
                 if clinical_views:
                     n_views = len(clinical_views)
                     logger.info(f"   Creating distribution histograms for {n_views} clinical view(s), skipping {len(raw_data['X_list']) - n_views} imaging views")
-                    fig, axes = plt.subplots(2, n_views, figsize=(5*n_views, 10))
+
+                    # Create figure explicitly to ensure proper reference
+                    fig_dist = plt.figure(figsize=(5*n_views, 10))
+                    axes = fig_dist.subplots(2, n_views)
                     if n_views == 1:
                         axes = axes.reshape(-1, 1)
-                    fig.suptitle("Data Distribution: Raw vs Preprocessed (Clinical Data Only)", fontsize=16)
+                    fig_dist.suptitle("Data Distribution: Raw vs Preprocessed (Clinical Data Only)", fontsize=16)
 
                     for plot_idx, (view_idx, view_name, raw_X, proc_X) in enumerate(clinical_views):
                         formatted_view_name = _format_view_name(view_name)
@@ -1579,14 +1590,17 @@ class DataValidationExperiments(ExperimentFramework):
                         axes[1, plot_idx].set_xlabel("Standardized Value")
                         axes[1, plot_idx].set_ylabel("Frequency")
 
-                    plt.tight_layout()
-                    plots["data_distribution_comparison"] = fig
-                    logger.info(f"   ✅ Distribution histograms created")
+                    fig_dist.tight_layout()
+                    plots["data_distribution_comparison"] = fig_dist
+                    logger.info(f"   ✅ Distribution histograms created (stored as data_distribution_comparison)")
 
             # Quality metrics summary plot
             if "quality_metrics" in results:
                 logger.info("   Creating quality metrics summary plot...")
-                fig, ax = plt.subplots(figsize=(10, 6))
+
+                # Create figure explicitly to ensure proper reference
+                fig_quality = plt.figure(figsize=(10, 6))
+                ax = fig_quality.add_subplot(111)
 
                 metrics_names = []
                 metrics_values = []
@@ -1603,9 +1617,9 @@ class DataValidationExperiments(ExperimentFramework):
                     ax.set_title("Data Quality Metrics Summary")
                     ax.set_ylabel("Metric Value")
                     ax.tick_params(axis="x", rotation=45)
-                    plt.tight_layout()
-                    plots["quality_metrics_summary"] = fig
-                    logger.info(f"   ✅ Quality metrics plot created ({len(metrics_names)} metrics)")
+                    fig_quality.tight_layout()
+                    plots["quality_metrics_summary"] = fig_quality
+                    logger.info(f"   ✅ Quality metrics plot created ({len(metrics_names)} metrics, stored as quality_metrics_summary)")
 
         except Exception as e:
             logger.warning(f"Failed to create data validation plots: {e}")
@@ -1720,20 +1734,26 @@ class DataValidationExperiments(ExperimentFramework):
 
                 for plot_file in plot_files:
                     plot_name = f"data_validation_{plot_file.stem}"
-                    # Create human-readable title from file stem
-                    title = plot_file.stem.replace("_", " ").title()
 
                     try:
                         import matplotlib.image as mpimg
                         import matplotlib.pyplot as plt
 
-                        fig, ax = plt.subplots(figsize=(12, 8))
+                        # Create a new figure explicitly and make it current
+                        fig = plt.figure(figsize=(12, 8))
+                        ax = fig.add_subplot(111)
+
+                        # Load and display the image
                         img = mpimg.imread(str(plot_file))
                         ax.imshow(img)
                         ax.axis("off")
-                        ax.set_title(f"Data Validation: {title}", fontsize=14)
 
+                        # Don't add extra title - the image already has its own title baked in
+
+                        # Store the figure immediately before creating the next one
                         advanced_plots[plot_name] = fig
+
+                        logger.debug(f"   Loaded plot: {plot_name} from {plot_file.name}")
 
                     except Exception as e:
                         logger.warning(

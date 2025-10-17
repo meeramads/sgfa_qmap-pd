@@ -799,13 +799,26 @@ class RobustnessExperiments(ExperimentFramework):
                             pass
 
                         # Convert JAX arrays to numpy arrays to free device memory
+                        # Extract W and Z
                         W_np = np.array(chain_samples["W"])
                         Z_np = np.array(chain_samples["Z"])
                         all_samples_W.append(W_np)
                         all_samples_Z.append(Z_np)
 
+                        # Also extract hyperparameters for plotting
+                        # Store full samples dict for this chain (for MCMC diagnostics)
+                        chain_samples_dict = {}
+                        for key, value in chain_samples.items():
+                            # Convert to numpy and store
+                            chain_samples_dict[key] = np.array(value)
+
+                        # Store this chain's full samples
+                        if not hasattr(self, '_all_chain_samples'):
+                            self._all_chain_samples = []
+                        self._all_chain_samples.append(chain_samples_dict)
+
                         # Delete ALL references to free memory - be very explicit
-                        del chain_samples, W_np, Z_np
+                        del chain_samples, W_np, Z_np, chain_samples_dict
                         del mcmc_single  # Delete MCMC object
                         del kernel  # Delete NUTS kernel object
 
@@ -860,12 +873,16 @@ class RobustnessExperiments(ExperimentFramework):
                 # Delete intermediate lists to free memory immediately
                 del all_samples_W, all_samples_Z
 
+                # Create samples dict with W and Z for compatibility
                 samples = {"W": W_samples, "Z": Z_samples}
+
+                # Store the full chain samples for MCMC diagnostics (accessible via self._all_chain_samples)
                 elapsed = total_elapsed
                 log_likelihood = 0.0  # Approximate, can compute if needed
 
                 self.logger.info(f"✅ ALL {num_chains} CHAINS COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
                 self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
+                self.logger.info(f"Stored full samples for {len(self._all_chain_samples)} chains for MCMC diagnostics")
 
             else:
                 # Standard execution for single chain or non-parallel methods
@@ -2413,13 +2430,12 @@ class RobustnessExperiments(ExperimentFramework):
                     # Create visualizer
                     visualizer = FactorVisualizer(self.config)
 
-                    # Create figure for enhanced loading distributions
+                    # Create enhanced loading distributions plot
                     self.logger.info("Creating enhanced factor loading distribution plot...")
-                    fig_loadings = plt.figure(figsize=(16, 12))
-                    visualizer.plot_enhanced_factor_loading_distributions(
+                    fig_loadings = visualizer.plot_enhanced_factor_loading_distributions(
                         consensus_W, viz_data, save_path=None
                     )
-                    plots["enhanced_loading_distributions"] = plt.gcf()
+                    plots["enhanced_loading_distributions"] = fig_loadings
 
             except Exception as e:
                 self.logger.warning(f"Failed to create enhanced loading distributions: {str(e)}")
@@ -2574,12 +2590,24 @@ class RobustnessExperiments(ExperimentFramework):
                 Z_samples_list = []
                 samples_by_chain = []
 
-                for result in chain_results:
-                    samples = result.get("samples", {})
-                    if "W" in samples and "Z" in samples:
-                        W_samples_list.append(samples["W"])
-                        Z_samples_list.append(samples["Z"])
-                        samples_by_chain.append(samples)
+                # Check if we have stored full chain samples with hyperparameters
+                if hasattr(self, '_all_chain_samples') and len(self._all_chain_samples) > 0:
+                    self.logger.info(f"  Using stored full chain samples ({len(self._all_chain_samples)} chains) with hyperparameters")
+                    samples_by_chain = self._all_chain_samples
+                    # Extract W and Z from full samples for compatibility
+                    for chain_samples in self._all_chain_samples:
+                        if "W" in chain_samples and "Z" in chain_samples:
+                            W_samples_list.append(chain_samples["W"])
+                            Z_samples_list.append(chain_samples["Z"])
+                else:
+                    # Fallback to result samples (may not have hyperparameters)
+                    self.logger.warning("  No stored chain samples found, using result samples (may lack hyperparameters)")
+                    for result in chain_results:
+                        samples = result.get("samples", {})
+                        if "W" in samples and "Z" in samples:
+                            W_samples_list.append(samples["W"])
+                            Z_samples_list.append(samples["Z"])
+                            samples_by_chain.append(samples)
 
                 if len(W_samples_list) > 0:
                     # Stack samples from different chains
@@ -2619,10 +2647,17 @@ class RobustnessExperiments(ExperimentFramework):
                         # Infer number of sources from X_list
                         num_sources = len(X_list) if X_list is not None else None
 
+                        # Determine output directory for individual plots
+                        from core.config_utils import ConfigHelper
+                        config_dict = ConfigHelper.to_dict(self.config)
+                        individual_plots_dir = get_output_dir(config_dict) / "factor_stability" / "individual_plots" / "hyperparameters"
+
                         fig_hyper_post = plot_hyperparameter_posteriors(
                             samples_by_chain=samples_by_chain,
                             save_path=None,
                             num_sources=num_sources,
+                            save_individual=True,
+                            output_dir=str(individual_plots_dir),
                         )
                         plots["hyperparameter_posteriors"] = fig_hyper_post
                         self.logger.info("   ✅ Hyperparameter posterior plots created")

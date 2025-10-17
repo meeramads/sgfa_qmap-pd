@@ -798,6 +798,8 @@ class FactorVisualizer:
         else:
             plt.show()
 
+        return fig
+
     def plot_interpretable_brain_loadings(self, W: np.ndarray, data: Dict, save_path: str = None):
         """Create interpretable brain loading visualizations with anatomical context."""
         view_names = data.get("view_names", [])
