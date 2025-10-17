@@ -1,0 +1,21 @@
+2025-10-17 20:19:24,731 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW20_MAD3.0_run_20251017_201924
+2025-10-17 20:19:24,736 - experiments.framework - INFO - Starting experiment: data_validation_20251017_201924
+2025-10-17 20:19:29,772 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251017_201924
+2025-10-17 20:19:29,772 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 5.0 seconds
+2025-10-17 20:19:29,772 - experiments.framework - INFO - 🕐 Started: 2025-10-17 20:19:24
+2025-10-17 20:19:29,772 - experiments.framework - INFO - 🕑 Finished: 2025-10-17 20:19:29
+2025-10-17 20:19:29,772 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251017_201924
+2025-10-17 20:19:29,772 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-17 20:19:29,815 - experiments.framework - INFO - Garbage collection freed 18258 objects
+2025-10-17 20:19:29,953 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-17 20:19:30,955 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-17 20:19:31,030 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-17 20:19:31,035 - experiments.framework - INFO - Saving 3 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW20_MAD3.0_run_20251017_201924/data_validation_20251017_201924/plots
+2025-10-17 20:19:32,103 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-17 20:19:33,168 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-17 20:19:33,537 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-17 20:19:33,538 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW20_MAD3.0_run_20251017_201924/data_validation_20251017_201924/plots
+2025-10-17 20:19:33,586 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW20_MAD3.0_run_20251017_201924
+2025-10-17 20:19:33,586 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW20_MAD3.0_run_20251017_201924
+2025-10-17 20:19:33,592 - experiments.framework - INFO - Starting experiment: robustness_tests_20251017_201933
+2025-10-17 20:19:33,592 - experiments.framework - INFO - Starting experiment: robustness_tests_20251017_201933

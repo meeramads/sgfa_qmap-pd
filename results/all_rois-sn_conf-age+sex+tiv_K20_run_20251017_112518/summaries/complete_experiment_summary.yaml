@@ -1,0 +1,24 @@
+experiment_run_info:
+  config_used: config.yaml
+  duration_formatted: '3:17:01.388451'
+  duration_seconds: 11821.388451
+  end_time: '2025-10-17T14:42:19.446947'
+  start_time: '2025-10-17T11:25:18.058496'
+  unified_results: true
+experiments_executed:
+  data_validation:
+    duration: 2.118791
+    experiment_id: data_validation_20251017_112518
+    status: completed
+  factor_stability:
+    duration: 0
+    experiment_id: N/A
+    status: completed
+  robustness_testing:
+    duration: 517.405332
+    experiment_id: robustness_tests_20251017_112523
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 3
+  total_experiments: 3
