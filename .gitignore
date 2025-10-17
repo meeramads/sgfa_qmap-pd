@@ -51,6 +51,18 @@ Thumbs.db
 # Ignore test outputs
 htmlcov/
 .coverage
+test_outputs/
+archived_configs/
+archived_test_outputs/
+
+# Test artifacts in root
+test_*.py
+test_*.png
+debug_experiments.py
+
+# Cache directories
+.mypy_cache/
+.pytest_cache/
 
 # Ignore Python build
 build/
