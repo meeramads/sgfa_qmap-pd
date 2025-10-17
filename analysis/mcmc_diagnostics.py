@@ -565,9 +565,9 @@ def plot_hyperparameter_posteriors(
     save_path: Optional[str] = None,
     num_sources: Optional[int] = None,
 ) -> plt.Figure:
-    """Plot posterior distributions of hyperparameters (tauW, tauZ).
+    """Plot posterior distributions of hyperparameters (tauW, tauZ, sigma, cW, cZ).
 
-    This visualizes the learned precision parameters to assess whether
+    This visualizes the learned precision and regularization parameters to assess whether
     priors are too restrictive or if the model is learning appropriate
     regularization levels.
 
@@ -576,6 +576,11 @@ def plot_hyperparameter_posteriors(
     - tauW large: Weak shrinkage (dense loadings)
     - Different tauW per view: Different sparsity levels needed
     - tauZ behavior: Similar interpretation for factor scores
+    - sigma: Noise precision parameter (1/variance) per view
+      - High sigma: Low noise (high precision)
+      - Low sigma: High noise (low precision)
+    - cW: Slab scale for loadings (regularization strength per view/factor)
+    - cZ: Slab scale for factors (regularization strength per factor)
 
     If posteriors are pushed against prior boundaries, consider relaxing priors.
 
@@ -585,6 +590,9 @@ def plot_hyperparameter_posteriors(
         List of sample dictionaries from each chain, each containing:
         - "tauW1", "tauW2", ... : tauW samples per view, shape (n_samples, K)
         - "tauZ" : tauZ samples, shape (n_samples, 1, K)
+        - "sigma" : sigma samples, shape (n_samples, 1, M) where M is number of views
+        - "cW" : cW samples (slab scale), shape (n_samples, M, K)
+        - "cZ" : cZ samples (slab scale), shape (n_samples, 1, K) [optional]
     save_path : str, optional
         Path to save figure
     num_sources : int, optional
@@ -616,17 +624,43 @@ def plot_hyperparameter_posteriors(
 
     logger.info(f"  Detected {num_sources} data sources, {K} factors")
 
-    # Create figure layout: one row for tauW per view, one row for tauZ
-    n_rows = num_sources + 1
-    fig, axes = plt.subplots(n_rows, K, figsize=(4*K, 3*n_rows))
+    # Check if optional parameters are available
+    has_sigma = "sigma" in samples_by_chain[0]
+    has_cW = "cW" in samples_by_chain[0]
+    has_cZ = "cZ" in samples_by_chain[0]
 
-    # Handle single factor case
-    if K == 1:
+    if has_cW:
+        logger.info("  Including cW (slab scale for loadings) posteriors...")
+    if has_cZ:
+        logger.info("  Including cZ (slab scale for factors) posteriors...")
+
+    # Calculate number of rows needed
+    # Base: num_sources rows for tauW + 1 row for tauZ
+    # Optional: +1 for sigma, +num_sources for cW, +1 for cZ
+    n_rows = num_sources + 1
+    if has_sigma:
+        n_rows += 1
+    if has_cW:
+        n_rows += num_sources
+    if has_cZ:
+        n_rows += 1
+
+    # Determine column count
+    n_cols = max(K, num_sources)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 3*n_rows))
+
+    # Handle single factor/view cases
+    if axes.ndim == 1:
         axes = axes.reshape(-1, 1)
 
+    title_text = "Hyperparameter Posterior Distributions\n"
+    title_text += "(tauW/tauZ: global shrinkage, sigma: noise precision"
+    if has_cW or has_cZ:
+        title_text += ", cW/cZ: slab regularization"
+    title_text += ")"
+
     fig.suptitle(
-        "Hyperparameter Posterior Distributions\n"
-        "(tauW controls loading sparsity, tauZ controls score sparsity)",
+        title_text,
         fontsize=14,
         fontweight='bold'
     )
@@ -724,6 +758,165 @@ def plot_hyperparameter_posteriors(
             ax.set_xticks([])
             ax.set_yticks([])
 
+    # ========================================================================
+    # Plot sigma (noise precision) for each view
+    # ========================================================================
+    if has_sigma:
+        logger.info("  Including sigma (noise precision) posteriors...")
+        for m in range(num_sources):
+            ax_idx = num_sources + 1  # Row index for sigma plots
+            col_idx = m  # Column index (one per view)
+
+            ax = axes[ax_idx, col_idx] if axes.ndim == 2 else axes[ax_idx]
+
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx]["sigma"]
+
+                # Handle different shapes: (n_samples, 1, M) or (n_samples, M)
+                if len(samples.shape) == 3:
+                    sigma_samples = samples[:, 0, m]
+                elif len(samples.shape) == 2:
+                    sigma_samples = samples[:, m] if samples.shape[1] > m else samples[:, 0]
+                else:
+                    # Single view case
+                    sigma_samples = samples.flatten()
+
+                ax.hist(
+                    sigma_samples,
+                    bins=50,
+                    alpha=0.4,
+                    color=colors[chain_idx],
+                    label=f'Chain {chain_idx}',
+                    density=True
+                )
+
+            ax.set_xlabel(r'$\sigma$ (Noise Precision)')
+            ax.set_ylabel('Density')
+            ax.set_title(f'Sigma (View {m + 1})', fontsize=10)
+            ax.grid(True, alpha=0.3)
+
+            if m == 0:
+                ax.legend(fontsize=7, loc='best')
+
+            # Add note about prior (Gamma with a_sigma, b_sigma)
+            # Mean of Gamma(a, b) is a/b
+            ax.text(0.98, 0.98, 'Gamma prior',
+                   transform=ax.transAxes, fontsize=8, va='top', ha='right',
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+
+        # Hide any unused subplots in the sigma row
+        if axes.ndim == 2:
+            n_cols = axes.shape[1]
+            for col_idx in range(num_sources, n_cols):
+                axes[ax_idx, col_idx].axis('off')
+
+    # ========================================================================
+    # Plot cW (slab scale for loadings) for each view and factor
+    # ========================================================================
+    if has_cW:
+        logger.info("  Plotting cW (slab scale for loadings) posteriors...")
+        # Calculate row offset for cW plots
+        row_offset = num_sources + 1  # After tauW and tauZ
+        if has_sigma:
+            row_offset += 1  # After sigma
+
+        for view_idx in range(num_sources):
+            for k in range(K):
+                ax_idx = row_offset + view_idx
+                col_idx = k
+
+                ax = axes[ax_idx, col_idx] if axes.ndim == 2 else axes[ax_idx]
+
+                for chain_idx in range(n_chains):
+                    samples = samples_by_chain[chain_idx]["cW"]
+
+                    # Handle different shapes: (n_samples, M, K)
+                    if len(samples.shape) == 3:
+                        cW_samples = samples[:, view_idx, k]
+                    elif len(samples.shape) == 2:
+                        # Fallback for unexpected shapes
+                        cW_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
+                    else:
+                        cW_samples = samples.flatten()
+
+                    ax.hist(
+                        cW_samples,
+                        bins=50,
+                        alpha=0.4,
+                        color=colors[chain_idx],
+                        label=f'Chain {chain_idx}',
+                        density=True
+                    )
+
+                ax.set_xlabel(r'$c_W$ Value')
+                ax.set_ylabel('Density')
+                ax.set_title(f'cW (View {view_idx + 1}, Factor {k})', fontsize=10)
+                ax.grid(True, alpha=0.3)
+
+                if k == 0 and view_idx == 0:
+                    ax.legend(fontsize=7, loc='best')
+
+                # Add note about prior
+                ax.text(0.98, 0.98, 'InvGamma prior',
+                       transform=ax.transAxes, fontsize=8, va='top', ha='right',
+                       bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.3))
+
+            # Hide unused columns for this view
+            for col_idx in range(K, n_cols):
+                axes[row_offset + view_idx, col_idx].axis('off')
+
+    # ========================================================================
+    # Plot cZ (slab scale for factors)
+    # ========================================================================
+    if has_cZ:
+        logger.info("  Plotting cZ (slab scale for factors) posteriors...")
+        # Calculate row offset for cZ plots
+        row_offset = num_sources + 1  # After tauW and tauZ
+        if has_sigma:
+            row_offset += 1
+        if has_cW:
+            row_offset += num_sources
+
+        for k in range(K):
+            ax = axes[row_offset, k] if axes.ndim == 2 else axes[row_offset]
+
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx]["cZ"]
+
+                # Handle different shapes: (n_samples, 1, K) or (n_samples, K)
+                if len(samples.shape) == 3:
+                    cZ_samples = samples[:, 0, k]
+                elif len(samples.shape) == 2:
+                    cZ_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
+                else:
+                    cZ_samples = samples.flatten()
+
+                ax.hist(
+                    cZ_samples,
+                    bins=50,
+                    alpha=0.4,
+                    color=colors[chain_idx],
+                    label=f'Chain {chain_idx}',
+                    density=True
+                )
+
+            ax.set_xlabel(r'$c_Z$ Value')
+            ax.set_ylabel('Density')
+            ax.set_title(f'cZ (Factor {k})', fontsize=10)
+            ax.grid(True, alpha=0.3)
+
+            if k == 0:
+                ax.legend(fontsize=7, loc='best')
+
+            # Add note about prior
+            ax.text(0.98, 0.98, 'InvGamma prior',
+                   transform=ax.transAxes, fontsize=8, va='top', ha='right',
+                   bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.3))
+
+        # Hide unused columns in cZ row
+        for col_idx in range(K, n_cols):
+            axes[row_offset, col_idx].axis('off')
+
     plt.tight_layout()
 
     if save_path:
@@ -741,7 +934,7 @@ def plot_hyperparameter_traces(
     num_sources: Optional[int] = None,
     thin: int = 1,
 ) -> plt.Figure:
-    """Plot trace plots for hyperparameters (tauW, tauZ).
+    """Plot trace plots for hyperparameters (tauW, tauZ, sigma, cW, cZ).
 
     Trace plots show how hyperparameters evolve across MCMC iterations,
     helping diagnose convergence issues specific to hyperparameters.
@@ -749,7 +942,12 @@ def plot_hyperparameter_traces(
     Parameters
     ----------
     samples_by_chain : List[Dict]
-        List of sample dictionaries from each chain
+        List of sample dictionaries from each chain, containing:
+        - "tauW1", "tauW2", ... : tauW samples per view
+        - "tauZ" : tauZ samples
+        - "sigma" : sigma (noise precision) samples
+        - "cW" : cW (slab scale for loadings) samples [optional]
+        - "cZ" : cZ (slab scale for factors) samples [optional]
     save_path : str, optional
         Path to save figure
     num_sources : int, optional
@@ -782,17 +980,45 @@ def plot_hyperparameter_traces(
         K = 1
         n_samples = 1000  # fallback
 
+    # Check if optional parameters are available
+    has_sigma = "sigma" in samples_by_chain[0]
+    has_cW = "cW" in samples_by_chain[0]
+    has_cZ = "cZ" in samples_by_chain[0]
+
     logger.info(f"  Detected {num_sources} views, {K} factors, {n_samples} samples")
+    if has_sigma:
+        logger.info(f"  Including sigma (noise precision) traces")
+    if has_cW:
+        logger.info(f"  Including cW (slab scale for loadings) traces")
+    if has_cZ:
+        logger.info(f"  Including cZ (slab scale for factors) traces")
 
-    # Create figure: all tauW in top rows, tauZ in bottom row
-    n_rows = num_sources + 1
-    fig, axes = plt.subplots(n_rows, K, figsize=(5*K, 2.5*n_rows))
+    # Calculate number of rows
+    n_rows = num_sources + 1  # tauW + tauZ
+    if has_sigma:
+        n_rows += 1
+    if has_cW:
+        n_rows += num_sources
+    if has_cZ:
+        n_rows += 1
 
-    if K == 1:
+    # Determine column count
+    n_cols = max(K, num_sources)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 2.5*n_rows))
+
+    if axes.ndim == 1:
         axes = axes.reshape(-1, 1)
 
+    title_text = "Hyperparameter Trace Plots (Convergence Assessment)\n"
+    title_text += "(tauW, tauZ"
+    if has_sigma:
+        title_text += ", sigma"
+    if has_cW or has_cZ:
+        title_text += ", cW/cZ"
+    title_text += ")"
+
     fig.suptitle(
-        "Hyperparameter Trace Plots (Convergence Assessment)",
+        title_text,
         fontsize=14,
         fontweight='bold'
     )
@@ -878,6 +1104,145 @@ def plot_hyperparameter_traces(
                    ha='center', va='center', transform=ax.transAxes)
             ax.set_xticks([])
             ax.set_yticks([])
+
+    # ========================================================================
+    # Plot sigma traces (noise precision per view)
+    # ========================================================================
+    if has_sigma:
+        for m in range(num_sources):
+            ax_idx = num_sources + 1  # Row index for sigma traces
+            col_idx = m  # Column index (one per view)
+
+            ax = axes[ax_idx, col_idx] if axes.ndim == 2 else axes[ax_idx]
+
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx]["sigma"]
+
+                # Handle different shapes: (n_samples, 1, M) or (n_samples, M)
+                if len(samples.shape) == 3:
+                    sigma_trace = samples[::thin, 0, m]
+                elif len(samples.shape) == 2:
+                    sigma_trace = samples[::thin, m] if samples.shape[1] > m else samples[::thin, 0]
+                else:
+                    # Single view case
+                    sigma_trace = samples[::thin].flatten()
+
+                ax.plot(
+                    iterations[:len(sigma_trace)],
+                    sigma_trace,
+                    color=colors[chain_idx],
+                    alpha=0.7,
+                    linewidth=1,
+                    label=f'Chain {chain_idx}'
+                )
+
+            ax.set_xlabel('Iteration')
+            ax.set_ylabel(r'$\sigma$ (Noise Precision)')
+            ax.set_title(f'Sigma Trace (View {m + 1})', fontsize=10)
+            ax.grid(True, alpha=0.3)
+
+            if m == 0:
+                ax.legend(fontsize=7, loc='best')
+
+        # Hide any unused subplots in the sigma row
+        if axes.ndim == 2:
+            n_cols = axes.shape[1]
+            for col_idx in range(num_sources, n_cols):
+                axes[ax_idx, col_idx].axis('off')
+
+    # ========================================================================
+    # Plot cW traces (slab scale for loadings per view and factor)
+    # ========================================================================
+    if has_cW:
+        # Calculate row offset for cW traces
+        row_offset = num_sources + 1  # After tauW and tauZ
+        if has_sigma:
+            row_offset += 1  # After sigma
+
+        for view_idx in range(num_sources):
+            for k in range(K):
+                ax_idx = row_offset + view_idx
+                col_idx = k
+
+                ax = axes[ax_idx, col_idx] if axes.ndim == 2 else axes[ax_idx]
+
+                for chain_idx in range(n_chains):
+                    samples = samples_by_chain[chain_idx]["cW"]
+
+                    # Handle different shapes: (n_samples, M, K)
+                    if len(samples.shape) == 3:
+                        cW_trace = samples[::thin, view_idx, k]
+                    elif len(samples.shape) == 2:
+                        cW_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
+                    else:
+                        cW_trace = samples[::thin].flatten()
+
+                    ax.plot(
+                        iterations[:len(cW_trace)],
+                        cW_trace,
+                        color=colors[chain_idx],
+                        alpha=0.7,
+                        linewidth=1,
+                        label=f'Chain {chain_idx}'
+                    )
+
+                ax.set_xlabel('Iteration')
+                ax.set_ylabel(r'$c_W$ Value')
+                ax.set_title(f'cW Trace (View {view_idx + 1}, Factor {k})', fontsize=10)
+                ax.grid(True, alpha=0.3)
+
+                if k == 0 and view_idx == 0:
+                    ax.legend(fontsize=7, loc='best')
+
+            # Hide unused columns for this view
+            for col_idx in range(K, n_cols):
+                axes[row_offset + view_idx, col_idx].axis('off')
+
+    # ========================================================================
+    # Plot cZ traces (slab scale for factors)
+    # ========================================================================
+    if has_cZ:
+        # Calculate row offset for cZ traces
+        row_offset = num_sources + 1  # After tauW and tauZ
+        if has_sigma:
+            row_offset += 1
+        if has_cW:
+            row_offset += num_sources
+
+        for k in range(K):
+            ax = axes[row_offset, k] if axes.ndim == 2 else axes[row_offset]
+
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx]["cZ"]
+
+                # Handle different shapes: (n_samples, 1, K) or (n_samples, K)
+                if len(samples.shape) == 3:
+                    cZ_trace = samples[::thin, 0, k]
+                elif len(samples.shape) == 2:
+                    cZ_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
+                else:
+                    cZ_trace = samples[::thin].flatten()
+
+                ax.plot(
+                    iterations[:len(cZ_trace)],
+                    cZ_trace,
+                    color=colors[chain_idx],
+                    alpha=0.7,
+                    linewidth=1,
+                    label=f'Chain {chain_idx}'
+                )
+
+            ax.set_xlabel('Iteration')
+            ax.set_ylabel(r'$c_Z$ Value')
+            ax.set_title(f'cZ Trace (Factor {k})', fontsize=10)
+            ax.grid(True, alpha=0.3)
+
+            if k == 0:
+                ax.legend(fontsize=7, loc='best')
+
+        # Hide unused columns in cZ row
+        for col_idx in range(K, n_cols):
+            axes[row_offset, col_idx].axis('off')
 
     plt.tight_layout()
 
