@@ -371,6 +371,17 @@ class DataValidationExperiments(ExperimentFramework):
         )
         plots.update(advanced_plots)
 
+        # Save all plots as individual files
+        try:
+            from core.io_utils import save_all_plots_individually
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(self.config)
+            output_dir = get_output_dir(config_dict) / "data_validation" / "individual_plots"
+            save_all_plots_individually(plots, output_dir, dpi=300)
+            logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to save individual plots: {e}")
+
         return ExperimentResult(
             experiment_id="data_quality_assessment",
             config=self.config,

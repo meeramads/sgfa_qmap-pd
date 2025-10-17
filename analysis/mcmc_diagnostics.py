@@ -25,6 +25,28 @@ from matplotlib.gridspec import GridSpec
 logger = logging.getLogger(__name__)
 
 
+def _save_individual_plot(fig, filename, output_dir, dpi=150):
+    """Helper function to save an individual plot.
+
+    Parameters
+    ----------
+    fig : plt.Figure
+        Figure to save
+    filename : str
+        Filename (without extension)
+    output_dir : Path
+        Directory to save the plot
+    dpi : int, default=150
+        Resolution for saved figure
+    """
+    save_path_png = output_dir / f"{filename}.png"
+    save_path_pdf = output_dir / f"{filename}.pdf"
+
+    fig.savefig(save_path_png, dpi=dpi, bbox_inches='tight')
+    fig.savefig(save_path_pdf, bbox_inches='tight')
+    plt.close(fig)
+
+
 def compute_ess(samples: np.ndarray, axis: int = 0) -> float:
     """Compute Effective Sample Size using autocorrelation.
 
@@ -560,10 +582,158 @@ def plot_parameter_distributions(
     return fig
 
 
+def _save_individual_posteriors(
+    samples_by_chain: List[Dict],
+    colors,
+    num_sources: int,
+    K: int,
+    has_sigma: bool,
+    has_cW: bool,
+    has_cZ: bool,
+    output_dir,
+):
+    """Create and save individual posterior plots for each hyperparameter.
+
+    This creates clean, individual figures for each hyperparameter instead of
+    cramming everything into one large subplot grid.
+    """
+    n_chains = len(samples_by_chain)
+
+    # Plot tauW for each view and factor
+    for view_idx in range(num_sources):
+        param_name = f"tauW{view_idx + 1}"
+        if param_name in samples_by_chain[0]:
+            for k in range(K):
+                fig, ax = plt.subplots(figsize=(6, 4))
+
+                for chain_idx in range(n_chains):
+                    samples = samples_by_chain[chain_idx][param_name]
+                    if len(samples.shape) == 1:
+                        tau_samples = samples
+                    else:
+                        tau_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
+
+                    ax.hist(tau_samples, bins=50, alpha=0.4, color=colors[chain_idx],
+                           label=f'Chain {chain_idx}', density=True)
+
+                ax.set_xlabel(r'$\tau_W$ Value', fontsize=12)
+                ax.set_ylabel('Density', fontsize=12)
+                ax.set_title(f'tauW Posterior (View {view_idx + 1}, Factor {k})', fontsize=14, fontweight='bold')
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+                ax.axvline(0, color='red', linestyle='--', alpha=0.5, linewidth=1)
+
+                _save_individual_plot(fig, f"posterior_tauW_view{view_idx+1}_factor{k}", output_dir)
+
+    # Plot tauZ for each factor
+    if "tauZ" in samples_by_chain[0]:
+        for k in range(K):
+            fig, ax = plt.subplots(figsize=(6, 4))
+
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx]["tauZ"]
+                if len(samples.shape) == 3:
+                    tau_samples = samples[:, 0, k]
+                elif len(samples.shape) == 2:
+                    tau_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
+                else:
+                    tau_samples = samples
+
+                ax.hist(tau_samples, bins=50, alpha=0.4, color=colors[chain_idx],
+                       label=f'Chain {chain_idx}', density=True)
+
+            ax.set_xlabel(r'$\tau_Z$ Value', fontsize=12)
+            ax.set_ylabel('Density', fontsize=12)
+            ax.set_title(f'tauZ Posterior (Factor {k})', fontsize=14, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            ax.axvline(0, color='red', linestyle='--', alpha=0.5, linewidth=1)
+
+            _save_individual_plot(fig, f"posterior_tauZ_factor{k}", output_dir)
+
+    # Plot sigma for each view
+    if has_sigma:
+        for m in range(num_sources):
+            fig, ax = plt.subplots(figsize=(6, 4))
+
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx]["sigma"]
+                if len(samples.shape) == 3:
+                    sigma_samples = samples[:, 0, m]
+                elif len(samples.shape) == 2:
+                    sigma_samples = samples[:, m] if samples.shape[1] > m else samples[:, 0]
+                else:
+                    sigma_samples = samples.flatten()
+
+                ax.hist(sigma_samples, bins=50, alpha=0.4, color=colors[chain_idx],
+                       label=f'Chain {chain_idx}', density=True)
+
+            ax.set_xlabel(r'$\sigma$ (Noise Precision)', fontsize=12)
+            ax.set_ylabel('Density', fontsize=12)
+            ax.set_title(f'Sigma Posterior (View {m + 1})', fontsize=14, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+
+            _save_individual_plot(fig, f"posterior_sigma_view{m+1}", output_dir)
+
+    # Plot cW for each view and factor
+    if has_cW:
+        for view_idx in range(num_sources):
+            for k in range(K):
+                fig, ax = plt.subplots(figsize=(6, 4))
+
+                for chain_idx in range(n_chains):
+                    samples = samples_by_chain[chain_idx]["cW"]
+                    if len(samples.shape) == 3:
+                        cW_samples = samples[:, view_idx, k]
+                    elif len(samples.shape) == 2:
+                        cW_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
+                    else:
+                        cW_samples = samples.flatten()
+
+                    ax.hist(cW_samples, bins=50, alpha=0.4, color=colors[chain_idx],
+                           label=f'Chain {chain_idx}', density=True)
+
+                ax.set_xlabel(r'$c_W$ Value', fontsize=12)
+                ax.set_ylabel('Density', fontsize=12)
+                ax.set_title(f'cW Posterior (View {view_idx + 1}, Factor {k})', fontsize=14, fontweight='bold')
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+
+                _save_individual_plot(fig, f"posterior_cW_view{view_idx+1}_factor{k}", output_dir)
+
+    # Plot cZ for each factor
+    if has_cZ:
+        for k in range(K):
+            fig, ax = plt.subplots(figsize=(6, 4))
+
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx]["cZ"]
+                if len(samples.shape) == 3:
+                    cZ_samples = samples[:, 0, k]
+                elif len(samples.shape) == 2:
+                    cZ_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
+                else:
+                    cZ_samples = samples.flatten()
+
+                ax.hist(cZ_samples, bins=50, alpha=0.4, color=colors[chain_idx],
+                       label=f'Chain {chain_idx}', density=True)
+
+            ax.set_xlabel(r'$c_Z$ Value', fontsize=12)
+            ax.set_ylabel('Density', fontsize=12)
+            ax.set_title(f'cZ Posterior (Factor {k})', fontsize=14, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+
+            _save_individual_plot(fig, f"posterior_cZ_factor{k}", output_dir)
+
+
 def plot_hyperparameter_posteriors(
     samples_by_chain: List[Dict],
     save_path: Optional[str] = None,
     num_sources: Optional[int] = None,
+    save_individual: bool = True,
+    output_dir: Optional[str] = None,
 ) -> plt.Figure:
     """Plot posterior distributions of hyperparameters (tauW, tauZ, sigma, cW, cZ).
 
@@ -594,9 +764,14 @@ def plot_hyperparameter_posteriors(
         - "cW" : cW samples (slab scale), shape (n_samples, M, K)
         - "cZ" : cZ samples (slab scale), shape (n_samples, 1, K) [optional]
     save_path : str, optional
-        Path to save figure
+        Path to save combined figure
     num_sources : int, optional
         Number of data sources (views). If None, inferred from samples.
+    save_individual : bool, default=True
+        If True, save each subplot as an individual figure
+    output_dir : str, optional
+        Directory to save individual plots. If None and save_individual=True,
+        uses same directory as save_path or current directory.
 
     Returns
     -------
@@ -607,6 +782,22 @@ def plot_hyperparameter_posteriors(
 
     n_chains = len(samples_by_chain)
     colors = sns.color_palette("husl", n_chains)
+
+    # Setup output directory for individual plots
+    if save_individual:
+        if output_dir is None:
+            if save_path:
+                from pathlib import Path
+                output_dir = Path(save_path).parent / "individual_posteriors"
+            else:
+                from pathlib import Path
+                output_dir = Path(".") / "individual_posteriors"
+        else:
+            from pathlib import Path
+            output_dir = Path(output_dir)
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"  Individual plots will be saved to: {output_dir}")
 
     # Infer number of sources and factors from samples
     if num_sources is None:
@@ -921,7 +1112,16 @@ def plot_hyperparameter_posteriors(
 
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        logger.info(f"  ✓ Saved to {save_path}")
+        logger.info(f"  ✓ Saved combined figure to {save_path}")
+
+    # Save individual plots if requested
+    if save_individual and output_dir:
+        logger.info("  Saving individual posterior plots...")
+        _save_individual_posteriors(
+            samples_by_chain, colors, num_sources, K,
+            has_sigma, has_cW, has_cZ, output_dir
+        )
+        logger.info(f"  ✓ Saved individual plots to {output_dir}")
 
     logger.info("  ✓ Hyperparameter posterior plots completed")
 
@@ -949,7 +1149,7 @@ def plot_hyperparameter_traces(
         - "cW" : cW (slab scale for loadings) samples [optional]
         - "cZ" : cZ (slab scale for factors) samples [optional]
     save_path : str, optional
-        Path to save figure
+        Path to save combined figure
     num_sources : int, optional
         Number of data sources (views). If None, inferred from samples.
     thin : int, default=1
@@ -1248,7 +1448,7 @@ def plot_hyperparameter_traces(
 
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        logger.info(f"  ✓ Saved to {save_path}")
+        logger.info(f"  ✓ Saved combined trace figure to {save_path}")
 
     logger.info("  ✓ Hyperparameter trace plots completed")
 

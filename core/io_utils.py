@@ -4,7 +4,7 @@ import json
 import logging
 import pickle
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -278,6 +278,77 @@ def save_plot(
         if close_after:
             plt.close()  # Clean up even on error
         raise
+
+
+def save_all_plots_individually(
+    plots_dict: Dict,
+    output_dir: Union[str, Path],
+    dpi: int = 300,
+    formats: list = None,
+) -> None:
+    """
+    Save all plots from a dictionary as individual files.
+
+    This function takes a dictionary of matplotlib figures and saves each one
+    as a separate file in both PNG and PDF formats (by default).
+
+    Parameters
+    ----------
+    plots_dict : Dict
+        Dictionary where keys are plot names and values are matplotlib Figure objects
+    output_dir : Union[str, Path]
+        Directory where individual plot files will be saved
+    dpi : int, optional
+        Resolution for saved figures (default: 300)
+    formats : list, optional
+        List of file formats to save (default: ['png', 'pdf'])
+
+    Examples
+    --------
+    >>> plots = {
+    ...     'factor_loadings': fig1,
+    ...     'convergence_diagnostics': fig2,
+    ... }
+    >>> save_all_plots_individually(plots, 'results/individual_plots/')
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure
+
+    if formats is None:
+        formats = ['png', 'pdf']
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_count = 0
+    skipped_count = 0
+
+    for plot_name, fig in plots_dict.items():
+        # Skip None values
+        if fig is None:
+            logger.debug(f"Skipping {plot_name}: figure is None")
+            skipped_count += 1
+            continue
+
+        # Verify it's a matplotlib Figure
+        if not isinstance(fig, Figure):
+            logger.warning(f"Skipping {plot_name}: not a matplotlib Figure (type: {type(fig)})")
+            skipped_count += 1
+            continue
+
+        # Save in each requested format
+        for fmt in formats:
+            filepath = output_dir / f"{plot_name}.{fmt}"
+            try:
+                fig.savefig(filepath, dpi=dpi, bbox_inches='tight', format=fmt)
+                logger.debug(f"Saved {plot_name}.{fmt}")
+            except Exception as e:
+                logger.error(f"Failed to save {plot_name}.{fmt}: {e}")
+
+        saved_count += 1
+
+    logger.info(f"Saved {saved_count} plots individually to {output_dir} ({skipped_count} skipped)")
+    logger.info(f"  Formats: {', '.join(formats)}")
 
 
 def ensure_directory(dirpath: Union[str, Path]) -> Path:

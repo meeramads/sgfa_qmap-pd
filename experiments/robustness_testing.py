@@ -3065,6 +3065,15 @@ def run_robustness_testing(config):
             except Exception as e:
                 logger.warning(f"Failed to create robustness plots: {e}")
 
+            # Save all plots as individual files
+            try:
+                from core.io_utils import save_all_plots_individually
+                output_dir = get_output_dir(config_dict) / "robustness_testing" / "individual_plots"
+                save_all_plots_individually(plots, output_dir, dpi=300)
+                logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
+            except Exception as e:
+                logger.warning(f"Failed to save individual plots: {e}")
+
             return {
                 "status": "completed",
                 "robustness_results": results,
