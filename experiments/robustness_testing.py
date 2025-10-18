@@ -2859,6 +2859,7 @@ def run_robustness_testing(config):
             "num_chains": 1,
             "target_accept_prob": 0.8,
             "reghsZ": True,
+            "max_tree_depth": config_dict.get("mcmc", {}).get("max_tree_depth"),  # NUTS max tree depth
         }
 
         # Run the experiment
