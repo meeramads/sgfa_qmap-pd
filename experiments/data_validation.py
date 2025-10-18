@@ -282,6 +282,7 @@ class DataValidationExperiments(ExperimentFramework):
                     data_dir=data_dir,
                     auto_select_strategy=False,
                     preferred_strategy=preprocessing_config.get("strategy", "standard"),
+                    output_dir=get_output_dir(config),
                 )
 
                 # Convert to load_qmap_pd format for compatibility
@@ -1130,7 +1131,8 @@ class DataValidationExperiments(ExperimentFramework):
                         config=temp_config,
                         data_dir=data_dir,
                         auto_select_strategy=False,
-                        preferred_strategy=strategy_params.get("strategy", strategy_name)
+                        preferred_strategy=strategy_params.get("strategy", strategy_name),
+                        output_dir=get_output_dir(config)
                     )
 
                     # Store the data and preprocessing info

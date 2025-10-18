@@ -351,7 +351,7 @@ def _apply_advanced_preprocessing(
 
         # Apply advanced preprocessing
         logger.info("Applying comprehensive neuroimaging preprocessing...")
-        X_processed = preprocessor.fit_transform(X_list, view_names)
+        X_processed = preprocessor.fit_transform(X_list, view_names, output_dir=output_dir)
 
         # Collect preprocessing information
         steps_applied = ["scaling", "imputation"]
@@ -567,6 +567,7 @@ def apply_preprocessing_to_pipeline(
     data_dir: str,
     auto_select_strategy: bool = True,
     preferred_strategy: str = "standard",
+    output_dir: Optional[str] = None,
 ) -> Tuple[List[np.ndarray], Dict]:
     """
     Main integration function for the remote workstation pipeline.
@@ -576,6 +577,7 @@ def apply_preprocessing_to_pipeline(
         data_dir: Data directory path
         auto_select_strategy: Whether to automatically select optimal strategy
         preferred_strategy: Preferred strategy if not auto-selecting
+        output_dir: Output directory for saving filtered position lookups (optional)
 
     Returns:
         Tuple of (processed_X_list, comprehensive_preprocessing_info)
@@ -722,7 +724,7 @@ def _apply_differentiated_preprocessing(
 
                 # Apply neuroimaging preprocessing including feature selection
                 imaging_preprocessor = NeuroImagingPreprocessor(data_dir=data_dir, **imaging_config.to_dict())
-                X_imaging_processed = imaging_preprocessor.fit_transform([X], [view_name])
+                X_imaging_processed = imaging_preprocessor.fit_transform([X], [view_name], output_dir=output_dir)
                 X_processed.append(X_imaging_processed[0])
 
                 steps_applied.extend(["imaging_imputation", "imaging_scaling", "imaging_feature_selection"])

@@ -660,6 +660,7 @@ def main():
                 data_dir=get_data_dir(exp_config),
                 auto_select_strategy=False,
                 preferred_strategy=exp_config.get("preprocessing", {}).get("strategy", "standard"),
+                output_dir=get_output_dir(exp_config),
             )
             logger.info(f"   Data loaded: {len(X_list)} views")
 

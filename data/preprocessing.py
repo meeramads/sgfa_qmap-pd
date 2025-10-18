@@ -940,7 +940,9 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
 
         # Storage for spatial information
         self.position_lookups_ = {}
+        self.filtered_position_lookups_ = {}  # Position lookups after feature reduction
         self.outlier_masks_ = {}
+        self.feature_masks_ = {}  # Track which features are kept across all steps
         self.harmonization_params_ = {}
 
     def _is_imaging_view(self, view_name: str) -> bool:
@@ -1025,6 +1027,21 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
             positions = SpatialProcessingUtils.load_position_lookup(
                 self.data_dir, roi_name
             )
+
+            # Verify position data matches data dimensions
+            if positions is not None and len(positions) != X.shape[1]:
+                logging.error(
+                    f"Position lookup dimension mismatch for {view_name} (ROI: {roi_name})!"
+                )
+                logging.error(
+                    f"  Data has {X.shape[1]} voxels but position file has {len(positions)} positions"
+                )
+                logging.error(
+                    f"  Expected file: position_{roi_name}_voxels.tsv with {X.shape[1]} rows"
+                )
+                # Continue without positions rather than crashing
+                positions = None
+
             self.position_lookups_[view_name] = positions
         else:
             positions = None
@@ -1209,12 +1226,83 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         else:
             return super().fit_transform_feature_selection(X, view_name, y)
 
+    def _filter_and_save_position_lookups(self, view_name: str, feature_mask: np.ndarray, output_dir: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """
+        Filter position lookup to match feature-reduced data and optionally save.
+
+        Parameters
+        ----------
+        view_name : str
+            Name of the view (e.g., 'volume_sn_voxels')
+        feature_mask : np.ndarray
+            Boolean mask indicating which features were kept (True = kept, False = removed)
+        output_dir : str, optional
+            Directory to save filtered position lookup file
+
+        Returns
+        -------
+        pd.DataFrame or None
+            Filtered position lookup, or None if no position data available
+        """
+        if not self._is_imaging_view(view_name):
+            return None
+
+        # Get original position lookup
+        positions = self.position_lookups_.get(view_name)
+
+        if positions is None:
+            logging.warning(f"No position lookup available for {view_name} - cannot filter")
+            return None
+
+        # Extract ROI name for verification
+        roi_name = self._extract_roi_name(view_name)
+        logging.debug(f"Filtering position lookup for view={view_name}, ROI={roi_name}")
+
+        # Verify mask length matches position data
+        if len(feature_mask) != len(positions):
+            logging.error(
+                f"Feature mask length ({len(feature_mask)}) doesn't match "
+                f"position data length ({len(positions)}) for {view_name} (ROI: {roi_name})"
+            )
+            logging.error(
+                f"This indicates a mismatch between the loaded data and position lookup file!"
+            )
+            return None
+
+        # Filter positions to keep only retained features
+        filtered_positions = positions[feature_mask].reset_index(drop=True)
+
+        logging.info(
+            f"Filtered position lookup for {view_name}: "
+            f"{len(positions)} → {len(filtered_positions)} positions "
+            f"({len(filtered_positions)/len(positions)*100:.1f}% retained)"
+        )
+
+        # Store filtered positions
+        self.filtered_position_lookups_[view_name] = filtered_positions
+
+        # Save to file if output directory provided
+        if output_dir:
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            roi_name = self._extract_roi_name(view_name)
+            filtered_file = output_path / f"position_{roi_name}_voxels_filtered.tsv"
+
+            # Save as TSV without header (matching original format)
+            filtered_positions.to_csv(filtered_file, sep='\t', header=False, index=False)
+
+            logging.info(f"Saved filtered position lookup to {filtered_file}")
+
+        return filtered_positions
+
     def fit_transform(
         self,
         X_list: List[np.ndarray],
         view_names: List[str],
         y: Optional[np.ndarray] = None,
         scanner_info: Optional[np.ndarray] = None,
+        output_dir: Optional[str] = None,
     ) -> List[np.ndarray]:
         """
         Enhanced preprocessing pipeline for neuroimaging data.
@@ -1225,6 +1313,7 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         view_names : List of view names
         y : Target variable (optional)
         scanner_info : Scanner/site information for harmonization (optional)
+        output_dir : Output directory for saving filtered position lookups (optional)
 
         Returns
         -------
@@ -1236,12 +1325,38 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
 
         for X, view_name in zip(X_list, view_names):
             logging.info(f"Processing view: {view_name} (shape: {X.shape})")
+            original_n_features = X.shape[1]
+
+            # Initialize feature mask (all True initially)
+            cumulative_mask = np.ones(original_n_features, dtype=bool)
 
             # Step 1: Enhanced imputation with spatial processing
             X_imputed = self.fit_transform_imputation(X, view_name, scanner_info)
 
+            # Track MAD filtering if applied
+            if view_name in self.outlier_masks_:
+                outlier_mask = self.outlier_masks_[view_name]
+                cumulative_mask = cumulative_mask & outlier_mask
+                logging.debug(f"  After MAD filtering: {np.sum(cumulative_mask)}/{original_n_features} features")
+
             # Step 2: Enhanced feature selection with spatial awareness
+            n_before_selection = X_imputed.shape[1]
             X_selected = self.fit_transform_feature_selection(X_imputed, view_name, y)
+
+            # Track feature selection
+            if X_selected.shape[1] != n_before_selection:
+                # Features were removed - need to update mask
+                # Create a mask for the current features
+                if view_name in self.selected_features_:
+                    # If variance-based selection or other tracked selection
+                    selection_mask_key = f"{view_name}_roi_mask" if self._is_imaging_view(view_name) and self.roi_based_selection else view_name
+                    if selection_mask_key in self.selected_features_:
+                        selection_mask = self.selected_features_[selection_mask_key]
+                        # Apply selection mask to current cumulative mask positions
+                        temp_mask = np.zeros(original_n_features, dtype=bool)
+                        temp_mask[cumulative_mask] = selection_mask
+                        cumulative_mask = temp_mask
+                        logging.debug(f"  After feature selection: {np.sum(cumulative_mask)}/{original_n_features} features")
 
             # Step 3: Scaling
             X_scaled = self.fit_transform_scaling(X_selected, view_name)
@@ -1249,9 +1364,29 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
             # Step 4: PCA dimensionality reduction (if enabled)
             X_final = self.fit_transform_pca(X_scaled, view_name)
 
+            # Note: PCA is a transformation, not feature selection, so no mask update needed
+
             X_processed.append(X_final)
 
+            # Store final feature mask for this view
+            self.feature_masks_[view_name] = cumulative_mask
+
             logging.info(f"Final shape for {view_name}: {X_final.shape}")
+            logging.info(f"Feature retention: {np.sum(cumulative_mask)}/{original_n_features} ({np.sum(cumulative_mask)/original_n_features*100:.1f}%)")
+
+            # Filter and save position lookups if this is an imaging view
+            if self._is_imaging_view(view_name) and self.data_dir:
+                # Use provided output_dir if available, otherwise fall back to data_dir/position_lookup_filtered
+                if output_dir:
+                    position_output_dir = Path(output_dir) / "position_lookup_filtered"
+                else:
+                    position_output_dir = Path(self.data_dir) / "position_lookup_filtered"
+
+                filtered_positions = self._filter_and_save_position_lookups(
+                    view_name,
+                    cumulative_mask,
+                    output_dir=position_output_dir
+                )
 
         return X_processed
 
@@ -1382,6 +1517,11 @@ def preprocess_neuroimaging_data(
         metadata.update(
             {
                 "position_lookups_loaded": list(preprocessor.position_lookups_.keys()),
+                "filtered_position_lookups": list(preprocessor.filtered_position_lookups_.keys()),
+                "feature_masks": {
+                    k: {"n_kept": v.sum(), "n_total": len(v), "retention_pct": v.sum()/len(v)*100}
+                    for k, v in preprocessor.feature_masks_.items()
+                },
                 "outlier_masks": {
                     k: v.sum() for k, v in preprocessor.outlier_masks_.items()
                 },

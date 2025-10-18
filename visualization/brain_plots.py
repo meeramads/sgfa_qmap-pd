@@ -598,11 +598,23 @@ class BrainVisualizer:
             import pandas as pd
 
             data_dir = Path("qMAP-PD_data")
-            position_files = {
-                "sn": data_dir / "position_lookup" / "position_sn_voxels.tsv",
-                "putamen": data_dir / "position_lookup" / "position_putamen_voxels.tsv",
-                "lentiform": data_dir / "position_lookup" / "position_lentiform_voxels.tsv"
-            }
+
+            # Check for filtered position lookups first (after preprocessing), fall back to original
+            filtered_dir = data_dir / "position_lookup_filtered"
+            original_dir = data_dir / "position_lookup"
+
+            position_files = {}
+            for region_name in ["sn", "putamen", "lentiform"]:
+                # Try filtered version first
+                filtered_file = filtered_dir / f"position_{region_name}_voxels_filtered.tsv"
+                original_file = original_dir / f"position_{region_name}_voxels.tsv"
+
+                if filtered_file.exists():
+                    position_files[region_name] = filtered_file
+                    logging.info(f"Using filtered position lookup for {region_name}")
+                elif original_file.exists():
+                    position_files[region_name] = original_file
+                    logging.info(f"Using original position lookup for {region_name}")
 
             view_names = []
             Dm = []
@@ -610,12 +622,11 @@ class BrainVisualizer:
 
             # Load brain region dimensions
             for region_name, pos_file in position_files.items():
-                if pos_file.exists():
-                    positions = pd.read_csv(pos_file, sep="\t", header=None).values.flatten()
-                    view_names.append(region_name)
-                    Dm.append(len(positions))
-                    # Generate voxel names (could be enhanced with actual coordinates)
-                    feature_names[region_name] = [f"{region_name}_voxel_{i}" for i in range(len(positions))]
+                positions = pd.read_csv(pos_file, sep="\t", header=None).values.flatten()
+                view_names.append(region_name)
+                Dm.append(len(positions))
+                # Generate voxel names (could be enhanced with actual coordinates)
+                feature_names[region_name] = [f"{region_name}_voxel_{i}" for i in range(len(positions))]
 
             # Load clinical variable names
             clinical_file = data_dir / "data_clinical" / "pd_motor_gfa_data.tsv"

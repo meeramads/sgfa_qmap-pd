@@ -2794,6 +2794,7 @@ def run_robustness_testing(config):
                 data_dir=get_data_dir(config_dict),
                 auto_select_strategy=False,
                 preferred_strategy=strategy,  # Use strategy from config
+                output_dir=get_output_dir(config_dict),
             )
 
             logger.info(f"✅ Data loaded: {len(X_list)} views for robustness testing")
