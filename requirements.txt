@@ -16,7 +16,7 @@ multipledispatch==1.0.0
 nibabel>=4.0.0,<6.0.0  # For neuroimaging reconstruction (Python 3.10-3.11 compatible)
 nilearn==0.10.2
 nltools==0.5.0
-numpy==1.23.5
+numpy==2.0.2
 numpyro==0.13.2
 opt-einsum==3.3.0
 packaging==23.2
