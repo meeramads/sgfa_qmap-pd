@@ -77,7 +77,7 @@ class RobustnessExperiments(ExperimentFramework):
 
         results = {}
         performance_metrics = {}
-        for seed in seeds:
+        for idx, seed in enumerate(seeds):
             self.logger.info(f"Testing with seed: {seed}")
 
             # Set random seed for robustness
@@ -88,7 +88,8 @@ class RobustnessExperiments(ExperimentFramework):
             seed_args["random_seed"] = seed
 
             with self.profiler.profile(f"seed_{seed}") as p:
-                result = self._run_sgfa_analysis(X_list, hypers, seed_args, **kwargs)
+                # Verbose logging only for first seed
+                result = self._run_sgfa_analysis(X_list, hypers, seed_args, verbose=(idx == 0), **kwargs)
 
                 # CRITICAL: Remove large sample arrays to prevent memory leak
                 if "W_samples" in result:
@@ -600,9 +601,15 @@ class RobustnessExperiments(ExperimentFramework):
         return checksums
 
     def _run_sgfa_analysis(
-        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
+        self, X_list: List[np.ndarray], hypers: Dict, args: Dict, verbose: bool = True, **kwargs
     ) -> Dict:
-        """Run actual SGFA analysis for robustness testing."""
+        """Run actual SGFA analysis for robustness testing.
+
+        Parameters
+        ----------
+        verbose : bool
+            If True, log full details. If False, only log seed and key metrics (for repeated calls).
+        """
         import time
         import os
 
@@ -614,15 +621,20 @@ class RobustnessExperiments(ExperimentFramework):
         import jax
         from numpyro.infer import MCMC, NUTS
 
-        self.logger.info("=" * 80)
-        self.logger.info("_RUN_SGFA_ANALYSIS - STARTING")
-        self.logger.info("=" * 80)
-        self.logger.info(f"Input data: {len(X_list)} views")
-        for i, X in enumerate(X_list):
-            self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}, has_nan {np.isnan(X).any()}")
-        self.logger.info(f"Hyperparameters: {hypers}")
-        self.logger.info(f"MCMC args: {args}")
-        self.logger.info(f"Additional kwargs keys: {list(kwargs.keys())}")
+        # Condensed logging for repeated calls
+        seed = args.get("random_seed", 42)
+        if not verbose:
+            self.logger.info(f"🔄 Seed {seed}: Starting MCMC sampling...")
+        else:
+            self.logger.info("=" * 80)
+            self.logger.info("_RUN_SGFA_ANALYSIS - STARTING")
+            self.logger.info("=" * 80)
+            self.logger.info(f"Input data: {len(X_list)} views")
+            for i, X in enumerate(X_list):
+                self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}, has_nan {np.isnan(X).any()}")
+            self.logger.info(f"Hyperparameters: {hypers}")
+            self.logger.info(f"MCMC args: {args}")
+            self.logger.info(f"Additional kwargs keys: {list(kwargs.keys())}")
 
         # Check cache first
         from core.config_utils import ConfigHelper
@@ -636,9 +648,10 @@ class RobustnessExperiments(ExperimentFramework):
 
         try:
             K = hypers.get("K", 10)
-            self.logger.info(
-                f"Running SGFA: K={K}, n_subjects={X_list[0].shape[0]}, n_features={sum(X.shape[1] for X in X_list)}"
-            )
+            if verbose:
+                self.logger.info(
+                    f"Running SGFA: K={K}, n_subjects={X_list[0].shape[0]}, n_features={sum(X.shape[1] for X in X_list)}"
+                )
 
             # Use model factory for consistent model management
             from models.models_integration import integrate_models_with_pipeline
@@ -652,7 +665,8 @@ class RobustnessExperiments(ExperimentFramework):
             }
 
             # Get optimal model configuration via factory
-            self.logger.info("Setting up model via factory...")
+            if verbose:
+                self.logger.info("Setting up model via factory...")
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
                 config={"model": {"type": "sparseGFA"}},
                 X_list=X_list,
@@ -660,21 +674,24 @@ class RobustnessExperiments(ExperimentFramework):
                 hypers=hypers  # Pass hypers to ensure correct percW, slab_df, slab_scale
             )
 
-            self.logger.info(f"✅ Model setup complete: {model_type}")
-            # Log only key hyperparameters (not full models summary with available_models list)
-            hypers_log = models_summary.get('hyperparameters', {})
-            self.logger.info(f"   Hyperparameters: Dm={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
+            if verbose:
+                self.logger.info(f"✅ Model setup complete: {model_type}")
+                # Log only key hyperparameters (not full models summary with available_models list)
+                hypers_log = models_summary.get('hyperparameters', {})
+                self.logger.info(f"   Hyperparameters: Dm={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
 
             # Import the SGFA model function via interface
             from core.model_interface import get_model_function
             models = get_model_function()
-            self.logger.info(f"✅ Model function loaded: SparseGFA")
+            if verbose:
+                self.logger.info(f"✅ Model function loaded: SparseGFA")
 
             # Setup MCMC configuration for robustness testing
             num_warmup = args.get("num_warmup", 50)
             num_samples = args.get("num_samples", 100)
             num_chains = args.get("num_chains", 1)
-            self.logger.info(f"MCMC configuration: warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
+            if verbose:
+                self.logger.info(f"MCMC configuration: warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
 
             # Create args object for model
             import argparse
@@ -688,20 +705,23 @@ class RobustnessExperiments(ExperimentFramework):
 
             # Setup MCMC with seed control for robustness
             seed = args.get("random_seed", 42)
-            self.logger.info(f"Setting up MCMC with seed: {seed}")
+            if verbose:
+                self.logger.info(f"Setting up MCMC with seed: {seed}")
             rng_key = jax.random.PRNGKey(seed)
 
             # Store kernel parameters for reuse (create fresh kernel per chain to avoid state accumulation)
             target_accept_prob = args.get("target_accept_prob", 0.8)
             max_tree_depth = args.get("max_tree_depth", 13)
             dense_mass = args.get("dense_mass", False)  # Use diagonal mass matrix for memory efficiency
-            self.logger.info(f"NUTS kernel parameters: target_accept_prob={target_accept_prob}, max_tree_depth={max_tree_depth}, dense_mass={dense_mass}")
-            if not dense_mass:
-                self.logger.info("   Using diagonal mass matrix for ~5GB memory savings per chain")
+            if verbose:
+                self.logger.info(f"NUTS kernel parameters: target_accept_prob={target_accept_prob}, max_tree_depth={max_tree_depth}, dense_mass={dense_mass}")
+                if not dense_mass:
+                    self.logger.info("   Using diagonal mass matrix for ~5GB memory savings per chain")
 
             # Get chain method from args (parallel, sequential, or vectorized)
             chain_method = args.get("chain_method", "sequential")
-            self.logger.info(f"Creating MCMC sampler with chain_method={chain_method}...")
+            if verbose:
+                self.logger.info(f"Creating MCMC sampler with chain_method={chain_method}...")
 
             # For multiple chains with memory constraints, run chains individually with cache clearing
             # NOTE: Even with chain_method='sequential', NumPyro may not clear JAX caches between chains,
