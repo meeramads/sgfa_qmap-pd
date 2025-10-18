@@ -86,6 +86,12 @@ Python implementation of Sparse Group Factor Analysis (SGFA) designed to identif
   - `report_generator.py`: Comprehensive HTML analysis reports
 - **[tests/](tests/)**: Comprehensive test suite
 
+### Documentation
+
+- **[docs/](docs/)**: Technical documentation
+  - `ARCHITECTURE.md`: Comprehensive codebase architecture documentation
+  - `BRAIN_REMAPPING_WITH_VOXEL_FILTERING.md`: Voxel filtering and position lookup technical guide
+
 ## Automatic Optimization Features
 
 All experiments now include **automatic computational optimization** through the `@performance_optimized_experiment` decorator:
@@ -282,6 +288,48 @@ pytest
 # Run with coverage
 pytest --cov=. --cov-report=html
 ```
+
+## Configuration Options
+
+### Adjusting QC Outlier Detection Threshold
+
+The MAD (Median Absolute Deviation) threshold controls voxel quality filtering during preprocessing:
+
+```bash
+# Default threshold (3.0)
+python run_experiments.py --experiments factor_stability
+
+# More lenient (retain more voxels)
+python run_experiments.py --experiments factor_stability --qc-outlier-threshold 5.0
+
+# More strict (remove more outliers)
+python run_experiments.py --experiments factor_stability --qc-outlier-threshold 2.0
+```
+
+**Default**: 3.0
+**Recommended range**: 2.0 - 5.0
+**Effect**: Higher values retain more voxels, lower values perform stricter outlier removal
+
+Alternatively, set in `config.yaml`:
+
+```yaml
+preprocessing:
+  spatial_processing:
+    qc_outlier_threshold: 5.0
+```
+
+### Plot Output Locations
+
+All experiments save individual plots in addition to storing them in results dictionaries:
+
+| Experiment | Plot Directory | Key Plots |
+|------------|----------------|-----------|
+| **Data Validation** | `results/<run>/data_validation/individual_plots/` | Distribution comparison, quality metrics, variance analysis |
+| **Robustness Testing** | `results/<run>/robustness_testing/individual_plots/` | Seed reproducibility, perturbation robustness, initialization stability |
+| **Factor Stability** | `results/<run>/factor_stability/plots/` | Stability heatmap, consensus loadings, chain comparisons |
+| **Clinical Validation** | `results/<run>/clinical_validation/individual_plots/` | Clinical associations, subtype distributions |
+
+All plots are saved in both PNG (for viewing) and PDF (for publication) formats.
 
 ## Quick Start
 
