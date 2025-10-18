@@ -113,6 +113,7 @@ def run_data_validation(config):
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
             preprocessing_config=config.get("preprocessing", {}),  # Pass preprocessing config!
+            max_tree_depth=config.get("mcmc", {}).get("max_tree_depth"),  # For semantic naming
         )
 
         # Initialize experiment framework

@@ -80,6 +80,7 @@ class ExperimentConfig:
     num_chains: int = 1  # Single chain for GPU memory constraints
     num_warmup: int = 1000
     num_runs_per_config: int = 3
+    max_tree_depth: Optional[int] = None  # NUTS tree depth (default: 13)
 
     # Cross-validation configuration
     cv_folds: int = 5
@@ -329,8 +330,8 @@ class ExperimentFramework:
         """
         Generate a semantic experiment name that includes key model parameters.
 
-        Format: {base_name}_K{K}_percW{percW}_slab{slab_df}_{slab_scale}
-        Example: robustness_tests_K10_percW20_slab4_2
+        Format: {base_name}_K{K}_percW{percW}_slab{slab_df}_{slab_scale}_MAD{threshold}_tree{depth}
+        Example: robustness_tests_K10_percW20_slab4_2_MAD3.0_tree15
 
         Parameters
         ----------
@@ -369,6 +370,10 @@ class ExperimentFramework:
         # Add MAD threshold (QC outlier threshold) if specified
         if config.qc_outlier_threshold is not None:
             name_parts.append(f"MAD{config.qc_outlier_threshold:.1f}")
+
+        # Add max_tree_depth if specified and non-default (default is 13)
+        if config.max_tree_depth is not None and config.max_tree_depth != 13:
+            name_parts.append(f"tree{config.max_tree_depth}")
 
         return "_".join(name_parts)
 

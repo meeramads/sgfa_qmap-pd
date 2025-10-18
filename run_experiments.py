@@ -220,6 +220,14 @@ def main():
         help="Pre-configured PCA strategy: aggressive (80%% var), balanced (85%% var), conservative (90%% var)",
     )
 
+    # MCMC configuration arguments
+    parser.add_argument(
+        "--max-tree-depth",
+        type=int,
+        default=None,
+        help="NUTS maximum tree depth (default: 13). Higher values allow longer trajectories but use more memory. Example: --max-tree-depth 15 for more thorough sampling",
+    )
+
     args = parser.parse_args()
 
     # Load and validate configuration
@@ -303,6 +311,13 @@ def main():
             config["model"] = {}
         config["model"]["percW"] = args.percW
         logger.info(f"Override percW (sparsity): {args.percW}% non-zero ({100-args.percW:.0f}% sparse)")
+
+    # Configure max_tree_depth if provided
+    if args.max_tree_depth is not None:
+        if "mcmc" not in config:
+            config["mcmc"] = {}
+        config["mcmc"]["max_tree_depth"] = args.max_tree_depth
+        logger.info(f"Override max_tree_depth: {args.max_tree_depth}")
 
     # Configure PCA if provided
     if args.enable_pca or args.pca_strategy or args.pca_variance or args.pca_components:
@@ -618,6 +633,7 @@ def main():
             slab_df=slab_df_value,  # For semantic naming
             slab_scale=slab_scale_value,  # For semantic naming
             qc_outlier_threshold=qc_outlier_threshold,  # For semantic naming
+            max_tree_depth=exp_config.get("mcmc", {}).get("max_tree_depth"),  # For semantic naming and MCMC config
             num_samples=fs_config.get("num_samples", 5000),
             num_warmup=fs_config.get("num_warmup", 1000),
             num_chains=fs_config.get("num_chains", 4),
@@ -671,13 +687,17 @@ def main():
         logger.info(f"   Using global model hyperparameters: percW={hypers['percW']}, slab_df={hypers['slab_df']}, slab_scale={hypers['slab_scale']}")
 
         # Prepare MCMC args (read from config.yaml)
+        # Check both mcmc and factor_stability sections for max_tree_depth (mcmc takes precedence)
+        mcmc_config = exp_config.get("mcmc", {})
+        max_tree_depth_value = mcmc_config.get("max_tree_depth") or fs_config.get("max_tree_depth", 13)
+
         mcmc_args = {
             "K": K,
             "num_warmup": fs_config.get("num_warmup", 1000),
             "num_samples": fs_config.get("num_samples", 5000),
             "num_chains": 1,  # Sequential execution (run_factor_stability_analysis handles multiple chains)
             "target_accept_prob": fs_config.get("target_accept_prob", 0.8),
-            "max_tree_depth": fs_config.get("max_tree_depth", 13),
+            "max_tree_depth": max_tree_depth_value,
             "dense_mass": fs_config.get("dense_mass", False),
             "reghsZ": fs_config.get("reghsZ", True),
             "random_seed": 42,

@@ -2833,6 +2833,7 @@ def run_robustness_testing(config):
             slab_df=slab_df_value,
             slab_scale=slab_scale_value,
             qc_outlier_threshold=qc_outlier_threshold,
+            max_tree_depth=config_dict.get("mcmc", {}).get("max_tree_depth"),  # For semantic naming
         )
 
         # Create robustness experiment instance
