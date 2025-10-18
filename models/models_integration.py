@@ -62,7 +62,7 @@ class ModelCreationResult:
 
 
 def get_optimal_model_configuration(
-    config: Dict, data_characteristics: Dict = None
+    config: Dict, data_characteristics: Dict = None, verbose: bool = True
 ) -> Tuple[Any, Dict]:
     """
     Determine optimal model configuration based on data characteristics and user preferences.
@@ -70,19 +70,21 @@ def get_optimal_model_configuration(
     Args:
         config: Configuration dictionary
         data_characteristics: Optional data characteristics for model selection
+        verbose: If True, log detailed information. If False, suppress repetitive logs.
 
     Returns:
         Tuple of (selected_model_type, model_configuration_summary)
     """
     try:
-        logger.info("🚀 === OPTIMAL MODEL CONFIGURATION ===")
+        if verbose:
+            logger.info("🚀 === OPTIMAL MODEL CONFIGURATION ===")
 
         # Extract model preferences from config
         model_config = config.get("model", {})
         model_type = model_config.get("type", "sparseGFA")  # Default to sparse GFA
 
         # Analyze data characteristics for model selection
-        if data_characteristics:
+        if data_characteristics and verbose:
             total_features = data_characteristics.get("total_features", 0)
             n_views = data_characteristics.get("n_views", 0)
             n_subjects = data_characteristics.get("n_subjects", 0)
@@ -129,13 +131,16 @@ def get_optimal_model_configuration(
         available_models = bayesian_models + baseline_methods
 
         if model_type not in bayesian_models:
-            logger.warning(f"Requested model '{model_type}' not available in Bayesian models")
-            logger.info(f"Available Bayesian models: {bayesian_models}")
-            logger.info(f"Available baseline methods: {baseline_methods}")
+            if verbose:
+                logger.warning(f"Requested model '{model_type}' not available in Bayesian models")
+                logger.info(f"Available Bayesian models: {bayesian_models}")
+                logger.info(f"Available baseline methods: {baseline_methods}")
             model_type = "sparseGFA"  # Fallback to default
-            logger.info(f"Falling back to: {model_type}")
+            if verbose:
+                logger.info(f"Falling back to: {model_type}")
 
-        logger.info(f"✅ Selected model type: {model_type}")
+        if verbose:
+            logger.info(f"✅ Selected model type: {model_type}")
 
         model_configuration = {
             "model_type": model_type,
@@ -176,7 +181,7 @@ def _create_fallback_model_result(model_type: str, error_msg: str) -> ModelCreat
 
 
 def create_model_instance(
-    model_type: str, config: Dict, hypers: Dict, data_characteristics: Dict = None
+    model_type: str, config: Dict, hypers: Dict, data_characteristics: Dict = None, verbose: bool = True
 ) -> ModelCreationResult:
     """
     Create a model instance using the ModelFactory.
@@ -186,12 +191,14 @@ def create_model_instance(
         config: Configuration dictionary
         hypers: Hyperparameters dictionary
         data_characteristics: Optional data characteristics for model customization
+        verbose: If True, log detailed information. If False, suppress repetitive logs.
 
     Returns:
         ModelCreationResult with model instance and metadata
     """
     try:
-        logger.info(f"🏗️ Creating model instance: {model_type}")
+        if verbose:
+            logger.info(f"🏗️ Creating model instance: {model_type}")
 
         from models import create_model
 
@@ -206,7 +213,8 @@ def create_model_instance(
             spatial_info = _extract_spatial_info(data_characteristics, config)
             if spatial_info:
                 model_kwargs["spatial_info"] = spatial_info
-                logger.info("   Added spatial information for neuroimaging model")
+                if verbose:
+                    logger.info("   Added spatial information for neuroimaging model")
 
         # Create model instance
         model_instance = create_model(model_type, model_args, hypers, **model_kwargs)
@@ -219,9 +227,10 @@ def create_model_instance(
             "hyperparameters": hypers,
         }
 
-        logger.info(f"✅ Model instance created successfully")
-        logger.info(f"   Model type: {model_type}")
-        logger.info(f"   Model class: {metadata['model_class']}")
+        if verbose:
+            logger.info(f"✅ Model instance created successfully")
+            logger.info(f"   Model type: {model_type}")
+            logger.info(f"   Model class: {metadata['model_class']}")
 
         return ModelCreationResult(
             mode=ModelCreationMode.FACTORY,
@@ -233,7 +242,8 @@ def create_model_instance(
         )
 
     except Exception as e:
-        logger.error(f"Model instance creation failed: {e}")
+        if verbose:
+            logger.error(f"Model instance creation failed: {e}")
         return _create_fallback_model_result(model_type, f"creation_failed: {str(e)}")
 
 
@@ -298,6 +308,7 @@ def apply_models_framework_to_pipeline(
     X_list: List[np.ndarray] = None,
     data_characteristics: Dict = None,
     hypers: Dict = None,
+    verbose: bool = True,
 ) -> Tuple[Any, Any, Dict]:
     """
     Apply comprehensive models framework to the remote workstation pipeline.
@@ -307,16 +318,18 @@ def apply_models_framework_to_pipeline(
         X_list: Optional data list for analysis
         data_characteristics: Optional data characteristics for model selection
         hypers: Optional hyperparameters dictionary
+        verbose: If True, log detailed information. If False, suppress repetitive logs.
 
     Returns:
         Tuple of (model_type, model_instance, framework_info)
     """
     try:
-        logger.info("🚀 === MODELS FRAMEWORK INTEGRATION ===")
+        if verbose:
+            logger.info("🚀 === MODELS FRAMEWORK INTEGRATION ===")
 
         # Get optimal model configuration
         model_type, model_config = get_optimal_model_configuration(
-            config, data_characteristics
+            config, data_characteristics, verbose=verbose
         )
 
         if not model_type:
@@ -332,23 +345,25 @@ def apply_models_framework_to_pipeline(
 
         # Create model instance
         creation_result = create_model_instance(
-            model_type, config, hypers, data_characteristics
+            model_type, config, hypers, data_characteristics, verbose=verbose
         )
 
         if not creation_result.success:
-            logger.warning("Model instance creation failed - using fallback")
+            if verbose:
+                logger.warning("Model instance creation failed - using fallback")
             return model_type, None, {
                 "framework_available": False,
                 "error": creation_result.error,
                 "fallback": True
             }
 
-        logger.info("✅ Models framework integration completed")
-        logger.info(f"   Model type: {model_type}")
-        logger.info(f"   Model class: {creation_result.metadata.get('model_class', 'unknown')}")
-        logger.info(
-            f"   Factory method: {creation_result.metadata.get('factory_method_used', False)}"
-        )
+        if verbose:
+            logger.info("✅ Models framework integration completed")
+            logger.info(f"   Model type: {model_type}")
+            logger.info(f"   Model class: {creation_result.metadata.get('model_class', 'unknown')}")
+            logger.info(
+                f"   Factory method: {creation_result.metadata.get('factory_method_used', False)}"
+            )
 
         framework_info = {
             "framework_available": True,
@@ -636,6 +651,7 @@ def integrate_models_with_pipeline(
     X_list: List[np.ndarray] = None,
     data_characteristics: Dict = None,
     hypers: Dict = None,
+    verbose: bool = True,
 ) -> Tuple[Any, Any, Dict]:
     """
     Main integration function for models framework in the pipeline.
@@ -645,16 +661,18 @@ def integrate_models_with_pipeline(
         X_list: Optional data arrays
         data_characteristics: Optional data characteristics
         hypers: Optional hyperparameters
+        verbose: If True, log detailed information. If False, suppress repetitive logs.
 
     Returns:
         Tuple of (model_type, model_instance, comprehensive_models_info)
     """
     try:
-        logger.info("🚀 === MODELS FRAMEWORK PIPELINE INTEGRATION ===")
+        if verbose:
+            logger.info("🚀 === MODELS FRAMEWORK PIPELINE INTEGRATION ===")
 
         # Apply comprehensive models framework
         model_type, model_instance, framework_info = apply_models_framework_to_pipeline(
-            config, X_list, data_characteristics, hypers
+            config, X_list, data_characteristics, hypers, verbose=verbose
         )
 
         # Create integration summary
@@ -701,18 +719,20 @@ def integrate_models_with_pipeline(
                 integration_summary["comparison_completed"] = False
 
         if model_instance:
-            logger.info("✅ Models framework pipeline integration completed")
-            logger.info(
-                f" Model type: { integration_summary.get( 'model_type_selected', 'unknown')}"
-            )
-            logger.info(
-                f" Model factory: { integration_summary.get( 'model_factory_used', False)}"
-            )
-            logger.info(
-                f" Structured management: { integration_summary.get( 'structured_model_management', False)}"
-            )
+            if verbose:
+                logger.info("✅ Models framework pipeline integration completed")
+                logger.info(
+                    f" Model type: { integration_summary.get( 'model_type_selected', 'unknown')}"
+                )
+                logger.info(
+                    f" Model factory: { integration_summary.get( 'model_factory_used', False)}"
+                )
+                logger.info(
+                    f" Structured management: { integration_summary.get( 'structured_model_management', False)}"
+                )
         else:
-            logger.info("⚠️  Models framework unavailable - using direct approach")
+            if verbose:
+                logger.info("⚠️  Models framework unavailable - using direct approach")
             integration_summary.update(
                 {
                     "fallback_mode": True,

@@ -178,8 +178,8 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info(f"Perturbation levels: {perturbation_levels}")
 
         results = {}
-        # Baseline result
-        baseline_result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+        # Baseline result (verbose=True for first call)
+        baseline_result = self._run_sgfa_analysis(X_list, hypers, args, verbose=True, **kwargs)
         results["baseline"] = {
             "result": baseline_result,
             "perturbation_type": "none",
@@ -205,7 +205,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                     try:
                         result = self._run_sgfa_analysis(
-                            X_perturbed, hypers, args, **kwargs
+                            X_perturbed, hypers, args, verbose=False, **kwargs
                         )
 
                         # CRITICAL: Remove large sample arrays to prevent memory leak
@@ -287,7 +287,7 @@ class RobustnessExperiments(ExperimentFramework):
 
         results = {}
         performance_metrics = {}
-        for strategy in initialization_strategies:
+        for strategy_idx, strategy in enumerate(initialization_strategies):
             self.logger.info(f"Testing initialization strategy: {strategy}")
 
             strategy_results = []
@@ -303,8 +303,9 @@ class RobustnessExperiments(ExperimentFramework):
 
                 with self.profiler.profile(f"{strategy}_init_{init_idx}") as p:
                     try:
+                        # Only verbose for first init of first strategy
                         result = self._run_sgfa_analysis(
-                            X_list, hypers, init_args, **kwargs
+                            X_list, hypers, init_args, verbose=(strategy_idx == 0 and init_idx == 0), **kwargs
                         )
                         strategy_results.append(
                             {
@@ -395,7 +396,8 @@ class RobustnessExperiments(ExperimentFramework):
             run_args = args.copy()
             run_args["random_seed"] = fixed_seed
 
-            result = self._run_sgfa_analysis(X_list, hypers, run_args, **kwargs)
+            # Only verbose for first run
+            result = self._run_sgfa_analysis(X_list, hypers, run_args, verbose=(run == 0), **kwargs)
 
             # CRITICAL: Remove large sample arrays to prevent memory leak
             if "W_samples" in result:
@@ -510,14 +512,15 @@ class RobustnessExperiments(ExperimentFramework):
         # Test with different data types
         dtypes = [np.float32, np.float64]
 
-        for dtype in dtypes:
+        for dtype_idx, dtype in enumerate(dtypes):
             self.logger.debug(f"Testing with dtype: {dtype}")
 
             # Convert data to specified dtype
             X_dtype = [X.astype(dtype) for X in X_list]
 
             try:
-                result = self._run_sgfa_analysis(X_dtype, hypers, args, **kwargs)
+                # Only verbose for first dtype
+                result = self._run_sgfa_analysis(X_dtype, hypers, args, verbose=(dtype_idx == 0), **kwargs)
 
                 # CRITICAL: Remove large sample arrays to prevent memory leak
                 if "W_samples" in result:
@@ -544,7 +547,7 @@ class RobustnessExperiments(ExperimentFramework):
         # Test different RNG states
         rng_states = ["numpy_default", "mersenne_twister", "pcg64"]
 
-        for rng_state in rng_states:
+        for rng_idx, rng_state in enumerate(rng_states):
             self.logger.debug(f"Testing with RNG: {rng_state}")
 
             try:
@@ -558,7 +561,8 @@ class RobustnessExperiments(ExperimentFramework):
                     np.random.seed(42)
                     # In practice, you would set PCG64 RNG
 
-                result = self._run_sgfa_analysis(X_list, hypers, args, **kwargs)
+                # Only verbose for first RNG test
+                result = self._run_sgfa_analysis(X_list, hypers, args, verbose=(rng_idx == 0), **kwargs)
 
                 # CRITICAL: Remove large sample arrays to prevent memory leak
                 if "W_samples" in result:
@@ -671,7 +675,8 @@ class RobustnessExperiments(ExperimentFramework):
                 config={"model": {"type": "sparseGFA"}},
                 X_list=X_list,
                 data_characteristics=data_characteristics,
-                hypers=hypers  # Pass hypers to ensure correct percW, slab_df, slab_scale
+                hypers=hypers,  # Pass hypers to ensure correct percW, slab_df, slab_scale
+                verbose=verbose  # Pass verbose to suppress repetitive logging
             )
 
             if verbose:
@@ -2009,7 +2014,8 @@ class RobustnessExperiments(ExperimentFramework):
         with self.profiler.profile("all_chains") as p:
             self.logger.info(f"Starting SGFA analysis with {n_chains} chains...")
             try:
-                result = self._run_sgfa_analysis(X_list, hypers, multi_chain_args, **kwargs)
+                # Verbose=True to see the configuration (this is typically called once)
+                result = self._run_sgfa_analysis(X_list, hypers, multi_chain_args, verbose=True, **kwargs)
                 self.logger.info(f"   Result keys: {list(result.keys())}")
 
                 # Check if execution succeeded
@@ -2909,7 +2915,7 @@ def run_robustness_testing(config):
                 seeds = seed_values
                 seed_results = {}
 
-                for seed in seeds:
+                for seed_idx, seed in enumerate(seeds):
                     try:
                         # Set seed for robustness
                         np.random.seed(seed)
@@ -2917,8 +2923,9 @@ def run_robustness_testing(config):
                         test_args["random_seed"] = seed
 
                         with repro_exp.profiler.profile(f"seed_{seed}") as p:
+                            # Only verbose for first seed
                             result = repro_exp._run_sgfa_analysis(
-                                X_list, base_hypers, test_args
+                                X_list, base_hypers, test_args, verbose=(seed_idx == 0)
                             )
 
                         metrics = repro_exp.profiler.get_current_metrics()
@@ -2959,7 +2966,7 @@ def run_robustness_testing(config):
                 noise_levels = perturbation_config.get("levels", [0.01, 0.05])
                 perturbation_results = {}
 
-                for noise_level in noise_levels:
+                for noise_idx, noise_level in enumerate(noise_levels):
                     try:
                         # Add Gaussian noise to data
                         X_noisy = []
@@ -2968,8 +2975,9 @@ def run_robustness_testing(config):
                             X_noisy.append(X + noise)
 
                         with repro_exp.profiler.profile(f"noise_{noise_level}") as p:
+                            # Only verbose for first noise level
                             result = repro_exp._run_sgfa_analysis(
-                                X_noisy, base_hypers, base_args
+                                X_noisy, base_hypers, base_args, verbose=(noise_idx == 0)
                             )
 
                         metrics = repro_exp.profiler.get_current_metrics()
@@ -3011,8 +3019,9 @@ def run_robustness_testing(config):
                         test_args["random_seed"] = 1000 + init_id
 
                         with repro_exp.profiler.profile(f"init_{init_id}") as p:
+                            # Only verbose for first initialization
                             result = repro_exp._run_sgfa_analysis(
-                                X_list, base_hypers, test_args
+                                X_list, base_hypers, test_args, verbose=(init_id == 0)
                             )
 
                         metrics = repro_exp.profiler.get_current_metrics()
