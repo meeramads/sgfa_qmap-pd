@@ -503,3 +503,42 @@
 2025-10-19 18:36:50,781 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /Users/meera/Desktop/sgfa_qmap-pd/results/all_run_20251019_183624
 2025-10-19 18:36:50,784 - experiments.framework - INFO - Starting experiment: robustness_tests_20251019_183650
 2025-10-19 18:36:50,784 - experiments.framework - INFO - Starting experiment: robustness_tests_20251019_183650
+2025-10-19 18:39:13,540 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: robustness_tests_20251019_183650
+2025-10-19 18:39:13,540 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: robustness_tests_20251019_183650
+2025-10-19 18:39:13,541 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 2.4 minutes (143s)
+2025-10-19 18:39:13,541 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 2.4 minutes (143s)
+2025-10-19 18:39:13,541 - experiments.framework - INFO - 🕐 Started: 2025-10-19 18:36:50
+2025-10-19 18:39:13,541 - experiments.framework - INFO - 🕐 Started: 2025-10-19 18:36:50
+2025-10-19 18:39:13,541 - experiments.framework - INFO - 🕑 Finished: 2025-10-19 18:39:13
+2025-10-19 18:39:13,541 - experiments.framework - INFO - 🕑 Finished: 2025-10-19 18:39:13
+2025-10-19 18:39:13,541 - experiments.framework - INFO - Experiment completed successfully: robustness_tests_20251019_183650
+2025-10-19 18:39:13,541 - experiments.framework - INFO - Experiment completed successfully: robustness_tests_20251019_183650
+2025-10-19 18:39:13,541 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-19 18:39:13,541 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-19 18:39:13,612 - experiments.framework - INFO - Garbage collection freed 16 objects
+2025-10-19 18:39:13,612 - experiments.framework - INFO - Garbage collection freed 16 objects
+2025-10-19 18:39:13,865 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-19 18:39:13,865 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-19 18:39:14,866 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-19 18:39:14,866 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-19 18:39:14,915 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-19 18:39:14,915 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-19 18:39:14,918 - experiments.framework - INFO - Saving 1 plots to /Users/meera/Desktop/sgfa_qmap-pd/results/all_run_20251019_183624/robustness_tests_K2_percW33_slab4_2_20251019_183650/plots
+2025-10-19 18:39:14,918 - experiments.framework - INFO - Saving 1 plots to /Users/meera/Desktop/sgfa_qmap-pd/results/all_run_20251019_183624/robustness_tests_K2_percW33_slab4_2_20251019_183650/plots
+2025-10-19 18:39:15,344 - experiments.framework - INFO -   ✅ Saved plot: robustness_summary
+2025-10-19 18:39:15,344 - experiments.framework - INFO -   ✅ Saved plot: robustness_summary
+2025-10-19 18:39:15,344 - experiments.framework - INFO - All plots saved to: /Users/meera/Desktop/sgfa_qmap-pd/results/all_run_20251019_183624/robustness_tests_K2_percW33_slab4_2_20251019_183650/plots
+2025-10-19 18:39:15,344 - experiments.framework - INFO - All plots saved to: /Users/meera/Desktop/sgfa_qmap-pd/results/all_run_20251019_183624/robustness_tests_K2_percW33_slab4_2_20251019_183650/plots
+2025-10-19 18:40:07,544 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251019_183956
+2025-10-19 18:40:07,545 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 10.6 seconds
+2025-10-19 18:40:07,545 - experiments.framework - INFO - 🕐 Started: 2025-10-19 18:39:56
+2025-10-19 18:40:07,545 - experiments.framework - INFO - 🕑 Finished: 2025-10-19 18:40:07
+2025-10-19 18:40:07,545 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251019_183956
+2025-10-19 18:40:07,545 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-19 18:40:07,614 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-19 18:40:07,963 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-19 18:40:08,970 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-19 18:40:08,970 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-19 18:40:20,865 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /Users/meera/Desktop/sgfa_qmap-pd/results/all_run_20251019_183956
+2025-10-19 18:40:20,868 - experiments.framework - INFO - Starting experiment: robustness_tests_20251019_184020
+2025-10-19 18:40:20,868 - experiments.framework - INFO - Starting experiment: robustness_tests_20251019_184020

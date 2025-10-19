@@ -671,8 +671,10 @@ class RobustnessExperiments(ExperimentFramework):
             # Get optimal model configuration via factory
             if verbose:
                 self.logger.info("Setting up model via factory...")
+            # Use model_type from args if provided, otherwise default to sparse_gfa
+            requested_model_type = args.get("model_type", "sparse_gfa")
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
-                config={"model": {"type": "sparseGFA"}},
+                config={"model": {"model_type": requested_model_type}},
                 X_list=X_list,
                 data_characteristics=data_characteristics,
                 hypers=hypers,  # Pass hypers to ensure correct percW, slab_df, slab_scale

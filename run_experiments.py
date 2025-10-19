@@ -702,6 +702,7 @@ def main():
             "dense_mass": fs_config.get("dense_mass", False),
             "reghsZ": fs_config.get("reghsZ", True),
             "random_seed": 42,
+            "model_type": model_config.get("model_type", "sparse_gfa"),  # Pass model type from config
         }
 
         logger.info(f"   Using parameters from config.yaml:")

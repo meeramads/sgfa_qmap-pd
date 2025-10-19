@@ -81,7 +81,7 @@ def get_optimal_model_configuration(
 
         # Extract model preferences from config
         model_config = config.get("model", {})
-        model_type = model_config.get("type", "sparseGFA")  # Default to sparse GFA
+        model_type = model_config.get("model_type", "sparseGFA")  # Default to sparse GFA
 
         # Analyze data characteristics for model selection
         if data_characteristics and verbose:
