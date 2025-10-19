@@ -17,19 +17,22 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Test configurations
-declare -A CONFIGS=(
-    ["K2"]="config_convergence_K2_tree10.yaml"
-    ["K5"]="config_convergence_K5_tree10.yaml"
-    ["K8"]="config_convergence_K8_tree10.yaml"
-    ["K20"]="config_convergence_K20_tree10.yaml"
-    ["K50"]="config_convergence_K50_tree10.yaml"
-)
+# Function to get config file for a test name (compatible with older bash)
+get_config() {
+    case "$1" in
+        K2)  echo "config_convergence_K2_tree10.yaml" ;;
+        K5)  echo "config_convergence_K5_tree10.yaml" ;;
+        K8)  echo "config_convergence_K8_tree10.yaml" ;;
+        K20) echo "config_convergence_K20_tree10.yaml" ;;
+        K50) echo "config_convergence_K50_tree10.yaml" ;;
+        *)   echo "" ;;
+    esac
+}
 
 # Function to run a single test
 run_test() {
     local test_name=$1
-    local config_file=${CONFIGS[$test_name]}
+    local config_file=$(get_config "$test_name")
 
     echo -e "${BLUE}========================================${NC}"
     echo -e "${BLUE}Running Convergence Test: $test_name${NC}"
@@ -60,7 +63,8 @@ else
     # Run specified tests
     echo -e "${GREEN}Running selected tests: $@${NC}\n"
     for test_name in "$@"; do
-        if [[ -v CONFIGS[$test_name] ]]; then
+        config_file=$(get_config "$test_name")
+        if [ -n "$config_file" ]; then
             run_test "$test_name"
         else
             echo -e "${YELLOW}Warning: Unknown test '$test_name'. Available: K2, K5, K8, K20, K50${NC}"

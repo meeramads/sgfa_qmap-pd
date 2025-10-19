@@ -718,7 +718,9 @@ class RobustnessExperiments(ExperimentFramework):
 
             # Store kernel parameters for reuse (create fresh kernel per chain to avoid state accumulation)
             target_accept_prob = args.get("target_accept_prob", 0.8)
-            max_tree_depth = args.get("max_tree_depth", 13)
+            # Ensure max_tree_depth is explicitly an int (JAX requires proper type for internal operations)
+            max_tree_depth_raw = args.get("max_tree_depth", 13)
+            max_tree_depth = int(max_tree_depth_raw) if max_tree_depth_raw is not None else 13
             dense_mass = args.get("dense_mass", False)  # Use diagonal mass matrix for memory efficiency
             if verbose:
                 self.logger.info(f"NUTS kernel parameters: target_accept_prob={target_accept_prob}, max_tree_depth={max_tree_depth}, dense_mass={dense_mass}")
@@ -789,7 +791,11 @@ class RobustnessExperiments(ExperimentFramework):
 
                     # Create fresh NUTS kernel for this chain (avoid state accumulation)
                     self.logger.info(f"Creating fresh NUTS kernel for chain {chain_idx + 1}...")
-                    kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
+                    # Workaround for JAX 0.7.x + NumPyro 0.19.0 compatibility: only pass max_tree_depth if not default
+                    if max_tree_depth != 10:
+                        kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
+                    else:
+                        kernel = NUTS(models, target_accept_prob=target_accept_prob, dense_mass=dense_mass)
 
                     # Create individual MCMC sampler for this chain
                     mcmc_single = MCMC(
@@ -915,7 +921,11 @@ class RobustnessExperiments(ExperimentFramework):
                 # Standard execution for single chain or non-parallel methods
                 # Create NUTS kernel for standard execution
                 self.logger.info("Creating NUTS kernel for standard MCMC execution...")
-                kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
+                # Workaround for JAX 0.7.x + NumPyro 0.19.0 compatibility: only pass max_tree_depth if not default
+                if max_tree_depth != 10:
+                    kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
+                else:
+                    kernel = NUTS(models, target_accept_prob=target_accept_prob, dense_mass=dense_mass)
 
                 mcmc = MCMC(
                     kernel,
