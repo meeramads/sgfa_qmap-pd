@@ -634,6 +634,11 @@ class FactorVisualizer:
         n_factors = W.shape[1]
         n_views = len(view_names)
 
+        # Limit plot complexity for large K to avoid matplotlib memory errors
+        if n_factors > 30:
+            logger.warning(f"Skipping enhanced_loading_distributions plot: K={n_factors} > 30 factors (would create oversized plot)")
+            return
+
         # Create comprehensive figure with multiple subplots
         fig = plt.figure(figsize=(16, 12))
 

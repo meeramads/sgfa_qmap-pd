@@ -2507,6 +2507,21 @@ class DataValidationExperiments(ExperimentFramework):
             subject_results, view_names, subject_ids, threshold_pct=5.0, output_path=output_path
         )
 
+        # Create additional subject outlier visualizations
+        self._plot_subject_outlier_comparison(
+            subject_results, view_names, subject_ids, flagged_subjects, output_path
+        )
+        self._plot_subject_outlier_scatter(
+            subject_results, view_names, subject_ids, flagged_subjects, output_path
+        )
+        if len(view_names) > 1:
+            self._plot_subject_outlier_heatmap(
+                subject_results, view_names, subject_ids, flagged_subjects, output_path
+            )
+        self._plot_top_outlier_subjects(
+            subject_results, view_names, subject_ids, flagged_subjects, output_path
+        )
+
         logger.info(f"   ✅ Subject-level analysis completed: {len(flagged_subjects)} subjects flagged")
         return {
             "subject_results": subject_results,
@@ -2564,6 +2579,249 @@ class DataValidationExperiments(ExperimentFramework):
         plt.close()
 
         logger.info(f"      Saved subject outlier distribution plot: {plot_file.name}")
+
+    def _plot_subject_outlier_comparison(
+        self,
+        subject_results: Dict[str, Any],
+        view_names: List[str],
+        subject_ids: List[str],
+        flagged_subjects: List[Dict[str, Any]],
+        output_path: Path
+    ):
+        """Create box plot comparing flagged vs non-flagged subjects."""
+        fig, axes = plt.subplots(1, len(view_names), figsize=(6 * len(view_names), 6))
+        if len(view_names) == 1:
+            axes = [axes]
+
+        flagged_ids = {s["subject_id"] for s in flagged_subjects}
+
+        for idx, (view_name, ax) in enumerate(zip(view_names, axes)):
+            outlier_pcts = subject_results[view_name]["outlier_percentages"]
+
+            # Separate flagged and non-flagged
+            flagged_pcts = [pct for i, pct in enumerate(outlier_pcts) if subject_ids[i] in flagged_ids]
+            normal_pcts = [pct for i, pct in enumerate(outlier_pcts) if subject_ids[i] not in flagged_ids]
+
+            # Box plot
+            bp = ax.boxplot([normal_pcts, flagged_pcts], labels=['Normal', 'Flagged'],
+                           patch_artist=True, widths=0.6)
+
+            # Color boxes
+            bp['boxes'][0].set_facecolor('lightgreen')
+            bp['boxes'][1].set_facecolor('salmon')
+
+            # Add threshold line
+            ax.axhline(5.0, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                      label='5% threshold')
+
+            ax.set_ylabel('Outlier Voxels (%)', fontsize=12)
+            ax.set_title(f'Subject Quality Comparison - {view_name}\n'
+                        f'Normal (n={len(normal_pcts)}) vs Flagged (n={len(flagged_pcts)})',
+                        fontsize=13, fontweight='bold')
+            ax.grid(True, alpha=0.3, axis='y')
+            ax.legend(fontsize=11)
+
+            # Add statistics
+            if flagged_pcts:
+                stats_text = (
+                    f"Normal subjects:\n"
+                    f"  Median: {np.median(normal_pcts):.1f}%\n"
+                    f"  Mean: {np.mean(normal_pcts):.1f}%\n\n"
+                    f"Flagged subjects:\n"
+                    f"  Median: {np.median(flagged_pcts):.1f}%\n"
+                    f"  Mean: {np.mean(flagged_pcts):.1f}%"
+                )
+                ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+                       fontsize=9, verticalalignment='top',
+                       bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+
+        plt.tight_layout()
+        plot_file = output_path / "subject_outlier_comparison.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved subject outlier comparison plot: {plot_file.name}")
+
+    def _plot_subject_outlier_scatter(
+        self,
+        subject_results: Dict[str, Any],
+        view_names: List[str],
+        subject_ids: List[str],
+        flagged_subjects: List[Dict[str, Any]],
+        output_path: Path
+    ):
+        """Create scatter plot showing outlier percentages per subject."""
+        fig, axes = plt.subplots(len(view_names), 1, figsize=(14, 5 * len(view_names)))
+        if len(view_names) == 1:
+            axes = [axes]
+
+        flagged_ids = {s["subject_id"] for s in flagged_subjects}
+
+        for idx, (view_name, ax) in enumerate(zip(view_names, axes)):
+            outlier_pcts = subject_results[view_name]["outlier_percentages"]
+            n_subjects = len(outlier_pcts)
+
+            # Separate flagged and non-flagged
+            normal_indices = [i for i in range(n_subjects) if subject_ids[i] not in flagged_ids]
+            flagged_indices = [i for i in range(n_subjects) if subject_ids[i] in flagged_ids]
+
+            # Scatter plot
+            ax.scatter(normal_indices, [outlier_pcts[i] for i in normal_indices],
+                      c='steelblue', alpha=0.6, s=50, label='Normal')
+            ax.scatter(flagged_indices, [outlier_pcts[i] for i in flagged_indices],
+                      c='red', alpha=0.8, s=100, marker='X', label='Flagged', zorder=5)
+
+            # Add threshold line
+            ax.axhline(5.0, color='red', linestyle='--', linewidth=2, alpha=0.5,
+                      label='5% threshold')
+
+            # Annotate flagged subjects
+            for i in flagged_indices:
+                ax.annotate(subject_ids[i], (i, outlier_pcts[i]),
+                           xytext=(10, 10), textcoords='offset points',
+                           fontsize=8, color='darkred',
+                           bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7),
+                           arrowprops=dict(arrowstyle='->', color='red', lw=1))
+
+            ax.set_xlabel('Subject Index', fontsize=12)
+            ax.set_ylabel('Outlier Voxels (%)', fontsize=12)
+            ax.set_title(f'Subject-Level Outlier Detection - {view_name}\n'
+                        f'{len(flagged_indices)} flagged subjects (>5% outliers)',
+                        fontsize=13, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=11, loc='upper left')
+
+        plt.tight_layout()
+        plot_file = output_path / "subject_outlier_scatter.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved subject outlier scatter plot: {plot_file.name}")
+
+    def _plot_subject_outlier_heatmap(
+        self,
+        subject_results: Dict[str, Any],
+        view_names: List[str],
+        subject_ids: List[str],
+        flagged_subjects: List[Dict[str, Any]],
+        output_path: Path
+    ):
+        """Create heatmap showing outlier percentages across subjects and ROIs."""
+        import seaborn as sns
+
+        n_subjects = len(subject_ids)
+        n_views = len(view_names)
+
+        # Build matrix: subjects × ROIs
+        outlier_matrix = np.zeros((n_subjects, n_views))
+        for view_idx, view_name in enumerate(view_names):
+            outlier_pcts = subject_results[view_name]["outlier_percentages"]
+            outlier_matrix[:, view_idx] = outlier_pcts
+
+        # Sort subjects by max outlier percentage (worst first)
+        max_outliers = np.max(outlier_matrix, axis=1)
+        sorted_indices = np.argsort(max_outliers)[::-1]
+        outlier_matrix_sorted = outlier_matrix[sorted_indices, :]
+        subject_ids_sorted = [subject_ids[i] for i in sorted_indices]
+
+        # Show only top 50 subjects if there are many
+        if n_subjects > 50:
+            outlier_matrix_sorted = outlier_matrix_sorted[:50, :]
+            subject_ids_sorted = subject_ids_sorted[:50]
+
+        # Create heatmap
+        fig, ax = plt.subplots(figsize=(max(8, n_views * 2), max(10, len(subject_ids_sorted) * 0.3)))
+
+        # Clean view names for display
+        clean_view_names = [v.replace("volume_", "").replace("_voxels", "") for v in view_names]
+
+        # Plot heatmap
+        sns.heatmap(outlier_matrix_sorted, annot=False, fmt='.1f', cmap='YlOrRd',
+                   xticklabels=clean_view_names, yticklabels=subject_ids_sorted,
+                   cbar_kws={'label': 'Outlier Voxels (%)'}, ax=ax, vmin=0, vmax=20)
+
+        # Add threshold contour
+        threshold_mask = outlier_matrix_sorted > 5.0
+        for i in range(threshold_mask.shape[0]):
+            for j in range(threshold_mask.shape[1]):
+                if threshold_mask[i, j]:
+                    ax.add_patch(plt.Rectangle((j, i), 1, 1, fill=False,
+                                              edgecolor='blue', lw=2))
+
+        ax.set_title(f'Subject-ROI Outlier Heatmap (Top {len(subject_ids_sorted)} subjects)\n'
+                    f'Blue boxes = flagged (>5% outliers)',
+                    fontsize=13, fontweight='bold')
+        ax.set_xlabel('ROI', fontsize=12)
+        ax.set_ylabel('Subject ID', fontsize=12)
+
+        plt.tight_layout()
+        plot_file = output_path / "subject_outlier_heatmap.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved subject outlier heatmap: {plot_file.name}")
+
+    def _plot_top_outlier_subjects(
+        self,
+        subject_results: Dict[str, Any],
+        view_names: List[str],
+        subject_ids: List[str],
+        flagged_subjects: List[Dict[str, Any]],
+        output_path: Path
+    ):
+        """Create bar chart showing top 20 subjects with highest outlier percentages."""
+        # Calculate max outlier percentage across all ROIs for each subject
+        n_subjects = len(subject_ids)
+        max_outliers = np.zeros(n_subjects)
+
+        for subj_idx in range(n_subjects):
+            max_pct = 0
+            for view_name in view_names:
+                pct = subject_results[view_name]["outlier_percentages"][subj_idx]
+                max_pct = max(max_pct, pct)
+            max_outliers[subj_idx] = max_pct
+
+        # Get top 20 subjects
+        top_n = min(20, n_subjects)
+        top_indices = np.argsort(max_outliers)[::-1][:top_n]
+        top_subjects = [subject_ids[i] for i in top_indices]
+        top_values = [max_outliers[i] for i in top_indices]
+
+        # Create bar chart
+        fig, ax = plt.subplots(figsize=(12, max(8, top_n * 0.4)))
+
+        # Color bars based on flagging threshold
+        colors = ['red' if v > 5.0 else 'steelblue' for v in top_values]
+
+        bars = ax.barh(range(top_n), top_values, color=colors, alpha=0.7, edgecolor='black')
+
+        # Add threshold line
+        ax.axvline(5.0, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label='5% flagging threshold')
+
+        # Annotate bars with values
+        for i, (bar, value) in enumerate(zip(bars, top_values)):
+            ax.text(value + 0.3, i, f'{value:.1f}%', va='center', fontsize=9)
+
+        ax.set_yticks(range(top_n))
+        ax.set_yticklabels(top_subjects, fontsize=10)
+        ax.set_xlabel('Max Outlier Percentage Across All ROIs (%)', fontsize=12)
+        ax.set_ylabel('Subject ID', fontsize=12)
+        ax.set_title(f'Top {top_n} Subjects by Outlier Percentage\n'
+                    f'Red bars = flagged (>5% outliers)',
+                    fontsize=13, fontweight='bold')
+        ax.grid(True, alpha=0.3, axis='x')
+        ax.legend(fontsize=11)
+
+        # Invert y-axis to show highest at top
+        ax.invert_yaxis()
+
+        plt.tight_layout()
+        plot_file = output_path / "subject_outlier_top20.png"
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"      Saved top subjects bar chart: {plot_file.name}")
 
     def _identify_flagged_subjects(
         self,

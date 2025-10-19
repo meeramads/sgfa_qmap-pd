@@ -262,17 +262,35 @@ def save_plot(
         Additional arguments for savefig
     """
     import matplotlib.pyplot as plt
+    import warnings
 
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches, **kwargs)
+        # Suppress unicode glyph warnings (missing emoji/symbols in font)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="Glyph.*missing from current font")
+            plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches, **kwargs)
+
         logger.debug(f"Saved plot to {filepath}")
 
         if close_after:
             plt.close()
 
+    except ValueError as e:
+        # Handle image size errors gracefully (matplotlib pixel limit: 2^16 = 65536)
+        if "Image size" in str(e) or "too large" in str(e):
+            logger.warning(f"Skipping plot save to {filepath}: Image too large ({e})")
+            logger.warning(f"   Consider reducing plot complexity or using vector format (PDF/SVG)")
+            if close_after:
+                plt.close()  # Clean up
+            # Don't re-raise - continue execution
+        else:
+            logger.error(f"Failed to save plot to {filepath}: {e}")
+            if close_after:
+                plt.close()
+            raise
     except Exception as e:
         logger.error(f"Failed to save plot to {filepath}: {e}")
         if close_after:
