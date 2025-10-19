@@ -1,0 +1,2 @@
+experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
+robustness_tests_20251018_131531,robustness_tests,completed,4144.95798,1.2 hours (9m 5s),2025-10-18 13:15:31,2025-10-18 14:24:36,2000,1,"[5, 10, 15]",5

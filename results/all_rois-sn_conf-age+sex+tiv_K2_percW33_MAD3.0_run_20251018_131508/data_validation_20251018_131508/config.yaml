@@ -1,0 +1,83 @@
+K: null
+K_values:
+- 5
+- 10
+- 15
+auto_configure_system: true
+brain_maps_output_dir: brain_maps
+cosine_threshold: 0.8
+create_brain_map_plots: false
+cv_folds: 5
+cv_group_variable: null
+cv_strategy: stratified
+cv_target_variable: null
+data_dir: !!python/object/apply:pathlib.PosixPath
+- /
+- cs
+- student
+- msc
+- aibh
+- '2024'
+- madhavan
+- sgfa_qmap-pd
+- qMAP-PD_data
+dataset: qmap_pd
+description: Data quality assessment and EDA
+enable_memory_optimization: true
+enable_profiling: true
+enable_spatial_remapping: false
+experiment_name: data_validation
+max_memory_gb: null
+max_tree_depth: 13
+min_match_rate: 0.5
+min_nonzero_pct: 0.05
+num_chains: 1
+num_runs_per_config: 3
+num_samples: 2000
+num_sources: 3
+num_warmup: 1000
+output_formats:
+- json
+- csv
+percW: null
+percW_values:
+- 33.0
+- 50.0
+performance_config: {}
+preprocessing_config:
+  drop_confounds_from_clinical: true
+  enable_advanced_preprocessing: true
+  enable_pca: false
+  enable_spatial_processing: true
+  feature_selection_method: none
+  imputation_strategy: median
+  min_voxel_distance: 3.0
+  missing_threshold: 0.8
+  n_top_features: null
+  pca_n_components: null
+  pca_variance_threshold: 0.95
+  pca_whiten: false
+  qc_outlier_threshold: 3.0
+  regress_confounds:
+  - age
+  - sex
+  - tiv
+  roi_based_selection: true
+  select_rois:
+  - volume_sn_voxels.tsv
+  strategy: full_preprocessing_all_views
+  variance_threshold: 0.02
+qc_outlier_threshold: null
+random_seeds:
+- 42
+- 123
+- 456
+save_brain_maps: true
+save_diagnostics: true
+save_intermediate_results: false
+save_numpy_arrays: false
+save_samples: false
+slab_df: null
+slab_scale: null
+sparsity_threshold: 0.01
+version: '1.0'

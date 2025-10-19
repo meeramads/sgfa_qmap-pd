@@ -1,6 +1,0 @@
-2025-10-15 14:15:08,464 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_K5_PCA-balanced_MAD3.0_run_20251015_141508
-2025-10-15 14:15:08,472 - experiments.framework - INFO - Starting experiment: data_validation_20251015_141508
-2025-10-15 14:15:21,903 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
-2025-10-15 14:15:21,985 - experiments.framework - INFO - Garbage collection freed 25486 objects
-2025-10-15 14:15:22,228 - experiments.framework - INFO - GPU memory cleanup attempted
-2025-10-15 14:15:23,229 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
