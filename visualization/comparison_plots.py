@@ -150,14 +150,14 @@ class ComparisonVisualizer:
         colors[best_idx] = 'gold'
 
         bars = ax.bar(valid_methods, valid_scores, color=colors, alpha=0.8)
-        ax.set_title(title, fontsize=14)
+        ax.set_title(title, fontsize=10)
         ax.set_ylabel(ylabel)
         ax.set_xticklabels(valid_methods, rotation=45, ha='right')
         ax.grid(axis='y', alpha=0.3)
 
         # Add legend showing best log likelihood value
         best_label = f'Best {ylabel} = {best_score:.2f}'
-        ax.legend([bars[best_idx]], [best_label], loc='best', framealpha=0.9)
+        ax.legend([bars[best_idx]], [best_label], loc='upper right', framealpha=0.9, ncol=1, fontsize=8)
 
         plt.tight_layout()
         return fig
@@ -223,7 +223,7 @@ class ComparisonVisualizer:
 
         ax.set_xlabel(self._format_metric_name(performance_metric))
         ax.set_ylabel("Quality Score")
-        ax.set_title(title, fontsize=14)
+        ax.set_title(title, fontsize=10)
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -272,8 +272,8 @@ class ComparisonVisualizer:
 
         ax.set_xlabel(xlabel, fontsize=12)
         ax.set_ylabel(ylabel, fontsize=12)
-        ax.set_title(title, fontsize=14)
-        ax.legend()
+        ax.set_title(title, fontsize=10)
+        ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
         ax.grid(True, alpha=0.3)
 
         if log_x:
@@ -325,8 +325,8 @@ class ComparisonVisualizer:
 
         ax.set_xlabel(param_name, fontsize=12)
         ax.set_ylabel(ylabel, fontsize=12)
-        ax.set_title(title, fontsize=14)
-        ax.legend()
+        ax.set_title(title, fontsize=10)
+        ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -428,7 +428,7 @@ class ComparisonVisualizer:
         colors = ['green' if status else 'red' for status in status_values]
 
         bars = ax.bar(methods, status_values, color=colors, alpha=0.7)
-        ax.set_title(title, fontsize=14)
+        ax.set_title(title, fontsize=10)
         ax.set_ylabel("Converged (1=Yes, 0=No)")
         ax.set_ylim([0, 1.2])
         ax.tick_params(axis='x', rotation=45)
@@ -557,7 +557,7 @@ class ComparisonVisualizer:
             bars = ax.bar(valid_methods, values, yerr=errors, color=colors,
                          alpha=0.8, capsize=5, error_kw={'elinewidth': 2})
 
-            ax.set_title(title, fontsize=14)
+            ax.set_title(title, fontsize=10)
             ax.set_ylabel("Mean Factor Correlation (higher = more stable)")
             ax.set_ylim([0, 1.1])
             ax.tick_params(axis='x', rotation=45)
@@ -565,7 +565,7 @@ class ComparisonVisualizer:
             stability_threshold = 0.7
             ax.axhline(y=stability_threshold, color='orange', linestyle='--',
                       alpha=0.5, label=f'Stability Threshold = {stability_threshold}')
-            ax.legend()
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
             # Add value labels above error bars
             for bar, val, err in zip(bars, values, errors):

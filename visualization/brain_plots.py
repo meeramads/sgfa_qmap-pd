@@ -487,10 +487,10 @@ class BrainVisualizer:
         ax.axhline(
             y=0.8, color="red", linestyle="--", alpha=0.7, label="80% threshold"
         )
-        ax.set_title("Cumulative Loading Contribution")
+        ax.set_title("Cumulative Loading Contribution", fontsize=10)
         ax.set_xlabel("Feature Index (sorted by loading magnitude)")
         ax.set_ylabel("Cumulative Loading Contribution")
-        ax.legend()
+        ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
         ax.grid(True, alpha=0.3)
 
     def _generate_feature_labels(self, feature_indices: np.ndarray, feature_info: Dict = None) -> List[str]:

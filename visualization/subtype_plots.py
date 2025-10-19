@@ -254,7 +254,7 @@ class PDSubtypeVisualizer:
         ax.set_title('Clinical Validation of Discovered PD Subtypes')
         ax.set_xticks(range(len(measures)))
         ax.set_xticklabels(measures, rotation=45, ha='right')
-        ax.legend()
+        ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()

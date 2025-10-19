@@ -20,13 +20,36 @@ RESULTS_DIR = Path("./results")
 QC_THRESHOLD = 3.0  # MAD threshold (matches your config)
 
 def load_sn_data():
-    """Load SN imaging data."""
+    """Load SN imaging data and return both data and mask of kept columns."""
     sn_file = DATA_DIR / "volume_matrices" / "volume_sn_voxels.tsv"
     logger.info(f"Loading SN data from {sn_file}")
     # Load without index column - it's just raw data values
     data = pd.read_csv(sn_file, sep='\t', header=None)
-    logger.info(f"  Shape: {data.shape} (subjects × voxels)")
-    return data
+    logger.info(f"  Shape before dedup: {data.shape}")
+
+    # Drop duplicate subjects (rows) - matches qmap_pd.py line 202
+    data = data.drop_duplicates(keep="first").reset_index(drop=True)
+    logger.info(f"  Shape after row dedup: {data.shape}")
+
+    # Drop duplicate voxels (columns) and track which were kept
+    original_cols = data.shape[1]
+    data_T = data.T
+    # Get indices of non-duplicate columns
+    _, unique_indices = np.unique(data_T.values, axis=0, return_index=True)
+    unique_indices = sorted(unique_indices)  # Keep original order
+
+    # Create mask of kept columns
+    column_keep_mask = np.zeros(original_cols, dtype=bool)
+    column_keep_mask[unique_indices] = True
+
+    # Filter data to keep only unique columns
+    data = data.iloc[:, column_keep_mask]
+
+    if data.shape[1] < original_cols:
+        logger.info(f"  Removed {original_cols - data.shape[1]} duplicate voxel columns")
+    logger.info(f"  Final shape: {data.shape} (subjects × voxels)")
+
+    return data, column_keep_mask
 
 def load_position_lookup():
     """Load original SN position lookup."""
@@ -92,31 +115,31 @@ def apply_mad_filtering(data, threshold=3.0):
     return keep_mask
 
 def create_filtered_positions():
-    """Create filtered position lookup."""
+    """Create filtered position lookup by tracking all dropped columns."""
 
-    # Load data
-    sn_data = load_sn_data()
+    # Load data and get initial deduplication mask
+    sn_data, dedup_column_mask = load_sn_data()
     positions = load_position_lookup()
 
-    # Verify dimensions match (allow for minor mismatches due to dropped voxels)
-    if len(positions) != sn_data.shape[1]:
-        logger.warning(f"Dimension mismatch: {len(positions)} positions vs {sn_data.shape[1]} voxels")
+    # Start with full position lookup (1794 rows)
+    logger.info(f"Original position lookup: {len(positions)} rows")
 
-        # Handle mismatch by truncating to smaller dimension
-        min_size = min(len(positions), sn_data.shape[1])
-        logger.warning(f"Truncating both to {min_size} voxels to match dimensions")
+    # Apply deduplication mask to positions (removes rows for duplicate columns)
+    positions_after_dedup = positions[dedup_column_mask].copy()
+    positions_after_dedup.reset_index(drop=True, inplace=True)
+    logger.info(f"After removing duplicate column positions: {len(positions_after_dedup)} rows")
 
-        positions = positions.iloc[:min_size]
-        sn_data = sn_data.iloc[:, :min_size]
+    # Verify dimensions match after deduplication
+    if len(positions_after_dedup) != sn_data.shape[1]:
+        logger.error(f"Dimension mismatch after dedup: {len(positions_after_dedup)} positions vs {sn_data.shape[1]} voxels")
+        logger.error("This should not happen - dedup mask should align data and positions")
+        return None
 
-        logger.info(f"  Adjusted positions shape: {positions.shape}")
-        logger.info(f"  Adjusted data shape: {sn_data.shape}")
+    # Apply MAD filtering to get mask of columns to KEEP
+    mad_keep_mask = apply_mad_filtering(sn_data, threshold=QC_THRESHOLD)
 
-    # Apply MAD filtering
-    keep_mask = apply_mad_filtering(sn_data, threshold=QC_THRESHOLD)
-
-    # Filter positions
-    filtered_positions = positions[keep_mask].copy()
+    # Apply MAD mask to positions (removes rows for MAD outlier columns)
+    filtered_positions = positions_after_dedup[mad_keep_mask].copy()
     filtered_positions.reset_index(drop=True, inplace=True)
 
     logger.info(f"Filtered positions shape: {filtered_positions.shape}")

@@ -178,7 +178,7 @@ class FactorVisualizer:
         ax.set_ylabel("Factors")
         ax.set_yticks(range(Z.shape[1]))
         ax.set_yticklabels([f"Factor {i + 1}" for i in range(Z.shape[1])])
-        ax.set_title("Factor Scores Across Subjects", fontsize=14, fontweight="bold")
+        ax.set_title("Factor Scores Across Subjects", fontsize=10)
 
         # Colorbar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046)
@@ -297,7 +297,7 @@ class FactorVisualizer:
         )
         ax.set_xticks(x)
         ax.set_xticklabels([f"F{i + 1}" for i in range(n_factors)])
-        ax.legend()
+        ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
         plt.tight_layout()
 
@@ -365,7 +365,7 @@ class FactorVisualizer:
         fig, ax = plt.subplots(figsize=(12, 8))
 
         im = ax.imshow(W.T, cmap='RdBu_r', aspect='auto')
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_title(title, fontsize=10)
         ax.set_xlabel('Features')
         ax.set_ylabel('Factors')
 
@@ -386,7 +386,7 @@ class FactorVisualizer:
         fig, ax = plt.subplots(figsize=(12, 8))
 
         im = ax.imshow(Z.T, cmap='RdBu_r', aspect='auto')
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_title(title, fontsize=10)
         ax.set_xlabel('Subjects')
         ax.set_ylabel('Factors')
 
@@ -894,7 +894,7 @@ class FactorVisualizer:
             ax.set_title('Loading Magnitude Distribution', fontweight='bold')
             ax.set_xlabel('|Loading|')
             ax.set_ylabel('Number of Regions')
-            ax.legend()
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
             # 4. Factor loading variability (replacing spatial coherence when no spatial info)
             ax = axes[1, 0]
@@ -918,7 +918,7 @@ class FactorVisualizer:
 
                 # Add interpretation guide
                 ax.axhline(0, color='black', linestyle='--', alpha=0.5, label='Random')
-                ax.legend()
+                ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
             else:
                 # Alternative analysis: Factor loading variability (doesn't require spatial info)
                 logger.info(f"No spatial information available for {view_name}. Using loading variability analysis instead.")

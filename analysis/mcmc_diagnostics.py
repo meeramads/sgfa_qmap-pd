@@ -734,6 +734,7 @@ def plot_hyperparameter_posteriors(
     num_sources: Optional[int] = None,
     save_individual: bool = True,
     output_dir: Optional[str] = None,
+    view_names: Optional[List[str]] = None,
 ) -> plt.Figure:
     """Plot posterior distributions of hyperparameters (tauW, tauZ, sigma, cW, cZ).
 
@@ -844,11 +845,7 @@ def plot_hyperparameter_posteriors(
     if axes.ndim == 1:
         axes = axes.reshape(-1, 1)
 
-    title_text = "Hyperparameter Posterior Distributions\n"
-    title_text += "(tauW/tauZ: global shrinkage, sigma: noise precision"
-    if has_cW or has_cZ:
-        title_text += ", cW/cZ: slab regularization"
-    title_text += ")"
+    title_text = "Hyperparameter Posterior Distributions"
 
     fig.suptitle(
         title_text,
@@ -861,6 +858,34 @@ def plot_hyperparameter_posteriors(
     # ========================================================================
     for view_idx in range(num_sources):
         param_name = f"tauW{view_idx + 1}"
+
+        # Get view name for labeling
+        if view_names and view_idx < len(view_names):
+            view_label = view_names[view_idx]
+            # Clean up view name: "volume_sn_voxels" -> "SN"
+            if view_label.startswith("volume_"):
+                view_label = view_label.replace("volume_", "").replace("_voxels", "")
+            elif view_label == "imaging":
+                view_label = "Imaging"
+            elif view_label == "clinical":
+                view_label = "Clinical"
+
+            # Capitalize specific ROI names
+            if view_label.lower() == "sn":
+                view_label = "SN"
+            elif view_label.lower() == "putamen":
+                view_label = "Putamen"
+            elif view_label.lower() == "lentiform":
+                view_label = "Lentiform"
+            elif view_label.lower() == "caudate":
+                view_label = "Caudate"
+            elif view_label.lower() == "thalamus":
+                view_label = "Thalamus"
+            elif view_label.lower() not in ["sn", "clinical", "imaging"]:
+                # For other ROIs, capitalize first letter
+                view_label = view_label.capitalize()
+        else:
+            view_label = f"View {view_idx + 1}"
 
         for k in range(K):
             ax = axes[view_idx, k]
@@ -889,11 +914,9 @@ def plot_hyperparameter_posteriors(
 
                 ax.set_xlabel(r'$\tau_W$ Value')
                 ax.set_ylabel('Density')
-                ax.set_title(f'tauW (View {view_idx + 1}, Factor {k})', fontsize=10)
+                ax.set_title(f'tauW ({view_label}, Factor {k})', fontsize=10)
                 ax.grid(True, alpha=0.3)
-
-                if k == 0:
-                    ax.legend(fontsize=7, loc='best')
+                ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
                 # Add vertical line at prior mean/mode if known
                 # For TruncatedCauchy, mode is at 0
@@ -936,9 +959,7 @@ def plot_hyperparameter_posteriors(
             ax.set_ylabel('Density')
             ax.set_title(f'tauZ (Factor {k})', fontsize=10)
             ax.grid(True, alpha=0.3)
-
-            if k == 0:
-                ax.legend(fontsize=7, loc='best')
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
             # Add vertical line at prior mode
             ax.axvline(0, color='red', linestyle='--', alpha=0.5, linewidth=1, label='Prior mode')
@@ -959,6 +980,34 @@ def plot_hyperparameter_posteriors(
             col_idx = m  # Column index (one per view)
 
             ax = axes[ax_idx, col_idx] if axes.ndim == 2 else axes[ax_idx]
+
+            # Get view name for labeling
+            if view_names and m < len(view_names):
+                view_label = view_names[m]
+                # Clean up view name: "volume_sn_voxels" -> "SN"
+                if view_label.startswith("volume_"):
+                    view_label = view_label.replace("volume_", "").replace("_voxels", "")
+                elif view_label == "imaging":
+                    view_label = "Imaging"
+                elif view_label == "clinical":
+                    view_label = "Clinical"
+
+                # Capitalize specific ROI names
+                if view_label.lower() == "sn":
+                    view_label = "SN"
+                elif view_label.lower() == "putamen":
+                    view_label = "Putamen"
+                elif view_label.lower() == "lentiform":
+                    view_label = "Lentiform"
+                elif view_label.lower() == "caudate":
+                    view_label = "Caudate"
+                elif view_label.lower() == "thalamus":
+                    view_label = "Thalamus"
+                elif view_label.lower() not in ["sn", "clinical", "imaging"]:
+                    # For other ROIs, capitalize first letter
+                    view_label = view_label.capitalize()
+            else:
+                view_label = f"View {m + 1}"
 
             for chain_idx in range(n_chains):
                 samples = samples_by_chain[chain_idx]["sigma"]
@@ -983,11 +1032,9 @@ def plot_hyperparameter_posteriors(
 
             ax.set_xlabel(r'$\sigma$ (Noise Precision)')
             ax.set_ylabel('Density')
-            ax.set_title(f'Sigma (View {m + 1})', fontsize=10)
+            ax.set_title(f'Sigma ({view_label})', fontsize=10)
             ax.grid(True, alpha=0.3)
-
-            if m == 0:
-                ax.legend(fontsize=7, loc='best')
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
             # Add note about prior (Gamma with a_sigma, b_sigma)
             # Mean of Gamma(a, b) is a/b
@@ -1012,6 +1059,34 @@ def plot_hyperparameter_posteriors(
             row_offset += 1  # After sigma
 
         for view_idx in range(num_sources):
+            # Get view name for labeling
+            if view_names and view_idx < len(view_names):
+                view_label = view_names[view_idx]
+                # Clean up view name: "volume_sn_voxels" -> "SN"
+                if view_label.startswith("volume_"):
+                    view_label = view_label.replace("volume_", "").replace("_voxels", "")
+                elif view_label == "imaging":
+                    view_label = "Imaging"
+                elif view_label == "clinical":
+                    view_label = "Clinical"
+
+                # Capitalize specific ROI names
+                if view_label.lower() == "sn":
+                    view_label = "SN"
+                elif view_label.lower() == "putamen":
+                    view_label = "Putamen"
+                elif view_label.lower() == "lentiform":
+                    view_label = "Lentiform"
+                elif view_label.lower() == "caudate":
+                    view_label = "Caudate"
+                elif view_label.lower() == "thalamus":
+                    view_label = "Thalamus"
+                elif view_label.lower() not in ["sn", "clinical", "imaging"]:
+                    # For other ROIs, capitalize first letter
+                    view_label = view_label.capitalize()
+            else:
+                view_label = f"View {view_idx + 1}"
+
             for k in range(K):
                 ax_idx = row_offset + view_idx
                 col_idx = k
@@ -1041,11 +1116,9 @@ def plot_hyperparameter_posteriors(
 
                 ax.set_xlabel(r'$c_W$ Value')
                 ax.set_ylabel('Density')
-                ax.set_title(f'cW (View {view_idx + 1}, Factor {k})', fontsize=10)
+                ax.set_title(f'cW ({view_label}, Factor {k})', fontsize=10)
                 ax.grid(True, alpha=0.3)
-
-                if k == 0 and view_idx == 0:
-                    ax.legend(fontsize=7, loc='best')
+                ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
                 # Add note about prior
                 ax.text(0.98, 0.98, 'InvGamma prior',
@@ -1095,9 +1168,7 @@ def plot_hyperparameter_posteriors(
             ax.set_ylabel('Density')
             ax.set_title(f'cZ (Factor {k})', fontsize=10)
             ax.grid(True, alpha=0.3)
-
-            if k == 0:
-                ax.legend(fontsize=7, loc='best')
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
             # Add note about prior
             ax.text(0.98, 0.98, 'InvGamma prior',
@@ -1133,6 +1204,9 @@ def plot_hyperparameter_traces(
     save_path: Optional[str] = None,
     num_sources: Optional[int] = None,
     thin: int = 1,
+    view_names: Optional[List[str]] = None,
+    save_individual: bool = True,
+    output_dir: Optional[str] = None,
 ) -> plt.Figure:
     """Plot trace plots for hyperparameters (tauW, tauZ, sigma, cW, cZ).
 
@@ -1164,6 +1238,22 @@ def plot_hyperparameter_traces(
 
     n_chains = len(samples_by_chain)
     colors = sns.color_palette("husl", n_chains)
+
+    # Setup output directory for individual plots
+    if save_individual:
+        if output_dir is None:
+            if save_path:
+                from pathlib import Path
+                output_dir = Path(save_path).parent / "individual_trace_plots"
+            else:
+                from pathlib import Path
+                output_dir = Path(".") / "individual_trace_plots"
+        else:
+            from pathlib import Path
+            output_dir = Path(output_dir)
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"  Individual trace plots will be saved to: {output_dir}")
 
     # Infer number of sources
     if num_sources is None:
@@ -1209,13 +1299,7 @@ def plot_hyperparameter_traces(
     if axes.ndim == 1:
         axes = axes.reshape(-1, 1)
 
-    title_text = "Hyperparameter Trace Plots (Convergence Assessment)\n"
-    title_text += "(tauW, tauZ"
-    if has_sigma:
-        title_text += ", sigma"
-    if has_cW or has_cZ:
-        title_text += ", cW/cZ"
-    title_text += ")"
+    title_text = "Hyperparameter Trace Plots"
 
     fig.suptitle(
         title_text,
@@ -1230,6 +1314,34 @@ def plot_hyperparameter_traces(
     # ========================================================================
     for view_idx in range(num_sources):
         param_name = f"tauW{view_idx + 1}"
+
+        # Get view name for labeling
+        if view_names and view_idx < len(view_names):
+            view_label = view_names[view_idx]
+            # Clean up view name: "volume_sn_voxels" -> "SN"
+            if view_label.startswith("volume_"):
+                view_label = view_label.replace("volume_", "").replace("_voxels", "")
+            elif view_label == "imaging":
+                view_label = "Imaging"
+            elif view_label == "clinical":
+                view_label = "Clinical"
+
+            # Capitalize specific ROI names
+            if view_label.lower() == "sn":
+                view_label = "SN"
+            elif view_label.lower() == "putamen":
+                view_label = "Putamen"
+            elif view_label.lower() == "lentiform":
+                view_label = "Lentiform"
+            elif view_label.lower() == "caudate":
+                view_label = "Caudate"
+            elif view_label.lower() == "thalamus":
+                view_label = "Thalamus"
+            elif view_label.lower() not in ["sn", "clinical", "imaging"]:
+                # For other ROIs, capitalize first letter
+                view_label = view_label.capitalize()
+        else:
+            view_label = f"View {view_idx + 1}"
 
         for k in range(K):
             ax = axes[view_idx, k]
@@ -1255,11 +1367,36 @@ def plot_hyperparameter_traces(
 
                 ax.set_xlabel('Iteration')
                 ax.set_ylabel(r'$\tau_W$ Value')
-                ax.set_title(f'tauW Trace (View {view_idx + 1}, Factor {k})', fontsize=10)
+                ax.set_title(f'tauW Trace ({view_label}, Factor {k})', fontsize=10)
                 ax.grid(True, alpha=0.3)
+                ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
-                if k == 0 and view_idx == 0:
-                    ax.legend(fontsize=7, loc='best')
+                # Save individual plot
+                if save_individual:
+                    individual_fig, individual_ax = plt.subplots(1, 1, figsize=(6, 4))
+                    for chain_idx in range(n_chains):
+                        samples = samples_by_chain[chain_idx][param_name]
+                        if len(samples.shape) == 1:
+                            tau_trace = samples[::thin]
+                        else:
+                            tau_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
+                        individual_ax.plot(
+                            iterations[:len(tau_trace)],
+                            tau_trace,
+                            color=colors[chain_idx],
+                            alpha=0.7,
+                            linewidth=1,
+                            label=f'Chain {chain_idx}'
+                        )
+                    individual_ax.set_xlabel('Iteration')
+                    individual_ax.set_ylabel(r'$\tau_W$ Value')
+                    individual_ax.set_title(f'tauW Trace ({view_label}, Factor {k})', fontsize=10)
+                    individual_ax.grid(True, alpha=0.3)
+                    individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
+                    individual_fig.tight_layout()
+                    individual_path = output_dir / f"trace_tauW_{view_label}_factor{k}.png"
+                    save_plot(individual_fig, str(individual_path))
+                    plt.close(individual_fig)
 
             else:
                 ax.text(0.5, 0.5, f'{param_name}\nnot found',
@@ -1298,6 +1435,36 @@ def plot_hyperparameter_traces(
             ax.set_ylabel(r'$\tau_Z$ Value')
             ax.set_title(f'tauZ Trace (Factor {k})', fontsize=10)
             ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
+
+            # Save individual plot
+            if save_individual:
+                individual_fig, individual_ax = plt.subplots(1, 1, figsize=(6, 4))
+                for chain_idx in range(n_chains):
+                    samples = samples_by_chain[chain_idx]["tauZ"]
+                    if len(samples.shape) == 3:
+                        tau_trace = samples[::thin, 0, k]
+                    elif len(samples.shape) == 2:
+                        tau_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
+                    else:
+                        tau_trace = samples[::thin]
+                    individual_ax.plot(
+                        iterations[:len(tau_trace)],
+                        tau_trace,
+                        color=colors[chain_idx],
+                        alpha=0.7,
+                        linewidth=1,
+                        label=f'Chain {chain_idx}'
+                    )
+                individual_ax.set_xlabel('Iteration')
+                individual_ax.set_ylabel(r'$\tau_Z$ Value')
+                individual_ax.set_title(f'tauZ Trace (Factor {k})', fontsize=10)
+                individual_ax.grid(True, alpha=0.3)
+                individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9)
+                individual_fig.tight_layout()
+                individual_path = output_dir / f"trace_tauZ_factor{k}.png"
+                save_plot(individual_fig, str(individual_path))
+                plt.close(individual_fig)
 
         else:
             ax.text(0.5, 0.5, 'tauZ\nnot found',
@@ -1314,6 +1481,34 @@ def plot_hyperparameter_traces(
             col_idx = m  # Column index (one per view)
 
             ax = axes[ax_idx, col_idx] if axes.ndim == 2 else axes[ax_idx]
+
+            # Get view name for labeling
+            if view_names and m < len(view_names):
+                view_label = view_names[m]
+                # Clean up view name: "volume_sn_voxels" -> "SN"
+                if view_label.startswith("volume_"):
+                    view_label = view_label.replace("volume_", "").replace("_voxels", "")
+                elif view_label == "imaging":
+                    view_label = "Imaging"
+                elif view_label == "clinical":
+                    view_label = "Clinical"
+
+                # Capitalize specific ROI names
+                if view_label.lower() == "sn":
+                    view_label = "SN"
+                elif view_label.lower() == "putamen":
+                    view_label = "Putamen"
+                elif view_label.lower() == "lentiform":
+                    view_label = "Lentiform"
+                elif view_label.lower() == "caudate":
+                    view_label = "Caudate"
+                elif view_label.lower() == "thalamus":
+                    view_label = "Thalamus"
+                elif view_label.lower() not in ["sn", "clinical", "imaging"]:
+                    # For other ROIs, capitalize first letter
+                    view_label = view_label.capitalize()
+            else:
+                view_label = f"View {m + 1}"
 
             for chain_idx in range(n_chains):
                 samples = samples_by_chain[chain_idx]["sigma"]
@@ -1338,11 +1533,38 @@ def plot_hyperparameter_traces(
 
             ax.set_xlabel('Iteration')
             ax.set_ylabel(r'$\sigma$ (Noise Precision)')
-            ax.set_title(f'Sigma Trace (View {m + 1})', fontsize=10)
+            ax.set_title(f'Sigma Trace ({view_label})', fontsize=10)
             ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
-            if m == 0:
-                ax.legend(fontsize=7, loc='best')
+            # Save individual plot
+            if save_individual:
+                individual_fig, individual_ax = plt.subplots(1, 1, figsize=(6, 4))
+                for chain_idx in range(n_chains):
+                    samples = samples_by_chain[chain_idx]["sigma"]
+                    if len(samples.shape) == 3:
+                        sigma_trace = samples[::thin, 0, m]
+                    elif len(samples.shape) == 2:
+                        sigma_trace = samples[::thin, m] if samples.shape[1] > m else samples[::thin, 0]
+                    else:
+                        sigma_trace = samples[::thin].flatten()
+                    individual_ax.plot(
+                        iterations[:len(sigma_trace)],
+                        sigma_trace,
+                        color=colors[chain_idx],
+                        alpha=0.7,
+                        linewidth=1,
+                        label=f'Chain {chain_idx}'
+                    )
+                individual_ax.set_xlabel('Iteration')
+                individual_ax.set_ylabel(r'$\sigma$ (Noise Precision)')
+                individual_ax.set_title(f'Sigma Trace ({view_label})', fontsize=10)
+                individual_ax.grid(True, alpha=0.3)
+                individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9)
+                individual_fig.tight_layout()
+                individual_path = output_dir / f"trace_sigma_{view_label}.png"
+                save_plot(individual_fig, str(individual_path))
+                plt.close(individual_fig)
 
         # Hide any unused subplots in the sigma row
         if axes.ndim == 2:
@@ -1360,6 +1582,34 @@ def plot_hyperparameter_traces(
             row_offset += 1  # After sigma
 
         for view_idx in range(num_sources):
+            # Get view name for labeling
+            if view_names and view_idx < len(view_names):
+                view_label = view_names[view_idx]
+                # Clean up view name: "volume_sn_voxels" -> "SN"
+                if view_label.startswith("volume_"):
+                    view_label = view_label.replace("volume_", "").replace("_voxels", "")
+                elif view_label == "imaging":
+                    view_label = "Imaging"
+                elif view_label == "clinical":
+                    view_label = "Clinical"
+
+                # Capitalize specific ROI names
+                if view_label.lower() == "sn":
+                    view_label = "SN"
+                elif view_label.lower() == "putamen":
+                    view_label = "Putamen"
+                elif view_label.lower() == "lentiform":
+                    view_label = "Lentiform"
+                elif view_label.lower() == "caudate":
+                    view_label = "Caudate"
+                elif view_label.lower() == "thalamus":
+                    view_label = "Thalamus"
+                elif view_label.lower() not in ["sn", "clinical", "imaging"]:
+                    # For other ROIs, capitalize first letter
+                    view_label = view_label.capitalize()
+            else:
+                view_label = f"View {view_idx + 1}"
+
             for k in range(K):
                 ax_idx = row_offset + view_idx
                 col_idx = k
@@ -1388,11 +1638,38 @@ def plot_hyperparameter_traces(
 
                 ax.set_xlabel('Iteration')
                 ax.set_ylabel(r'$c_W$ Value')
-                ax.set_title(f'cW Trace (View {view_idx + 1}, Factor {k})', fontsize=10)
+                ax.set_title(f'cW Trace ({view_label}, Factor {k})', fontsize=10)
                 ax.grid(True, alpha=0.3)
+                ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
-                if k == 0 and view_idx == 0:
-                    ax.legend(fontsize=7, loc='best')
+                # Save individual plot
+                if save_individual:
+                    individual_fig, individual_ax = plt.subplots(1, 1, figsize=(6, 4))
+                    for chain_idx in range(n_chains):
+                        samples = samples_by_chain[chain_idx]["cW"]
+                        if len(samples.shape) == 3:
+                            cW_trace = samples[::thin, view_idx, k]
+                        elif len(samples.shape) == 2:
+                            cW_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
+                        else:
+                            cW_trace = samples[::thin].flatten()
+                        individual_ax.plot(
+                            iterations[:len(cW_trace)],
+                            cW_trace,
+                            color=colors[chain_idx],
+                            alpha=0.7,
+                            linewidth=1,
+                            label=f'Chain {chain_idx}'
+                        )
+                    individual_ax.set_xlabel('Iteration')
+                    individual_ax.set_ylabel(r'$c_W$ Value')
+                    individual_ax.set_title(f'cW Trace ({view_label}, Factor {k})', fontsize=10)
+                    individual_ax.grid(True, alpha=0.3)
+                    individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
+                    individual_fig.tight_layout()
+                    individual_path = output_dir / f"trace_cW_{view_label}_factor{k}.png"
+                    save_plot(individual_fig, str(individual_path))
+                    plt.close(individual_fig)
 
             # Hide unused columns for this view
             for col_idx in range(K, n_cols):
@@ -1436,9 +1713,36 @@ def plot_hyperparameter_traces(
             ax.set_ylabel(r'$c_Z$ Value')
             ax.set_title(f'cZ Trace (Factor {k})', fontsize=10)
             ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
-            if k == 0:
-                ax.legend(fontsize=7, loc='best')
+            # Save individual plot
+            if save_individual:
+                individual_fig, individual_ax = plt.subplots(1, 1, figsize=(6, 4))
+                for chain_idx in range(n_chains):
+                    samples = samples_by_chain[chain_idx]["cZ"]
+                    if len(samples.shape) == 3:
+                        cZ_trace = samples[::thin, 0, k]
+                    elif len(samples.shape) == 2:
+                        cZ_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
+                    else:
+                        cZ_trace = samples[::thin].flatten()
+                    individual_ax.plot(
+                        iterations[:len(cZ_trace)],
+                        cZ_trace,
+                        color=colors[chain_idx],
+                        alpha=0.7,
+                        linewidth=1,
+                        label=f'Chain {chain_idx}'
+                    )
+                individual_ax.set_xlabel('Iteration')
+                individual_ax.set_ylabel(r'$c_Z$ Value')
+                individual_ax.set_title(f'cZ Trace (Factor {k})', fontsize=10)
+                individual_ax.grid(True, alpha=0.3)
+                individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9)
+                individual_fig.tight_layout()
+                individual_path = output_dir / f"trace_cZ_factor{k}.png"
+                save_plot(individual_fig, str(individual_path))
+                plt.close(individual_fig)
 
         # Hide unused columns in cZ row
         for col_idx in range(K, n_cols):

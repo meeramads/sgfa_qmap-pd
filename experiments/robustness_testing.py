@@ -2684,6 +2684,7 @@ class RobustnessExperiments(ExperimentFramework):
                             num_sources=num_sources,
                             save_individual=True,
                             output_dir=str(individual_plots_dir),
+                            view_names=view_names,
                         )
                         plots["hyperparameter_posteriors"] = fig_hyper_post
                         self.logger.info("   ✅ Hyperparameter posterior plots created")
@@ -2694,6 +2695,9 @@ class RobustnessExperiments(ExperimentFramework):
                             save_path=None,
                             num_sources=num_sources,
                             thin=max(1, W_samples.shape[1] // 1000),
+                            view_names=view_names,
+                            save_individual=True,
+                            output_dir=str(individual_plots_dir),
                         )
                         plots["hyperparameter_traces"] = fig_hyper_trace
                         self.logger.info("   ✅ Hyperparameter trace plots created")

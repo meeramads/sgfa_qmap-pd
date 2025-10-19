@@ -162,10 +162,10 @@ class PreprocessingVisualizer:
             ax.set_ylabel('Count')
             # Format view name to be human-readable
             formatted_name = _format_view_name(view_name)
-            ax.set_title(f'{formatted_name}\nVariance Distribution')
+            ax.set_title(f'{formatted_name}\nVariance Distribution', fontsize=10)
             ax.grid(True, alpha=0.3)
             if threshold > 0:
-                ax.legend()
+                ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
 
         plt.tight_layout()
 
@@ -194,7 +194,7 @@ class PreprocessingVisualizer:
         ax.set_yticks(y_pos)
         ax.set_yticklabels(names)
         ax.set_xlabel("RMSE")
-        ax.set_title("Source Combination Performance", fontsize=14, fontweight="bold")
+        ax.set_title("Source Combination Performance", fontsize=10)
         ax.grid(True, alpha=0.3, axis="x")
 
         plt.tight_layout()
