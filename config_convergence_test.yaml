@@ -26,9 +26,10 @@ data:
   clinical_file: "data_clinical/pd_motor_gfa_data.tsv"
   volume_dir: "volume_matrices"
 
-  # CRITICAL: Use only SN ROI to match baseline
+  # ROI selection: Will load all volume files found in volume_matrices/
+  # Baseline used: volume_sn_voxels.tsv (SN ROI only)
+  # To match baseline, ensure only SN file is present or specified via volume_files
   imaging_as_single_view: true
-  selected_rois: ["sn"]                # Only SN data (matches baseline)
 
 # Experiment Configuration
 experiments:
