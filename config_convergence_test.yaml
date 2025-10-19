@@ -20,12 +20,15 @@
 # 📊 Baseline comparison: R-hat was 12.6 (catastrophic) -> target < 1.01
 # =============================================================================
 
-# Data Configuration
+# Data Configuration - MUST MATCH BASELINE EXACTLY
 data:
   data_dir: "./qMAP-PD_data"
   clinical_file: "data_clinical/pd_motor_gfa_data.tsv"
   volume_dir: "volume_matrices"
+
+  # CRITICAL: Use only SN ROI to match baseline
   imaging_as_single_view: true
+  selected_rois: ["sn"]                # Only SN data (matches baseline)
 
 # Experiment Configuration
 experiments:
