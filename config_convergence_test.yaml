@@ -1,0 +1,102 @@
+# =============================================================================
+# SGFA CONVERGENCE TEST CONFIGURATION - Testing Convergence Fixes
+#
+# This config tests the fixed model with convergence improvements:
+# 🔧 FIXES IMPLEMENTED:
+#   - Fix #1: Data-dependent global scale τ₀
+#   - Fix #2: Proper slab regularization
+#   - Fix #3: Non-centered parameterization
+#   - Fix #4: Within-view standardization (preprocessing)
+#   - Fix #5: PCA initialization (to be added)
+#
+# 🎯 CONVERGENCE TARGETS:
+#   - R-hat < 1.01 for all parameters
+#   - τ ∈ [0.01, 0.05] (centered ~0.0215)
+#   - c ∈ [1, 3] (centered ~2)
+#   - Divergence rate < 1%
+#   - ESS > 400
+#
+# ⏱️  Expected runtime: ~15-30 minutes (moderate sampling for proper convergence check)
+# 📊 Baseline comparison: R-hat was 12.6 (catastrophic) -> target < 1.01
+# =============================================================================
+
+# Data Configuration
+data:
+  data_dir: "./qMAP-PD_data"
+  clinical_file: "data_clinical/pd_motor_gfa_data.tsv"
+  volume_dir: "volume_matrices"
+  imaging_as_single_view: true
+
+# Experiment Configuration
+experiments:
+  base_output_dir: "./results"
+  save_intermediate: true
+  generate_plots: true
+  max_parallel_jobs: 1
+
+# Model Configuration - USING FIXED MODEL
+model:
+  model_type: "sparse_gfa_fixed"    # 🔧 USING FIXED MODEL WITH CONVERGENCE FIXES
+  K: 2                               # Same as baseline for comparison
+  num_sources: 2                     # Will be set automatically
+
+  # MCMC Parameters - Increased for better convergence
+  num_samples: 1000                  # Moderate for testing (full: 2000)
+  num_warmup: 1000                   # Increased warmup (full: 2000)
+  num_chains: 4                      # Full chains for R-hat calculation
+  target_accept_prob: 0.95           # Fix #5: Increased from 0.8
+  max_tree_depth: 12                 # Fix #5: Increased from 10
+
+  # Sparsity Parameters (same as baseline)
+  percW: 33.0
+  sparsity_lambda: 0.3
+
+  # Regularized horseshoe settings
+  reghsZ: true
+  slab_df: 4.0
+  slab_scale: 2.0
+
+  # Reproducibility
+  random_seed: 42
+
+# Preprocessing Configuration - FIX #4: Within-view standardization
+preprocessing:
+  strategy: "standard"
+  enable_advanced_preprocessing: true
+  within_view_standardization: true   # Fix #4: Separate standardization per view
+
+  # MAD filtering (same as baseline)
+  mad_threshold: 3.0
+
+  # Other settings
+  imputation_strategy: "mean"
+  missing_threshold: 0.1
+
+  # Confounds
+  remove_confounds: true
+  confound_variables: ["age", "sex", "tiv"]
+
+# Monitoring Configuration
+monitoring:
+  checkpoint_dir: "./results/convergence_test_checkpoints"
+  log_level: "INFO"
+  save_checkpoints: true
+  checkpoint_interval: 100
+
+# Validation Configuration - Focus on convergence diagnostics
+validation:
+  compute_r_hat: true
+  compute_ess: true
+  save_trace_plots: true
+  divergence_threshold: 0.01         # 1% threshold
+
+# Experiments to run - Focus on factor stability for convergence diagnostics
+run_experiments:
+  - factor_stability
+
+# Factor Stability Configuration - This will generate convergence diagnostics
+factor_stability:
+  enabled: true
+  generate_stability_plots: true
+  save_mcmc_diagnostics: true
+  save_chains: true                   # Save for detailed analysis

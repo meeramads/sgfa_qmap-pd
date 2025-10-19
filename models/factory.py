@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Type
 
 from .base import BaseGFAModel
 from .sparse_gfa import SparseGFAModel
+from .sparse_gfa_fixed import SparseGFAFixedModel
 from .standard_gfa import StandardGFAModel
 from .variants.neuroimaging_gfa import NeuroimagingGFAModel
 
@@ -55,6 +56,12 @@ class ModelFactory:
         "sparse_gfa": {  # Alias for compatibility
             "class": SparseGFAModel,
             "description": "Sparse Group Factor Analysis (snake_case alias)",
+            "required_params": ["K"],
+            "optional_params": ["percW", "tau_param"],
+        },
+        "sparse_gfa_fixed": {
+            "class": SparseGFAFixedModel,
+            "description": "Sparse GFA with convergence fixes (data-dependent τ₀, non-centered, proper slab)",
             "required_params": ["K"],
             "optional_params": ["percW", "tau_param"],
         },

@@ -1,0 +1,15 @@
+{
+  "run_folder": "all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251018_142445",
+  "experiment": "factor_stability",
+  "config": {
+    "K": 2,
+    "percW": 33.0,
+    "MAD_threshold": 3.0,
+    "model_type": "sparse_gfa"
+  },
+  "plots": {
+    "hyperparameter_traces": null,
+    "hyperparameter_posteriors": "results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251018_142445/03_factor_stability/plots/hyperparameter_posteriors.png"
+  },
+  "num_chains": 0
+}

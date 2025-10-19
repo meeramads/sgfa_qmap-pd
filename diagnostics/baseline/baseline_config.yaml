@@ -1,0 +1,27 @@
+# Document the configuration that produced catastrophic convergence
+baseline_configuration:
+  model: sparse_gfa  # Original model
+  K: 2
+  percW: 33.0
+  num_samples: 2000
+  num_warmup: 1000
+  num_chains: 4
+  MAD_threshold: 3.0
+
+  # From existing results
+  run_folder: "all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251018_142445"
+  experiment_path: "03_factor_stability"
+
+  # Observed issues (from rhat_convergence_diagnostics.json)
+  observed_rhat_values:
+    W_max_rhat: 12.613  # Factor 1
+    W_mean_rhat: 6.187
+    Z_max_rhat: 5.229   # Factor 1
+    Z_mean_rhat: 2.458
+
+  issues:
+    - "R-hat > 10 (catastrophic) for loadings W"
+    - "R-hat > 5 for latent factors Z"
+    - "Chains exploring different modes"
+    - "Severe convergence failure across all parameters"
+    - "Much worse than target R-hat < 1.01"
