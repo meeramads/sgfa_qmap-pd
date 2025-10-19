@@ -42,14 +42,56 @@ def _save_filtered_position_lookups(
     saved_files = {}
 
     for view_name in view_names:
-        # Only process imaging views
-        if not view_name.startswith("volume_"):
+        # Only process imaging views (skip clinical)
+        if view_name == "clinical":
+            continue
+
+        # Determine if this is an imaging view
+        is_imaging_view = view_name.startswith("volume_") or view_name == "imaging"
+
+        if not is_imaging_view:
+            logger.debug(f"Skipping non-imaging view: {view_name}")
             continue
 
         logger.info(f"Creating filtered position lookup for {view_name}...")
 
+        # Determine ROI name
+        if view_name.startswith("volume_"):
+            # Multi-view mode: volume_sn_voxels -> sn
+            roi_name = view_name.replace("volume_", "").replace("_voxels", "")
+        elif view_name == "imaging":
+            # Single-view mode: need to determine which ROI was loaded
+            # Check which ROI files exist in the data directory
+            roi_candidates = ["sn", "putamen", "lentiform", "caudate", "thalamus"]
+            roi_name = None
+            for candidate in roi_candidates:
+                test_positions = SpatialProcessingUtils.load_position_lookup(data_dir, candidate)
+                if test_positions is not None:
+                    # Check if size matches the view data
+                    if hasattr(preprocessor, 'outlier_masks_') and view_name in preprocessor.outlier_masks_:
+                        if len(test_positions) == len(preprocessor.outlier_masks_[view_name]):
+                            roi_name = candidate
+                            logger.info(f"  Detected ROI for 'imaging' view: {roi_name}")
+                            break
+
+            if roi_name is None:
+                logger.warning(f"Could not determine ROI for single imaging view, trying first available...")
+                # Fall back to first available ROI
+                for candidate in roi_candidates:
+                    test_positions = SpatialProcessingUtils.load_position_lookup(data_dir, candidate)
+                    if test_positions is not None:
+                        roi_name = candidate
+                        logger.info(f"  Using first available ROI: {roi_name}")
+                        break
+        else:
+            logger.warning(f"Unknown imaging view format: {view_name}, skipping")
+            continue
+
+        if roi_name is None:
+            logger.warning(f"Could not determine ROI name for {view_name}, skipping")
+            continue
+
         # Load original position lookup
-        roi_name = view_name.replace("volume_", "").replace("_voxels", "")
         original_positions = SpatialProcessingUtils.load_position_lookup(data_dir, roi_name)
 
         if original_positions is None:
