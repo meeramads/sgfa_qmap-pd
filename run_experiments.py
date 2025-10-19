@@ -63,10 +63,10 @@ def load_config(config_path="config.yaml"):
     try:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
-        logger.info(f" Loaded configuration from {config_path}")
+        logger.info(f"Loaded configuration from {config_path}")
         return config
     except Exception as e:
-        logger.error(f" Failed to load config: {e}")
+        logger.error(f"Failed to load config: {e}")
         sys.exit(1)
 
 

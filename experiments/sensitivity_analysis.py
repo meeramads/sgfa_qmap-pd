@@ -508,8 +508,11 @@ class SensitivityAnalysisExperiments(ExperimentFramework):
             }
 
             # Get optimal model configuration via factory
+            # Use model_type from config (allow args to override if provided)
+            if "model_type" in args:
+                config_dict["model"]["model_type"] = args["model_type"]
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
-                config={"model": {"type": "sparseGFA"}},
+                config=config_dict,
                 X_list=X_list,
                 data_characteristics=data_characteristics
             )

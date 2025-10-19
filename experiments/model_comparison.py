@@ -896,8 +896,16 @@ class ModelArchitectureComparison(ExperimentFramework):
             }
 
             # Get optimal model configuration via factory
+            # Use model_type from config (allow args to override if provided)
+            from core.config_utils import ConfigHelper
+            config_dict = ConfigHelper.to_dict(self.config)
+            if "model" in args:
+                # Map "model" arg to "model_type" in config
+                config_dict.setdefault("model", {})["model_type"] = args["model"]
+            elif "model_type" in args:
+                config_dict.setdefault("model", {})["model_type"] = args["model_type"]
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
-                config={"model": {"type": args.get("model", "sparseGFA")}},
+                config=config_dict,
                 X_list=X_list,
                 data_characteristics=data_characteristics,
                 hypers=hypers
@@ -3036,8 +3044,14 @@ class ModelArchitectureComparison(ExperimentFramework):
             }
 
             # Get optimal model configuration via factory
+            # Use model_type from config (config_dict already extracted above)
+            # Allow args to override if explicitly provided
+            if "model" in args:
+                config_dict.setdefault("model", {})["model_type"] = args["model"]
+            elif "model_type" in args:
+                config_dict.setdefault("model", {})["model_type"] = args["model_type"]
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
-                config={"model": {"type": "sparseGFA"}},
+                config=config_dict,
                 X_list=X_list,
                 data_characteristics=data_characteristics
             )
