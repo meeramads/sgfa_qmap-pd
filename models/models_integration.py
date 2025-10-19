@@ -83,6 +83,11 @@ def get_optimal_model_configuration(
         model_config = config.get("model", {})
         model_type = model_config.get("model_type", "sparseGFA")  # Default to sparse GFA
 
+        # Debug logging
+        if verbose:
+            logger.info(f"🔍 DEBUG: model_config keys: {list(model_config.keys())}")
+            logger.info(f"🔍 DEBUG: model_type from config: '{model_type}'")
+
         # Analyze data characteristics for model selection
         if data_characteristics and verbose:
             total_features = data_characteristics.get("total_features", 0)
@@ -129,6 +134,11 @@ def get_optimal_model_configuration(
         bayesian_models = ModelFactory.list_models()
         baseline_methods = ["PCA", "ICA", "FactorAnalysis", "NMF", "KMeans", "CCA"]
         available_models = bayesian_models + baseline_methods
+
+        # Debug logging
+        if verbose:
+            logger.info(f"🔍 DEBUG: Available Bayesian models: {bayesian_models}")
+            logger.info(f"🔍 DEBUG: Checking if '{model_type}' in bayesian_models: {model_type in bayesian_models}")
 
         if model_type not in bayesian_models:
             if verbose:

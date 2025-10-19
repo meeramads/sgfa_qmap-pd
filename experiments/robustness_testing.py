@@ -675,6 +675,12 @@ class RobustnessExperiments(ExperimentFramework):
             # Allow args to override if explicitly provided
             if "model_type" in args:
                 config_dict["model"]["model_type"] = args["model_type"]
+
+            # Debug: Log what model_type is in the config
+            if verbose:
+                model_type_in_config = config_dict.get("model", {}).get("model_type", "NOT SET")
+                self.logger.info(f"🔍 Config model_type: {model_type_in_config}")
+
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
                 config=config_dict,
                 X_list=X_list,
