@@ -18,7 +18,9 @@ from core.config_utils import (
 import argparse
 import logging
 import sys
+import os
 from datetime import datetime
+from pathlib import Path
 
 import yaml
 
@@ -37,6 +39,9 @@ class ResilientFileHandler(logging.FileHandler):
             # Silently ignore stale file handle errors on network filesystems
             pass
 
+
+# Ensure logs directory exists
+os.makedirs("logs", exist_ok=True)
 
 # Set up logging
 logging.basicConfig(
