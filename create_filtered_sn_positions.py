@@ -46,23 +46,46 @@ def load_position_lookup():
         return positions
 
 def apply_mad_filtering(data, threshold=3.0):
-    """Apply MAD-based outlier detection (voxel-level QC)."""
+    """
+    Apply MAD-based outlier detection (voxel-level QC).
+
+    For each voxel, check if ANY subject has an extreme value (>threshold MAD scores).
+    If so, mark that voxel as an outlier and remove it.
+
+    This matches the logic in data/preprocessing.py:detect_outlier_voxels()
+    """
     logger.info(f"Applying MAD filtering with threshold={threshold}")
 
     n_subjects, n_voxels = data.shape
+    outlier_mask = np.zeros(n_voxels, dtype=bool)
 
-    # For each voxel, calculate MAD across subjects
-    voxel_medians = data.median(axis=0)
-    voxel_mads = (data - voxel_medians).abs().median(axis=0)
+    # For each voxel
+    for i in range(n_voxels):
+        voxel_data = data.iloc[:, i].values
 
-    # Identify outlier voxels (those with MAD > threshold * median MAD)
-    median_mad = voxel_mads.median()
-    outlier_threshold = threshold * median_mad
+        # Remove NaN values
+        clean_data = voxel_data[~np.isnan(voxel_data)]
 
-    # Keep voxels with MAD below threshold
-    keep_mask = voxel_mads <= outlier_threshold
+        if len(clean_data) > 0:
+            # Calculate median and MAD for this voxel across subjects
+            median = np.median(clean_data)
+            mad = np.median(np.abs(clean_data - median))
+
+            # Check for extreme outliers using MAD
+            if mad > 0:  # Avoid division by zero
+                # Calculate MAD scores for all subjects at this voxel
+                mad_scores = np.abs(clean_data - median) / (mad * 1.4826)
+                max_mad_score = np.max(mad_scores)
+
+                # If ANY subject has extreme value, mark voxel as outlier
+                if max_mad_score > threshold:
+                    outlier_mask[i] = True
+
+    # Keep mask is inverse of outlier mask
+    keep_mask = ~outlier_mask
 
     logger.info(f"  Voxels before filtering: {n_voxels}")
+    logger.info(f"  Outlier voxels detected: {np.sum(outlier_mask)}")
     logger.info(f"  Voxels after filtering: {keep_mask.sum()}")
     logger.info(f"  Percentage retained: {100 * keep_mask.sum() / n_voxels:.1f}%")
 
