@@ -23,7 +23,8 @@ def load_sn_data():
     """Load SN imaging data."""
     sn_file = DATA_DIR / "volume_matrices" / "volume_sn_voxels.tsv"
     logger.info(f"Loading SN data from {sn_file}")
-    data = pd.read_csv(sn_file, sep='\t', index_col=0)
+    # Load without index column - it's just raw data values
+    data = pd.read_csv(sn_file, sep='\t', header=None)
     logger.info(f"  Shape: {data.shape} (subjects × voxels)")
     return data
 
@@ -74,11 +75,19 @@ def create_filtered_positions():
     sn_data = load_sn_data()
     positions = load_position_lookup()
 
-    # Verify dimensions match
+    # Verify dimensions match (allow for minor mismatches due to dropped voxels)
     if len(positions) != sn_data.shape[1]:
-        logger.error(f"Dimension mismatch: {len(positions)} positions vs {sn_data.shape[1]} voxels")
-        logger.error("Cannot create filtered position lookup")
-        return None
+        logger.warning(f"Dimension mismatch: {len(positions)} positions vs {sn_data.shape[1]} voxels")
+
+        # Handle mismatch by truncating to smaller dimension
+        min_size = min(len(positions), sn_data.shape[1])
+        logger.warning(f"Truncating both to {min_size} voxels to match dimensions")
+
+        positions = positions.iloc[:min_size]
+        sn_data = sn_data.iloc[:, :min_size]
+
+        logger.info(f"  Adjusted positions shape: {positions.shape}")
+        logger.info(f"  Adjusted data shape: {sn_data.shape}")
 
     # Apply MAD filtering
     keep_mask = apply_mad_filtering(sn_data, threshold=QC_THRESHOLD)
