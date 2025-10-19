@@ -170,13 +170,13 @@ class NeuroImagingConfig(PreprocessingConfig):
         if self.spatial_smoothing_fwhm is not None and self.spatial_smoothing_fwhm <= 0:
             raise ValueError("spatial_smoothing_fwhm must be positive or None")
 
-        if self.qc_outlier_threshold <= 0:
+        if self.qc_outlier_threshold is not None and self.qc_outlier_threshold <= 0:
             raise ValueError("qc_outlier_threshold must be positive")
 
-        if self.spatial_neighbor_radius <= 0:
+        if self.spatial_neighbor_radius is not None and self.spatial_neighbor_radius <= 0:
             raise ValueError("spatial_neighbor_radius must be positive")
 
-        if self.min_voxel_distance < 0:
+        if self.min_voxel_distance is not None and self.min_voxel_distance < 0:
             raise ValueError("min_voxel_distance must be non-negative")
 
 

@@ -393,7 +393,7 @@ def _apply_advanced_preprocessing(
 
         # Apply advanced preprocessing
         logger.info("Applying comprehensive neuroimaging preprocessing...")
-        X_processed = preprocessor.fit_transform(X_list, view_names, output_dir=output_dir)
+        X_processed = preprocessor.fit_transform(X_list, view_names)
 
         # Collect preprocessing information
         steps_applied = ["scaling", "imputation"]
