@@ -768,26 +768,29 @@ class RobustnessExperiments(ExperimentFramework):
                         self.logger.info("🧹 Aggressive cleanup complete, waiting 5 seconds for GPU...")
                         time.sleep(5)
 
-                    # Monitor GPU memory before starting chain
+                    # Monitor GPU memory before starting chain (only for GPU devices)
                     try:
                         device = jax.devices()[0]
-                        mem_stats = device.memory_stats()
-                        total_memory_gb = mem_stats.get('bytes_limit', 0) / (1024**3)
-                        allocated_memory_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
-                        available_memory_gb = total_memory_gb - allocated_memory_gb
+                        device_kind = device.device_kind.lower()
 
-                        self.logger.info(f"📊 GPU Memory Stats BEFORE Chain {chain_idx + 1}:")
-                        self.logger.info(f"   Total: {total_memory_gb:.2f} GB")
-                        self.logger.info(f"   Allocated: {allocated_memory_gb:.2f} GB")
-                        self.logger.info(f"   Available: {available_memory_gb:.2f} GB")
+                        if device_kind == 'gpu':
+                            mem_stats = device.memory_stats()
+                            total_memory_gb = mem_stats.get('bytes_limit', 0) / (1024**3)
+                            allocated_memory_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                            available_memory_gb = total_memory_gb - allocated_memory_gb
 
-                        if chain_idx > 0:
-                            # Check if memory leaked from previous chains
-                            if allocated_memory_gb > 0.5:  # More than 500MB still allocated
-                                self.logger.warning(f"⚠️  WARNING: {allocated_memory_gb:.2f} GB still allocated after cleanup!")
-                                self.logger.warning("   Memory may be leaking between chains")
+                            self.logger.info(f"📊 GPU Memory Stats BEFORE Chain {chain_idx + 1}:")
+                            self.logger.info(f"   Total: {total_memory_gb:.2f} GB")
+                            self.logger.info(f"   Allocated: {allocated_memory_gb:.2f} GB")
+                            self.logger.info(f"   Available: {available_memory_gb:.2f} GB")
+
+                            if chain_idx > 0:
+                                # Check if memory leaked from previous chains
+                                if allocated_memory_gb > 0.5:  # More than 500MB still allocated
+                                    self.logger.warning(f"⚠️  WARNING: {allocated_memory_gb:.2f} GB still allocated after cleanup!")
+                                    self.logger.warning("   Memory may be leaking between chains")
                     except Exception as mem_error:
-                        self.logger.warning(f"Could not get GPU memory stats: {mem_error}")
+                        pass  # Silently skip if memory stats unavailable
 
                     # Create fresh NUTS kernel for this chain (avoid state accumulation)
                     self.logger.info(f"Creating fresh NUTS kernel for chain {chain_idx + 1}...")
@@ -821,13 +824,16 @@ class RobustnessExperiments(ExperimentFramework):
                         # Get samples from this chain and convert to numpy to break JAX references
                         chain_samples = mcmc_single.get_samples()
 
-                        # Monitor GPU memory right after sampling (before cleanup)
+                        # Monitor GPU memory right after sampling (before cleanup, only for GPU devices)
                         allocated_after_sampling_gb = 0.0  # Initialize to avoid scope issues
                         try:
                             device = jax.devices()[0]
-                            mem_stats = device.memory_stats()
-                            allocated_after_sampling_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
-                            self.logger.info(f"📊 GPU Memory AFTER sampling: {allocated_after_sampling_gb:.2f} GB allocated")
+                            device_kind = device.device_kind.lower()
+
+                            if device_kind == 'gpu':
+                                mem_stats = device.memory_stats()
+                                allocated_after_sampling_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                                self.logger.info(f"📊 GPU Memory AFTER sampling: {allocated_after_sampling_gb:.2f} GB allocated")
                         except Exception:
                             pass
 
@@ -868,20 +874,23 @@ class RobustnessExperiments(ExperimentFramework):
                         # Stage 2: Final garbage collection
                         gc.collect()
 
-                        # Monitor GPU memory after cleanup
+                        # Monitor GPU memory after cleanup (only for GPU devices)
                         try:
                             device = jax.devices()[0]
-                            mem_stats = device.memory_stats()
-                            allocated_after_cleanup_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
-                            freed_memory_gb = allocated_after_sampling_gb - allocated_after_cleanup_gb
+                            device_kind = device.device_kind.lower()
 
-                            self.logger.info(f"📊 GPU Memory AFTER cleanup:")
-                            self.logger.info(f"   Allocated: {allocated_after_cleanup_gb:.2f} GB")
-                            self.logger.info(f"   Freed: {freed_memory_gb:.2f} GB")
+                            if device_kind == 'gpu':
+                                mem_stats = device.memory_stats()
+                                allocated_after_cleanup_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
+                                freed_memory_gb = allocated_after_sampling_gb - allocated_after_cleanup_gb
 
-                            if freed_memory_gb < 1.0:
-                                self.logger.warning(f"⚠️  WARNING: Only {freed_memory_gb:.2f} GB freed - expected ~2-3 GB")
-                                self.logger.warning("   Memory leak detected!")
+                                self.logger.info(f"📊 GPU Memory AFTER cleanup:")
+                                self.logger.info(f"   Allocated: {allocated_after_cleanup_gb:.2f} GB")
+                                self.logger.info(f"   Freed: {freed_memory_gb:.2f} GB")
+
+                                if freed_memory_gb < 1.0 and allocated_after_sampling_gb > 1.0:
+                                    self.logger.warning(f"⚠️  WARNING: Only {freed_memory_gb:.2f} GB freed - expected ~2-3 GB")
+                                    self.logger.warning("   Memory leak detected!")
                         except Exception:
                             pass
 
