@@ -27,6 +27,7 @@ class ModelType(Enum):
     """Valid model types."""
 
     SPARSE_GFA = "sparse_gfa"
+    SPARSE_GFA_FIXED = "sparse_gfa_fixed"
     STANDARD_GFA = "standard_gfa"
 
 
