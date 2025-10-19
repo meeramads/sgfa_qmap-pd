@@ -1,0 +1,138 @@
+# =============================================================================
+# CONVERGENCE TEST CONFIG - Tests sparse_gfa_fixed model with convergence fixes
+# =============================================================================
+# This config is identical to config.yaml except it uses model_type: "sparse_gfa_fixed"
+#
+# Override parameters with command-line flags:
+#   --K <value>                    Number of latent factors
+#   --percW <value>                Sparsity level %
+#   --max-tree-depth <value>       NUTS max tree depth
+#   --qc-outlier-threshold <value> MAD threshold
+#   --target-accept-prob <value>   MCMC acceptance probability
+#   --select-rois <file>           ROI selection
+#
+# USAGE EXAMPLES:
+#   # Test K=2 with max_tree_depth=10
+#   python run_experiments.py --config config_convergence.yaml \
+#     --experiments factor_stability --select-rois volume_sn_voxels.tsv \
+#     --K 2 --max-tree-depth 10 --qc-outlier-threshold 3.0
+#
+#   # Test K=20 with percW=50
+#   python run_experiments.py --config config_convergence.yaml \
+#     --experiments factor_stability --select-rois volume_sn_voxels.tsv \
+#     --K 20 --percW 50
+# =============================================================================
+
+# Data Configuration
+data:
+  data_dir: "./qMAP-PD_data"
+  clinical_file: "data_clinical/pd_motor_gfa_data.tsv"
+  volume_dir: "volume_matrices"
+  imaging_as_single_view: true
+
+# Experiment Configuration
+experiments:
+  base_output_dir: "./results"
+  save_intermediate: true
+  generate_plots: true
+  max_parallel_jobs: 1
+
+# Model Configuration - ONLY DIFFERENCE: model_type is "sparse_gfa_fixed"
+model:
+  model_type: "sparse_gfa_fixed"    # Uses convergence-fixed model
+  K: 20
+  num_samples: 2000
+  num_warmup: 1000
+  num_chains: 4
+  sparsity_lambda: 0.05
+  group_lambda: 0.1
+  percW: 33
+  slab_df: 4
+  slab_scale: 2
+  reghsZ: true
+  random_seed: 42
+
+# Preprocessing Configuration
+preprocessing:
+  strategy: "full_preprocessing_all_views"
+  enable_advanced_preprocessing: true
+  enable_spatial_processing: true
+  imputation_strategy: "median"
+  feature_selection_method: "none"
+  variance_threshold: 0.02
+  missing_threshold: 0.8
+  roi_based_selection: true
+  n_top_features: null
+  min_voxel_distance: 3.0
+  drop_confounds_from_clinical: true
+  qc_outlier_threshold: 3.0
+  enable_pca: false
+  pca_n_components: null
+  pca_variance_threshold: 0.95
+  pca_whiten: false
+
+# Cross-Validation Configuration
+cross_validation:
+  n_folds: 10
+  n_repeats: 3
+  stratified: true
+  group_aware: false
+  random_seed: 42
+
+# Monitoring Configuration
+monitoring:
+  checkpoint_dir: "./results/checkpoints"
+  log_level: "INFO"
+  save_checkpoints: false
+  checkpoint_interval: 200
+
+# Data Validation
+data_validation:
+  K_values: [5, 10, 15]
+  cv_folds: 5
+  preprocessing_strategies:
+    minimal:
+      enable_advanced_preprocessing: false
+      imputation_strategy: "mean"
+    standard:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "none"
+      variance_threshold: 0.01
+    statistical:
+      enable_advanced_preprocessing: true
+      imputation_strategy: "median"
+      feature_selection_method: "statistical"
+      n_top_features: 500
+
+# Robustness Testing
+robustness_testing:
+  test_scenarios:
+    - "identical_seeds"
+    - "different_hardware"
+    - "version_stability"
+  seed_values: [42, 123, 456, 789]
+  n_repetitions: 3
+  convergence_metrics:
+    - "factor_correlation"
+    - "parameter_stability"
+    - "reconstruction_consistency"
+  tolerance_thresholds:
+    correlation_threshold: 0.95
+    parameter_relative_error: 0.05
+    reconstruction_error_ratio: 0.02
+
+# Factor Stability Analysis
+factor_stability:
+  K: 20
+  num_chains: 4
+  num_samples: 10000
+  num_warmup: 3000
+  chain_method: 'parallel'
+  cosine_threshold: 0.8
+  min_match_rate: 0.5
+  sparsity_threshold: 0.01
+  min_nonzero_pct: 0.05
+  target_accept_prob: 0.8
+  max_tree_depth: 13
+  dense_mass: false

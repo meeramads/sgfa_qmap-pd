@@ -227,6 +227,12 @@ def main():
         default=None,
         help="NUTS maximum tree depth (default: 13). Higher values allow longer trajectories but use more memory. Example: --max-tree-depth 15 for more thorough sampling",
     )
+    parser.add_argument(
+        "--target-accept-prob",
+        type=float,
+        default=None,
+        help="MCMC target acceptance probability (default: 0.8). Higher values (0.9-0.99) for better sampling. Example: --target-accept-prob 0.95",
+    )
 
     args = parser.parse_args()
 
@@ -318,6 +324,16 @@ def main():
             config["mcmc"] = {}
         config["mcmc"]["max_tree_depth"] = args.max_tree_depth
         logger.info(f"Override max_tree_depth: {args.max_tree_depth}")
+
+    # Configure target_accept_prob if provided
+    if args.target_accept_prob is not None:
+        if "mcmc" not in config:
+            config["mcmc"] = {}
+        config["mcmc"]["target_accept_prob"] = args.target_accept_prob
+        # Also set it in factor_stability section for consistency
+        if "factor_stability" in config:
+            config["factor_stability"]["target_accept_prob"] = args.target_accept_prob
+        logger.info(f"Override target_accept_prob: {args.target_accept_prob}")
 
     # Configure PCA if provided
     if args.enable_pca or args.pca_strategy or args.pca_variance or args.pca_components:
