@@ -1,0 +1,64 @@
+# =============================================================================
+# CONVERGENCE TEST: K=50, max_tree_depth=10
+# =============================================================================
+# Tests sparse_gfa_fixed model with all 5 convergence fixes
+# Use with: --select-rois volume_sn_voxels.tsv to match baseline
+# =============================================================================
+
+data:
+  data_dir: "./qMAP-PD_data"
+  clinical_file: "data_clinical/pd_motor_gfa_data.tsv"
+  volume_dir: "volume_matrices"
+  imaging_as_single_view: true
+
+experiments:
+  base_output_dir: "./results"
+  save_intermediate: true
+  generate_plots: true
+  max_parallel_jobs: 1
+
+model:
+  model_type: "sparse_gfa_fixed"
+  K: 50
+  num_samples: 2000
+  num_warmup: 1000
+  num_chains: 4
+  percW: 33.0
+  sparsity_lambda: 0.3
+  reghsZ: true
+  slab_df: 4.0
+  slab_scale: 2.0
+  random_seed: 42
+
+preprocessing:
+  strategy: "standard"
+  enable_advanced_preprocessing: true
+  imputation_strategy: "median"
+  feature_selection_method: "none"
+  variance_threshold: 0.01
+  missing_threshold: 0.8
+  roi_based_selection: true
+  drop_confounds_from_clinical: true
+
+monitoring:
+  checkpoint_dir: "./results/convergence_test_checkpoints"
+  log_level: "INFO"
+  save_checkpoints: true
+  checkpoint_interval: 100
+
+run_experiments:
+  - factor_stability
+
+factor_stability:
+  K: 50
+  num_chains: 4
+  num_samples: 2000
+  num_warmup: 1000
+  chain_method: 'parallel'
+  cosine_threshold: 0.8
+  min_match_rate: 0.5
+  sparsity_threshold: 0.01
+  min_nonzero_pct: 0.05
+  target_accept_prob: 0.95
+  max_tree_depth: 10
+  dense_mass: false
