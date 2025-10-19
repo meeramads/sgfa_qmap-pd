@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 DATA_DIR = Path("./qMAP-PD_data")
+RESULTS_DIR = Path("./results")
 QC_THRESHOLD = 3.0  # MAD threshold (matches your config)
 
 def load_sn_data():
@@ -88,8 +89,8 @@ def create_filtered_positions():
 
     logger.info(f"Filtered positions shape: {filtered_positions.shape}")
 
-    # Save filtered positions
-    output_dir = DATA_DIR / "preprocessed_position_lookups"
+    # Save filtered positions to results folder
+    output_dir = RESULTS_DIR / "filtered_position_lookups"
     output_dir.mkdir(exist_ok=True, parents=True)
 
     output_file = output_dir / "sn_filtered_position_lookup.csv"
