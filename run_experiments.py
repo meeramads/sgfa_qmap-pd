@@ -772,6 +772,7 @@ def main():
             "reghsZ": fs_config.get("reghsZ", True),
             "random_seed": 42,
             "model_type": model_config.get("model_type", "sparse_gfa"),  # Pass model type from config
+            "use_pca_initialization": model_config.get("use_pca_initialization", False),  # PCA initialization
         }
 
         logger.info(f"   Using parameters from config.yaml:")

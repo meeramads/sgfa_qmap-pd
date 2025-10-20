@@ -836,10 +836,25 @@ class RobustnessExperiments(ExperimentFramework):
                     # Generate unique RNG key for this chain
                     chain_rng_key = jax_random.fold_in(rng_key, chain_idx)
 
+                    # Check if PCA initialization should be used
+                    init_params = None
+                    if args.get("use_pca_initialization", False):
+                        try:
+                            from core.pca_initialization import create_numpyro_init_params
+                            model_type = args.get("model_type", "sparseGFA")
+                            init_params = create_numpyro_init_params(X_list, K, model_type)
+                            if chain_idx == 0:  # Log only for first chain
+                                self.logger.info(f"   Using PCA initialization for MCMC")
+                        except Exception as e:
+                            self.logger.warning(f"   PCA initialization failed, using default: {e}")
+                            init_params = None
+
                     start_time = time.time()
                     try:
                         mcmc_single.run(
-                            chain_rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+                            chain_rng_key, X_list, hypers, model_args,
+                            init_params=init_params,
+                            extra_fields=("potential_energy",)
                         )
                         elapsed = time.time() - start_time
                         total_elapsed += elapsed
@@ -968,6 +983,18 @@ class RobustnessExperiments(ExperimentFramework):
                     chain_method=chain_method,
                 )
 
+                # Check if PCA initialization should be used
+                init_params = None
+                if args.get("use_pca_initialization", False):
+                    try:
+                        from core.pca_initialization import create_numpyro_init_params
+                        model_type = args.get("model_type", "sparseGFA")
+                        init_params = create_numpyro_init_params(X_list, K, model_type)
+                        self.logger.info(f"   Using PCA initialization for MCMC")
+                    except Exception as e:
+                        self.logger.warning(f"   PCA initialization failed, using default: {e}")
+                        init_params = None
+
                 # Run inference
                 self.logger.info("=" * 80)
                 self.logger.info("STARTING MCMC SAMPLING")
@@ -977,7 +1004,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                 try:
                     mcmc.run(
-                        rng_key, X_list, hypers, model_args, extra_fields=("potential_energy",)
+                        rng_key, X_list, hypers, model_args, init_params=init_params, extra_fields=("potential_energy",)
                     )
                     elapsed = time.time() - start_time
                     self.logger.info(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
@@ -2940,6 +2967,8 @@ def run_robustness_testing(config):
             "target_accept_prob": config_dict.get("mcmc", {}).get("target_accept_prob", 0.8),  # Read from mcmc config (respects command-line override)
             "reghsZ": True,
             "max_tree_depth": config_dict.get("mcmc", {}).get("max_tree_depth"),  # NUTS max tree depth
+            "use_pca_initialization": model_config.get("use_pca_initialization", False),  # PCA initialization
+            "model_type": model_type,  # Pass model type for PCA init
         }
 
         # Run the experiment

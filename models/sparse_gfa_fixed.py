@@ -87,16 +87,31 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         FIX #3: Non-centered parameterization for Z
         FIX #2: Proper slab regularization
+        FIX #1: Data-dependent global scale τ₀ for Z
         """
         # FIX #3: NON-CENTERED - Sample raw standard normals
         Z_raw = numpyro.sample("Z_raw", dist.Normal(0, 1), sample_shape=(N, K))
 
-        # Horseshoe global and local scales
-        tauZ = numpyro.sample(
-            "tauZ", dist.HalfCauchy(1.0), sample_shape=(1, K)
+        # FIX #1: DATA-DEPENDENT GLOBAL SCALE τ₀ for Z
+        # For latent factors, we expect approximately N effective samples
+        # Use conservative estimate: D₀ ≈ K (number of factors)
+        # τ₀ = (D₀/(N-D₀)) × (σ/√N)
+        D0_Z = K  # Expected effective dimensionality
+        sigma_std = 1.0  # After standardization
+        tau0_Z = (D0_Z / (N - D0_Z)) * (sigma_std / jnp.sqrt(N))
+
+        # Non-centered parameterization for global scale
+        tauZ_tilde = numpyro.sample(
+            "tauZ_tilde", dist.HalfCauchy(1.0), sample_shape=(1, K)
         )
+        tauZ = tau0_Z * tauZ_tilde
+
+        # Log the calculated tau0 for verification
+        numpyro.deterministic("tau0_Z", tau0_Z)
+
+        # Horseshoe local scales (keep centered as simpler and works with regularization)
         lmbZ = numpyro.sample(
-            "lmbZ", dist.TruncatedCauchy(scale=1), sample_shape=(N, K)
+            "lmbZ", dist.HalfCauchy(1.0), sample_shape=(N, K)
         )
 
         if self.reghsZ:
@@ -143,9 +158,9 @@ class SparseGFAFixedModel(BaseGFAModel):
         # FIX #3: NON-CENTERED - Sample raw standard normals
         z_raw = numpyro.sample("W_raw", dist.Normal(0, 1), sample_shape=(D, K))
 
-        # Horseshoe local scales (still centered for λ as it's less problematic)
+        # Horseshoe local scales (keep centered as simpler and works with regularization)
         lmbW = numpyro.sample(
-            "lmbW", dist.TruncatedCauchy(scale=1), sample_shape=(D, K)
+            "lmbW", dist.HalfCauchy(1.0), sample_shape=(D, K)
         )
 
         # FIX #2: PROPER SLAB REGULARIZATION
