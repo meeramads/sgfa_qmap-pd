@@ -856,7 +856,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                     start_time = time.time()
                     self.logger.info(f"   🚀 Starting MCMC sampling for chain {chain_idx + 1}...")
-                    self.logger.info(f"      Model: {model.__class__.__name__}")
+                    self.logger.info(f"      Model: {models.__class__.__name__}")
                     self.logger.info(f"      Warmup: {num_warmup}, Samples: {num_samples}")
                     self.logger.info(f"      Using init_params: {init_params is not None}")
                     try:
@@ -957,7 +957,7 @@ class RobustnessExperiments(ExperimentFramework):
                         self.logger.error(traceback.format_exc())
 
                         # Log additional context
-                        self.logger.error(f"Context: Model={model.__class__.__name__}, K={K}, N={X_list[0].shape[0]}")
+                        self.logger.error(f"Context: Model={models.__class__.__name__}, K={K}, N={X_list[0].shape[0]}")
                         self.logger.error(f"Init params used: {init_params is not None}")
                         if init_params is not None:
                             self.logger.error(f"Init param keys: {list(init_params.keys())}")
