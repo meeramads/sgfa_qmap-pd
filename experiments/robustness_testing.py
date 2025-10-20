@@ -671,15 +671,24 @@ class RobustnessExperiments(ExperimentFramework):
             # Get optimal model configuration via factory
             if verbose:
                 self.logger.info("Setting up model via factory...")
-            # Use model_type from config (config_dict already extracted above)
-            # Allow args to override if explicitly provided
-            if "model_type" in args:
-                config_dict["model"]["model_type"] = args["model_type"]
+
+            # Debug: Log what's in config_dict BEFORE structuring
+            if verbose:
+                self.logger.info(f"🔍 DEBUG: config_dict.get('model_type') = {config_dict.get('model_type', 'NOT FOUND')}")
+                self.logger.info(f"🔍 DEBUG: 'model' in config_dict = {'model' in config_dict}")
+                if "model_type" in args:
+                    self.logger.info(f"🔍 DEBUG: args['model_type'] = {args['model_type']}")
 
             # Ensure model configuration is structured correctly for integration
             if "model" not in config_dict:
                 config_dict["model"] = {}
-            if "model_type" not in config_dict["model"]:
+
+            # Use model_type from config (config_dict already extracted above)
+            # Priority: args > ExperimentConfig.model_type > default
+            if "model_type" in args:
+                # Allow args to override if explicitly provided
+                config_dict["model"]["model_type"] = args["model_type"]
+            elif "model_type" not in config_dict["model"]:
                 # Use model_type from ExperimentConfig if available
                 config_dict["model"]["model_type"] = config_dict.get("model_type", "sparseGFA")
 
@@ -2889,12 +2898,17 @@ def run_robustness_testing(config):
         if qc_outlier_threshold:
             logger.info(f"   QC outlier threshold (MAD): {qc_outlier_threshold}")
 
+        # Get model type from config
+        model_type = model_config.get("model_type", "sparseGFA")
+        logger.info(f"   Using model type: {model_type}")
+
         # Create ExperimentConfig with model parameters for semantic naming
         exp_config = ExperimentConfig(
             experiment_name="robustness_tests",
             description="Robustness testing for SGFA",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
+            model_type=model_type,  # Use model_type from config
             K=K_value,
             percW=percW_value,
             slab_df=slab_df_value,
