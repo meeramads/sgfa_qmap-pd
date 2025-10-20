@@ -13,6 +13,7 @@ convergence (R-hat < 1.01) for high-dimensional neuroimaging data.
 """
 
 from typing import Dict, List
+import logging
 
 import jax.numpy as jnp
 import numpyro
@@ -20,6 +21,9 @@ import numpyro.distributions as dist
 from jax import lax
 
 from .base import BaseGFAModel
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 class SparseGFAFixedModel(BaseGFAModel):
@@ -57,6 +61,7 @@ class SparseGFAFixedModel(BaseGFAModel):
         -----------
         X_list : List of data matrices for each view
         """
+        logger.info("🔵 SparseGFAFixedModel.__call__ starting")
         N = X_list[0].shape[0]  # Number of subjects
         M = self.num_sources  # Number of data sources
         # Use static Python ints for dimensions to avoid JAX concretization errors
@@ -66,18 +71,28 @@ class SparseGFAFixedModel(BaseGFAModel):
         K = self.K  # Number of factors
         percW = self.hypers["percW"]
 
+        logger.info(f"  Model dimensions: N={N}, M={M}, D={D}, K={K}, percW={percW}")
+        logger.info(f"  View dimensions: {Dm_static}")
+        logger.info(f"  X_list shapes: {[X.shape for X in X_list]}")
+
         # Sample noise parameters (sigma)
+        logger.info("  Sampling sigma (noise parameters)...")
         sigma = numpyro.sample(
             "sigma",
             dist.Gamma(self.hypers["a_sigma"], self.hypers["b_sigma"]),
             sample_shape=(1, M),
         )
+        logger.info(f"  ✓ sigma sampled, shape: {sigma.shape}")
 
         # Sample latent factors Z with horseshoe prior
+        logger.info("  Sampling latent factors Z...")
         Z = self._sample_latent_factors(N, K)
+        logger.info(f"  ✓ Z sampled, shape: {Z.shape}")
 
         # Sample loadings W with horseshoe prior
+        logger.info("  Sampling loadings W...")
         W = self._sample_loadings(D, K, Dm, Dm_static, percW, sigma, N)
+        logger.info(f"  ✓ W sampled, shape: {W.shape}")
 
         # Generate observations for each data source
         self._generate_observations(X_list, Z, W, Dm, Dm_static, sigma)
@@ -89,8 +104,12 @@ class SparseGFAFixedModel(BaseGFAModel):
         FIX #2: Proper slab regularization
         FIX #1: Data-dependent global scale τ₀ for Z
         """
+        logger.info("    🟢 _sample_latent_factors starting")
+
         # FIX #3: NON-CENTERED - Sample raw standard normals
+        logger.info("      Sampling Z_raw ~ Normal(0,1)...")
         Z_raw = numpyro.sample("Z_raw", dist.Normal(0, 1), sample_shape=(N, K))
+        logger.info(f"      ✓ Z_raw shape: {Z_raw.shape}")
 
         # FIX #1: DATA-DEPENDENT GLOBAL SCALE τ₀ for Z
         # For latent factors, we expect approximately N effective samples
@@ -99,23 +118,30 @@ class SparseGFAFixedModel(BaseGFAModel):
         D0_Z = K  # Expected effective dimensionality
         sigma_std = 1.0  # After standardization
         tau0_Z = (D0_Z / (N - D0_Z)) * (sigma_std / jnp.sqrt(N))
+        logger.info(f"      Calculated τ₀_Z = {tau0_Z:.6f} (from D₀={D0_Z}, N={N})")
 
         # Non-centered parameterization for global scale
+        logger.info("      Sampling tauZ_tilde ~ HalfCauchy(1.0)...")
         tauZ_tilde = numpyro.sample(
             "tauZ_tilde", dist.HalfCauchy(1.0), sample_shape=(1, K)
         )
         tauZ = tau0_Z * tauZ_tilde
+        logger.info(f"      ✓ tauZ = τ₀ * tauZ_tilde, shape: {tauZ.shape}")
 
         # Log the calculated tau0 for verification
         numpyro.deterministic("tau0_Z", tau0_Z)
 
         # Horseshoe local scales (keep centered as simpler and works with regularization)
+        logger.info("      Sampling lmbZ ~ HalfCauchy(1.0)...")
         lmbZ = numpyro.sample(
             "lmbZ", dist.HalfCauchy(1.0), sample_shape=(N, K)
         )
+        logger.info(f"      ✓ lmbZ shape: {lmbZ.shape}")
 
         if self.reghsZ:
             # FIX #2: PROPER SLAB REGULARIZATION for Z
+            logger.info("      Applying regularized horseshoe (reghsZ=True)...")
+            logger.info("      Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...")
             cZ_tilde = numpyro.sample(
                 "cZ_tilde",
                 dist.InverseGamma(2.0, 2.0),
@@ -123,11 +149,13 @@ class SparseGFAFixedModel(BaseGFAModel):
             )
             cZ_squared = (self.hypers["slab_scale"] ** 2) * cZ_tilde
             cZ = jnp.sqrt(cZ_squared)
+            logger.info(f"      ✓ cZ computed (slab_scale={self.hypers['slab_scale']}), shape: {cZ.shape}")
 
             # Log for diagnostics
             numpyro.deterministic("cZ_squared", cZ_squared)
 
             # Apply regularization and non-centered transformation
+            logger.info("      Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...")
             lmbZ_sqr = jnp.square(lmbZ)
             Z = jnp.zeros((N, K))
             for k in range(K):
@@ -138,12 +166,16 @@ class SparseGFAFixedModel(BaseGFAModel):
                 )
                 # FIX #3: NON-CENTERED TRANSFORMATION
                 Z = Z.at[:, k].set(Z_raw[:, k] * lmbZ_tilde * tauZ[0, k])
+            logger.info(f"      ✓ Applied regularization for {K} factors")
         else:
             # Non-regularized but still non-centered
+            logger.info("      Using non-regularized horseshoe (reghsZ=False)...")
             Z = Z_raw * lmbZ * tauZ
+            logger.info("      ✓ Z = Z_raw * lmbZ * tauZ")
 
         # Mark Z as deterministic
         Z = numpyro.deterministic("Z", Z)
+        logger.info(f"    ✓ _sample_latent_factors complete, Z shape: {Z.shape}")
         return Z
 
     def _sample_loadings(
@@ -155,17 +187,24 @@ class SparseGFAFixedModel(BaseGFAModel):
         FIX #1: Data-dependent global scale τ₀
         FIX #2: Proper slab regularization with correct InverseGamma
         """
+        logger.info("    🟢 _sample_loadings starting")
+
         # FIX #3: NON-CENTERED - Sample raw standard normals
+        logger.info("      Sampling W_raw ~ Normal(0,1)...")
         z_raw = numpyro.sample("W_raw", dist.Normal(0, 1), sample_shape=(D, K))
+        logger.info(f"      ✓ W_raw shape: {z_raw.shape}")
 
         # Horseshoe local scales (keep centered as simpler and works with regularization)
+        logger.info("      Sampling lmbW ~ HalfCauchy(1.0)...")
         lmbW = numpyro.sample(
             "lmbW", dist.HalfCauchy(1.0), sample_shape=(D, K)
         )
+        logger.info(f"      ✓ lmbW shape: {lmbW.shape}")
 
         # FIX #2: PROPER SLAB REGULARIZATION
         # Correct InverseGamma parameterization: IG(α=2, β=2)
         # This gives E[c²] ≈ slab_scale² and prevents exploration of extreme values
+        logger.info("      Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...")
         cW_tilde = numpyro.sample(
             "cW_tilde",
             dist.InverseGamma(2.0, 2.0),  # α=2, β=2 (will scale by slab_scale²)
@@ -174,21 +213,25 @@ class SparseGFAFixedModel(BaseGFAModel):
         # Scale to get proper distribution
         cW_squared = (self.hypers["slab_scale"] ** 2) * cW_tilde
         cW = jnp.sqrt(cW_squared)
+        logger.info(f"      ✓ cW computed (slab_scale={self.hypers['slab_scale']}), shape: {cW.shape}")
 
         # Log for diagnostics
         numpyro.deterministic("cW_squared", cW_squared)
 
         # Calculate expected sparsity per source using static dimensions
         pW_static = [max(1, min(int((percW / 100.0) * dim), dim - 1)) for dim in Dm_static]
+        logger.info(f"      Expected sparsity per view (pW_static): {pW_static}")
 
         # Initialize W (will be constructed deterministically)
         W = jnp.zeros((D, K))
 
         # Apply sparsity to each source
         d = 0
+        logger.info(f"      Processing {self.num_sources} views...")
         for m in range(self.num_sources):
             pW_m = pW_static[m]
             Dm_m = Dm_static[m]
+            logger.info(f"        View {m+1}: Dm={Dm_m}, pW={pW_m}, percW={percW}%")
 
             # FIX #1: DATA-DEPENDENT GLOBAL SCALE τ₀
             # Using Piironen & Vehtari (2017) formula:
@@ -196,13 +239,16 @@ class SparseGFAFixedModel(BaseGFAModel):
             D0_per_factor = pW_m  # Expected non-zero loadings per factor
             sigma_std = 1.0  # After standardization
             tau0 = (D0_per_factor / (Dm_m - D0_per_factor)) * (sigma_std / jnp.sqrt(N))
+            logger.info(f"        Calculated τ₀_W_view{m+1} = {tau0:.6f}")
 
             # Non-centered parameterization for tau
+            logger.info(f"        Sampling tauW_tilde_{m+1} ~ HalfCauchy(1.0)...")
             tau_tilde = numpyro.sample(
                 f"tauW_tilde_{m + 1}",
                 dist.HalfCauchy(1.0)
             )
             tauW = tau0 * tau_tilde
+            logger.info(f"        ✓ tauW = τ₀ * tau_tilde")
 
             # Log the calculated tau0 for verification
             numpyro.deterministic(f"tau0_view_{m+1}", tau0)

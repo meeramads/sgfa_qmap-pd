@@ -842,14 +842,23 @@ class RobustnessExperiments(ExperimentFramework):
                         try:
                             from core.pca_initialization import create_numpyro_init_params
                             model_type = args.get("model_type", "sparseGFA")
+                            self.logger.info(f"   🔧 Creating PCA initialization for chain {chain_idx + 1}...")
                             init_params = create_numpyro_init_params(X_list, K, model_type)
-                            if chain_idx == 0:  # Log only for first chain
-                                self.logger.info(f"   Using PCA initialization for MCMC")
+                            if chain_idx == 0:  # Log detailed info only for first chain
+                                self.logger.info(f"   ✓ PCA initialization created with params: {list(init_params.keys())}")
+                            else:
+                                self.logger.info(f"   ✓ PCA initialization created")
                         except Exception as e:
-                            self.logger.warning(f"   PCA initialization failed, using default: {e}")
+                            self.logger.warning(f"   ⚠️ PCA initialization failed, using default: {e}")
+                            import traceback
+                            self.logger.warning(f"   Traceback: {traceback.format_exc()}")
                             init_params = None
 
                     start_time = time.time()
+                    self.logger.info(f"   🚀 Starting MCMC sampling for chain {chain_idx + 1}...")
+                    self.logger.info(f"      Model: {model.__class__.__name__}")
+                    self.logger.info(f"      Warmup: {num_warmup}, Samples: {num_samples}")
+                    self.logger.info(f"      Using init_params: {init_params is not None}")
                     try:
                         mcmc_single.run(
                             chain_rng_key, X_list, hypers, model_args,
@@ -939,7 +948,19 @@ class RobustnessExperiments(ExperimentFramework):
                         elapsed = time.time() - start_time
                         total_elapsed += elapsed
                         self.logger.error(f"❌ Chain {chain_idx + 1} FAILED after {elapsed:.1f}s")
-                        self.logger.error(f"Error: {e}")
+                        self.logger.error(f"Error type: {type(e).__name__}")
+                        self.logger.error(f"Error message: {str(e)}")
+
+                        # Log full traceback for debugging
+                        import traceback
+                        self.logger.error("Full traceback:")
+                        self.logger.error(traceback.format_exc())
+
+                        # Log additional context
+                        self.logger.error(f"Context: Model={model.__class__.__name__}, K={K}, N={X_list[0].shape[0]}")
+                        self.logger.error(f"Init params used: {init_params is not None}")
+                        if init_params is not None:
+                            self.logger.error(f"Init param keys: {list(init_params.keys())}")
 
                         # Clear JAX cache even on failure
                         jax.clear_caches()

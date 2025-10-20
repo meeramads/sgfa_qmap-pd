@@ -43,11 +43,15 @@ def compute_pca_initialization(
         'variance_explained': float - Actual variance explained
         'n_components': int - Number of components used
     """
+    logger.info("🔧 Computing PCA initialization...")
     n_samples = X_list[0].shape[0]
     n_views = len(X_list)
+    logger.info(f"  Input: {n_views} views, N={n_samples} samples, K={K} factors")
+    logger.info(f"  View shapes: {[X.shape for X in X_list]}")
 
     # Concatenate all views
     X_concat = np.concatenate(X_list, axis=1)
+    logger.info(f"  Concatenated data shape: {X_concat.shape}")
 
     logger.info(f"Computing PCA initialization for K={K} factors")
     logger.info(f"  Data shape: {X_concat.shape} ({n_samples} samples, {X_concat.shape[1]} total features)")
@@ -123,13 +127,19 @@ def create_numpyro_init_params(
     -------
     Dict mapping parameter names to JAX arrays for initialization
     """
+    logger.info("🔧 Creating NumPyro initialization parameters...")
+    logger.info(f"  Model type: {model_type}")
+    logger.info(f"  K={K}, n_views={len(X_list)}")
+
     # Compute PCA initialization
     pca_init = compute_pca_initialization(X_list, K)
+    logger.info("  ✓ PCA initialization computed")
 
     # Convert to JAX arrays
     init_params = {}
 
     if model_type == "sparse_gfa_fixed":
+        logger.info("  Using sparse_gfa_fixed parameterization (non-centered)")
         # For sparse_gfa_fixed (non-centered parameterization)
         # Initialize from PCA to place all chains in same mode (Erosheva & Curtis 2017)
 
@@ -160,16 +170,21 @@ def create_numpyro_init_params(
             init_params[f'tauW_tilde_{m+1}'] = jnp.ones(())  # Scalar per view
 
         # Initialize local scales conservatively
+        logger.info(f"  Initializing lmbZ: shape ({N}, {K})")
         init_params['lmbZ'] = jnp.ones((N, K)) * 0.5
+        logger.info(f"  Initializing lmbW: shape ({D_total}, {K})")
         init_params['lmbW'] = jnp.ones((D_total, K)) * 0.5
 
         # Initialize slab parameters near expected values
         # c2_tilde ~ IG(2,2), so E[c2_tilde] = 2/(2-1) = 2
         # With slab_scale=2, E[c2] = 4 * 2 = 8, so c2_tilde ≈ 2
+        logger.info(f"  Initializing cZ_tilde: shape (1, {K})")
         init_params['cZ_tilde'] = jnp.ones((1, K)) * 2.0
+        logger.info(f"  Initializing cW_tilde: shape ({len(X_list)}, {K})")
         init_params['cW_tilde'] = jnp.ones((len(X_list), K)) * 2.0
 
     else:
+        logger.info("  Using sparse_gfa parameterization (centered)")
         # For sparse_gfa (centered parameterization)
         # Can directly initialize Z and W
         init_params['Z'] = jnp.array(pca_init['Z'])
@@ -185,10 +200,14 @@ def create_numpyro_init_params(
         init_params['cW'] = jnp.ones((len(X_list), K))
 
     # Initialize noise parameters (sigma)
+    logger.info(f"  Initializing sigma: shape (1, {len(X_list)})")
     init_params['sigma'] = jnp.ones((1, len(X_list)))
 
-    logger.info(f"Created NumPyro init params for {model_type}:")
-    logger.info(f"  Parameters initialized: {list(init_params.keys())}")
+    logger.info(f"✓ Created NumPyro init params for {model_type}")
+    logger.info(f"  Total parameters initialized: {len(init_params)}")
+    logger.info(f"  Parameter names: {list(init_params.keys())}")
+    for key, val in init_params.items():
+        logger.info(f"    {key}: shape={val.shape}, dtype={val.dtype}")
 
     return init_params
 
