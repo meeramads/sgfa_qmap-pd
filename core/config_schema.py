@@ -130,6 +130,7 @@ class ModelConfig:
     reghsZ: Optional[bool] = None  # Apply regularized horseshoe to latent factors Z
     a_sigma: Optional[float] = None  # Noise precision prior shape
     b_sigma: Optional[float] = None  # Noise precision prior rate
+    use_pca_initialization: Optional[bool] = None  # Use PCA-based MCMC initialization (convergence fix #5)
 
     def validate(self) -> List[str]:
         """Validate model configuration."""
