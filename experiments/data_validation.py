@@ -126,6 +126,9 @@ def run_data_validation(config):
             # Create data validation experiment instance
             data_val_exp = DataValidationExperiments(exp_config, logger)
 
+            # Store the experiment-specific output_dir for use in preprocessing
+            data_val_exp.base_output_dir = output_dir
+
             # Run comprehensive data quality assessment (includes EDA plots)
             assessment_result = data_val_exp.run_data_quality_assessment(X_list=None)
 
@@ -277,13 +280,18 @@ class DataValidationExperiments(ExperimentFramework):
                 from data.preprocessing_integration import apply_preprocessing_to_pipeline
                 logger.info("   Using apply_preprocessing_to_pipeline for PCA support...")
 
+                # Use experiment-specific output_dir if available, otherwise fall back to general output_dir
+                preprocessing_output_dir = getattr(self, 'base_output_dir', None) or get_output_dir(config)
+
                 X_list, preprocessing_info = apply_preprocessing_to_pipeline(
                     config={"preprocessing": preprocessing_config, "data": {"data_dir": data_dir}},
                     data_dir=data_dir,
                     auto_select_strategy=False,
                     preferred_strategy=preprocessing_config.get("strategy", "standard"),
-                    output_dir=get_output_dir(config),
+                    output_dir=preprocessing_output_dir,
                 )
+
+                logger.info(f"   ✅ Filtered position lookups saved to: {preprocessing_output_dir}/position_lookup_filtered")
 
                 # Convert to load_qmap_pd format for compatibility
                 preprocessed_data = {
@@ -318,9 +326,14 @@ class DataValidationExperiments(ExperimentFramework):
 
         # Create filtered position lookups for imaging views
         # This maps preprocessed voxels back to 3D brain coordinates
+        # Use experiment-specific output_dir if available
+        position_output_dir = getattr(self, 'base_output_dir', None) or get_output_dir(config)
         filtered_position_paths = self._create_filtered_position_lookups(
-            raw_data, preprocessed_data, data_dir, get_output_dir(config)
+            raw_data, preprocessed_data, data_dir, position_output_dir
         )
+
+        if filtered_position_paths:
+            logger.info(f"   ✅ Filtered position lookups saved to: {position_output_dir}/position_lookup_filtered")
 
         # Analyze data quality
         results = {
@@ -1134,12 +1147,14 @@ class DataValidationExperiments(ExperimentFramework):
                     temp_config = ConfigAccessor(temp_config_dict)
 
                     # Apply preprocessing with this strategy
+                    # Use experiment-specific output_dir if available
+                    strategy_output_dir = getattr(self, 'base_output_dir', None) or get_output_dir(config)
                     X_list_strategy, preprocessing_info = apply_preprocessing_to_pipeline(
                         config=temp_config,
                         data_dir=data_dir,
                         auto_select_strategy=False,
                         preferred_strategy=strategy_params.get("strategy", strategy_name),
-                        output_dir=get_output_dir(config)
+                        output_dir=strategy_output_dir
                     )
 
                     # Store the data and preprocessing info
