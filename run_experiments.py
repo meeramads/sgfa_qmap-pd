@@ -756,16 +756,17 @@ def main():
         logger.info(f"   Using global model hyperparameters: percW={hypers['percW']}, slab_df={hypers['slab_df']}, slab_scale={hypers['slab_scale']}")
 
         # Prepare MCMC args (read from config.yaml)
-        # Check both mcmc and factor_stability sections for max_tree_depth (mcmc takes precedence)
+        # Check both mcmc and factor_stability sections (mcmc takes precedence for command-line overrides)
         mcmc_config = exp_config.get("mcmc", {})
         max_tree_depth_value = mcmc_config.get("max_tree_depth") or fs_config.get("max_tree_depth", 13)
+        target_accept_prob_value = mcmc_config.get("target_accept_prob") or fs_config.get("target_accept_prob", 0.8)
 
         mcmc_args = {
             "K": K,
             "num_warmup": fs_config.get("num_warmup", 1000),
             "num_samples": fs_config.get("num_samples", 5000),
             "num_chains": 1,  # Sequential execution (run_factor_stability_analysis handles multiple chains)
-            "target_accept_prob": fs_config.get("target_accept_prob", 0.8),
+            "target_accept_prob": target_accept_prob_value,
             "max_tree_depth": max_tree_depth_value,
             "dense_mass": fs_config.get("dense_mass", False),
             "reghsZ": fs_config.get("reghsZ", True),

@@ -2937,7 +2937,7 @@ def run_robustness_testing(config):
             "num_warmup": 50,  # Reduced for robustness testing speed
             "num_samples": 100,  # Reduced for robustness testing speed
             "num_chains": 1,
-            "target_accept_prob": 0.8,
+            "target_accept_prob": config_dict.get("mcmc", {}).get("target_accept_prob", 0.8),  # Read from mcmc config (respects command-line override)
             "reghsZ": True,
             "max_tree_depth": config_dict.get("mcmc", {}).get("max_tree_depth"),  # NUTS max tree depth
         }
