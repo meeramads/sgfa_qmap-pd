@@ -20,6 +20,7 @@
 
 ## Features
 
+- **[COVARIANCE_ANALYSIS.md](COVARIANCE_ANALYSIS.md)** - Inter/intra-modality covariance analysis ⭐ NEW
 - **[BRAIN_REMAPPING_WITH_VOXEL_FILTERING.md](BRAIN_REMAPPING_WITH_VOXEL_FILTERING.md)** - Spatial remapping
 - **[spatial_remapping_guide.md](spatial_remapping_guide.md)** - Remapping usage guide
 - **[spatial_remapping_integration.md](spatial_remapping_integration.md)** - Integration details

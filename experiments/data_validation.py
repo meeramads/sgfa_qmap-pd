@@ -1751,6 +1751,22 @@ class DataValidationExperiments(ExperimentFramework):
             )
             logger.info("   ✅ Preprocessing visualizations created")
 
+            # Add covariance structure analysis
+            logger.info("   Creating covariance structure analysis...")
+            try:
+                from visualization.covariance_plots import create_covariance_report
+
+                cov_report = create_covariance_report(
+                    X_list=X_list,
+                    view_names=view_names_actual,
+                    output_dir=viz_manager.plot_dir,
+                    subsample=500  # Subsample for visualization of large matrices
+                )
+                advanced_plots['covariance_analysis'] = cov_report
+                logger.info("   ✅ Covariance analysis completed")
+            except Exception as e:
+                logger.warning(f"   ⚠️  Failed to create covariance analysis: {e}")
+
             # Extract the generated plots and convert to matplotlib figures
             logger.info("   Loading and converting generated plots to figures...")
             if hasattr(viz_manager, "plot_dir") and viz_manager.plot_dir.exists():
