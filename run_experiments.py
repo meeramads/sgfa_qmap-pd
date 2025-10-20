@@ -447,13 +447,55 @@ def main():
         logger.info(f"🗂️  Using unified results directory: {unified_dir}")
         logger.info(f"   All experiments will save to: {unified_dir.name}")
 
+        # Build semantic names for subdirectories
+        # Helper function to create semantic experiment names
+        def get_semantic_subdir_name(base_name: str, prefix: str) -> str:
+            """Create semantic subdirectory name with experiment parameters."""
+            parts = [prefix]
+
+            # Add model type abbreviation if not default
+            model_type = config.get("model", {}).get("model_type", "sparseGFA")
+            if model_type == "sparse_gfa_fixed":
+                parts.append("fixed")
+            elif model_type == "neuroGFA":
+                parts.append("neuro")
+            elif model_type in ["standard_gfa", "GFA"]:
+                parts.append("std")
+            # sparseGFA is default, no abbreviation
+
+            # Add key parameters
+            model_config_params = config.get("model", {})
+            if "K" in model_config_params:
+                parts.append(f"K{model_config_params['K']}")
+            if "percW" in model_config_params:
+                parts.append(f"percW{model_config_params['percW']:.0f}")
+
+            # Add slab parameters
+            slab_df = model_config_params.get("slab_df")
+            slab_scale = model_config_params.get("slab_scale")
+            if slab_df and slab_scale:
+                parts.append(f"slab{slab_df:.0f}_{slab_scale:.0f}")
+
+            # Add MAD threshold
+            mad_threshold = config.get("preprocessing", {}).get("qc_outlier_threshold")
+            if mad_threshold:
+                parts.append(f"MAD{mad_threshold:.1f}")
+
+            # Add tree depth if non-default
+            tree_depth = config.get("mcmc", {}).get("max_tree_depth") or \
+                        config.get("factor_stability", {}).get("max_tree_depth")
+            if tree_depth and tree_depth != 13:
+                parts.append(f"tree{tree_depth}")
+
+            return "_".join(parts)
+
         # Create organized subdirectories for pipeline experiments
         # Numbering reflects the pipeline execution order (data_validation → robustness → stability → clinical)
         experiment_dir_mapping = {
-            "data_validation": "01_data_validation",
-            "robustness_testing": "02_robustness_testing",
-            "factor_stability": "03_factor_stability",
-            "clinical_validation": "04_clinical_validation",
+            "data_validation": get_semantic_subdir_name("data_validation", "01_data_validation"),
+            "robustness_testing": get_semantic_subdir_name("robustness_testing", "02_robustness_testing"),
+            "factor_stability": get_semantic_subdir_name("factor_stability", "03_factor_stability"),
+            "clinical_validation": get_semantic_subdir_name("clinical_validation", "04_clinical_validation"),
         }
 
         # Only create directories for experiments that are actually being run

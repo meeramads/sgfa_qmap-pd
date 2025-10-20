@@ -331,8 +331,8 @@ class ExperimentFramework:
         """
         Generate a semantic experiment name that includes key model parameters.
 
-        Format: {base_name}_K{K}_percW{percW}_slab{slab_df}_{slab_scale}_MAD{threshold}_tree{depth}
-        Example: robustness_tests_K10_percW20_slab4_2_MAD3.0_tree15
+        Format: {base_name}_{model}_K{K}_percW{percW}_slab{slab_df}_{slab_scale}_MAD{threshold}_tree{depth}
+        Example: robustness_tests_fixed_K10_percW20_slab4_2_MAD3.0_tree15
 
         Parameters
         ----------
@@ -351,6 +351,18 @@ class ExperimentFramework:
 
         # Build semantic name components
         name_parts = [base_name]
+
+        # Add model type abbreviation if not default (sparseGFA)
+        if hasattr(config, 'model_type') and config.model_type:
+            model_type = config.model_type
+            # Create short abbreviation for model type
+            if model_type == "sparse_gfa_fixed":
+                name_parts.append("fixed")
+            elif model_type == "neuroGFA":
+                name_parts.append("neuro")
+            elif model_type == "standard_gfa" or model_type == "GFA":
+                name_parts.append("std")
+            # sparseGFA is default, no abbreviation needed
 
         # Add K (number of factors) if specified
         if config.K is not None:
