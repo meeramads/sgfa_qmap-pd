@@ -3247,6 +3247,8 @@ class DataValidationExperiments(ExperimentFramework):
             filtered_positions.reset_index(drop=True, inplace=True)
 
             # Save filtered position lookup
+            # Ensure output_dir is a Path object
+            output_dir = Path(output_dir) if not isinstance(output_dir, Path) else output_dir
             position_output_dir = output_dir / "filtered_position_lookups"
             position_output_dir.mkdir(exist_ok=True, parents=True)
 
