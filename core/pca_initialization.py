@@ -155,6 +155,10 @@ def create_numpyro_init_params(
         # Initialize tauZ_tilde near 1 (will be scaled by tau0_Z in model)
         init_params['tauZ_tilde'] = jnp.ones((1, K))
 
+        # Initialize tauW_tilde per view (model samples tauW_tilde_{m+1})
+        for m in range(len(X_list)):
+            init_params[f'tauW_tilde_{m+1}'] = jnp.ones(())  # Scalar per view
+
         # Initialize local scales conservatively
         init_params['lmbZ'] = jnp.ones((N, K)) * 0.5
         init_params['lmbW'] = jnp.ones((D_total, K)) * 0.5

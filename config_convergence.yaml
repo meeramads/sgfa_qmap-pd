@@ -40,7 +40,7 @@ experiments:
 # Model Configuration - ONLY DIFFERENCE: model_type is "sparse_gfa_fixed"
 model:
   model_type: "sparse_gfa_fixed"    # Uses convergence-fixed model
-  use_pca_initialization: true      # Enable PCA-based MCMC initialization (Fix #5)
+  use_pca_initialization: false     # Temporarily disabled for testing
   K: 20
   num_samples: 2000
   num_warmup: 1000
