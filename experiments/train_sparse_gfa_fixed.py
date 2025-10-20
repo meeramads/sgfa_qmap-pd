@@ -335,6 +335,7 @@ def main():
                 subject_ids=subject_ids,  # Pass subject IDs for Z score indexing
                 view_names=view_names,  # Pass view names for W indexing
                 feature_names=feature_names,  # Pass feature names for W indexing
+                Dm=hypers['Dm'],  # Pass view dimensions for per-view consensus saving
             )
 
             # Save chain results

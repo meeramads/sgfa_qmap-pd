@@ -529,6 +529,7 @@ def save_stability_results(
     subject_ids: Optional[List[str]] = None,
     view_names: Optional[List[str]] = None,
     feature_names: Optional[Dict[str, List[str]]] = None,
+    Dm: Optional[List[int]] = None,
 ) -> None:
     """Save factor stability and effectiveness results to files.
 
@@ -537,6 +538,19 @@ def save_stability_results(
     stability_results : Dict
         Output from assess_factor_stability_cosine()
     effective_results : Dict
+        Output from count_effective_factors()
+    output_dir : str
+        Directory to save results
+    subject_ids : Optional[List[str]]
+        Subject/patient IDs for Z score indexing
+    view_names : Optional[List[str]]
+        Names of views (e.g., ['volume_sn_voxels', 'clinical'])
+    feature_names : Optional[Dict[str, List[str]]]
+        Feature names per view
+    Dm : Optional[List[int]]
+        Dimensions per view (e.g., [850, 14] for imaging + clinical)
+
+    Original effective_results parameter docs:
         Output from count_effective_factors()
     output_dir : str
         Directory to save results
@@ -613,6 +627,39 @@ def save_stability_results(
         consensus_W_df.index.name = "Feature"
         save_csv(consensus_W_df, output_path / "consensus_factor_loadings.csv", index=True)
         logger.info(f"  ✅ Saved consensus factor loadings (W): {consensus_W.shape}")
+
+        # Save per-view consensus loadings if Dm is available
+        if Dm is not None and view_names is not None:
+            logger.info(f"  Saving per-view consensus loadings...")
+            start_idx = 0
+            for view_idx, (view_name, view_dim) in enumerate(zip(view_names, Dm)):
+                end_idx = start_idx + view_dim
+                view_W = consensus_W[start_idx:end_idx, :]
+
+                # Create DataFrame for this view
+                view_W_df = pd.DataFrame(
+                    view_W,
+                    columns=factor_names,
+                )
+
+                # Use feature names for this view if available
+                if feature_names and view_name in feature_names:
+                    view_feature_names = feature_names[view_name]
+                    if len(view_feature_names) == view_dim:
+                        view_W_df.index = view_feature_names
+                    else:
+                        view_W_df.index = [f"{view_name}_Feature_{j}" for j in range(view_dim)]
+                else:
+                    view_W_df.index = [f"{view_name}_Feature_{j}" for j in range(view_dim)]
+
+                view_W_df.index.name = "Feature"
+
+                # Save per-view file
+                view_filename = f"consensus_factor_loadings_{view_name}.csv"
+                save_csv(view_W_df, output_path / view_filename, index=True)
+                logger.info(f"    ✅ Saved {view_name}: {view_W.shape}")
+
+                start_idx = end_idx
 
     # Save consensus scores if available
     if stability_results.get("consensus_Z") is not None:
