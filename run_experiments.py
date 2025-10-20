@@ -238,6 +238,12 @@ def main():
         default=None,
         help="MCMC target acceptance probability (default: 0.8). Higher values (0.9-0.99) for better sampling. Example: --target-accept-prob 0.95",
     )
+    parser.add_argument(
+        "--use-pca-initialization",
+        action="store_true",
+        default=False,
+        help="Enable PCA-based initialization for MCMC chains (overrides config.yaml). Uses PCA to provide smart starting values for factor loadings and scores.",
+    )
 
     args = parser.parse_args()
 
@@ -339,6 +345,13 @@ def main():
         if "factor_stability" in config:
             config["factor_stability"]["target_accept_prob"] = args.target_accept_prob
         logger.info(f"Override target_accept_prob: {args.target_accept_prob}")
+
+    # Configure PCA initialization if provided
+    if args.use_pca_initialization:
+        if "model" not in config:
+            config["model"] = {}
+        config["model"]["use_pca_initialization"] = True
+        logger.info(f"Override use_pca_initialization: True (PCA-based MCMC initialization enabled)")
 
     # Configure PCA if provided
     if args.enable_pca or args.pca_strategy or args.pca_variance or args.pca_components:
