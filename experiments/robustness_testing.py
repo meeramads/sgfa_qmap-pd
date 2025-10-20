@@ -676,6 +676,13 @@ class RobustnessExperiments(ExperimentFramework):
             if "model_type" in args:
                 config_dict["model"]["model_type"] = args["model_type"]
 
+            # Ensure model configuration is structured correctly for integration
+            if "model" not in config_dict:
+                config_dict["model"] = {}
+            if "model_type" not in config_dict["model"]:
+                # Use model_type from ExperimentConfig if available
+                config_dict["model"]["model_type"] = config_dict.get("model_type", "sparseGFA")
+
             # Debug: Log what model_type is in the config
             if verbose:
                 model_type_in_config = config_dict.get("model", {}).get("model_type", "NOT SET")

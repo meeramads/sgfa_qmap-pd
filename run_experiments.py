@@ -643,11 +643,16 @@ def main():
         if qc_outlier_threshold:
             logger.info(f"   QC outlier threshold (MAD): {qc_outlier_threshold}")
 
+        # Get model configuration
+        model_config = exp_config.get("model", {})
+        model_type = model_config.get("model_type", "sparseGFA")
+
         experiment_config = ExperimentConfig(
             experiment_name="factor_stability_analysis",
             description="Factor stability analysis with fixed parameters (Ferreira et al. 2024)",
             dataset="qmap_pd",
             data_dir=get_data_dir(exp_config),
+            model_type=model_type,  # Use model_type from config
             K_values=[K_value],
             K=K_value,  # For semantic naming
             percW=percW_value,  # For semantic naming

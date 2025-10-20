@@ -62,6 +62,7 @@ class ExperimentConfig:
     preprocessing_config: Dict[str, Any] = field(default_factory=dict)
 
     # Model configuration
+    model_type: str = "sparseGFA"  # Model type: sparseGFA, sparse_gfa_fixed, neuroGFA, etc.
     K_values: List[int] = field(default_factory=lambda: [5, 10, 15])
     num_sources: int = 3
     percW_values: List[float] = field(default_factory=lambda: [33.0, 50.0])
