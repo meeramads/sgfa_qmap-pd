@@ -1,0 +1,24 @@
+2025-10-19 22:28:03,377 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_MAD3.0_run_20251019_222803
+2025-10-19 22:28:03,387 - experiments.framework - INFO - Starting experiment: data_validation_20251019_222803
+2025-10-19 22:28:03,782 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251019_222803
+2025-10-19 22:28:03,782 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 0.4 seconds
+2025-10-19 22:28:03,782 - experiments.framework - INFO - 🕐 Started: 2025-10-19 22:28:03
+2025-10-19 22:28:03,782 - experiments.framework - INFO - 🕑 Finished: 2025-10-19 22:28:03
+2025-10-19 22:28:03,782 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251019_222803
+2025-10-19 22:28:03,782 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-19 22:28:03,822 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-19 22:28:03,958 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-19 22:28:04,959 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-19 22:28:04,963 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-19 22:28:05,221 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_MAD3.0_run_20251019_222803
+2025-10-19 22:28:05,221 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_MAD3.0_run_20251019_222803
+2025-10-19 22:28:05,226 - experiments.framework - INFO - Starting experiment: robustness_tests_20251019_222805
+2025-10-19 22:28:05,226 - experiments.framework - INFO - Starting experiment: robustness_tests_20251019_222805
+2025-10-19 22:28:27,145 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-19 22:28:27,145 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-19 22:28:27,208 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-19 22:28:27,208 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-19 22:28:27,427 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-19 22:28:27,427 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-19 22:28:28,428 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-19 22:28:28,428 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed

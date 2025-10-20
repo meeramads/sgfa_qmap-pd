@@ -1,0 +1,90 @@
+{
+  "experiment_id": "data_validation_20251019_220246",
+  "config": {
+    "experiment_name": "data_validation",
+    "description": "Data quality assessment and EDA",
+    "version": "1.0",
+    "dataset": "qmap_pd",
+    "data_dir": "/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/qMAP-PD_data",
+    "preprocessing_config": {
+      "strategy": "standard",
+      "enable_advanced_preprocessing": true,
+      "imputation_strategy": "median",
+      "feature_selection_method": "none",
+      "variance_threshold": 0.01,
+      "missing_threshold": 0.8,
+      "roi_based_selection": true,
+      "drop_confounds_from_clinical": true,
+      "select_rois": [
+        "volume_sn_voxels.tsv"
+      ],
+      "qc_outlier_threshold": null
+    },
+    "K_values": [
+      5,
+      10,
+      15
+    ],
+    "num_sources": 3,
+    "percW_values": [
+      33.0,
+      50.0
+    ],
+    "K": null,
+    "percW": null,
+    "slab_df": null,
+    "slab_scale": null,
+    "qc_outlier_threshold": null,
+    "num_samples": 2000,
+    "num_chains": 1,
+    "num_warmup": 1000,
+    "num_runs_per_config": 3,
+    "max_tree_depth": null,
+    "cv_folds": 5,
+    "cv_strategy": "stratified",
+    "cv_target_variable": null,
+    "cv_group_variable": null,
+    "performance_config": {},
+    "enable_memory_optimization": true,
+    "enable_profiling": true,
+    "auto_configure_system": true,
+    "max_memory_gb": null,
+    "save_intermediate_results": false,
+    "save_samples": false,
+    "save_diagnostics": true,
+    "save_numpy_arrays": false,
+    "output_formats": [
+      "json",
+      "csv"
+    ],
+    "enable_spatial_remapping": false,
+    "save_brain_maps": true,
+    "create_brain_map_plots": false,
+    "brain_maps_output_dir": "brain_maps",
+    "random_seeds": [
+      42,
+      123,
+      456
+    ],
+    "cosine_threshold": 0.8,
+    "min_match_rate": 0.5,
+    "sparsity_threshold": 0.01,
+    "min_nonzero_pct": 0.05
+  },
+  "start_time": "2025-10-19T22:02:46.301944",
+  "end_time": "2025-10-19T22:02:46.534867",
+  "status": "completed",
+  "error_message": null,
+  "model_results": {},
+  "cv_results": {},
+  "performance_metrics": {
+    "total_runtime_seconds": 0.232923,
+    "total_runtime_formatted": "0.2 seconds"
+  },
+  "diagnostics": {
+    "error": "name 'config' is not defined"
+  },
+  "plots": {},
+  "data_summary": {},
+  "convergence_diagnostics": {}
+}
