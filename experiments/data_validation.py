@@ -328,12 +328,14 @@ class DataValidationExperiments(ExperimentFramework):
         # This maps preprocessed voxels back to 3D brain coordinates
         # Use experiment-specific output_dir if available
         position_output_dir = getattr(self, 'base_output_dir', None) or get_output_dir(config)
+        logger.info(f"   Creating filtered position lookups with output_dir: {position_output_dir}")
         filtered_position_paths = self._create_filtered_position_lookups(
             raw_data, preprocessed_data, data_dir, position_output_dir
         )
 
         if filtered_position_paths:
-            logger.info(f"   ✅ Filtered position lookups saved to: {position_output_dir}/position_lookup_filtered")
+            logger.info(f"   ✅ Filtered position lookups saved to: {position_output_dir}/filtered_position_lookups")
+            logger.info(f"   Files created: {list(filtered_position_paths.values())}")
 
         # Analyze data quality
         results = {
@@ -3177,6 +3179,10 @@ class DataValidationExperiments(ExperimentFramework):
         X_list_raw = raw_data.get("X_list", [])
         X_list_preprocessed = preprocessed_data.get("X_list", [])
 
+        logger.info(f"  _create_filtered_position_lookups called:")
+        logger.info(f"    view_names: {view_names}")
+        logger.info(f"    n_views raw: {len(X_list_raw)}, preprocessed: {len(X_list_preprocessed)}")
+
         if len(X_list_raw) != len(X_list_preprocessed):
             logger.warning("Raw and preprocessed data have different number of views, skipping position lookup creation")
             return {}
@@ -3184,14 +3190,16 @@ class DataValidationExperiments(ExperimentFramework):
         for idx, view_name in enumerate(view_names):
             # Only process imaging views
             if view_name == "clinical":
+                logger.info(f"  Skipping clinical view")
                 continue
 
             # Check if this is an imaging view
             is_imaging = view_name.startswith("volume_") or view_name == "imaging"
             if not is_imaging:
+                logger.info(f"  Skipping non-imaging view: {view_name}")
                 continue
 
-            logger.info(f"Creating filtered position lookup for {view_name}...")
+            logger.info(f"  Creating filtered position lookup for {view_name}...")
 
             # Determine ROI name
             if view_name.startswith("volume_"):
