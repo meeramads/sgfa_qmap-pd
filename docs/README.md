@@ -1,75 +1,44 @@
-# Documentation
+# Documentation Index
 
-This directory contains the Sphinx documentation for the SGFA qMAP-PD project.
+## Quick Start Guides
 
-## Building Documentation
+📖 **[CONVERGENCE_TESTING_GUIDE.md](CONVERGENCE_TESTING_GUIDE.md)** - Test sparse_gfa_fixed convergence  
+🔧 **[FIXES_AND_ENHANCEMENTS.md](FIXES_AND_ENHANCEMENTS.md)** - Recent fixes and command-line examples  
+⚙️ **[config_quick_reference.md](config_quick_reference.md)** - Config parameter reference  
+📊 **[PCA_CONFIGURATION_GUIDE.md](PCA_CONFIGURATION_GUIDE.md)** - PCA dimensionality reduction guide
 
-### Prerequisites
+## Configuration
 
-```bash
-pip install -e ".[dev]"
-```
+- **[configuration.md](configuration.md)** - Complete configuration guide
+- **[config_quick_reference.md](config_quick_reference.md)** - Quick parameter lookup
 
-This installs Sphinx and all required documentation dependencies.
+## Architecture & Design
 
-### Build HTML Documentation
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Overall system architecture
+- **[CV_ARCHITECTURE.md](CV_ARCHITECTURE.md)** - Cross-validation architecture
+- **[UTILS_STRUCTURE.md](UTILS_STRUCTURE.md)** - Utilities organization
 
-```bash
-cd docs
-make html
-```
+## Features
 
-The documentation will be built in `docs/_build/html/`. Open `docs/_build/html/index.html` in your browser to view.
+- **[BRAIN_REMAPPING_WITH_VOXEL_FILTERING.md](BRAIN_REMAPPING_WITH_VOXEL_FILTERING.md)** - Spatial remapping
+- **[spatial_remapping_guide.md](spatial_remapping_guide.md)** - Remapping usage guide
+- **[spatial_remapping_integration.md](spatial_remapping_integration.md)** - Integration details
+- **[MCMC_TRACE_PLOTS.md](MCMC_TRACE_PLOTS.md)** - MCMC diagnostic plots
 
-### Clean Build
+## Development
 
-```bash
-cd docs
-make clean
-make html
-```
+- **[TESTING.md](TESTING.md)** - Testing framework and guidelines
+- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** - Error handling patterns
+- **[REFACTOR_PLAN.md](REFACTOR_PLAN.md)** - Refactoring plans
+- **[REMAINING_ISSUES.md](REMAINING_ISSUES.md)** - Known issues
 
-### Auto-rebuild on Changes
+## Troubleshooting
 
-For development, you can use sphinx-autobuild:
+See **[troubleshooting/](troubleshooting/)** directory for:
+- Recent troubleshooting sessions
+- Bug fix details
+- Configuration issue analysis
 
-```bash
-pip install sphinx-autobuild
-cd docs
-sphinx-autobuild . _build/html
-```
+## API Documentation
 
-This will serve the docs at http://localhost:8000 and auto-rebuild on changes.
-
-## Documentation Structure
-
-- `index.rst`: Main documentation index
-- `api/`: Auto-generated API documentation
-- `examples/`: Usage examples and tutorials
-- `experiments/`: Experiment documentation
-- `*.md`: Additional documentation (configuration, testing, etc.)
-
-## Adding New Documentation
-
-### Adding a New Module
-
-1. Create a new `.rst` file in the appropriate directory
-2. Add it to the `toctree` in `index.rst`
-3. Run `make html` to build
-
-### Adding API Documentation
-
-API documentation is auto-generated from docstrings using Sphinx's autodoc extension.
-
-To document a new module, add it to the API documentation:
-
-```rst
-.. automodule:: your_module_name
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-## CI/CD Integration
-
-Documentation is automatically built and deployed on pushes to main/master branches via GitHub Actions (see `.github/workflows/ci.yml`).
+Run `make html` in this directory to generate Sphinx API documentation.
