@@ -76,9 +76,6 @@ def get_optimal_model_configuration(
         Tuple of (selected_model_type, model_configuration_summary)
     """
     try:
-        if verbose:
-            logger.info("🚀 === OPTIMAL MODEL CONFIGURATION ===")
-
         # Extract model preferences from config
         model_config = config.get("model", {})
         model_type = model_config.get("model_type", "sparseGFA")  # Default to sparse GFA
@@ -334,9 +331,6 @@ def apply_models_framework_to_pipeline(
         Tuple of (model_type, model_instance, framework_info)
     """
     try:
-        if verbose:
-            logger.info("🚀 === MODELS FRAMEWORK INTEGRATION ===")
-
         # Get optimal model configuration
         model_type, model_config = get_optimal_model_configuration(
             config, data_characteristics, verbose=verbose
@@ -677,9 +671,6 @@ def integrate_models_with_pipeline(
         Tuple of (model_type, model_instance, comprehensive_models_info)
     """
     try:
-        if verbose:
-            logger.info("🚀 === MODELS FRAMEWORK PIPELINE INTEGRATION ===")
-
         # Apply comprehensive models framework
         model_type, model_instance, framework_info = apply_models_framework_to_pipeline(
             config, X_list, data_characteristics, hypers, verbose=verbose
