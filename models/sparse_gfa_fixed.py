@@ -117,21 +117,25 @@ class SparseGFAFixedModel(BaseGFAModel):
         # τ₀ = (D₀/(N-D₀)) × (σ/√N)
         D0_Z = K  # Expected effective dimensionality
         sigma_std = 1.0  # After standardization
-        tau0_Z = (D0_Z / (N - D0_Z)) * (sigma_std / jnp.sqrt(N))
-        logger.info(f"      Calculated τ₀_Z = {tau0_Z:.6f} (from D₀={D0_Z}, N={N})")
+        tau0_Z_scale = (D0_Z / (N - D0_Z)) * (sigma_std / jnp.sqrt(N))
+        logger.info(f"      Calculated τ₀_Z scale = {tau0_Z_scale:.6f} (from D₀={D0_Z}, N={N})")
 
-        # Non-centered parameterization for global scale
-        logger.info("      Sampling tauZ_tilde ~ HalfCauchy(1.0)...")
-        tauZ_tilde = numpyro.sample(
-            "tauZ_tilde", dist.HalfCauchy(1.0), sample_shape=(1, K)
+        # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
+        # Following Piironen & Vehtari (2017) recommendation
+        # NOT tau0 * HalfCauchy(1) - that allows tau to explore extreme values!
+        logger.info(f"      Sampling tauZ ~ HalfStudentT(df=2, scale={tau0_Z_scale:.6f})...")
+        tauZ = numpyro.sample(
+            "tauZ",
+            dist.LeftTruncatedDistribution(
+                dist.StudentT(df=2, loc=0, scale=tau0_Z_scale),
+                low=0
+            ),
+            sample_shape=(1, K)
         )
-        tauZ = tau0_Z * tauZ_tilde
-        logger.info(f"      ✓ tauZ = τ₀ * tauZ_tilde, shape: {tauZ.shape}")
+        logger.info(f"      ✓ tauZ sampled directly, shape: {tauZ.shape}")
 
-        # Log the calculated tau0 for verification
-        numpyro.deterministic("tau0_Z", tau0_Z)
-        # Store tauZ for trace plots
-        numpyro.deterministic("tauZ", tauZ)
+        # Log the calculated tau0_Z scale for verification
+        numpyro.deterministic("tau0_Z", tau0_Z_scale)
 
         # Horseshoe local scales (keep centered as simpler and works with regularization)
         logger.info("      Sampling lmbZ ~ HalfCauchy(1.0)...")
@@ -247,23 +251,26 @@ class SparseGFAFixedModel(BaseGFAModel):
             # τ₀ = (D₀/(D-D₀)) × (σ/√N)
             D0_per_factor = pW_m  # Expected non-zero loadings per factor
             sigma_std = 1.0  # After standardization
-            tau0 = (D0_per_factor / (Dm_m - D0_per_factor)) * (sigma_std / jnp.sqrt(N))
-            logger.info(f"        Calculated τ₀_W_view{m+1} = {tau0:.6f}")
+            tau0_W_scale = (D0_per_factor / (Dm_m - D0_per_factor)) * (sigma_std / jnp.sqrt(N))
+            logger.info(f"        Calculated τ₀_W_view{m+1} scale = {tau0_W_scale:.6f}")
 
-            # Non-centered parameterization for tau
-            logger.info(f"        Sampling tauW_tilde_{m+1} ~ HalfCauchy(1.0)...")
-            tau_tilde = numpyro.sample(
-                f"tauW_tilde_{m + 1}",
-                dist.HalfCauchy(1.0)
+            # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
+            # Following Piironen & Vehtari (2017) recommendation
+            # NOT tau0 * HalfCauchy(1) - that allows tau to explore extreme values!
+            logger.info(f"        Sampling tauW{m+1} ~ HalfStudentT(df=2, scale={tau0_W_scale:.6f})...")
+            tauW = numpyro.sample(
+                f"tauW{m + 1}",
+                dist.LeftTruncatedDistribution(
+                    dist.StudentT(df=2, loc=0, scale=tau0_W_scale),
+                    low=0
+                )
             )
-            tauW = tau0 * tau_tilde
-            logger.info(f"        ✓ tauW = τ₀ * tau_tilde")
+            logger.info(f"        ✓ tauW{m+1} sampled directly = {tauW}")
 
-            # Log the calculated tau0 for verification
-            numpyro.deterministic(f"tau0_view_{m+1}", tau0)
+            # Log the calculated tau0_W scale for verification
+            numpyro.deterministic(f"tau0_view_{m+1}", tau0_W_scale)
 
-            # Store tauW for this view for trace plots (using tauW1, tauW2, ... naming)
-            numpyro.deterministic(f"tauW{m+1}", tauW)
+            # tauW is already stored by the sample statement above
             tauW_all = tauW_all.at[m, :].set(tauW)
 
             # Extract chunk for this source using static width

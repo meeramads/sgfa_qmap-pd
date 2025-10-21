@@ -874,6 +874,67 @@ class RobustnessExperiments(ExperimentFramework):
                         # Get samples from this chain and convert to numpy to break JAX references
                         chain_samples = mcmc_single.get_samples()
 
+                        # Log tau0 values (data-dependent global scales) for diagnostics
+                        if "tau0_Z" in chain_samples:
+                            tau0_Z_val = float(np.array(chain_samples["tau0_Z"]).mean())
+                            self.logger.info(f"   📊 Prior scale τ₀_Z = {tau0_Z_val:.6f}")
+
+                        # Log tau0 for each view
+                        view_tau0_values = []
+                        for key in chain_samples.keys():
+                            if key.startswith("tau0_view_"):
+                                view_num = key.split("_")[-1]
+                                tau0_val = float(np.array(chain_samples[key]).mean())
+                                view_tau0_values.append((view_num, tau0_val))
+                                self.logger.info(f"   📊 Prior scale τ₀_W (view {view_num}) = {tau0_val:.6f}")
+
+                        # Warning if tau0 values seem too large
+                        if "tau0_Z" in chain_samples and tau0_Z_val > 1.0:
+                            self.logger.warning(f"   ⚠️  τ₀_Z = {tau0_Z_val:.6f} is very large (>1.0) - prior may be too loose!")
+                        for view_num, tau0_val in view_tau0_values:
+                            if tau0_val > 1.0:
+                                self.logger.warning(f"   ⚠️  τ₀_W (view {view_num}) = {tau0_val:.6f} is very large (>1.0) - prior may be too loose!")
+
+                        # Log other key hyperparameters for diagnostics
+                        self.logger.info("   📊 Hyperparameter Summary:")
+
+                        # Global shrinkage tauZ (for factors)
+                        if "tauZ" in chain_samples:
+                            tauZ_samples = np.array(chain_samples["tauZ"])
+                            tauZ_mean = float(tauZ_samples.mean())
+                            tauZ_std = float(tauZ_samples.std())
+                            self.logger.info(f"      τ_Z (global shrinkage, factors): {tauZ_mean:.6f} ± {tauZ_std:.6f}")
+
+                        # Global shrinkage tauW per view (for loadings)
+                        for m in range(len(X_list)):
+                            tauW_key = f"tauW{m+1}"
+                            if tauW_key in chain_samples:
+                                tauW_samples = np.array(chain_samples[tauW_key])
+                                tauW_mean = float(tauW_samples.mean())
+                                tauW_std = float(tauW_samples.std())
+                                self.logger.info(f"      τ_W (global shrinkage, view {m+1}): {tauW_mean:.6f} ± {tauW_std:.6f}")
+
+                        # Noise precision sigma per view
+                        for m in range(len(X_list)):
+                            sigma_key = f"sigma{m+1}"
+                            if sigma_key in chain_samples:
+                                sigma_samples = np.array(chain_samples[sigma_key])
+                                sigma_mean = float(sigma_samples.mean())
+                                sigma_std = float(sigma_samples.std())
+                                # Convert to variance (σ² = 1/precision)
+                                variance_mean = 1.0 / sigma_mean
+                                self.logger.info(f"      σ (noise precision, view {m+1}): {sigma_mean:.6f} ± {sigma_std:.6f}")
+                                self.logger.info(f"      σ² (noise variance, view {m+1}): {variance_mean:.6f}")
+
+                        # Slab scales cW and cZ
+                        if "cW" in chain_samples:
+                            cW_val = float(np.array(chain_samples["cW"]).mean())
+                            self.logger.info(f"      c_W (slab scale, loadings): {cW_val:.6f}")
+
+                        if "cZ" in chain_samples:
+                            cZ_val = float(np.array(chain_samples["cZ"]).mean())
+                            self.logger.info(f"      c_Z (slab scale, factors): {cZ_val:.6f}")
+
                         # Monitor GPU memory right after sampling (before cleanup, only for GPU devices)
                         allocated_after_sampling_gb = 0.0  # Initialize to avoid scope issues
                         try:
