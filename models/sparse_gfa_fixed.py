@@ -130,6 +130,8 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         # Log the calculated tau0 for verification
         numpyro.deterministic("tau0_Z", tau0_Z)
+        # Store tauZ for trace plots
+        numpyro.deterministic("tauZ", tauZ)
 
         # Horseshoe local scales (keep centered as simpler and works with regularization)
         logger.info("      Sampling lmbZ ~ HalfCauchy(1.0)...")
@@ -153,6 +155,8 @@ class SparseGFAFixedModel(BaseGFAModel):
 
             # Log for diagnostics
             numpyro.deterministic("cZ_squared", cZ_squared)
+            # Store cZ for trace plots
+            numpyro.deterministic("cZ", cZ)
 
             # Apply regularization and non-centered transformation
             logger.info("      Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...")
@@ -217,6 +221,8 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         # Log for diagnostics
         numpyro.deterministic("cW_squared", cW_squared)
+        # Store cW for trace plots
+        numpyro.deterministic("cW", cW)
 
         # Calculate expected sparsity per source using static dimensions
         pW_static = [max(1, min(int((percW / 100.0) * dim), dim - 1)) for dim in Dm_static]
@@ -224,6 +230,9 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         # Initialize W (will be constructed deterministically)
         W = jnp.zeros((D, K))
+
+        # Initialize array to store tauW for each view (for trace plots)
+        tauW_all = jnp.zeros((self.num_sources, K))
 
         # Apply sparsity to each source
         d = 0
@@ -252,6 +261,10 @@ class SparseGFAFixedModel(BaseGFAModel):
 
             # Log the calculated tau0 for verification
             numpyro.deterministic(f"tau0_view_{m+1}", tau0)
+
+            # Store tauW for this view for trace plots (using tauW1, tauW2, ... naming)
+            numpyro.deterministic(f"tauW{m+1}", tauW)
+            tauW_all = tauW_all.at[m, :].set(tauW)
 
             # Extract chunk for this source using static width
             width = Dm_static[m]

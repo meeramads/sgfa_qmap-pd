@@ -691,9 +691,20 @@ def save_stability_results(
 
     # Save similarity matrix
     if "similarity_matrix" in stability_results:
+        similarity_matrix = stability_results["similarity_matrix"]
         save_numpy(
-            stability_results["similarity_matrix"],
+            similarity_matrix,
             output_path / "similarity_matrix.npy",
         )
+
+        # Also save as CSV for easier inspection
+        import pandas as pd
+        similarity_df = pd.DataFrame(
+            similarity_matrix,
+            index=[f"Factor_{i+1}" for i in range(similarity_matrix.shape[0])],
+            columns=[f"Factor_{i+1}" for i in range(similarity_matrix.shape[1])]
+        )
+        similarity_df.to_csv(output_path / "similarity_matrix.csv")
+        logger.info(f"  ✅ Saved similarity matrix: .npy and .csv formats")
 
     logger.info("Factor stability results saved successfully")

@@ -488,6 +488,8 @@ def plot_parameter_distributions(
     Z_samples: np.ndarray,
     save_path: Optional[str] = None,
     max_factors: int = 4,
+    save_individual: bool = True,
+    output_dir: Optional[str] = None,
 ) -> plt.Figure:
     """Plot posterior distributions for selected parameters.
 
@@ -578,6 +580,64 @@ def plot_parameter_distributions(
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         logger.info(f"  ✓ Saved to {save_path}")
+
+    # Save individual plots for each factor if requested
+    if save_individual and output_dir:
+        from pathlib import Path
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"  Saving individual W and Z distribution plots to: {output_dir}")
+
+        # Save W distributions for each factor
+        for k in range(K):
+            fig_w, ax_w = plt.subplots(figsize=(6, 4))
+
+            for chain_idx in range(n_chains):
+                w_flat = W_samples[chain_idx, :, :, k].flatten()
+                ax_w.hist(
+                    w_flat,
+                    bins=50,
+                    alpha=0.4,
+                    color=colors[chain_idx],
+                    label=f'Chain {chain_idx}',
+                    density=True
+                )
+
+            ax_w.set_xlabel('Loading Value', fontsize=12)
+            ax_w.set_ylabel('Density', fontsize=12)
+            ax_w.set_title(f'W Posterior Distribution: Factor {k}', fontsize=14, fontweight='bold')
+            ax_w.legend(fontsize=10)
+            ax_w.grid(True, alpha=0.3)
+            fig_w.tight_layout()
+
+            _save_individual_plot(fig_w, f"posterior_W_factor{k}", output_dir)
+
+        # Save Z distributions for each factor
+        for k in range(K):
+            fig_z, ax_z = plt.subplots(figsize=(6, 4))
+
+            for chain_idx in range(n_chains):
+                z_flat = Z_samples[chain_idx, :, :, k].flatten()
+                ax_z.hist(
+                    z_flat,
+                    bins=50,
+                    alpha=0.4,
+                    color=colors[chain_idx],
+                    label=f'Chain {chain_idx}',
+                    density=True
+                )
+
+            ax_z.set_xlabel('Score Value', fontsize=12)
+            ax_z.set_ylabel('Density', fontsize=12)
+            ax_z.set_title(f'Z Posterior Distribution: Factor {k}', fontsize=14, fontweight='bold')
+            ax_z.legend(fontsize=10)
+            ax_z.grid(True, alpha=0.3)
+            fig_z.tight_layout()
+
+            _save_individual_plot(fig_z, f"posterior_Z_factor{k}", output_dir)
+
+        logger.info(f"  ✅ Saved {K} individual W distribution plots")
+        logger.info(f"  ✅ Saved {K} individual Z distribution plots")
 
     return fig
 

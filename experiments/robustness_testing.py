@@ -2753,11 +2753,19 @@ class RobustnessExperiments(ExperimentFramework):
                     self.logger.info("   ✅ MCMC trace diagnostics created")
 
                     # Create parameter distribution plots
+                    # Set up individual plots directory
+                    from pathlib import Path
+                    experiment_output_dir = Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir)
+                    wz_plots_dir = experiment_output_dir / "individual_plots" / "wz_distributions"
+                    wz_plots_dir.mkdir(parents=True, exist_ok=True)
+
                     fig_dist = plot_parameter_distributions(
                         W_samples=W_samples,
                         Z_samples=Z_samples,
                         save_path=None,
                         max_factors=min(4, W_samples.shape[3]),
+                        save_individual=True,
+                        output_dir=str(wz_plots_dir),
                     )
                     plots["mcmc_parameter_distributions"] = fig_dist
                     self.logger.info("   ✅ Parameter distribution plots created")
@@ -2770,9 +2778,11 @@ class RobustnessExperiments(ExperimentFramework):
                         num_sources = len(X_list) if X_list is not None else None
 
                         # Determine output directory for individual plots
-                        from core.config_utils import ConfigHelper
-                        config_dict = ConfigHelper.to_dict(self.config)
-                        individual_plots_dir = get_output_dir(config_dict) / "factor_stability" / "individual_plots" / "hyperparameters"
+                        # Use experiment-specific output directory, not global results dir
+                        from pathlib import Path
+                        experiment_output_dir = Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir)
+                        individual_plots_dir = experiment_output_dir / "individual_plots" / "hyperparameters"
+                        individual_plots_dir.mkdir(parents=True, exist_ok=True)
 
                         fig_hyper_post = plot_hyperparameter_posteriors(
                             samples_by_chain=samples_by_chain,
