@@ -711,11 +711,13 @@ class RobustnessExperiments(ExperimentFramework):
                 hypers_log = models_summary.get('hyperparameters', {})
                 self.logger.info(f"   Hyperparameters: Dm={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
 
-            # Import the SGFA model function via interface
-            from core.model_interface import get_model_function
-            models = get_model_function()
+            # CRITICAL FIX: Use model_instance from integrate_models_with_pipeline
+            # NOT the old models function from run_analysis.py!
+            # model_instance is already configured with the correct model class (e.g., SparseGFAFixedModel)
+            # and is callable via __call__ method
             if verbose:
-                self.logger.info(f"✅ Model function loaded: SparseGFA")
+                self.logger.info(f"✅ Using model instance: {model_type}")
+                self.logger.info(f"   Model class: {model_instance.__class__.__name__}")
 
             # Setup MCMC configuration for robustness testing
             num_warmup = args.get("num_warmup", 50)
@@ -723,16 +725,6 @@ class RobustnessExperiments(ExperimentFramework):
             num_chains = args.get("num_chains", 1)
             if verbose:
                 self.logger.info(f"MCMC configuration: warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
-
-            # Create args object for model
-            import argparse
-
-            model_args = argparse.Namespace(
-                model="sparseGFA",
-                K=K,
-                num_sources=len(X_list),
-                reghsZ=args.get("reghsZ", True),
-            )
 
             # Setup MCMC with seed control for robustness
             seed = args.get("random_seed", 42)
@@ -818,11 +810,12 @@ class RobustnessExperiments(ExperimentFramework):
 
                     # Create fresh NUTS kernel for this chain (avoid state accumulation)
                     self.logger.info(f"Creating fresh NUTS kernel for chain {chain_idx + 1}...")
+                    # CRITICAL: Use model_instance (not old models function!)
                     # Workaround for JAX 0.7.x + NumPyro 0.19.0 compatibility: only pass max_tree_depth if not default
                     if max_tree_depth != 10:
-                        kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
+                        kernel = NUTS(model_instance, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
                     else:
-                        kernel = NUTS(models, target_accept_prob=target_accept_prob, dense_mass=dense_mass)
+                        kernel = NUTS(model_instance, target_accept_prob=target_accept_prob, dense_mass=dense_mass)
 
                     # Create individual MCMC sampler for this chain
                     mcmc_single = MCMC(
@@ -859,12 +852,14 @@ class RobustnessExperiments(ExperimentFramework):
 
                     start_time = time.time()
                     self.logger.info(f"   🚀 Starting MCMC sampling for chain {chain_idx + 1}...")
-                    self.logger.info(f"      Model: {models.__class__.__name__}")
+                    self.logger.info(f"      Model: {model_instance.__class__.__name__}")
                     self.logger.info(f"      Warmup: {num_warmup}, Samples: {num_samples}")
                     self.logger.info(f"      Using init_params: {init_params is not None}")
                     try:
+                        # CRITICAL: model_instance only takes X_list as argument
+                        # Hypers are already stored in model_instance.hypers from initialization
                         mcmc_single.run(
-                            chain_rng_key, X_list, hypers, model_args,
+                            chain_rng_key, X_list,
                             init_params=init_params,
                             extra_fields=("potential_energy",)
                         )
@@ -1054,11 +1049,12 @@ class RobustnessExperiments(ExperimentFramework):
                 # Standard execution for single chain or non-parallel methods
                 # Create NUTS kernel for standard execution
                 self.logger.info("Creating NUTS kernel for standard MCMC execution...")
+                # CRITICAL: Use model_instance (not old models function!)
                 # Workaround for JAX 0.7.x + NumPyro 0.19.0 compatibility: only pass max_tree_depth if not default
                 if max_tree_depth != 10:
-                    kernel = NUTS(models, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
+                    kernel = NUTS(model_instance, target_accept_prob=target_accept_prob, max_tree_depth=max_tree_depth, dense_mass=dense_mass)
                 else:
-                    kernel = NUTS(models, target_accept_prob=target_accept_prob, dense_mass=dense_mass)
+                    kernel = NUTS(model_instance, target_accept_prob=target_accept_prob, dense_mass=dense_mass)
 
                 mcmc = MCMC(
                     kernel,
@@ -1091,8 +1087,10 @@ class RobustnessExperiments(ExperimentFramework):
                 start_time = time.time()
 
                 try:
+                    # CRITICAL: model_instance only takes X_list as argument
+                    # Hypers are already stored in model_instance.hypers from initialization
                     mcmc.run(
-                        rng_key, X_list, hypers, model_args, init_params=init_params, extra_fields=("potential_energy",)
+                        rng_key, X_list, init_params=init_params, extra_fields=("potential_energy",)
                     )
                     elapsed = time.time() - start_time
                     self.logger.info(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
