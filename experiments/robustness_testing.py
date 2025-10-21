@@ -3400,7 +3400,24 @@ def run_robustness_testing(config):
             # Save all plots as individual files
             try:
                 from core.io_utils import save_all_plots_individually
-                output_dir = get_output_dir(config_dict) / "robustness_testing" / "individual_plots"
+                from pathlib import Path
+
+                # Use experiment-specific output directory if available
+                if hasattr(repro_exp, 'base_output_dir') and repro_exp.base_output_dir:
+                    run_dir = Path(repro_exp.base_output_dir)
+                    # Look for robustness_testing experiment subdirectory
+                    robustness_dirs = list(run_dir.glob("robustness_tests*"))
+                    if robustness_dirs:
+                        base_dir = robustness_dirs[0]
+                        logger.info(f"📁 Using experiment subdirectory: {base_dir}")
+                    else:
+                        base_dir = run_dir
+                        logger.warning(f"⚠️  No robustness_tests subdirectory found, using run dir: {base_dir}")
+                else:
+                    base_dir = get_output_dir(config_dict) / "robustness_testing"
+                    logger.warning(f"⚠️  Falling back to global robustness_testing dir: {base_dir}")
+
+                output_dir = base_dir / "individual_plots"
                 save_all_plots_individually(plots, output_dir, dpi=300)
                 logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
             except Exception as e:

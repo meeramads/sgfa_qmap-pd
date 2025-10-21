@@ -412,9 +412,31 @@ class DataValidationExperiments(ExperimentFramework):
         # Save all plots as individual files
         try:
             from core.io_utils import save_all_plots_individually
-            from core.config_utils import ConfigHelper
-            config_dict = ConfigHelper.to_dict(self.config)
-            output_dir = get_output_dir(config_dict) / "data_validation" / "individual_plots"
+
+            # Use experiment-specific output directory if available (set by experiment framework)
+            if hasattr(self, 'base_output_dir') and self.base_output_dir:
+                # base_output_dir is the run directory when called via run_experiments.py
+                # We need to find the experiment-specific subdirectory within it
+                # Check if there's a data_validation subdirectory
+                run_dir = Path(self.base_output_dir)
+
+                # Look for data_validation experiment subdirectory
+                data_val_dirs = list(run_dir.glob("data_validation*"))
+                if data_val_dirs:
+                    base_dir = data_val_dirs[0]  # Use first match
+                    logger.info(f"📁 Using experiment subdirectory: {base_dir}")
+                else:
+                    # Fallback: use base_output_dir directly
+                    base_dir = run_dir
+                    logger.warning(f"⚠️  No data_validation subdirectory found, using run dir: {base_dir}")
+            else:
+                # Fallback to global directory
+                from core.config_utils import ConfigHelper
+                config_dict = ConfigHelper.to_dict(self.config)
+                base_dir = get_output_dir(config_dict) / "data_validation"
+                logger.warning(f"⚠️  Falling back to global data_validation dir: {base_dir}")
+
+            output_dir = base_dir / "individual_plots"
             save_all_plots_individually(plots, output_dir, dpi=300)
             logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
         except Exception as e:
