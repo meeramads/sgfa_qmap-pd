@@ -1,0 +1,23 @@
+2025-10-21 16:19:47,365 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947
+2025-10-21 16:19:47,378 - experiments.framework - INFO - Starting experiment: data_validation_20251021_161947
+2025-10-21 16:20:12,996 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251021_161947
+2025-10-21 16:20:12,996 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 25.6 seconds
+2025-10-21 16:20:12,996 - experiments.framework - INFO - 🕐 Started: 2025-10-21 16:19:47
+2025-10-21 16:20:12,996 - experiments.framework - INFO - 🕑 Finished: 2025-10-21 16:20:12
+2025-10-21 16:20:12,996 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251021_161947
+2025-10-21 16:20:12,996 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-21 16:20:13,078 - experiments.framework - INFO - Garbage collection freed 4 objects
+2025-10-21 16:20:13,369 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-21 16:20:14,370 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-21 16:20:14,607 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-21 16:20:14,612 - experiments.framework - INFO - Saving 5 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947/data_validation_tree10_20251021_161947/plots
+2025-10-21 16:20:16,467 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-21 16:20:18,340 - experiments.framework - INFO -   ✅ Saved plot: data_validation_inter_vs_intra_correlation
+2025-10-21 16:20:22,484 - experiments.framework - INFO -   ✅ Saved plot: data_validation_block_covariance_matrix
+2025-10-21 16:20:24,384 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-21 16:20:25,119 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-21 16:20:25,119 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947/data_validation_tree10_20251021_161947/plots
+2025-10-21 16:20:25,214 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947
+2025-10-21 16:20:25,214 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947
+2025-10-21 16:20:25,222 - experiments.framework - INFO - Starting experiment: robustness_tests_20251021_162025
+2025-10-21 16:20:25,222 - experiments.framework - INFO - Starting experiment: robustness_tests_20251021_162025

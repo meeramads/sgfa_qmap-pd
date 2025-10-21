@@ -1,0 +1,16 @@
+experiment_run_info:
+  config_used: config_convergence.yaml
+  duration_formatted: '0:00:28.444574'
+  duration_seconds: 28.444574
+  end_time: '2025-10-21T17:15:00.353611'
+  start_time: '2025-10-21T17:14:31.909037'
+  unified_results: true
+experiments_executed:
+  factor_stability:
+    duration: 0
+    experiment_id: N/A
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 1
+  total_experiments: 1
