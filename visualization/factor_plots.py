@@ -806,8 +806,8 @@ class FactorVisualizer:
             table[(0, i)].set_facecolor('#4CAF50')
             table[(0, i)].set_text_props(weight='bold', color='white')
 
-        plt.suptitle('Enhanced Factor Loading Analysis', fontsize=16, fontweight='bold', y=0.98)
-        plt.tight_layout(rect=[0, 0.03, 1, 0.96], h_pad=3.0, w_pad=2.0)
+        fig.suptitle('Enhanced Factor Loading Analysis', fontsize=16, fontweight='bold', y=0.98)
+        fig.tight_layout(rect=[0, 0.03, 1, 0.96], h_pad=3.0, w_pad=2.0)
 
         if save_path:
             save_plot(save_path)
