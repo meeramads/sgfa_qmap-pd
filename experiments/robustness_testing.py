@@ -1042,7 +1042,7 @@ class RobustnessExperiments(ExperimentFramework):
                         self.logger.error(traceback.format_exc())
 
                         # Log additional context
-                        self.logger.error(f"Context: Model={models.__class__.__name__}, K={K}, N={X_list[0].shape[0]}")
+                        self.logger.error(f"Context: Model={model_instance.__class__.__name__}, K={K}, N={X_list[0].shape[0]}")
                         self.logger.error(f"Init params used: {init_params is not None}")
                         if init_params is not None:
                             self.logger.error(f"Init param keys: {list(init_params.keys())}")
