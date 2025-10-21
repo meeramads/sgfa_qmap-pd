@@ -304,8 +304,12 @@ def main():
             output_dir = repro_exp.base_output_dir / semantic_name
             output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Update base_output_dir to point to the experiment-specific directory
+        # This ensures all output (including individual_plots) goes to the right place
+        repro_exp.base_output_dir = output_dir
+
         logger.info(f"\nFactor stability output directory: {output_dir}")
-        logger.info(f"Run directory: {repro_exp.base_output_dir}")
+        logger.info(f"Original run directory: {repro_exp.base_output_dir.parent if hasattr(output_dir, 'parent') else 'N/A'}")
 
         # Run factor stability analysis
         logger.info("\n" + "=" * 80)
