@@ -92,27 +92,80 @@ factor_stability:
 
 ## Project Structure
 
-### Core
+```
+sgfa_qmap-pd/
+├── run_experiments.py          # Main entry point
+├── config_convergence.yaml     # Production configuration
+│
+├── models/                     # Model implementations
+│   ├── sparse_gfa_fixed.py     # Sparse GFA with regularized horseshoe priors
+│   └── factory.py              # Model instantiation factory
+│
+├── data/                       # Data loading and preprocessing
+│   ├── qmap_pd.py              # qMAP-PD dataset loader
+│   ├── preprocessing.py        # Neuroimaging preprocessing (MAD QC, imputation)
+│   └── preprocessing_integration.py  # Config merging and pipeline integration
+│
+├── experiments/                # Experimental validation pipeline
+│   ├── framework.py            # Base infrastructure (logging, output management)
+│   ├── data_validation.py      # Data quality assessment
+│   ├── robustness_testing.py   # Seed reproducibility and perturbation testing
+│   └── train_sparse_gfa_fixed.py  # Standalone factor stability runner
+│
+├── analysis/                   # Post-hoc analysis and diagnostics
+│   ├── factor_stability.py     # Multi-chain consensus (Ferreira et al. 2024)
+│   └── mcmc_diagnostics.py     # R-hat, ESS, trace plots, convergence checks
+│
+├── visualization/              # Plotting utilities
+│   ├── factor_plots.py         # Factor loading visualizations
+│   ├── brain_plots.py          # Brain region mapping
+│   └── neuroimaging_utils.py   # Neuroimaging-specific plotting
+│
+├── core/                       # Core utilities
+│   ├── config_utils.py         # Configuration helpers
+│   ├── io_utils.py             # File I/O (save plots, results)
+│   ├── logger_utils.py         # Logging setup
+│   └── utils.py                # General utilities
+│
+└── tools/                      # Additional tools
+    └── nifti_utils.py          # NIfTI neuroimaging utilities
+```
 
-- **models/sparse_gfa_fixed.py**: Sparse GFA with regularized horseshoe
-- **data/preprocessing.py**: Neuroimaging preprocessing
-- **data/preprocessing_integration.py**: Config merging
+### Module Descriptions
 
-### Experiments  
+**Core Infrastructure (`core/`)**
 
-- **experiments/data_validation.py**: Data quality validation
-- **experiments/robustness_testing.py**: Reproducibility testing
-- **experiments/framework.py**: Experiment infrastructure
+- Configuration management, file I/O, logging utilities
+- Shared by all experiments and analysis code
 
-### Analysis
+**Data Pipeline (`data/`)**
 
-- **analysis/factor_stability.py**: Multi-chain consensus
-- **analysis/mcmc_diagnostics.py**: Convergence diagnostics
+- Load multi-view data (imaging + clinical)
+- MAD-based quality control and spatial imputation
+- Position tracking for brain coordinate mapping
 
-### Main
+**Models (`models/`)**
 
-- **run_experiments.py**: Experiment runner
-- **config_convergence.yaml**: Production config
+- Sparse Bayesian factor analysis with NumPyro/JAX
+- Regularized horseshoe priors for structured sparsity
+
+**Experiments (`experiments/`)**
+
+- Orchestrates preprocessing → modeling → analysis
+- Manages output directories and logging
+- Runs validation pipeline stages
+
+**Analysis (`analysis/`)**
+
+- Factor stability across MCMC chains
+- Convergence diagnostics (R-hat, ESS)
+- Consensus loadings/scores computation
+
+**Visualization (`visualization/`)**
+
+- Factor loading plots, brain maps
+- MCMC diagnostics (traces, posteriors)
+- Summary visualizations
 
 ## Installation
 
