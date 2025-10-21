@@ -120,12 +120,12 @@ class SparseGFAFixedModel(BaseGFAModel):
         D0_Z = K  # Expected effective dimensionality
         sigma_std = 1.0  # After standardization
         tau0_Z_scale = (D0_Z / (N - D0_Z)) * (sigma_std / jnp.sqrt(N))
-        logger.info(f"      Calculated τ₀_Z scale = {tau0_Z_scale:.6f} (from D₀={D0_Z}, N={N})")
+        logger.info(f"      Calculated τ₀_Z scale = {tau0_Z_scale} (from D₀={D0_Z}, N={N})")
 
         # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
         # Following Piironen & Vehtari (2017) recommendation
         # NOT tau0 * HalfCauchy(1) - that allows tau to explore extreme values!
-        logger.info(f"      Sampling tauZ ~ HalfStudentT(df=2, scale={tau0_Z_scale:.6f})...")
+        logger.info(f"      Sampling tauZ ~ HalfStudentT(df=2, scale={tau0_Z_scale})...")
         tauZ = numpyro.sample(
             "tauZ",
             dist.LeftTruncatedDistribution(
@@ -256,12 +256,12 @@ class SparseGFAFixedModel(BaseGFAModel):
             D0_per_factor = pW_m  # Expected non-zero loadings per factor
             sigma_std = 1.0  # After standardization
             tau0_W_scale = (D0_per_factor / (Dm_m - D0_per_factor)) * (sigma_std / jnp.sqrt(N))
-            logger.info(f"        Calculated τ₀_W_view{m+1} scale = {tau0_W_scale:.6f}")
+            logger.info(f"        Calculated τ₀_W_view{m+1} scale = {tau0_W_scale}")
 
             # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
             # Following Piironen & Vehtari (2017) recommendation
             # NOT tau0 * HalfCauchy(1) - that allows tau to explore extreme values!
-            logger.info(f"        Sampling tauW{m+1} ~ HalfStudentT(df=2, scale={tau0_W_scale:.6f})...")
+            logger.info(f"        Sampling tauW{m+1} ~ HalfStudentT(df=2, scale={tau0_W_scale})...")
             tauW = numpyro.sample(
                 f"tauW{m + 1}",
                 dist.LeftTruncatedDistribution(
@@ -269,7 +269,7 @@ class SparseGFAFixedModel(BaseGFAModel):
                     low=0
                 )
             )
-            logger.info(f"        ✓ tauW{m+1} sampled directly = {tauW}")
+            logger.info(f"        ✓ tauW{m+1} sampled directly")
 
             # Log the calculated tau0_W scale for verification
             numpyro.deterministic(f"tau0_view_{m+1}", tau0_W_scale)
