@@ -63,7 +63,9 @@ class SparseGFAFixedModel(BaseGFAModel):
         """
         logger.info("🔵 SparseGFAFixedModel.__call__ starting")
         N = X_list[0].shape[0]  # Number of subjects
-        M = self.num_sources  # Number of data sources
+        # Use actual number of views from data, not config
+        # (config may specify total possible sources, but data may have fewer)
+        M = len(X_list)  # Actual number of data sources
         # Use static Python ints for dimensions to avoid JAX concretization errors
         Dm_static = self.hypers["Dm"]  # Keep as Python list
         Dm = jnp.array(Dm_static)  # JAX array for computation
@@ -91,11 +93,11 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         # Sample loadings W with horseshoe prior
         logger.info("  Sampling loadings W...")
-        W = self._sample_loadings(D, K, Dm, Dm_static, percW, sigma, N)
+        W = self._sample_loadings(D, K, Dm, Dm_static, percW, sigma, N, M)
         logger.info(f"  ✓ W sampled, shape: {W.shape}")
 
         # Generate observations for each data source
-        self._generate_observations(X_list, Z, W, Dm, Dm_static, sigma)
+        self._generate_observations(X_list, Z, W, Dm, Dm_static, sigma, M)
 
     def _sample_latent_factors(self, N: int, K: int) -> jnp.ndarray:
         """Sample latent factors Z with convergence fixes.
@@ -187,7 +189,7 @@ class SparseGFAFixedModel(BaseGFAModel):
         return Z
 
     def _sample_loadings(
-        self, D: int, K: int, Dm: jnp.ndarray, Dm_static: list, percW: float, sigma: jnp.ndarray, N: int
+        self, D: int, K: int, Dm: jnp.ndarray, Dm_static: list, percW: float, sigma: jnp.ndarray, N: int, M: int
     ) -> jnp.ndarray:
         """Sample loading matrix W with convergence fixes.
 
@@ -213,10 +215,11 @@ class SparseGFAFixedModel(BaseGFAModel):
         # Correct InverseGamma parameterization: IG(α=2, β=2)
         # This gives E[c²] ≈ slab_scale² and prevents exploration of extreme values
         logger.info("      Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...")
+        # Use M (actual number of views) not self.num_sources (config value)
         cW_tilde = numpyro.sample(
             "cW_tilde",
             dist.InverseGamma(2.0, 2.0),  # α=2, β=2 (will scale by slab_scale²)
-            sample_shape=(self.num_sources, K),
+            sample_shape=(M, K),
         )
         # Scale to get proper distribution
         cW_squared = (self.hypers["slab_scale"] ** 2) * cW_tilde
@@ -236,12 +239,13 @@ class SparseGFAFixedModel(BaseGFAModel):
         W = jnp.zeros((D, K))
 
         # Initialize array to store tauW for each view (for trace plots)
-        tauW_all = jnp.zeros((self.num_sources, K))
+        # Use M (actual number of views) not self.num_sources (config value)
+        tauW_all = jnp.zeros((M, K))
 
         # Apply sparsity to each source
         d = 0
-        logger.info(f"      Processing {self.num_sources} views...")
-        for m in range(self.num_sources):
+        logger.info(f"      Processing {M} views...")
+        for m in range(M):
             pW_m = pW_static[m]
             Dm_m = Dm_static[m]
             logger.info(f"        View {m+1}: Dm={Dm_m}, pW={pW_m}, percW={percW}%")
@@ -303,10 +307,11 @@ class SparseGFAFixedModel(BaseGFAModel):
         Dm: jnp.ndarray,
         Dm_static: list,
         sigma: jnp.ndarray,
+        M: int,
     ):
         """Generate observations for each data source."""
         d = 0
-        for m in range(self.num_sources):
+        for m in range(M):
             X_m = jnp.asarray(X_list[m])
             width = Dm_static[m]
 
