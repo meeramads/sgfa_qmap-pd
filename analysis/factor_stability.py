@@ -224,20 +224,26 @@ def assess_factor_stability_cosine(
                 f"rate={match_rate:.2%})"
             )
 
-    # Step 3: Compute consensus factor loadings and scores for stable factors
+    # Step 3: Compute consensus factor loadings and scores
+    # IMPORTANT: Always compute consensus for ALL factors, not just stable ones
+    # Users need these files even if factors aren't deemed "stable" by the threshold
     consensus_W = None
     consensus_Z = None
-    if stable_factors:
-        logger.info(f"Computing consensus loadings for {len(stable_factors)} stable factors")
+
+    # Compute consensus for all factors (not just stable ones)
+    all_factor_indices = list(range(K))
+    if len(all_factor_indices) > 0:
+        logger.info(f"Computing consensus loadings for all {K} factors")
+        logger.info(f"  (Stable factors: {len(stable_factors)}/{K})")
         consensus_W = _compute_consensus_loadings(
-            W_chain_avg, per_factor_matches, stable_factors
+            W_chain_avg, per_factor_matches, all_factor_indices
         )
 
         # Compute consensus Z if Z scores are available
         if all(Z is not None for Z in Z_chain_avg):
-            logger.info(f"Computing consensus scores for {len(stable_factors)} stable factors")
+            logger.info(f"Computing consensus scores for all {K} factors")
             consensus_Z = _compute_consensus_scores(
-                Z_chain_avg, per_factor_matches, stable_factors
+                Z_chain_avg, per_factor_matches, all_factor_indices
             )
         else:
             logger.warning("Not all chains have Z scores - consensus_Z will be None")
@@ -256,6 +262,7 @@ def assess_factor_stability_cosine(
     result = {
         "n_stable_factors": len(stable_factors),
         "stable_factor_indices": stable_factors,
+        "all_factor_indices": all_factor_indices,  # For consensus saving (all factors)
         "total_factors": K,
         "n_chains": n_chains,
         "threshold": threshold,
@@ -599,7 +606,9 @@ def save_stability_results(
     # Save consensus loadings if available
     if stability_results["consensus_W"] is not None:
         consensus_W = stability_results["consensus_W"]
-        factor_names = [f"Factor_{i}" for i in stability_results["stable_factor_indices"]]
+        # Use all_factor_indices since we now compute consensus for all factors
+        factor_indices = stability_results.get("all_factor_indices", stability_results["stable_factor_indices"])
+        factor_names = [f"Factor_{i}" for i in factor_indices]
         consensus_W_df = pd.DataFrame(
             consensus_W,
             columns=factor_names,
@@ -664,7 +673,9 @@ def save_stability_results(
     # Save consensus scores if available
     if stability_results.get("consensus_Z") is not None:
         consensus_Z = stability_results["consensus_Z"]
-        factor_names = [f"Factor_{i}" for i in stability_results["stable_factor_indices"]]
+        # Use all_factor_indices since we now compute consensus for all factors
+        factor_indices = stability_results.get("all_factor_indices", stability_results["stable_factor_indices"])
+        factor_names = [f"Factor_{i}" for i in factor_indices]
         consensus_Z_df = pd.DataFrame(
             consensus_Z,
             columns=factor_names,
