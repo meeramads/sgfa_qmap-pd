@@ -21,3 +21,29 @@
 2025-10-21 16:20:25,214 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947
 2025-10-21 16:20:25,222 - experiments.framework - INFO - Starting experiment: robustness_tests_20251021_162025
 2025-10-21 16:20:25,222 - experiments.framework - INFO - Starting experiment: robustness_tests_20251021_162025
+2025-10-21 21:01:08,002 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: robustness_tests_20251021_162025
+2025-10-21 21:01:08,002 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: robustness_tests_20251021_162025
+2025-10-21 21:01:08,005 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 4.7 hours (41m 43s)
+2025-10-21 21:01:08,005 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 4.7 hours (41m 43s)
+2025-10-21 21:01:08,005 - experiments.framework - INFO - 🕐 Started: 2025-10-21 16:20:25
+2025-10-21 21:01:08,005 - experiments.framework - INFO - 🕐 Started: 2025-10-21 16:20:25
+2025-10-21 21:01:08,005 - experiments.framework - INFO - 🕑 Finished: 2025-10-21 21:01:08
+2025-10-21 21:01:08,005 - experiments.framework - INFO - 🕑 Finished: 2025-10-21 21:01:08
+2025-10-21 21:01:08,005 - experiments.framework - INFO - Experiment completed successfully: robustness_tests_20251021_162025
+2025-10-21 21:01:08,005 - experiments.framework - INFO - Experiment completed successfully: robustness_tests_20251021_162025
+2025-10-21 21:01:08,005 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-21 21:01:08,005 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-21 21:01:08,095 - experiments.framework - INFO - Garbage collection freed 68 objects
+2025-10-21 21:01:08,095 - experiments.framework - INFO - Garbage collection freed 68 objects
+2025-10-21 21:01:08,419 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-21 21:01:08,419 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-21 21:01:09,421 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-21 21:01:09,421 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-21 21:01:09,483 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-21 21:01:09,483 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-21 21:01:09,488 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947/robustness_tests_fixed_K10_percW33_slab4_2_MAD1000.0_tree10_20251021_162025/plots
+2025-10-21 21:01:09,488 - experiments.framework - INFO - Saving 1 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947/robustness_tests_fixed_K10_percW33_slab4_2_MAD1000.0_tree10_20251021_162025/plots
+2025-10-21 21:01:10,420 - experiments.framework - INFO -   ✅ Saved plot: robustness_summary
+2025-10-21 21:01:10,420 - experiments.framework - INFO -   ✅ Saved plot: robustness_summary
+2025-10-21 21:01:10,420 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947/robustness_tests_fixed_K10_percW33_slab4_2_MAD1000.0_tree10_20251021_162025/plots
+2025-10-21 21:01:10,420 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K10_percW33_MAD1000.0_run_20251021_161947/robustness_tests_fixed_K10_percW33_slab4_2_MAD1000.0_tree10_20251021_162025/plots
