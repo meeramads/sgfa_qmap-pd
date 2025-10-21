@@ -306,10 +306,16 @@ class DataValidationExperiments(ExperimentFramework):
                 preprocessed_config = {k: v for k, v in preprocessing_config.items() if k in valid_load_params}
                 preprocessed_config["enable_advanced_preprocessing"] = True
 
+                # Use experiment-specific output_dir if available, otherwise fall back to general output_dir
+                preprocessing_output_dir = getattr(self, 'base_output_dir', None) or get_output_dir(config)
+
                 preprocessed_data = load_qmap_pd(
                     data_dir=data_dir,
+                    output_dir=preprocessing_output_dir,
                     **preprocessed_config,  # Pass filtered preprocessing config with advanced preprocessing enabled
                 )
+
+                logger.info(f"   ✅ Filtered position lookups saved to: {preprocessing_output_dir}/position_lookup_filtered")
 
             X_list = preprocessed_data["X_list"]
         else:

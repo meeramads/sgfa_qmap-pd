@@ -44,6 +44,8 @@ def load_qmap_pd(
     qc_outlier_threshold: float = 3.0,
     spatial_neighbor_radius: float = 5.0,
     min_voxel_distance: float = 3.0,
+    # Output parameters
+    output_dir: Optional[str] = None,  # Directory for saving filtered position lookups
 ) -> Dict[str, Any]:
     """
     Load qMAP-PD dataset with integrated preprocessing options.
@@ -223,8 +225,10 @@ def load_qmap_pd(
         imaging_df = pd.concat(imaging_blocks, axis=1)
         X_img = imaging_df.to_numpy(dtype=float)
         X_list_raw.append(X_img)
-        view_names.append("imaging")
-        feature_names["imaging"] = imaging_df.columns.tolist()
+        # If only one ROI, use its name to enable position lookup; otherwise use "imaging"
+        view_name = block_names[0] if len(block_names) == 1 else "imaging"
+        view_names.append(view_name)
+        feature_names[view_name] = imaging_df.columns.tolist()
     else:
         for name, block in zip(block_names, imaging_blocks):
             X = block.to_numpy(dtype=float)
@@ -307,6 +311,7 @@ def load_qmap_pd(
             data_dir=data_dir,
             scanner_info=scanner_info,
             y=y,
+            output_dir=output_dir,
         )
 
         X_list = X_processed

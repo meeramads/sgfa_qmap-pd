@@ -1346,17 +1346,27 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
             # Track feature selection
             if X_selected.shape[1] != n_before_selection:
                 # Features were removed - need to update mask
-                # Create a mask for the current features
-                if view_name in self.selected_features_:
-                    # If variance-based selection or other tracked selection
-                    selection_mask_key = f"{view_name}_roi_mask" if self._is_imaging_view(view_name) and self.roi_based_selection else view_name
-                    if selection_mask_key in self.selected_features_:
-                        selection_mask = self.selected_features_[selection_mask_key]
-                        # Apply selection mask to current cumulative mask positions
-                        temp_mask = np.zeros(original_n_features, dtype=bool)
-                        temp_mask[cumulative_mask] = selection_mask
-                        cumulative_mask = temp_mask
-                        logging.debug(f"  After feature selection: {np.sum(cumulative_mask)}/{original_n_features} features")
+                # Check for ROI-based selection (mask or indices)
+                roi_mask_key = f"{view_name}_roi_mask"
+                roi_indices_key = f"{view_name}_roi_indices"
+
+                if roi_mask_key in self.selected_features_:
+                    # Mask-based selection
+                    selection_mask = self.selected_features_[roi_mask_key]
+                    temp_mask = np.zeros(original_n_features, dtype=bool)
+                    temp_mask[cumulative_mask] = selection_mask
+                    cumulative_mask = temp_mask
+                    logging.debug(f"  After feature selection (mask): {np.sum(cumulative_mask)}/{original_n_features} features")
+                elif roi_indices_key in self.selected_features_:
+                    # Index-based selection
+                    selected_indices = self.selected_features_[roi_indices_key]
+                    # Convert indices to mask
+                    temp_mask = np.zeros(original_n_features, dtype=bool)
+                    current_indices = np.where(cumulative_mask)[0]
+                    selected_current_indices = current_indices[selected_indices]
+                    temp_mask[selected_current_indices] = True
+                    cumulative_mask = temp_mask
+                    logging.debug(f"  After feature selection (indices): {np.sum(cumulative_mask)}/{original_n_features} features")
 
             # Step 3: Scaling
             X_scaled = self.fit_transform_scaling(X_selected, view_name)
@@ -1451,6 +1461,7 @@ def preprocess_data_from_config(
     data_dir: str = None,
     scanner_info: Optional[np.ndarray] = None,
     y: Optional[np.ndarray] = None,
+    output_dir: Optional[str] = None,
 ) -> Tuple[
     List[np.ndarray],
     Union[BasicPreprocessor, AdvancedPreprocessor, NeuroImagingPreprocessor],
@@ -1463,7 +1474,7 @@ def preprocess_data_from_config(
 
     # Apply preprocessing
     if isinstance(preprocessor, NeuroImagingPreprocessor):
-        X_processed = preprocessor.fit_transform(X_list, view_names, y, scanner_info)
+        X_processed = preprocessor.fit_transform(X_list, view_names, y, scanner_info, output_dir)
     else:
         X_processed = preprocessor.fit_transform(X_list, view_names, y)
 
@@ -1478,6 +1489,7 @@ def preprocess_neuroimaging_data(
     scanner_info: Optional[np.ndarray] = None,
     y: Optional[np.ndarray] = None,
     validate_inputs: bool = True,
+    output_dir: Optional[str] = None,
 ) -> Tuple[List[np.ndarray], Any, Dict[str, Any]]:
     """
     Complete neuroimaging preprocessing pipeline with metadata.
@@ -1497,7 +1509,7 @@ def preprocess_neuroimaging_data(
 
     # Apply preprocessing
     X_processed, preprocessor = preprocess_data_from_config(
-        X_list, view_names, config, data_dir, scanner_info, y
+        X_list, view_names, config, data_dir, scanner_info, y, output_dir
     )
 
     # Create metadata

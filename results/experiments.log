@@ -937,3 +937,21 @@
 2025-10-21 02:39:04,079 - experiments.framework - INFO -   ✅ Saved plot: robustness_summary
 2025-10-21 02:39:04,079 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_023052/robustness_tests_fixed_K2_percW33_slab4_2_MAD3.0_tree10_20251021_023106/plots
 2025-10-21 02:39:04,079 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_023052/robustness_tests_fixed_K2_percW33_slab4_2_MAD3.0_tree10_20251021_023106/plots
+2025-10-21 11:06:28,779 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251021_110602
+2025-10-21 11:06:28,779 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 26.3 seconds
+2025-10-21 11:06:28,780 - experiments.framework - INFO - 🕐 Started: 2025-10-21 11:06:02
+2025-10-21 11:06:28,780 - experiments.framework - INFO - 🕑 Finished: 2025-10-21 11:06:28
+2025-10-21 11:06:28,780 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251021_110602
+2025-10-21 11:06:28,780 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-21 11:06:29,005 - experiments.framework - INFO - Garbage collection freed 23321 objects
+2025-10-21 11:06:29,491 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-21 11:06:30,493 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-21 11:06:31,270 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-21 11:06:31,275 - experiments.framework - INFO - Saving 6 plots to /Users/meera/Desktop/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_110602/data_validation_tree10_20251021_110602/plots
+2025-10-21 11:06:33,837 - experiments.framework - INFO -   ✅ Saved plot: data_distribution_comparison
+2025-10-21 11:06:36,065 - experiments.framework - INFO -   ✅ Saved plot: covariance_analysis
+2025-10-21 11:06:38,170 - experiments.framework - INFO -   ✅ Saved plot: data_validation_block_covariance_matrix
+2025-10-21 11:06:42,572 - experiments.framework - INFO -   ✅ Saved plot: data_validation_inter_vs_intra_correlation
+2025-10-21 11:06:43,174 - experiments.framework - INFO -   ✅ Saved plot: data_validation_variance_distribution
+2025-10-21 11:06:45,214 - experiments.framework - INFO -   ✅ Saved plot: data_validation_feature_reduction
+2025-10-21 11:06:45,214 - experiments.framework - INFO - All plots saved to: /Users/meera/Desktop/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_110602/data_validation_tree10_20251021_110602/plots
