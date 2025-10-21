@@ -1,0 +1,2 @@
+2025-10-21 16:07:31,297 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD1000.0_run_20251021_160731
+2025-10-21 16:07:31,305 - experiments.framework - INFO - Starting experiment: data_validation_20251021_160731
