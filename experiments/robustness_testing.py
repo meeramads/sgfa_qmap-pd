@@ -91,6 +91,23 @@ class RobustnessExperiments(ExperimentFramework):
                 # Verbose logging only for first seed
                 result = self._run_sgfa_analysis(X_list, hypers, seed_args, verbose=(idx == 0), **kwargs)
 
+                # Check if MCMC sampling failed - if so, terminate experiment immediately
+                if isinstance(result, dict) and result.get("success") == False:
+                    error_msg = result.get("error", "Unknown MCMC sampling error")
+                    self.logger.error(f"❌ EXPERIMENT TERMINATED: MCMC sampling failed with seed {seed}")
+                    self.logger.error(f"   Error: {error_msg}")
+                    self.logger.error("   Cannot continue robustness analysis without valid MCMC samples")
+                    # Return failure result immediately - don't continue to other seeds
+                    return ExperimentResult(
+                        experiment_id="seed_robustness_test",
+                        config=self.config,
+                        model_results={},
+                        diagnostics={"error": f"MCMC sampling failed with seed {seed}: {error_msg}"},
+                        plots={},
+                        status="failed",
+                        error_message=f"MCMC sampling failed with seed {seed}: {error_msg}",
+                    )
+
                 # CRITICAL: Remove large sample arrays to prevent memory leak
                 if "W_samples" in result:
                     del result["W_samples"]
