@@ -243,6 +243,8 @@ def plot_trace_diagnostics(
     save_path: Optional[str] = None,
     max_factors: int = 4,
     thin: int = 1,
+    save_individual: bool = True,
+    output_dir: Optional[str] = None,
 ) -> plt.Figure:
     """Create comprehensive MCMC trace diagnostic plots.
 
@@ -479,6 +481,106 @@ def plot_trace_diagnostics(
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         logger.info(f"  ✓ Saved to {save_path}")
+
+    # Save individual R-hat evolution plots for all factors if requested
+    if save_individual and output_dir:
+        from pathlib import Path
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"  Saving individual R-hat evolution plots to: {output_dir}")
+
+        # Create R-hat evolution plot for each factor (W)
+        for k in range(K):
+            fig_rhat_w, ax_rhat_w = plt.subplots(figsize=(8, 5))
+
+            sample_points, rhat_w_evolution = compute_rhat_evolution(
+                W_samples[:, :, :, k]
+            )
+
+            ax_rhat_w.plot(sample_points, rhat_w_evolution, 'o-', linewidth=2, markersize=6, color='#2E86AB')
+            ax_rhat_w.axhline(1.1, color='orange', linestyle='--', label='R-hat = 1.1 (threshold)', linewidth=2)
+            ax_rhat_w.axhline(1.01, color='green', linestyle='--', label='R-hat = 1.01 (excellent)', linewidth=2)
+            ax_rhat_w.set_xlabel('Number of Samples', fontsize=12)
+            ax_rhat_w.set_ylabel('R-hat', fontsize=12)
+            ax_rhat_w.set_title(f'R-hat Evolution: W (Factor {k})', fontsize=14, fontweight='bold')
+            ax_rhat_w.grid(True, alpha=0.3)
+            ax_rhat_w.legend(fontsize=10)
+            ax_rhat_w.set_yscale('log')
+            fig_rhat_w.tight_layout()
+
+            _save_individual_plot(fig_rhat_w, f"rhat_evolution_W_factor{k}", output_dir)
+
+        # Create R-hat evolution plot for each factor (Z)
+        for k in range(K):
+            fig_rhat_z, ax_rhat_z = plt.subplots(figsize=(8, 5))
+
+            sample_points, rhat_z_evolution = compute_rhat_evolution(
+                Z_samples[:, :, :, k]
+            )
+
+            ax_rhat_z.plot(sample_points, rhat_z_evolution, 'o-', linewidth=2, markersize=6, color='#A23B72')
+            ax_rhat_z.axhline(1.1, color='orange', linestyle='--', label='R-hat = 1.1 (threshold)', linewidth=2)
+            ax_rhat_z.axhline(1.01, color='green', linestyle='--', label='R-hat = 1.01 (excellent)', linewidth=2)
+            ax_rhat_z.set_xlabel('Number of Samples', fontsize=12)
+            ax_rhat_z.set_ylabel('R-hat', fontsize=12)
+            ax_rhat_z.set_title(f'R-hat Evolution: Z (Factor {k})', fontsize=14, fontweight='bold')
+            ax_rhat_z.grid(True, alpha=0.3)
+            ax_rhat_z.legend(fontsize=10)
+            ax_rhat_z.set_yscale('log')
+            fig_rhat_z.tight_layout()
+
+            _save_individual_plot(fig_rhat_z, f"rhat_evolution_Z_factor{k}", output_dir)
+
+        logger.info(f"  ✅ Saved {K} individual R-hat evolution plots for W")
+        logger.info(f"  ✅ Saved {K} individual R-hat evolution plots for Z")
+
+        # Create autocorrelation plots for all factors and chains
+        max_lag = min(100, n_samples // 4)
+
+        # Autocorrelation for W (all factors, all chains)
+        for k in range(K):
+            for chain_idx in range(n_chains):
+                fig_acf_w, ax_acf_w = plt.subplots(figsize=(8, 5))
+
+                w_flat = np.mean(W_samples[chain_idx, :, :, k], axis=1)  # Average across features
+                acf_w = compute_autocorrelation(w_flat, max_lag=max_lag)
+
+                ax_acf_w.bar(range(len(acf_w)), acf_w, alpha=0.7, color='#2E86AB')
+                ax_acf_w.axhline(0, color='black', linewidth=0.8)
+                ax_acf_w.axhline(0.1, color='green', linestyle='--', alpha=0.5, label='Low autocorr (0.1)')
+                ax_acf_w.axhline(-0.1, color='green', linestyle='--', alpha=0.5)
+                ax_acf_w.set_xlabel('Lag', fontsize=12)
+                ax_acf_w.set_ylabel('Autocorrelation', fontsize=12)
+                ax_acf_w.set_title(f'Autocorrelation: W (Chain {chain_idx}, Factor {k})', fontsize=14, fontweight='bold')
+                ax_acf_w.grid(True, alpha=0.3)
+                ax_acf_w.legend(fontsize=10)
+                fig_acf_w.tight_layout()
+
+                _save_individual_plot(fig_acf_w, f"autocorrelation_W_chain{chain_idx}_factor{k}", output_dir)
+
+        # Autocorrelation for Z (all factors, all chains)
+        for k in range(K):
+            for chain_idx in range(n_chains):
+                fig_acf_z, ax_acf_z = plt.subplots(figsize=(8, 5))
+
+                z_flat = np.mean(Z_samples[chain_idx, :, :, k], axis=1)  # Average across subjects
+                acf_z = compute_autocorrelation(z_flat, max_lag=max_lag)
+
+                ax_acf_z.bar(range(len(acf_z)), acf_z, alpha=0.7, color='#A23B72')
+                ax_acf_z.axhline(0, color='black', linewidth=0.8)
+                ax_acf_z.axhline(0.1, color='green', linestyle='--', alpha=0.5, label='Low autocorr (0.1)')
+                ax_acf_z.axhline(-0.1, color='green', linestyle='--', alpha=0.5)
+                ax_acf_z.set_xlabel('Lag', fontsize=12)
+                ax_acf_z.set_ylabel('Autocorrelation', fontsize=12)
+                ax_acf_z.set_title(f'Autocorrelation: Z (Chain {chain_idx}, Factor {k})', fontsize=14, fontweight='bold')
+                ax_acf_z.grid(True, alpha=0.3)
+                ax_acf_z.legend(fontsize=10)
+                fig_acf_z.tight_layout()
+
+                _save_individual_plot(fig_acf_z, f"autocorrelation_Z_chain{chain_idx}_factor{k}", output_dir)
+
+        logger.info(f"  ✅ Saved {K * n_chains} individual autocorrelation plots for W")
+        logger.info(f"  ✅ Saved {K * n_chains} individual autocorrelation plots for Z")
 
     return fig
 

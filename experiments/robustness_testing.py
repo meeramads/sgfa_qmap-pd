@@ -2742,20 +2742,26 @@ class RobustnessExperiments(ExperimentFramework):
                     self.logger.info(f"  Z_samples shape: {Z_samples.shape}")
 
                     # Create trace diagnostic plots
+                    # Set up individual plots directory
+                    from pathlib import Path
+                    experiment_output_dir = Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir)
+                    trace_plots_dir = experiment_output_dir / "individual_plots" / "trace_diagnostics"
+                    trace_plots_dir.mkdir(parents=True, exist_ok=True)
+
                     fig_trace = plot_trace_diagnostics(
                         W_samples=W_samples,
                         Z_samples=Z_samples,
                         save_path=None,
                         max_factors=min(4, W_samples.shape[3]),
                         thin=max(1, W_samples.shape[1] // 1000),  # Thin for readability
+                        save_individual=True,
+                        output_dir=str(trace_plots_dir),
                     )
                     plots["mcmc_trace_diagnostics"] = fig_trace
                     self.logger.info("   ✅ MCMC trace diagnostics created")
 
                     # Create parameter distribution plots
-                    # Set up individual plots directory
-                    from pathlib import Path
-                    experiment_output_dir = Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir)
+                    # Reuse experiment_output_dir from above
                     wz_plots_dir = experiment_output_dir / "individual_plots" / "wz_distributions"
                     wz_plots_dir.mkdir(parents=True, exist_ok=True)
 
