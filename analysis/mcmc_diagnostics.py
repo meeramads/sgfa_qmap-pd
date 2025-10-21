@@ -246,6 +246,7 @@ def plot_trace_diagnostics(
     thin: int = 1,
     save_individual: bool = True,
     output_dir: Optional[str] = None,
+    view_names: Optional[List[str]] = None,
 ) -> plt.Figure:
     """Create comprehensive MCMC trace diagnostic plots.
 
@@ -622,6 +623,7 @@ def plot_parameter_distributions(
     max_factors: int = 4,
     save_individual: bool = True,
     output_dir: Optional[str] = None,
+    view_names: Optional[List[str]] = None,
 ) -> plt.Figure:
     """Plot posterior distributions for selected parameters.
 
@@ -783,6 +785,7 @@ def _save_individual_posteriors(
     has_cW: bool,
     has_cZ: bool,
     output_dir,
+    view_names: Optional[List[str]] = None,
 ):
     """Create and save individual posterior plots for each hyperparameter.
 
@@ -791,9 +794,41 @@ def _save_individual_posteriors(
     """
     n_chains = len(samples_by_chain)
 
+    # Helper function to get view label
+    def get_view_label(view_idx):
+        if view_names and view_idx < len(view_names):
+            view_label = view_names[view_idx]
+            # Clean up view name: "volume_sn_voxels" -> "SN"
+            if view_label.startswith("volume_"):
+                view_label = view_label.replace("volume_", "").replace("_voxels", "")
+            elif view_label == "imaging":
+                view_label = "Imaging"
+            elif view_label == "clinical":
+                view_label = "Clinical"
+
+            # Capitalize specific ROI names
+            if view_label.lower() == "sn":
+                view_label = "SN"
+            elif view_label.lower() == "putamen":
+                view_label = "Putamen"
+            elif view_label.lower() == "lentiform":
+                view_label = "Lentiform"
+            elif view_label.lower() == "caudate":
+                view_label = "Caudate"
+            elif view_label.lower() == "thalamus":
+                view_label = "Thalamus"
+            elif view_label.lower() not in ["sn", "clinical", "imaging"]:
+                # For other ROIs, capitalize first letter
+                view_label = view_label.capitalize()
+        else:
+            view_label = f"View {view_idx + 1}"
+        return view_label
+
     # Plot tauW for each view and factor
     for view_idx in range(num_sources):
         param_name = f"tauW{view_idx + 1}"
+        view_label = get_view_label(view_idx)
+
         if param_name in samples_by_chain[0]:
             for k in range(K):
                 fig, ax = plt.subplots(figsize=(6, 4))
@@ -810,7 +845,7 @@ def _save_individual_posteriors(
 
                 ax.set_xlabel(r'$\tau_W$ Value', fontsize=12)
                 ax.set_ylabel('Density', fontsize=12)
-                ax.set_title(f'tauW Posterior (View {view_idx + 1}, Factor {k})', fontsize=14, fontweight='bold')
+                ax.set_title(f'tauW Posterior ({view_label}, Factor {k})', fontsize=14, fontweight='bold')
                 ax.grid(True, alpha=0.3)
                 ax.legend()
                 ax.axvline(0, color='red', linestyle='--', alpha=0.5, linewidth=1)
@@ -846,6 +881,7 @@ def _save_individual_posteriors(
     # Plot sigma for each view
     if has_sigma:
         for m in range(num_sources):
+            view_label = get_view_label(m)
             fig, ax = plt.subplots(figsize=(6, 4))
 
             for chain_idx in range(n_chains):
@@ -862,7 +898,7 @@ def _save_individual_posteriors(
 
             ax.set_xlabel(r'$\sigma$ (Noise Precision)', fontsize=12)
             ax.set_ylabel('Density', fontsize=12)
-            ax.set_title(f'Sigma Posterior (View {m + 1})', fontsize=14, fontweight='bold')
+            ax.set_title(f'Sigma Posterior ({view_label})', fontsize=14, fontweight='bold')
             ax.grid(True, alpha=0.3)
             ax.legend()
 
@@ -871,6 +907,7 @@ def _save_individual_posteriors(
     # Plot cW for each view and factor
     if has_cW:
         for view_idx in range(num_sources):
+            view_label = get_view_label(view_idx)
             for k in range(K):
                 fig, ax = plt.subplots(figsize=(6, 4))
 
@@ -888,7 +925,7 @@ def _save_individual_posteriors(
 
                 ax.set_xlabel(r'$c_W$ Value', fontsize=12)
                 ax.set_ylabel('Density', fontsize=12)
-                ax.set_title(f'cW Posterior (View {view_idx + 1}, Factor {k})', fontsize=14, fontweight='bold')
+                ax.set_title(f'cW Posterior ({view_label}, Factor {k})', fontsize=14, fontweight='bold')
                 ax.grid(True, alpha=0.3)
                 ax.legend()
 
@@ -973,6 +1010,8 @@ def plot_hyperparameter_posteriors(
     """
     logger.info("Creating hyperparameter posterior plots...")
 
+    from pathlib import Path
+
     n_chains = len(samples_by_chain)
     colors = sns.color_palette("husl", n_chains)
 
@@ -980,14 +1019,12 @@ def plot_hyperparameter_posteriors(
     if save_individual:
         if output_dir is None:
             if save_path:
-                from pathlib import Path
                 output_dir = Path(save_path).parent / "individual_posteriors"
             else:
-                from pathlib import Path
                 output_dir = Path(".") / "individual_posteriors"
         else:
-            from pathlib import Path
-            output_dir = Path(output_dir)
+            # Convert string path to Path object if needed
+            output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
 
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"  Individual plots will be saved to: {output_dir}")
@@ -1382,7 +1419,7 @@ def plot_hyperparameter_posteriors(
         logger.info("  Saving individual posterior plots...")
         _save_individual_posteriors(
             samples_by_chain, colors, num_sources, K,
-            has_sigma, has_cW, has_cZ, output_dir
+            has_sigma, has_cW, has_cZ, output_dir, view_names
         )
         logger.info(f"  ✓ Saved individual plots to {output_dir}")
 
@@ -1426,6 +1463,8 @@ def plot_hyperparameter_traces(
     fig : plt.Figure
         The generated figure with hyperparameter trace plots
     """
+    from pathlib import Path
+
     logger.info("Creating hyperparameter trace plots...")
 
     n_chains = len(samples_by_chain)
@@ -1435,14 +1474,12 @@ def plot_hyperparameter_traces(
     if save_individual:
         if output_dir is None:
             if save_path:
-                from pathlib import Path
                 output_dir = Path(save_path).parent / "individual_trace_plots"
             else:
-                from pathlib import Path
                 output_dir = Path(".") / "individual_trace_plots"
         else:
-            from pathlib import Path
-            output_dir = Path(output_dir)
+            # Convert string path to Path object if needed
+            output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
 
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"  Individual trace plots will be saved to: {output_dir}")

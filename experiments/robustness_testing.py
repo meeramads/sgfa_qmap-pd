@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import pickle
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
@@ -2097,6 +2098,7 @@ class RobustnessExperiments(ExperimentFramework):
         n_chains: int = 4,
         cosine_threshold: float = 0.8,
         min_match_rate: float = 0.5,
+        output_dir: str = None,
         **kwargs,
     ) -> ExperimentResult:
         """Run factor stability analysis with multiple independent chains.
@@ -2121,6 +2123,9 @@ class RobustnessExperiments(ExperimentFramework):
             Minimum cosine similarity for factor matching
         min_match_rate : float, default=0.5
             Minimum fraction of chains for robust factor (>50%)
+        output_dir : str, optional
+            Experiment-specific output directory for plots and results.
+            If None, uses self.base_output_dir
         **kwargs : dict
             Additional arguments
 
@@ -2133,6 +2138,12 @@ class RobustnessExperiments(ExperimentFramework):
             - effective_factors: Effective factor counts per chain
             - plots: Stability visualization plots
         """
+        # Store experiment-specific output directory if provided
+        if output_dir:
+            self._experiment_output_dir = Path(output_dir)
+        else:
+            self._experiment_output_dir = None
+
         # Validate inputs
         self.logger.info("=" * 80)
         self.logger.info("FACTOR STABILITY ANALYSIS - STARTING")
@@ -2142,6 +2153,8 @@ class RobustnessExperiments(ExperimentFramework):
             self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}")
         self.logger.info(f"Hyperparameters: K={hypers.get('K')}, percW={hypers.get('percW')}, Dm={hypers.get('Dm')}")
         self.logger.info(f"MCMC args: num_samples={args.get('num_samples')}, num_warmup={args.get('num_warmup')}")
+        if self._experiment_output_dir:
+            self.logger.info(f"Output directory: {self._experiment_output_dir}")
 
         ResultValidator.validate_data_matrices(X_list)
         ParameterValidator.validate_positive(n_chains, "n_chains")
@@ -2832,7 +2845,8 @@ class RobustnessExperiments(ExperimentFramework):
                     # Create trace diagnostic plots
                     # Set up individual plots directory
                     from pathlib import Path
-                    experiment_output_dir = Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir)
+                    # Use experiment-specific output_dir if provided, otherwise fall back to base_output_dir
+                    experiment_output_dir = self._experiment_output_dir if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir else (Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir))
                     trace_plots_dir = experiment_output_dir / "individual_plots" / "trace_diagnostics"
                     trace_plots_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2844,12 +2858,13 @@ class RobustnessExperiments(ExperimentFramework):
                         thin=max(1, W_samples.shape[1] // 1000),  # Thin for readability
                         save_individual=True,
                         output_dir=str(trace_plots_dir),
+                        view_names=view_names,
                     )
                     plots["mcmc_trace_diagnostics"] = fig_trace
                     self.logger.info("   ✅ MCMC trace diagnostics created")
 
                     # Create parameter distribution plots
-                    # Reuse experiment_output_dir from above
+                    # Reuse experiment_output_dir from trace diagnostics above
                     wz_plots_dir = experiment_output_dir / "individual_plots" / "wz_distributions"
                     wz_plots_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2860,6 +2875,7 @@ class RobustnessExperiments(ExperimentFramework):
                         max_factors=min(4, W_samples.shape[3]),
                         save_individual=True,
                         output_dir=str(wz_plots_dir),
+                        view_names=view_names,
                     )
                     plots["mcmc_parameter_distributions"] = fig_dist
                     self.logger.info("   ✅ Parameter distribution plots created")
@@ -2874,7 +2890,8 @@ class RobustnessExperiments(ExperimentFramework):
                         # Determine output directory for individual plots
                         # Use experiment-specific output directory, not global results dir
                         from pathlib import Path
-                        experiment_output_dir = Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir)
+                        # Use experiment-specific output_dir if provided, otherwise fall back to base_output_dir
+                        experiment_output_dir = self._experiment_output_dir if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir else (Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir))
                         individual_plots_dir = experiment_output_dir / "individual_plots" / "hyperparameters"
                         individual_plots_dir.mkdir(parents=True, exist_ok=True)
 
