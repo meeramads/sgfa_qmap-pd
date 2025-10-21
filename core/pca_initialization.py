@@ -186,18 +186,36 @@ def create_numpyro_init_params(
     else:
         logger.info("  Using sparse_gfa parameterization (centered)")
         # For sparse_gfa (centered parameterization)
-        # Can directly initialize Z and W
+        # Can directly initialize Z and W from PCA
+        # Note: The model samples Z and W from Normal(0,1) then transforms them
+        # So we need to provide the untransformed values
+
+        N = X_list[0].shape[0]
+        D_total = pca_init['W'].shape[0]
+
+        # The model samples Z ~ Normal(0,1) then transforms as: Z * lmbZ * tauZ
+        # To initialize at PCA values, work backwards:
+        # If Z_final = Z_raw * lmbZ * tauZ = Z_pca
+        # Then Z_raw = Z_pca / (lmbZ * tauZ)
+        # Use lmbZ ≈ 1 and tauZ ≈ 1 for simplicity
         init_params['Z'] = jnp.array(pca_init['Z'])
         init_params['W'] = jnp.array(pca_init['W'])
 
-        # Initialize horseshoe scales
+        # Initialize horseshoe scales conservatively
         init_params['tauZ'] = jnp.ones((1, K))
-        init_params['lmbZ'] = jnp.ones((X_list[0].shape[0], K))
-        init_params['lmbW'] = jnp.ones((pca_init['W'].shape[0], K))
+        init_params['lmbZ'] = jnp.ones((N, K))
+        init_params['lmbW'] = jnp.ones((D_total, K))
 
-        # Initialize slab parameters
-        init_params['cZ'] = jnp.ones((1, K))
-        init_params['cW'] = jnp.ones((len(X_list), K))
+        # Initialize per-view tauW parameters (tauW1, tauW2, ...)
+        for m in range(len(X_list)):
+            init_params[f'tauW{m+1}'] = jnp.array(1.0)  # Scalar per view
+
+        # Initialize slab parameters: cZ and cW are sampled from InverseGamma
+        # E[IG(a,b)] = b/(a-1) for a > 1
+        # With a = b = slab_df/2 (typically slab_df=4, so a=b=2)
+        # E[cZ] = 2/(2-1) = 2
+        init_params['cZ'] = jnp.ones((1, K)) * 2.0
+        init_params['cW'] = jnp.ones((len(X_list), K)) * 2.0
 
     # Initialize noise parameters (sigma)
     logger.info(f"  Initializing sigma: shape (1, {len(X_list)})")

@@ -13,6 +13,7 @@ python run_experiments.py --config config_convergence.yaml \
 ## What to Check
 
 ### 1. Logs (Critical)
+
 ```
 ✅ tau0_Z: 0.00257
 ✅ tau0_view_1: 0.0532
@@ -22,16 +23,20 @@ python run_experiments.py --config config_convergence.yaml \
 ```
 
 ### 2. Trace Plots
+
 ```
 results/.../03_factor_stability/plots/mcmc_trace_diagnostics.pdf
 ```
+
 - tauZ should be in [0, ~0.01]
 - NOT in [-400, +200]
 
 ### 3. Convergence
+
 ```
 results/.../03_factor_stability/stability_analysis/rhat_convergence_diagnostics.json
 ```
+
 - All R-hat < 1.05
 
 ## Expected Results
@@ -46,13 +51,16 @@ results/.../03_factor_stability/stability_analysis/rhat_convergence_diagnostics.
 ## Files Changed
 
 **Critical fix**:
+
 - `models/sparse_gfa_fixed.py` (lines 95-110) - Added τ₀ for Z
 
 **Config**:
+
 - `config_convergence.yaml` (line 43) - PCA init disabled
 - `core/config_schema.py` (line 133) - Added config field
 
 **PCA init** (has bug, disabled):
+
 - `core/pca_initialization.py` (created)
 - Integration in robustness_testing.py
 
@@ -73,16 +81,19 @@ results/.../03_factor_stability/stability_analysis/rhat_convergence_diagnostics.
 ## Troubleshooting
 
 **If acceptance still low**:
+
 ```bash
 --target-accept-prob 0.90
 ```
 
 **If divergent trans still high**:
+
 ```bash
 --max-tree-depth 12
 ```
 
 **If τ still unbounded**:
+
 - Check model_type is "sparse_gfa_fixed"
 - Verify tau0_Z appears in logs
 - Check model code has the fix
@@ -90,6 +101,7 @@ results/.../03_factor_stability/stability_analysis/rhat_convergence_diagnostics.
 ## Report Back
 
 Share these from your run:
+
 1. tau0_Z, tau0_view_1, tau0_view_2 values
 2. Acceptance probability
 3. Divergent transitions %

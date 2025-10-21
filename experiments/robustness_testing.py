@@ -841,9 +841,11 @@ class RobustnessExperiments(ExperimentFramework):
                     if args.get("use_pca_initialization", False):
                         try:
                             from core.pca_initialization import create_numpyro_init_params
-                            model_type = args.get("model_type", "sparseGFA")
+                            # Use model_args.model (not args.model_type) since that's what the actual model uses
+                            # model_args.model is set to "sparseGFA" at line 731
+                            pca_model_type = "sparseGFA"  # Always use sparseGFA for this model
                             self.logger.info(f"   🔧 Creating PCA initialization for chain {chain_idx + 1}...")
-                            init_params = create_numpyro_init_params(X_list, K, model_type)
+                            init_params = create_numpyro_init_params(X_list, K, pca_model_type)
                             if chain_idx == 0:  # Log detailed info only for first chain
                                 self.logger.info(f"   ✓ PCA initialization created with params: {list(init_params.keys())}")
                             else:
@@ -1009,8 +1011,9 @@ class RobustnessExperiments(ExperimentFramework):
                 if args.get("use_pca_initialization", False):
                     try:
                         from core.pca_initialization import create_numpyro_init_params
-                        model_type = args.get("model_type", "sparseGFA")
-                        init_params = create_numpyro_init_params(X_list, K, model_type)
+                        # Use "sparseGFA" since that's what model_args.model is set to (line 731)
+                        pca_model_type = "sparseGFA"
+                        init_params = create_numpyro_init_params(X_list, K, pca_model_type)
                         self.logger.info(f"   Using PCA initialization for MCMC")
                     except Exception as e:
                         self.logger.warning(f"   PCA initialization failed, using default: {e}")

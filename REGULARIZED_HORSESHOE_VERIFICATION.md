@@ -21,6 +21,7 @@ The `sparse_gfa_fixed` model implements the complete regularized horseshoe prior
 **Formula**: τ₀ = (D₀/(D-D₀)) × (σ/√N)
 
 **For Z (Latent Factors)**:
+
 ```python
 # Lines 95-110
 D0_Z = K  # Expected effective dimensionality
@@ -35,6 +36,7 @@ numpyro.deterministic("tau0_Z", tau0_Z)
 ```
 
 **For W (Loadings, per view)**:
+
 ```python
 # Lines 193-208
 D0_per_factor = pW_m  # Expected non-zero loadings per factor
@@ -49,6 +51,7 @@ numpyro.deterministic(f"tau0_view_{m+1}", tau0)
 ```
 
 **Expected values for your data (N=86, K=2, percW=33%)**:
+
 - τ₀_Z ≈ 0.0026 (for Z with K=2)
 - τ₀_W_imaging ≈ 0.053 (for D=536, D₀=177)
 - τ₀_W_clinical ≈ 0.054 (for D=9, D₀=3)
@@ -62,6 +65,7 @@ numpyro.deterministic(f"tau0_view_{m+1}", tau0)
 **Formula**: λ̃² = (c²λ²)/(c² + τ²λ²)
 
 **Slab Prior**:
+
 ```python
 # For Z (lines 119-125)
 cZ_tilde = numpyro.sample(
@@ -83,6 +87,7 @@ cW = jnp.sqrt(cW_squared)
 ```
 
 **Regularized Local Scale**:
+
 ```python
 # For Z (lines 134-138)
 lmbZ_tilde = jnp.sqrt(
@@ -98,6 +103,7 @@ lmbW_tilde = jnp.sqrt(
 ```
 
 **Configuration**:
+
 ```yaml
 # config_convergence.yaml lines 51-52
 slab_df: 4
@@ -105,6 +111,7 @@ slab_scale: 2
 ```
 
 **Properties**:
+
 - InverseGamma(2, 2) with slab_scale=2 gives Student-t₄(0,2) marginal
 - E[c²] = β/(α-1) = 2
 - Mode = β/(α+1) ≈ 0.67
@@ -119,6 +126,7 @@ slab_scale: 2
 **Why**: Breaks pathological τ-β correlation causing funnel geometry.
 
 **For Z**:
+
 ```python
 # Lines 92-93, 134-140, 146
 # 1. Sample independent standard normals
@@ -140,6 +148,7 @@ Z = numpyro.deterministic("Z", Z)
 ```
 
 **For W**:
+
 ```python
 # Lines 158-159, 217-222, 228
 # 1. Sample independent standard normals
@@ -161,6 +170,7 @@ W = numpyro.deterministic("W", W)
 ```
 
 **Impact**:
+
 - NUTS only navigates simple geometry of standard normals
 - Scale transformation happens deterministically
 - Breaks posterior correlation between τ and β
@@ -237,6 +247,7 @@ Why: Broken funnel geometry
 The regularized horseshoe can be expressed equivalently as:
 
 **Centered (Creates Funnel)**:
+
 ```
 β ~ N(0, τλ̃)
 λ̃² = (c²λ²)/(c² + τ²λ²)
@@ -246,6 +257,7 @@ c² ~ IG(2, 2) × slab_scale²
 ```
 
 **Non-Centered (Breaks Funnel)**:
+
 ```
 z ~ N(0, 1)
 β = τ × λ̃ × z  (deterministic)
@@ -258,18 +270,21 @@ c² ~ IG(2, 2) × slab_scale²
 ```
 
 These are **mathematically equivalent** in posterior, but **geometrically different** for MCMC:
+
 - Centered: β and τ are correlated in posterior → funnel
 - Non-centered: z and τ are independent → simple geometry
 
 ## Dual Behavior of Regularization
 
 **When τ²λ² << c²** (small loadings):
+
 ```
 λ̃² ≈ λ²  (standard horseshoe)
 Shrinkage: β ≈ τλz (strong for small signals)
 ```
 
 **When τ²λ² >> c²** (large loadings):
+
 ```
 λ̃² ≈ c²  (regularized, soft-truncated)
 Shrinkage: β ≈ cτz (bounded by c≈2)
@@ -291,6 +306,7 @@ python run_experiments.py --config config_convergence.yaml \
 ### Check Diagnostics
 
 **Log output should show**:
+
 ```
 tau0_Z: 0.00257
 tau0_view_1: 0.0532
@@ -306,6 +322,7 @@ Convergence diagnostics:
 ```
 
 **Trace plots should show**:
+
 - tauZ exploring ~[0, 0.01] (not [-400, +200])
 - Stable mixing across chains
 - No funnel patterns in τ-β joint plots
