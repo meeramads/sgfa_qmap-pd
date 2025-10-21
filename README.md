@@ -1,904 +1,186 @@
 # Sparse Group Factor Analysis (SGFA) for qMAP-PD
 
-Python implementation of Sparse Group Factor Analysis (SGFA) designed to identify latent disease factors that capture associations between various neuroimaging data modalities within Parkinson's disease population subgroups. This project applies and adapts this model to the qMAP-PD (<https://qmaplab.com/qmap-pd>) study dataset.
+Bayesian implementation of Sparse Group Factor Analysis using regularized horseshoe priors to identify latent disease factors in Parkinson's disease neuroimaging data. Uses NumPyro/JAX for efficient MCMC sampling with the NUTS algorithm.
 
-## Features
+## Overview
 
-- **Multi-view Factor Analysis**: Handles multiple neuroimaging modalities simultaneously
-- **Two-Level Sparsity**:
-  - **Element-wise sparsity** (percW): Controls sparsity within each factor's loadings
-  - **Group sparsity** (group_lambda): Encourages entire features to be zero across all factors for feature-level selection
-- **Computational Optimization**: Memory-efficient processing with automatic system optimization and performance mixins
-- **Comprehensive Testing**: Extensive experimental validation framework
-- **Clinical Validation**: Built-in tools for clinical subtype analysis and biomarker discovery
-- **3D Hyperparameter Tuning**: Grid search across K (factors) × percW (element sparsity) × group_lambda (group sparsity)
+SGFA discovers latent factors that explain shared variation across multiple neuroimaging modalities while enforcing sparsity through regularized horseshoe priors. Designed for neuroimaging biomarker discovery in the qMAP-PD study dataset.
 
-## Project Structure
+### Key Features
 
-### Core Modules
+- **Sparse Bayesian Factor Analysis**: Regularized horseshoe priors with slab regularization
+- **Multi-view Integration**: Joint analysis of imaging and clinical data  
+- **Neuroimaging Preprocessing**: MAD-based QC, spatial imputation, position tracking
+- **MCMC Convergence**: NUTS sampler with R-hat/ESS diagnostics
+- **Factor Stability**: Cross-chain consensus (Ferreira et al. 2024)
 
-- **[core/get_data.py](core/get_data.py)**: High-level interface to load datasets or generate synthetic data
-- **[core/run_analysis.py](core/run_analysis.py)**: Main script containing the SGFA model and experiment runner
-- **[core/utils.py](core/utils.py)**: Utility functions supporting the analysis pipeline
-- **[core/parameter_resolver.py](core/parameter_resolver.py)**: Multi-source parameter resolution utility **NEW**
-- **[core/logger_utils.py](core/logger_utils.py)**: Logger protocol and safe access utilities **NEW**
-- **[core/config_utils.py](core/config_utils.py)**: Type-safe configuration handling with protocols **ENHANCED**
-
-### Data Management
-
-- **[data/](data/)**: Data loading and generation modules
-  - `qmap_pd.py`: qMAP-PD dataset loader with preprocessing
-  - `synthetic.py`: Synthetic multi-view data generator for testing
-
-### Analysis Pipeline
-
-- **[analysis/](analysis/)**: Core analysis components
-  - `data_manager.py`: Data loading and preprocessing management **IMPLEMENTED**
-  - `config_manager.py`: Configuration and hyperparameter management **IMPLEMENTED**
-  - `model_runner.py`: Model training orchestration **IMPLEMENTED**
-  - `cross_validation.py`: Cross-validation framework **IMPLEMENTED**
-  - `cross_validation_library.py`: Advanced neuroimaging CV **FRAMEWORK ONLY - NEEDS DEVELOPMENT**
-  - `cv_fallbacks.py`: Reusable fallback utilities for advanced CV features **IMPLEMENTED**
-  - `experiment_utils.py`: Bridge utilities for experiments to use analysis pipeline **IMPLEMENTED**
-
-### Computational Optimization
-
-- **[optimization/](optimization/)**: Computational optimization framework (renamed from `performance/` to avoid confusion with model performance)
-  - `memory_optimizer.py`: Memory management and monitoring with automatic cleanup
-  - `data_streaming.py`: Memory-efficient data loading for large datasets
-  - `mcmc_optimizer.py`: Memory-optimized MCMC sampling with checkpointing
-  - `profiler.py`: Performance profiling and benchmarking tools
-  - `config.py`: Auto-configuration for different system capabilities
-  - `experiment_mixins.py`: Reusable optimization patterns for experiments **NEW**
-
-### Experimental Validation
-
-- **[experiments/](experiments/)**: Comprehensive experimental framework following Ferreira et al. 2024 methodology
-
-  **Core Pipeline (Production Ready):**
-  - `data_validation.py`: Data quality and preprocessing validation with PCA dimensionality analysis **IMPLEMENTED AND TESTED**
-  - `robustness_testing.py`: Algorithm reliability testing (seed reproducibility, perturbation, initialization) **IMPLEMENTED AND TESTED**
-  - `factor_stability.py`: Factor stability analysis with cosine similarity across independent chains (Ferreira et al. 2024 Section 2.7) **PRODUCTION READY**
-  - `clinical_validation.py`: Clinical relevance and biomarker discovery **IMPLEMENTED AND TESTED**
-
-  **Future Work (Requires Suitable Comparison Metric):**
-  - `sgfa_configuration_comparison.py`: SGFA hyperparameter comparison **⏳ PENDING METRIC DEVELOPMENT** (log-likelihood unsuitable, ELBO not computed)
-  - `model_comparison.py`: SGFA vs traditional methods (PCA, ICA, FA) **⏳ PENDING METRIC DEVELOPMENT**
-  - `sensitivity_analysis.py`: Hyperparameter sensitivity analysis **⏳ PENDING METRIC DEVELOPMENT**
-
-  **Development Tools:**
-  - `debug_experiments.py`: Lightweight testing framework for rapid validation **IMPLEMENTED**
-
-### Models & Implementation
-
-- **[models/](models/)**: Core model implementations
-  - `base.py`: Base model class and shared functionality **IMPLEMENTED**
-  - `standard_gfa.py`: Standard Group Factor Analysis with ARD priors **HIGH GPU USAGE**
-  - `sparse_gfa.py`: Sparse GFA with regularized horseshoe priors **IMPLEMENTED**
-  - `factory.py`: Model factory for instantiation and configuration **IMPLEMENTED**
-  - `variants/neuroimaging_gfa.py`: Specialized neuroimaging variants **NEEDS DEVELOPMENT**
-
-### Visualization & Testing
-
-- **[visualization/](visualization/)**: Result visualization and diagnostic plots **IMPLEMENTED AND TESTED**
-  - `factor_plots.py`: Factor analysis visualizations with brain mapping
-  - `brain_plots.py`: Neuroimaging-specific brain factor maps
-  - `report_generator.py`: Comprehensive HTML analysis reports
-- **[tests/](tests/)**: Comprehensive test suite
-
-### Documentation
-
-- **[docs/](docs/)**: Technical documentation
-  - `ARCHITECTURE.md`: Comprehensive codebase architecture documentation
-  - `BRAIN_REMAPPING_WITH_VOXEL_FILTERING.md`: Voxel filtering and position lookup technical guide
-
-## Automatic Optimization Features
-
-All experiments now include **automatic computational optimization** through the `@performance_optimized_experiment` decorator:
-
-### **Memory Optimization**
-
-- **Automatic array optimization**: Converts float64→float32 when precision allows
-- **Real-time memory monitoring**: Tracks usage with automatic cleanup
-- **Adaptive batch sizing**: Calculates optimal batch sizes based on available memory
-- **Memory pressure handling**: Automatic intervention when memory limits approached
-
-### **Data Streaming**
-
-- **Large dataset support**: Memory-efficient streaming for datasets larger than RAM
-- **Chunked processing**: Automatic data chunking for cross-validation and analysis
-- **Memory-efficient contexts**: Automatic memory management during processing
-
-### **MCMC Optimization**
-
-- **Gradient checkpointing**: Reduces memory usage during MCMC sampling
-- **Adaptive subsampling**: Automatic data subsampling when memory constrained
-- **Batch sampling**: Memory-optimized sampling for large datasets
-
-### **System Auto-Configuration**
-
-- **Hardware detection**: Automatically detects system capabilities (RAM, CPU)
-- **Optimization strategy selection**: Chooses optimal settings based on available resources
-- **Performance monitoring**: Real-time tracking of computational performance
-
-### **Usage**
-
-```python
-# All experiments automatically optimized - no code changes needed!
-from experiments import ClinicalValidationExperiments
-
-config = ExperimentConfig(auto_configure_system=True)  # Enable auto-optimization
-experiment = ClinicalValidationExperiments(config)
-# Memory optimization, streaming, and monitoring happen automatically
-```
-
-## Development Status & Warnings
-
-### **Features Requiring Development**
-
-The following features have **framework infrastructure** in place but require **substantial development work**:
-
-#### **Advanced Cross-Validation (High Priority)**
-
-- **ClinicalAwareSplitter**: Clinical-aware CV splitting logic
-- **NeuroImagingMetrics**: Domain-specific evaluation metrics
-- **NeuroImagingHyperOptimizer**: Bayesian hyperparameter optimization
-- **Status**: Framework ready, ~600-1000 lines of specialized code needed
-- **Estimated Effort**: 2-4 weeks for experienced ML developer
-
-#### **NeuroGFA Models (Research Priority)**
-
-- **neuroimaging_gfa.py**: Specialized spatial priors for neuroimaging
-- **Status**: Framework ready, requires deep neuroimaging + Bayesian expertise
-- **Estimated Effort**: 1-3 months for neuroimaging researcher
-
-### **GPU Memory Warnings**
-
-**CAUTION**: The following models have **high computational requirements**:
-
-#### **Standard GFA** (`standard_gfa.py`)
-
-- **GPU Memory**: High usage (8-16GB+ depending on data size)
-- **Recommendation**: Use sparse_gfa for most applications
-- **Alternative**: Reduce K (number of factors) or data size
-
-#### **Recommended Default**: `sparse_gfa.py`
-
-- **GPU Memory**: Moderate usage (2-8GB typical)
-- **Recommendation**: Start here for most neuroimaging applications
-- **Performance**: Excellent for PD subtype analysis
-
-### **Planning Frameworks**
-
-#### Advanced CV Development Plan
-
-#### Phase 1: ClinicalAwareSplitter (1-2 weeks)
-
-```python
-# Core functionality needed:
-class ClinicalAwareSplitter:
-    def split(self, X, y, groups, clinical_data):
-        # 1. Multi-variable stratification logic
-        # 2. Site/scanner awareness
-        # 3. Group preservation (same subject not in train/test)
-        # 4. Minimum sample size constraints
-        # 5. Demographics balance validation
-```
-
-#### Phase 2: NeuroImagingMetrics (1-2 weeks)
-
-```python
-# Core functionality needed:
-class NeuroImagingMetrics:
-    def calculate_fold_metrics(self, train_result, test_metrics, clinical_data):
-        # 1. Factor interpretability scoring
-        # 2. Cross-view consistency metrics
-        # 3. Clinical association scoring
-        # 4. Spatial coherence measures
-        # 5. Composite scoring logic
-
-    def evaluate_model_comparison(self, X_data, model_outputs, model_info):
-        # 1. Multi-model evaluation framework
-        # 2. Statistical significance testing
-        # 3. Effect size calculations
-```
-
-#### Phase 3: NeuroImagingHyperOptimizer (2-3 weeks)
-
-```python
-# Core functionality needed:
-class NeuroImagingHyperOptimizer:
-    def optimize_hyperparameters(self, X_data, clinical_data, search_space):
-        # 1. Bayesian optimization setup (optuna/hyperopt)
-        # 2. Clinical-aware objective functions
-        # 3. Multi-objective optimization (accuracy + interpretability)
-        # 4. Parameter importance analysis
-        # 5. Convergence tracking and early stopping
-```
-
-**Dependencies**: sklearn, optuna/hyperopt, scipy.stats
-**Testing Requirements**: Synthetic + real clinical data validation
-
----
-
-#### NeuroGFA Development Plan
-
-#### Phase 1: Spatial Prior Framework (3-4 weeks)
-
-```python
-# Core research needed:
-class NeuroImagingGFA:
-    def __init__(self, spatial_prior_type="ising", anatomical_connectivity=None):
-        # 1. Ising model priors for spatial coherence
-        # 2. Anatomical connectivity integration
-        # 3. Multi-scale spatial modeling
-        # 4. ROI-aware factor allocation
-```
-
-#### Phase 2: Advanced Neuroimaging Features (4-6 weeks)
-
-```python
-# Advanced functionality:
-- Atlas-based factor initialization
-- Symmetric brain modeling
-- Multi-modal data fusion (structural + functional)
-- Temporal factor evolution modeling
-- Group-level + subject-specific factors
-```
-
-#### Phase 3: Clinical Integration (2-3 weeks)
-
-```python
-# Clinical neuroimaging integration:
-- Disease progression modeling
-- Biomarker discovery optimization
-- Multi-site harmonization
-- Scanner-invariant factors
-```
-
-**Dependencies**: nibabel, nilearn, advanced Bayesian modeling, neuroimaging expertise
-**Data Requirements**: Multi-modal neuroimaging datasets with anatomical atlases
-
-## Installation
-
-### Basic Installation
+## Main Pipeline
 
 ```bash
-# Clone the repository
-git clone https://github.com/meeramads/sgfa_qmap-pd
-cd sgfa_qmap-pd
+# Full validation pipeline
+python run_experiments.py --config config_convergence.yaml \
+  --experiments data_validation robustness_testing factor_stability \
+  --select-rois volume_sn_voxels.tsv \
+  --regress-confounds age sex tiv
 
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -e .
+# Factor stability analysis (main experiment)
+python run_experiments.py --config config_convergence.yaml \
+  --experiments factor_stability \
+  --select-rois volume_sn_voxels.tsv \
+  --K 20 --percW 33 --qc-outlier-threshold 3.0
 ```
 
-### Development Installation
+### Pipeline Stages
 
-```bash
-# Install with development tools
-pip install -e ".[dev]"
+| Experiment | Purpose | Outputs |
+|------------|---------|---------|
+| **data_validation** | Data quality, PCA analysis | Distribution plots, quality metrics |
+| **robustness_testing** | Seed reproducibility | Robustness metrics |
+| **factor_stability** | Multi-chain consensus | Consensus W/Z, stability heatmap, R-hat |
 
-# Run tests
-pytest
+## Configuration (`config_convergence.yaml`)
 
-# Run with coverage
-pytest --cov=. --cov-report=html
+### Model Parameters
+
+```yaml
+model:
+  model_type: "sparse_gfa_fixed"  # Convergence-tested implementation
+  K: 20                          # Latent factors
+  percW: 33                      # Sparsity %
+  slab_df: 4                     # Slab degrees of freedom  
+  slab_scale: 2                  # Slab scale
+  num_samples: 10000            # MCMC samples
+  num_warmup: 3000              # Warmup samples
+  num_chains: 4                  # Parallel chains
 ```
 
-## Configuration Options
-
-### Adjusting QC Outlier Detection Threshold
-
-The MAD (Median Absolute Deviation) threshold controls voxel quality filtering during preprocessing:
-
-```bash
-# Default threshold (3.0)
-python run_experiments.py --experiments factor_stability
-
-# More lenient (retain more voxels)
-python run_experiments.py --experiments factor_stability --qc-outlier-threshold 5.0
-
-# More strict (remove more outliers)
-python run_experiments.py --experiments factor_stability --qc-outlier-threshold 2.0
-```
-
-**Default**: 3.0
-**Recommended range**: 2.0 - 5.0
-**Effect**: Higher values retain more voxels, lower values perform stricter outlier removal
-
-Alternatively, set in `config.yaml`:
+### Preprocessing
 
 ```yaml
 preprocessing:
-  spatial_processing:
-    qc_outlier_threshold: 5.0
+  qc_outlier_threshold: 3.0      # MAD threshold
+  variance_threshold: 0.0        # Disabled (preserve variance)
+  roi_based_selection: false     # Disabled (preserve spatial clusters)
 ```
 
-### Plot Output Locations
+**MAD Threshold Guide**:
+- `2.5-3.0`: Stringent QC, cleaner signal
+- `3.0-4.0`: Moderate QC (default)
+- `4.5-5.0`: Permissive, preserve heterogeneity for subtype discovery
 
-All experiments save individual plots in addition to storing them in results dictionaries:
+### MCMC
 
-| Experiment | Plot Directory | Key Plots |
-|------------|----------------|-----------|
-| **Data Validation** | `results/<run>/data_validation/individual_plots/` | Distribution comparison, quality metrics, variance analysis |
-| **Robustness Testing** | `results/<run>/robustness_testing/individual_plots/` | Seed reproducibility, perturbation robustness, initialization stability |
-| **Factor Stability** | `results/<run>/factor_stability/plots/` | Stability heatmap, consensus loadings, chain comparisons |
-| **Clinical Validation** | `results/<run>/clinical_validation/individual_plots/` | Clinical associations, subtype distributions |
+```yaml
+factor_stability:
+  target_accept_prob: 0.8       # NUTS acceptance
+  max_tree_depth: 13            # NUTS depth limit
+  cosine_threshold: 0.8         # Factor matching
+  min_match_rate: 0.5           # Chain agreement
+```
 
-All plots are saved in both PNG (for viewing) and PDF (for publication) formats.
-
-## Quick Start
-
-### Debug Testing Framework
-
-For rapid validation and development testing, use the debug experiment runner:
+## Command-Line Overrides
 
 ```bash
-# Individual debug experiments (reduced MCMC parameters for speed)
-python debug_experiments.py data_validation
-python debug_experiments.py sgfa_hyperparameter_tuning
-python debug_experiments.py model_comparison
-python debug_experiments.py sensitivity_analysis
-python debug_experiments.py clinical_validation
-python debug_experiments.py robustness_testing
-
-# Test all components
-python debug_experiments.py all
+--K 20                          # Number of factors
+--percW 33                      # Sparsity percentage  
+--qc-outlier-threshold 3.0      # MAD threshold
+--max-tree-depth 13             # NUTS max depth
+--select-rois <file>            # ROI selection
+--regress-confounds age sex tiv # Confound regression
 ```
 
-**Debug vs Production Parameters:**
+## Project Structure
 
-- **Debug**: 50-150 MCMC samples, 3-5 factors, minimal preprocessing
-- **Production**: 1000+ MCMC samples, full factors, comprehensive preprocessing
-- **Runtime**: Varies significantly based on system specifications and data complexity
+### Core
+- **models/sparse_gfa_fixed.py**: Sparse GFA with regularized horseshoe
+- **data/preprocessing.py**: Neuroimaging preprocessing
+- **data/preprocessing_integration.py**: Config merging
 
-### Core Analysis Pipeline (Production Ready)
+### Experiments  
+- **experiments/data_validation.py**: Data quality validation
+- **experiments/robustness_testing.py**: Reproducibility testing
+- **experiments/framework.py**: Experiment infrastructure
 
-Run the complete validation pipeline following Ferreira et al. 2024 methodology:
+### Analysis
+- **analysis/factor_stability.py**: Multi-chain consensus
+- **analysis/mcmc_diagnostics.py**: Convergence diagnostics
+
+### Main
+- **run_experiments.py**: Experiment runner
+- **config_convergence.yaml**: Production config
+
+## Installation
 
 ```bash
-# Run core pipeline (data validation → robustness testing → factor stability → clinical validation)
-# Runtime: 30-60 minutes (depending on hardware)
-python run_experiments.py --config config.yaml --experiments all
-
-# Run individual experiments
-python run_experiments.py --config config.yaml --experiments data_validation
-python run_experiments.py --config config.yaml --experiments robustness_testing
-python run_experiments.py --config config.yaml --experiments factor_stability
-python run_experiments.py --config config.yaml --experiments clinical_validation
-
-# Run extended pipeline (includes comparison experiments - FUTURE WORK)
-# Note: Comparison experiments require suitable metrics (ELBO or alternative)
-# python run_experiments.py --config config.yaml --experiments all_extended
+git clone https://github.com/meeramads/sgfa_qmap-pd
+cd sgfa_qmap-pd
+python -m venv venv
+source venv/bin/activate
+pip install -e .
 ```
 
-**Pipeline Overview:**
+## Results Structure
 
-| Experiment | Purpose | Key Outputs |
-|------------|---------|-------------|
-| **data_validation** | Data quality assessment with PCA dimensionality analysis | 5 diagnostic plots including PCA explained variance |
-| **robustness_testing** | Algorithm reliability (seeds, noise, initialization) | Robustness metrics and comparison plots |
-| **factor_stability** | Identify stable factors across independent chains | Consensus loadings, stability heatmap, 4+ visualizations |
-| **clinical_validation** | Clinical relevance and biomarker discovery | Clinical associations, subtype analysis |
-
-**Factor Stability Analysis Details:**
-
-Following Ferreira et al. 2024 Section 2.7:
-
-- Uses **fixed hyperparameters**: percW=33%, slab_df=4, slab_scale=2
-- Runs **4 independent MCMC chains** with different random seeds
-- Assesses stability via **cosine similarity matching** (threshold 0.8)
-- Identifies **robust factors** appearing in >50% of chains
-- Saves W (loadings) and Z (scores) for each chain
-
-**Results Structure:**
-
-```text
-results/
-├── 01_data_validation/          # PCA, distributions, quality metrics
-├── 06_robustness_testing/       # Seed/perturbation tests
-├── 07_factor_stability/         # Chain results + consensus
-│   ├── chains/                  # W.csv, Z.csv per chain
-│   ├── stability_analysis/      # Consensus loadings, metrics
-│   └── plots/                   # 4+ visualizations
-└── 05_clinical_validation/      # Clinical associations
+```
+results/all_rois-sn_K20_percW33_MAD3.0_YYYYMMDD_HHMMSS/
+├── 01_data_validation/individual_plots/
+├── 02_robustness_testing/individual_plots/
+└── 03_factor_stability_K20_percW33/
+    ├── chains/               # W.csv, Z.csv per chain
+    ├── stability_analysis/   # Consensus loadings/scores  
+    └── plots/                # Stability heatmap, diagnostics
 ```
 
-**Customization:** Edit `config.yaml` sections to adjust parameters:
+## Preprocessing Pipeline
 
-- `factor_stability.K`: Number of factors (10-50)
-- `factor_stability.num_chains`: Independent chains (4+)
-- `factor_stability.num_samples`: MCMC samples per chain (2000-10000)
-- `factor_stability.cosine_threshold`: Matching threshold (0.7-0.9)
+1. **MAD QC**: Remove outlier voxels (threshold=3.0)
+2. **Spatial Imputation**: Fill missing with neighbors
+3. **Median Imputation**: Fill remaining missing
+4. **Position Tracking**: Maintain voxel→brain coordinates
 
-### Basic Analysis
+**Example (MAD 3.0)**:
+- Raw: 1794 voxels → After QC: ~531 voxels (~70% removed)
 
-```python
-from core.get_data import qmap_pd, generate_synthetic_data
-from core.run_analysis import run_sgfa_analysis
+## Model Priors
 
-# Load data - Option 1: Real qMAP-PD data
-# X_list, metadata = qmap_pd(data_dir='path/to/data')
+**Regularized Horseshoe for Loadings (W)**:
+- Global scale: τ₀ (data-dependent, Piironen & Vehtari 2017)
+- Local shrinkage: λ ~ Half-Cauchy(0, 1)
+- Slab regularization: c² ~ InverseGamma(slab_df/2, slab_scale·slab_df/2)
 
-# Load data - Option 2: Synthetic data
-data = generate_synthetic_data(num_sources=3, K=5)
-X_list = data['X_list']
+**Factors (Z)**: Regularized horseshoe if `reghsZ: true`
 
-# Run SGFA analysis
-results = run_sgfa_analysis(X_list, K=5, sparsity_level=0.3)
-```
+**Noise**: σ_m⁻² ~ Gamma(1, 1) per view
 
-### Using Analysis Pipeline Components
+## Convergence Diagnostics
 
-```python
-from analysis import quick_sgfa_run, create_analysis_components
+- **R-hat**: < 1.1 (between-chain vs within-chain variance)
+- **ESS**: Effective sample size (higher is better)
+- **Acceptance**: Target 0.6-0.8 for NUTS
+- **Tree Depth**: Monitor if max limit is reached
 
-# Quick SGFA run with minimal setup
-results = quick_sgfa_run(X_list, K=5, percW=25.0)
+**Good convergence (K=2, MAD 3.0)**:
+- R-hat < 1.1, acceptance ~0.79, 2/2 effective factors
 
-# Or use the full pipeline components
-data_manager, model_runner = create_analysis_components({
-    'K': 5, 'num_sources': 3, 'dataset': 'synthetic'
-})
-X_list, hypers = data_manager.load_data()
-results = model_runner.run_standard_analysis(X_list, hypers, {'X_list': X_list})
-```
-
-### With Performance Optimization
-
-```python
-from performance import auto_configure_for_system, PerformanceManager
-
-# Auto-configure for your system
-config = auto_configure_for_system()
-
-# Run with optimization
-with PerformanceManager(config) as manager:
-    results = run_sgfa_analysis(X_list, K=5, sparsity_level=0.3)
-    print(f"Memory used: {manager.get_memory_status()}")
-```
-
-### Comprehensive Experiments
-
-```python
-from experiments import (
-    ExperimentConfig,
-    DataValidationExperiments,
-    ModelArchitectureComparison,
-    SGFAHyperparameterTuning,
-    SensitivityAnalysisExperiments,
-    ReproducibilityExperiments,
-    PerformanceBenchmarkExperiments,
-    ClinicalValidationExperiments
-)
-
-# Configure experiments
-config = ExperimentConfig(output_dir="./results", save_plots=True)
-
-# Run data validation experiments
-data_validator = DataValidationExperiments(config)
-data_results = data_validator.run_comprehensive_data_validation(X_list)
-
-# Run model comparison experiments
-model_comparison = ModelArchitectureComparison(config)
-comparison_results = model_comparison.run_full_comparison(X_list)
-
-# Run SGFA parameter optimization
-sgfa_optimizer = SGFAHyperparameterTuning(config)
-param_results = sgfa_optimizer.run_parameter_sweep(X_list)
-
-# Run sensitivity analysis
-sensitivity = SensitivityAnalysisExperiments(config)
-sensitivity_results = sensitivity.run_sensitivity_analysis(X_list)
-
-# Run robustness testing validation
-robustness_testing = ReproducibilityExperiments(config)
-robustness_results = robustness_testing.run_reproducibility_tests(X_list)
-
-# Run clinical validation with integrated SGFA performance benchmarks
-clinical = ClinicalValidationExperiments(config)
-perf_results = clinical.run_sgfa_clinical_validation(X_list)
-
-# Basic clinical validation (subtype classification)
-clinical_results = clinical.run_clinical_validation(X_list, clinical_data)
-
-# Advanced: Clinical-stratified cross-validation
-# Configure validation types to include clinical-stratified CV
-config_dict = {
-    "clinical_validation": {
-        "validation_types": ["subtype_classification", "clinical_stratified_cv"],
-        "classification_metrics": ["accuracy", "precision", "recall", "f1_score"]
-    }
-}
-clinical_results_advanced = clinical.run_clinical_validation(X_list, clinical_data, config_dict)
-```
-
-### Advanced Neuroimaging Cross-Validation
-
-**NEW**: Clinical-stratified CV now available! Basic neuroimaging CV features work, advanced features require development:
-
-```python
-# THESE WORK - Basic SGFA + clinical validation is implemented:
-from experiments.clinical_validation import ClinicalValidationExperiments
-
-clinical_validator = ClinicalValidationExperiments(config)
-
-# Integrated SGFA + clinical validation benchmarks
-validation_results = clinical_validator.run_sgfa_clinical_validation(
-    X_base=X_list, hypers={"percW": 25.0}, args={"K": 5, "model": "sparseGFA"}
-)
-
-# For pure SGFA scalability analysis, use sgfa_hyperparameter_tuning:
-from experiments.sgfa_hyperparameter_tuning import SGFAHyperparameterTuning
-
-sgfa_analyzer = SGFAHyperparameterTuning(config)
-scalability_results = sgfa_analyzer.run_comprehensive_sgfa_scalability_analysis(
-    X_list=X_list, hypers={"percW": 25.0}, args={"K": 5}
-)
-
-# Memory/performance metrics included in comprehensive analysis above
-
-# Basic clinical validation (implemented, advanced features need development):
-cv_results = clinical_validator.run_sgfa_clinical_validation(
-    X_base=X_list,
-    hypers={"percW": 25.0},
-    args={"K": 5, "model": "sparseGFA"},
-    clinical_data=clinical_data
-)
-
-# Neuroimaging hyperparameter optimization
-from experiments.sgfa_hyperparameter_tuning import SGFAHyperparameterTuning
-
-sgfa_exp = SGFAHyperparameterTuning(config)
-# This will fail - NeuroImagingHyperOptimizer not implemented
-hyperopt_results = sgfa_exp.run_neuroimaging_hyperparameter_optimization(
-    X_list=X_list,
-    hypers={"percW": 25.0},
-    args={"K": 5},
-    clinical_data=clinical_data
-)
-
-# NEW: Clinical-stratified cross-validation works!
-from experiments.clinical_validation import ClinicalValidationExperiments
-
-clinical_exp = ClinicalValidationExperiments(config)
-
-# Configure for clinical-stratified CV
-config_dict = {
-    "clinical_validation": {
-        "validation_types": ["clinical_stratified_cv"],
-        "cross_validation": {"n_folds": 5, "stratified": True}
-    }
-}
-
-# This works - Clinical-stratified CV with robust neuroimaging scaling
-clinical_stratified_results = clinical_exp.run_clinical_validation(
-    X_list=X_list,
-    clinical_data=clinical_data,
-    config=config_dict
-)
-```
-
-#### Advanced CV Features Status
-
-- **ClinicalAwareSplitter**: **Basic implementation available** - Clinical stratification with robust neuroimaging scaling
-- **NeuroImagingMetrics**: Infrastructure exists, needs specialized neuroimaging evaluation metrics
-- **NeuroImagingHyperOptimizer**: Infrastructure exists, needs Bayesian optimization logic
-- **Clinical-Stratified Validation**: **Available** - Use `validation_types: ["clinical_stratified_cv"]`
-
-#### Working Alternative: Basic Cross-Validation
-
-The experiments automatically fall back to working basic CV when advanced features fail:
-
-```python
-from analysis.cross_validation import CVRunner
-
-# This works - CVRunner automatically falls back to basic CV
-cv_runner = CVRunner(config, results_dir="./results")
-cv_results, cv_obj = cv_runner.run_cv_analysis(
-    X_list=X_list,
-    hypers={"percW": 25.0},
-    data={"K": 5, "model": "sparseGFA"}
-)
-
-# Basic CV uses SparseBayesianGFACrossValidator with sklearn-style splitting
-# but adapted for SGFA models
-```
-
-## Performance Optimization
-
-The project includes a comprehensive performance optimization framework:
-
-### Memory Management
-
-- **Adaptive memory limits** based on available system resources
-- **Real-time monitoring** with automatic cleanup and GPU memory management
-- **Memory-efficient data structures** and array optimization
-- **Enhanced GPU cleanup** with JAX cache clearing and aggressive garbage collection
-
-### Data Processing
-
-- **Chunked processing** for large datasets (>1GB)
-- **HDF5 support** with compression
-- **Streaming data loaders** to minimize memory footprint
-
-### MCMC Optimization
-
-- **Memory-efficient sampling** strategies
-- **Adaptive batching** for large datasets
-- **Gradient checkpointing** to reduce memory usage
-
-### Quick Performance Setup
-
-```python
-from performance.config import auto_configure_for_system
-
-# Automatically optimize for your system
-config = auto_configure_for_system()
-
-# Or use predefined presets
-from performance.config import PerformanceConfig
-config = PerformanceConfig().create_preset('memory_efficient')  # For limited RAM
-config = PerformanceConfig().create_preset('fast')              # For speed
-config = PerformanceConfig().create_preset('balanced')          # Balanced approach
-```
-
-## Validation Experiments
-
-The framework includes comprehensive validation experiments:
-
-### Data Validation
-
-- Quality assessment and outlier detection
-- Preprocessing strategy comparison
-- Multi-view data alignment validation
-
-### Method Comparison
-
-- SGFA variants (sparse vs group vs standard)
-- Traditional methods (PCA, ICA, Factor Analysis)
-- SGFA parameter comparison and optimization
-- Scalability and performance benchmarking
-
-### Clinical Validation
-
-- **PD subtype classification validation** **IMPLEMENTED**
-- **Clinical-stratified cross-validation** **AVAILABLE** - CV with proper clinical stratification and robust neuroimaging scaling
-- Disease progression prediction **PLACEHOLDER**
-- Biomarker discovery and validation **PLACEHOLDER**
-- External cohort generalization testing **FUTURE WORK**
-
-#### Clinical-Stratified CV Features
-
-**Currently Available:**
-
-- CV folds stratified by clinical variables (diagnosis, subtypes, etc.)
-- Robust scaling (median/MAD) optimized for neuroimaging data
-- Enhanced convergence checking and timeout handling
-- Professional error handling with automatic fallbacks
-
-**Future Development (Advanced Neuroimaging CV):**
-
-- Neuroimaging-specific priors and spatial structure modeling
-- Scanner/site effect correction and harmonization
-- PD-specific disease progression constraints
-- Brain connectivity and anatomical structure integration
-
-### Run Experiments
-
-#### Production Experiments
-
-```bash
-# Run all production experiments (full MCMC parameters)
-python run_experiments.py --config config.yaml --experiments all
-
-# Run specific production experiments
-python run_experiments.py --config config.yaml --experiments data_validation model_comparison
-
-# Run with custom data directory
-python run_experiments.py --config config.yaml --data-dir /path/to/data
-
-# Select specific ROIs for imaging data
-python run_experiments.py --experiments sgfa_hyperparameter_tuning \
-    --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv
-
-# Regress out confound variables (demographics/covariates)
-python run_experiments.py --experiments model_comparison \
-    --regress-confounds age sex tiv
-
-# Specify K values to test in parameter comparison
-python run_experiments.py --experiments sgfa_hyperparameter_tuning \
-    --select-rois volume_sn_voxels.tsv \
-    --test-k 2 3
-
-# Combine multiple options
-python run_experiments.py --experiments sgfa_hyperparameter_tuning \
-    --select-rois volume_sn_voxels.tsv volume_putamen_voxels.tsv volume_lentiform_voxels.tsv \
-    --regress-confounds age sex tiv \
-    --test-k 3 4 5
-```
-
-**Command-line Options:**
-
-- `--select-rois`: Select specific ROI files to load (space-separated list)
-- `--regress-confounds`: Regress out confound variables from ALL views (space-separated list, e.g., age sex tiv)
-  - Uses residualization: removes variance explained by confounds while preserving signal
-  - More principled than dropping features - removes confound effects from all imaging and clinical data
-- `--test-k`: Specify K (number of factors) values to test in parameter comparison (space-separated integers)
-- Results directories automatically include configuration in their names (e.g., `results/20250106_rois-sn+putamen_conf-age+sex+tiv/`)
-
-**Hyperparameter Configuration:**
-
-The SGFA hyperparameter tuning explores a 3D grid defined in `config.yaml`:
-
-- **K (n_factors)**: [2, 3, 4] - Number of latent factors
-- **percW (sparsity_lambda)**: [10%, 25%, 33%] - Element-wise sparsity within factors
-- **group_lambda**: [0.0, 0.05, 0.1, 0.2] - Group-level feature selection across factors
-  - 0.0 = baseline (no group sparsity)
-  - Higher values = stronger feature-level elimination
-
-Results are saved with naming: `K{K}_percW{percW}_grp{group_lambda}` (e.g., `K3_percW25_grp0.1`)
-
-#### Debug Experiments
-
-```bash
-# Run all debug experiments (reduced parameters for testing)
-python debug_experiments.py all
-
-# Run specific debug experiments
-python debug_experiments.py sgfa_hyperparameter_tuning
-python debug_experiments.py model_comparison
-```
-
-**Available Experiment Types:**
-
-**FULLY IMPLEMENTED AND TESTED:**
-
-- `data_validation`: Data quality and preprocessing validation
-- `sgfa_hyperparameter_tuning`: SGFA parameter optimization and scalability analysis
-- `model_comparison`: SGFA vs traditional methods (PCA, ICA, FA)
-- `sensitivity_analysis`: Hyperparameter sensitivity testing
-- `robustness_testing`: Robustness testing and quality control validation
-- `clinical_validation`: Clinical subtype validation + basic SGFA benchmarks
-
-**ADVANCED FEATURES NEED DEVELOPMENT:**
-
-- Advanced neuroimaging-specific hyperparameter optimization
-- Advanced clinical-aware cross-validation benchmarks
-- Sophisticated neuroimaging metrics and validation
-- Advanced neuroimaging CV methods (ClinicalAwareSplitter, NeuroImagingMetrics)
-
-#### Run specific experiments directly (programmatic)
-
-```python
-from experiments import DataValidationExperiments, ExperimentConfig
-config = ExperimentConfig(output_dir='./results')
-validator = DataValidationExperiments(config)
-# Add your data and run experiments
-```
+**Failed convergence (K=2, MAD 100)**:
+- R-hat = 1339, 0/2 effective factors (over-shrinkage from noise)
 
 ## Testing
 
-Run the comprehensive test suite:
-
 ```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run specific test modules
-pytest tests/data/
-pytest tests/analysis/
-pytest tests/models/
-pytest tests/experiments/
-pytest tests/visualization/
+pytest                    # All tests
+pytest --cov=.           # With coverage
+pytest tests/data/       # Specific module
 ```
-
-## Configuration
-
-### Configuration Structure
-
-The project uses YAML configuration files with validated schemas:
-
-```yaml
-# config.yaml - Production configuration
-data:
-  data_dir: "./qMAP-PD_data"
-  clinical_file: "data_clinical/clinical.tsv"
-  volume_dir: "volume_matrices"
-  imaging_as_single_view: true
-
-experiments:
-  base_output_dir: "./results"
-  save_intermediate: true
-  generate_plots: true
-  max_parallel_jobs: 2
-
-model:
-  model_type: "sparse_gfa"
-  K: 5
-  sparsity_lambda: 0.3
-  num_samples: 1000
-  num_chains: 1
-```
-
-```yaml
-# config_debug.yaml - Debug configuration (reduced parameters)
-experiments:
-  base_output_dir: "./debug_results"
-  save_intermediate: false
-  generate_plots: false
-
-model:
-  K: 3
-  num_samples: 50
-  # ... other reduced parameters
-```
-
-**Note:** The `run_experiments` field was removed from the configuration schema for validation compatibility.
-
-### Basic Configuration
-
-```python
-from core.config_utils import get_default_configuration, validate_configuration
-import yaml
-
-# Get default configuration
-config = get_default_configuration()
-
-# Modify as needed
-config['model']['K'] = 5
-config['model']['sparsity_lambda'] = 0.3
-config['model']['num_samples'] = 1000
-config['model']['num_chains'] = 4
-
-# Validate configuration
-if validate_configuration(config):
-    print("Configuration is valid!")
-```
-
-### Performance Configuration
-
-```yaml
-# config.yaml
-memory:
-  max_memory_gb: 8.0
-  warning_threshold: 0.8
-  enable_monitoring: true
-
-data:
-  enable_chunking: true
-  memory_limit_gb: 4.0
-  enable_compression: true
-
-mcmc:
-  enable_adaptive_batching: true
-  enable_checkpointing: true
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`pytest`)
-5. Run linting (`black . && flake8`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License.
 
 ## References
 
-- qMAP-PD Study: <https://qmaplab.com/qmap-pd>
-- JAX Documentation: <https://jax.readthedocs.io/>
-- NumPyro Documentation: <https://num.pyro.ai/>
+- qMAP-PD: https://qmaplab.com/qmap-pd
+- Ferreira et al. 2024: Factor stability
+- Piironen & Vehtari 2017: Regularized horseshoe  
+- NumPyro: https://num.pyro.ai/
+- JAX: https://jax.readthedocs.io/
+
+## License
+
+MIT

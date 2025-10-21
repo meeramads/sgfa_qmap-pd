@@ -2,99 +2,121 @@
 
 ## Problem
 
-When preprocessing drops voxels (via QC outlier removal or ROI-based spatial selection), the factor loadings W matrix has fewer rows than the original number of voxels. This breaks brain remapping because you can't map 850 loadings back to 1794 original voxel positions.
+When preprocessing drops voxels via MAD-based quality control, the factor loadings W matrix has fewer rows than the original number of voxels. This breaks brain remapping because you can't map reduced loadings back to the original voxel positions.
 
 **Example**:
 - Original: 1794 voxels with known (x, y, z) coordinates
-- After QC outlier removal: 850 voxels (944 dropped)
-- After ROI selection: 850 voxels
-- Factor loadings W: 850 × K matrix
-- **Problem**: Which 850 of the original 1794 positions do these correspond to?
+- After MAD QC (threshold=3.0): ~531 voxels (70% dropped)
+- Factor loadings W: 531 × K matrix
+- **Problem**: Which 531 of the original 1794 positions do these correspond to?
 
 ## Solution
 
-The preprocessing pipeline now **automatically saves filtered position lookup vectors** that track which voxels were retained and their spatial coordinates.
+The preprocessing pipeline **automatically saves filtered position lookup vectors** that track which voxels were retained and their spatial coordinates.
 
 ### Implementation
 
-**File**: [data/preprocessing_integration.py](data/preprocessing_integration.py#L17-114)
+**File**: [data/preprocessing.py](../data/preprocessing.py) (lines 1229-1297)
 
-The `_save_filtered_position_lookups()` function:
+The `_filter_and_save_position_lookups()` function:
 
 1. **Loads original position lookup** (all 1794 voxels with x, y, z coordinates)
-2. **Applies QC outlier mask** from `preprocessor.outlier_masks_[view_name]`
-3. **Applies ROI selection** from `preprocessor.selected_features_[view_name]`
-4. **Saves filtered positions** to `{data_dir}/preprocessed_position_lookups/{roi_name}_filtered_position_lookup.csv`
+2. **Applies cumulative mask** tracking all preprocessing steps (MAD filtering, imputation)
+3. **Saves filtered positions** to experiment output directory
 
 ### When It Runs
 
 Automatically during preprocessing when:
 - `enable_spatial_processing: true` (in config)
-- Using `NeuroImagingPreprocessor` (advanced preprocessing)
+- Using `NeuroImagingPreprocessor`
 - Processing imaging views (names starting with `volume_`)
 
 ### Output Files
 
-**Location**: `{data_dir}/preprocessed_position_lookups/`
+**Location**: `results/<run>/filtered_positions/`
 
-**Format** (same as original position lookups):
-```csv
-x,y,z
--12.5,8.3,4.2
--11.2,9.1,5.5
+**Format**:
+```tsv
+-12.5	8.3	4.2
+-11.2	9.1	5.5
 ...
 ```
+(No header, tab-separated, matching original position lookup format)
 
 **Files created**:
-- `sn_filtered_position_lookup.csv` - If processing substantia nigra
-- `putamen_filtered_position_lookup.csv` - If processing putamen
-- `lentiform_filtered_position_lookup.csv` - If processing lentiform nucleus
+- `position_sn_voxels_filtered.tsv` - If processing substantia nigra
+- `position_putamen_voxels_filtered.tsv` - If processing putamen
 - etc.
 
-**Size**: Matches the number of rows in the corresponding W matrix (e.g., 850 voxels)
+**Size**: Matches the number of rows in the corresponding W matrix (e.g., 531 voxels for MAD 3.0)
+
+## Current Preprocessing Pipeline (config_convergence.yaml)
+
+```yaml
+preprocessing:
+  qc_outlier_threshold: 3.0       # MAD threshold
+  variance_threshold: 0.0         # Disabled
+  roi_based_selection: false      # Disabled
+```
+
+### Preprocessing Flow
+
+```
+Original: 1794 voxels
+    ↓
+MAD filtering (threshold=3.0)
+    ↓
+~531 voxels retained (~70% removed)
+    ↓
+Position tracking saves filtered positions
+```
+
+**No additional filtering**: Variance threshold and ROI-based selection are disabled to preserve biological signal.
 
 ## Usage for Brain Remapping
 
-### Current Factor Stability Outputs
+### Factor Stability Outputs
 
-After running factor stability analysis, you have:
-```
-results/factor_stability_run_YYYYMMDD_HHMMSS/
-├── chains/
-│   └── chain_0/
-│       ├── W_view_0.csv          # (850, K) - Factor loadings for imaging view
-│       └── Z.csv                 # (86, K) - Factor scores
-└── stability_analysis/
-    └── consensus_W.csv           # Consensus loadings across chains
-```
+After running factor stability analysis:
 
-### Filtered Position Lookups
-
-Now available in:
-```
-qMAP-PD_data/preprocessed_position_lookups/
-├── sn_filtered_position_lookup.csv        # 850 voxels (if 850 retained)
-├── putamen_filtered_position_lookup.csv
-└── ...
+```bash
+results/all_rois-sn_K20_percW33_MAD3.0_YYYYMMDD_HHMMSS/
+├── 03_factor_stability_K20_percW33/
+│   ├── chains/
+│   │   ├── chain_0/
+│   │   │   ├── W_view_0.csv     # (531, K) - Imaging loadings
+│   │   │   └── Z.csv            # (86, K) - Factor scores
+│   │   └── ...
+│   └── stability_analysis/
+│       ├── consensus_factor_loadings_volume_sn_voxels.csv  # Consensus W
+│       └── consensus_factor_scores.csv                      # Consensus Z
+└── filtered_positions/
+    └── position_sn_voxels_filtered.tsv  # (531, 3) - Voxel coordinates
 ```
 
 ### Brain Remapping Workflow
-
-To map factor loadings back to brain space:
 
 ```python
 import pandas as pd
 import numpy as np
 
-# 1. Load factor loadings (e.g., for Factor 0)
-W = pd.read_csv("results/.../chains/chain_0/W_view_0.csv", index_col=0)
-factor_0_loadings = W["Factor_0"].values  # Shape: (850,)
+# 1. Load consensus factor loadings
+W = pd.read_csv("results/.../consensus_factor_loadings_volume_sn_voxels.csv", index_col=0)
+factor_0_loadings = W["Factor_0"].values  # Shape: (531,)
 
 # 2. Load filtered position lookup
-positions = pd.read_csv("qMAP-PD_data/preprocessed_position_lookups/sn_filtered_position_lookup.csv")
-# Shape: (850, 3) with columns [x, y, z]
+positions = pd.read_csv(
+    "results/.../filtered_positions/position_sn_voxels_filtered.tsv",
+    sep='\t',
+    header=None,
+    names=['x', 'y', 'z']
+)
+# Shape: (531, 3)
 
-# 3. Create 3D brain map
+# 3. Verify dimensions match
+assert len(factor_0_loadings) == len(positions), "Dimension mismatch!"
+
+# 4. Create brain map
 brain_map = pd.DataFrame({
     'x': positions['x'],
     'y': positions['y'],
@@ -102,7 +124,7 @@ brain_map = pd.DataFrame({
     'loading': factor_0_loadings
 })
 
-# 4. Visualize (example with matplotlib)
+# 5. Visualize
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -121,126 +143,121 @@ scatter = ax.scatter(
 ax.set_xlabel('X (mm)')
 ax.set_ylabel('Y (mm)')
 ax.set_zlabel('Z (mm)')
-ax.set_title('Factor 0 Loadings in Brain Space')
+ax.set_title('Factor 0 Loadings in Substantia Nigra')
 plt.colorbar(scatter, label='Factor Loading')
-plt.savefig('factor_0_brain_map.png')
+plt.savefig('factor_0_brain_map.png', dpi=300)
 ```
 
 ## Verification
 
-After your current runs complete, check:
+Check that filtered positions were created:
 
 ```bash
-# Check if filtered position lookups were created
-ls -lh qMAP-PD_data/preprocessed_position_lookups/
+# List filtered position files
+ls -lh results/all_rois-sn_*/filtered_positions/
 
-# Verify the size matches your data
-# Machine 1 & 2 (850 voxels):
-wc -l qMAP-PD_data/preprocessed_position_lookups/sn_filtered_position_lookup.csv
-# Should show: 851 (850 voxels + 1 header row)
+# Verify size matches loadings (MAD 3.0 example)
+wc -l results/.../filtered_positions/position_sn_voxels_filtered.tsv
+# Should show: 531 (no header)
 
-# Machine 3 (1794 voxels):
-wc -l qMAP-PD_data/preprocessed_position_lookups/sn_filtered_position_lookup.csv
-# Should show: 1795 (1794 voxels + 1 header row)
+# Compare to W matrix
+wc -l results/.../consensus_factor_loadings_volume_sn_voxels.csv
+# Should show: 532 (531 voxels + 1 header)
 ```
 
-Compare factor loadings matrix size:
+## Log Messages During Preprocessing
+
+You'll see output like:
+
+```
+INFO:root:Applying MAD-based quality control to volume_sn_voxels (1794 voxels, threshold=3.0)
+INFO:root:  MAD outlier detection: threshold=3.0, outliers=1263/1794 voxels
+WARNING:root:  Outlier voxels detected: 1263/1794 (70.4%)
+INFO:root:  Voxels retained: 531/1794 (29.6%)
+INFO:root:Final shape for volume_sn_voxels: (86, 531)
+INFO:root:Feature retention: 531/1794 (29.1%)
+INFO:root:  Saved filtered position file: .../position_sn_voxels_filtered.tsv
+```
+
+## MAD Threshold Effects
+
+| Threshold | Voxels Retained | Use Case |
+|-----------|----------------|----------|
+| 2.5 | ~450 (25%) | Stringent QC, cleanest signal |
+| 3.0 | ~531 (30%) | **Default** - Moderate QC |
+| 4.5 | ~650 (36%) | Permissive, preserve heterogeneity |
+| 5.0 | ~700 (39%) | Very permissive, subtype discovery |
+| 100.0 | 1794 (100%) | No QC (not recommended) |
+
+**Command-line override**:
 ```bash
-# Check W matrix dimensions
-head -1 results/.../chains/chain_0/W_view_0.csv  # See how many factors (columns)
-wc -l results/.../chains/chain_0/W_view_0.csv     # Should match filtered positions + 1
+python run_experiments.py --config config_convergence.yaml \
+  --qc-outlier-threshold 5.0
+```
+
+## Technical Details
+
+### Position Tracking Implementation
+
+The pipeline uses **cumulative masking** to track all transformations:
+
+```python
+# Start with all voxels
+cumulative_mask = np.ones(1794, dtype=bool)
+
+# Apply MAD filtering
+mad_mask = mad_scores <= threshold
+cumulative_mask &= mad_mask  # Now: 531 True values
+
+# Apply to positions
+filtered_positions = original_positions[cumulative_mask]
+# Result: 531 rows matching W matrix
+```
+
+### Coordinate System
+
+Position lookups use **MNI space** (Montreal Neurological Institute):
+- **Origin**: Anterior commissure
+- **Units**: Millimeters (mm)
+- **Orientation**: RAS (Right-Anterior-Superior)
+- **Typical range**: -90 to +90 mm per dimension
+
+### Row Correspondence
+
+```python
+# Row i in position_sn_voxels_filtered.tsv corresponds to:
+# - Row i in consensus_factor_loadings_volume_sn_voxels.csv
+# - Voxel i in the preprocessed imaging matrix
+
+# Verification
+W_df = pd.read_csv("consensus_factor_loadings_volume_sn_voxels.csv", index_col=0)
+positions = pd.read_csv("position_sn_voxels_filtered.tsv", sep='\t', header=None)
+
+assert len(W_df) == len(positions)  # Must be equal!
 ```
 
 ## Preprocessing Steps That Drop Voxels
 
-The filtered position lookup accounts for:
+### 1. MAD-based Quality Control (Active)
 
-### 1. QC Outlier Removal
-- **Config parameter**: `qc_outlier_threshold: 3.0`
-- **What it does**: Removes voxels with values >3 standard deviations from mean
-- **Tracking**: Saved in `preprocessor.outlier_masks_[view_name]`
+- **Config**: `qc_outlier_threshold: 3.0`
+- **Method**: Median Absolute Deviation outlier detection
+- **Effect**: Removes ~70% of voxels (1794 → 531)
+- **Purpose**: Remove unreliable measurements (artifacts, motion)
 
-### 2. ROI-Based Spatial Selection
-- **Config parameter**: `roi_based_selection: true`
-- **Config parameter**: `min_voxel_distance: 3.0` (mm)
-- **What it does**: Selects spatially distributed voxels (avoids clustering)
-- **Tracking**: Saved in `preprocessor.selected_features_[f"{view_name}_roi_indices"]`
+### 2. Variance Threshold (Disabled)
 
-### Comparison of Your Current Runs
+- **Config**: `variance_threshold: 0.0`
+- **Effect**: None (disabled to preserve low-variance biomarkers)
 
-| Machine | Config | Voxels | QC Outlier | ROI Selection |
-|---------|--------|--------|------------|---------------|
-| 1 | config.yaml | 850 | Yes (3.0σ) | Yes (3mm) |
-| 2 | config_K50.yaml | 850 | Yes (3.0σ) | Yes (3mm) |
-| 3 | config_K50_full_voxels.yaml | ? | Yes (3.0σ) | No |
+### 3. ROI-based Selection (Disabled)
 
-**Machine 3 Note**: Even with `roi_based_selection: false`, QC outlier removal still applies, so you'll likely have ~850-900 voxels (not full 1794). To get truly all voxels, you'd need to also set `qc_outlier_threshold` very high (e.g., 10.0) or disable QC.
-
-## Log Messages
-
-During preprocessing, you'll see:
-
-```
-INFO: Creating filtered position lookup for volume_sn_voxels...
-INFO:   Applying QC outlier mask: 850/1794 voxels kept
-INFO:   Applying ROI selection (indices): 850 voxels selected
-INFO:   Saved filtered position lookup: /path/to/qMAP-PD_data/preprocessed_position_lookups/sn_filtered_position_lookup.csv
-INFO:   1794 → 850 voxels (47.4% retained)
-INFO:   Saved 1 filtered position lookup files
-```
-
-## Future Runs
-
-For future experiments, if you want to preserve all voxels for complete brain coverage:
-
-```yaml
-preprocessing:
-  qc_outlier_threshold: 10.0      # Very permissive (keeps almost all)
-  roi_based_selection: false      # No spatial subsampling
-  min_voxel_distance: 0.0         # No distance constraint
-```
-
-**Trade-off**: More voxels = more complete brain maps, but:
-- Higher memory usage
-- More noise (outlier voxels included)
-- Spatially redundant information
-- Longer computation time
-
-## Technical Details
-
-### Position Lookup Application Order
-
-1. **Start**: Original position lookup (1794 voxels)
-2. **QC filter**: Apply `outlier_masks_[view_name]` → reduces to ~850
-3. **ROI filter**: Apply `selected_features_[view_name]` to QC-filtered set → final 850
-4. **Save**: Filtered positions matching the final feature matrix
-
-### Coordinate System
-
-The position lookup uses **MNI space** (Montreal Neurological Institute):
-- **Origin**: Anterior commissure
-- **Units**: Millimeters (mm)
-- **Orientation**: RAS (Right-Anterior-Superior)
-- **Range**: Typically -90 to +90 mm in each dimension
-
-### Matching Factor Loadings to Positions
-
-```python
-# Row i in filtered_position_lookup.csv corresponds to:
-# - Row i in W_view_j.csv (factor loadings)
-# - Feature i in the preprocessed imaging view
-
-# Example:
-W_df = pd.read_csv("W_view_0.csv", index_col=0)  # Index = feature names
-positions = pd.read_csv("sn_filtered_position_lookup.csv")
-
-assert len(W_df) == len(positions), "Mismatch in voxel count!"
-# Should pass if everything is working correctly
-```
+- **Config**: `roi_based_selection: false`
+- **Effect**: None (disabled to preserve spatial clustering)
 
 ## References
 
-- Original position lookups: `qMAP-PD_data/volume_matrices/*_position_lookup.tsv`
-- Preprocessing code: [data/preprocessing.py](data/preprocessing.py)
-- Integration code: [data/preprocessing_integration.py](data/preprocessing_integration.py)
-- Spatial utilities: `SpatialProcessingUtils` class in preprocessing.py
+- Original position lookups: `qMAP-PD_data/position_lookup/position_*_voxels.tsv`
+- Preprocessing implementation: [data/preprocessing.py](../data/preprocessing.py)
+- Config integration: [data/preprocessing_integration.py](../data/preprocessing_integration.py)
+- Production config: [config_convergence.yaml](../config_convergence.yaml)

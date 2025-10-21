@@ -15,13 +15,14 @@ Covariance analysis is automatically performed during data validation experiment
 
 ```bash
 python run_experiments.py \
-  --config config.yaml \
+  --config config_convergence.yaml \
   --experiments data_validation \
   --select-rois volume_sn_voxels.tsv
 ```
 
 Results are saved to:
-```
+
+```bash
 results/{run_name}/data_validation_{timestamp}/plots/
 ├── block_covariance_matrix.png       # Full block-structured covariance
 └── inter_vs_intra_correlation.png    # Comparison of inter vs intra
@@ -32,10 +33,12 @@ results/{run_name}/data_validation_{timestamp}/plots/
 ### 1. Block-Structured Covariance Matrix
 
 Shows the full correlation/covariance matrix with clear block structure:
+
 - **Diagonal blocks**: Intra-modality correlations (within imaging, within clinical)
 - **Off-diagonal blocks**: Inter-modality correlations (between imaging and clinical)
 
 **Features:**
+
 - Block boundaries clearly marked
 - View names labeled
 - Summary statistics displayed
@@ -44,10 +47,12 @@ Shows the full correlation/covariance matrix with clear block structure:
 ### 2. Inter vs Intra Comparison
 
 Two-panel comparison:
+
 - **Left panel**: Violin plots showing distribution of correlations for each view/pair
 - **Right panel**: Bar chart of mean absolute correlations
 
 **Color coding:**
+
 - Blue: Intra-modality (within-view) correlations
 - Red: Inter-modality (between-view) correlations
 
@@ -56,12 +61,14 @@ Two-panel comparison:
 ### Expected Patterns for Multi-View Data
 
 **Good multi-view structure:**
+
 - Intra-modality correlations > Inter-modality correlations
 - Clear block structure in covariance matrix
 - Distinct modalities contribute different information
 
 **Example:**
-```
+
+```yaml
 Intra-modality correlation statistics:
   imaging:
     Mean correlation: 0.450
@@ -81,16 +88,19 @@ Inter-modality correlation statistics:
 ### Warning Signs
 
 **High inter-modality correlations (> 0.5 mean):**
+
 - Views may be redundant
 - Consider whether both views are needed
 - May indicate data leakage or preprocessing artifacts
 
 **Low intra-modality correlations (< 0.1 mean):**
+
 - Features within view are nearly independent
 - May benefit from feature selection
 - Check for preprocessing issues (e.g., over-normalization)
 
 **No block structure visible:**
+
 - Views may not be distinct
 - Check preprocessing and view definitions
 - May need dimensionality reduction
@@ -174,6 +184,7 @@ stats = report['stats']
 ### Subsampling Strategy
 
 For large matrices (> 500 features), automatic subsampling is applied:
+
 - Samples proportionally from each view
 - Preserves block structure
 - Uses linear interpolation to select representative features
@@ -181,11 +192,13 @@ For large matrices (> 500 features), automatic subsampling is applied:
 ### Correlation vs Covariance
 
 **Correlation** (default):
+
 - Scale-invariant
 - Easier to interpret (-1 to 1 range)
 - Recommended for most analyses
 
 **Covariance**:
+
 - Scale-dependent
 - Shows actual variance/covariance magnitudes
 - Useful for understanding raw data properties
@@ -213,7 +226,7 @@ Covariance analysis helps validate GFA assumptions:
 
 ## Example Output
 
-```
+```bash
 ================================================================================
 COVARIANCE STRUCTURE ANALYSIS
 ================================================================================

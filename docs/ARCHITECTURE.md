@@ -1,377 +1,378 @@
 # SGFA Codebase Architecture
 
-This document describes the overall architecture and code organization after the comprehensive refactoring (October 2025).
+**Last Updated**: October 21, 2025
 
-**Last Updated**: January 10, 2025
-**Architectural Issues Resolved**: 28 of 50 (56%)
-**Recent Enhancements**: Visualization consistency, factor map export, memory optimization (Jan 2025)
+## Overview
 
-## Code Quality Metrics
+This document describes the architecture of the SGFA pipeline for neuroimaging biomarker discovery in Parkinson's disease. The pipeline implements sparse Bayesian factor analysis with regularized horseshoe priors using NumPyro/JAX.
 
-- **Total Python Files**: 84+ (excluding tests)
-- **Total Classes/Functions**: ~220
-- **Documentation Coverage**: 100% (all new utilities fully documented)
-- **Average File Size**: 15-20 KB (well-structured, not monolithic)
-- **Largest Module**: experiments (67KB avg - comprehensive validation framework)
-- **Critical Issues**: 0 (all 5 resolved)
-- **Test Coverage**: 36 test files (33 existing + 3 new for refactored modules)
-
-## Architecture Overview
+## Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Entry Points                            │
-│  run_experiments.py │ run_analysis.py │ debug_experiments.py│
+│                Entry Point: run_experiments.py               │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Experiments Layer                          │
+│              Experiments (Production Pipeline)               │
 │  ┌────────────────┐  ┌──────────────┐  ┌─────────────────┐ │
-│  │ Data Validation│  │ Model Comp.  │  │ SGFA Parameter  │ │
-│  │ Clinical Valid.│  │ Sensitivity  │  │ Reproducibility │ │
+│  │ data_validation│  │ robustness_  │  │ factor_stability│ │
+│  │                │  │ testing      │  │                 │ │
 │  └────────────────┘  └──────────────┘  └─────────────────┘ │
-│         Uses: ExperimentResult (typed dataclass)            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                 Analysis Framework                           │
-│  ┌──────────────────┐  ┌──────────────────┐                │
-│  │ DataManager      │  │ ModelRunner      │                │
-│  │ (with Config)    │  │ (with Config)    │                │
-│  └──────────────────┘  └──────────────────┘                │
-│  Returns: AnalysisFrameworkResult (enum-based)              │
+│                 Preprocessing Pipeline                       │
+│         (preprocessing_integration.py)                       │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 1. MAD-based QC (remove outlier voxels)              │  │
+│  │ 2. Spatial imputation (fill missing with neighbors)  │  │
+│  │ 3. Median imputation (fill remaining missing)        │  │
+│  │ 4. Position tracking (voxel→brain coordinates)       │  │
+│  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Models Layer                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ SparseGFA    │  │ StandardGFA  │  │ NeuroGFA     │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-│  Returns: ModelCreationResult (enum-based)                  │
+│             Model: sparse_gfa_fixed.py                       │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Regularized Horseshoe Priors:                        │  │
+│  │ - W (loadings): τ₀, λ, slab regularization          │  │
+│  │ - Z (factors): Optional regularized horseshoe        │  │
+│  │ - Non-centered parameterization for better mixing    │  │
+│  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Core Utilities                            │
-│  ┌──────────────────┐  ┌──────────────────┐                │
-│  │ ParameterResolver│  │ LoggerProtocol   │                │
-│  │ ConfigHelper     │  │ ConfigType       │                │
-│  └──────────────────┘  └──────────────────┘                │
+│              MCMC Sampling (NumPyro NUTS)                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ - Adaptive step size                                 │  │
+│  │ - Tree depth control (max_tree_depth=13)            │  │
+│  │ - Target acceptance probability (0.8)                │  │
+│  │ - R-hat/ESS convergence diagnostics                  │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Analysis & Diagnostics                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ factor_stability.py: Cross-chain consensus           │  │
+│  │ mcmc_diagnostics.py: R-hat, ESS, trace plots        │  │
+│  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Design Patterns Used
+## Core Components
 
-### 1. **Dataclass Configuration Pattern**
-All major components use typed dataclasses for configuration:
-- `DataManagerConfig` (analysis/data_manager.py)
-- `ModelRunnerConfig` (analysis/model_runner.py)
-- `ExperimentConfig` (experiments/framework.py)
+### Entry Point
 
-**Benefits**:
-- Type-safe configuration
-- IDE autocomplete
-- Clear required vs optional parameters
-- Factory methods for migration
+**`run_experiments.py`**
+- Command-line interface for experiments
+- Config loading and validation
+- Experiment orchestration
+- Results directory management
 
-### 2. **Result Object Pattern**
-Operations return typed result objects instead of dicts:
-- `ExperimentResult` with explicit fields
-- `AnalysisFrameworkResult` with `AnalysisMode` enum
-- `ModelCreationResult` with `ModelCreationMode` enum
+### Configuration
 
-**Benefits**:
-- No dict key typos
-- Type-checked access
-- Self-documenting code
-- Properties for common checks (`is_successful()`, etc.)
+**`config_convergence.yaml`**
+- Model parameters (K, percW, slab_df, slab_scale)
+- MCMC settings (samples, warmup, chains, tree depth)
+- Preprocessing options (MAD threshold, imputation)
+- Experiment-specific configs
 
-### 3. **Protocol-Based Typing**
-Interfaces defined using Python protocols:
-- `ConfigLike` protocol (core/config_utils.py)
-- `LoggerProtocol` (core/logger_utils.py)
+### Data Pipeline
 
-**Benefits**:
-- Duck typing with type safety
-- No rigid inheritance hierarchies
-- Better IDE support
+**`data/preprocessing.py`**
+- `NeuroImagingPreprocessor`: Main preprocessing class
+- MAD-based quality control
+- Spatial and median imputation
+- Position lookup tracking
 
-### 4. **Utility Classes**
-Reusable utilities for common patterns:
-- `ParameterResolver` - Multi-source parameter resolution
-- `ConfigHelper` - Configuration type conversion
-- `get_logger()` - Safe logger access
+**`data/preprocessing_integration.py`**
+- `apply_preprocessing_to_pipeline()`: Main integration function
+- Config merging (global overrides strategy-specific)
+- Position file saving
 
-## Module Responsibilities
+**`data/qmap_pd.py`**
+- qMAP-PD dataset loading
+- Multi-view data handling (imaging + clinical)
 
-### Core (`core/`)
-**Purpose**: Fundamental utilities and shared functionality
-**Key Files**:
-- `run_analysis.py` - Main analysis orchestration
-- `parameter_resolver.py` - Parameter resolution utility
-- `logger_utils.py` - Logger protocol and utilities
-- `config_utils.py` - Config type conversion with protocols (includes `dict_to_namespace()`)
-- `error_handling.py` - Standardized error handling utilities and exception types (NEW)
-- `model_interface.py` - Abstraction layer breaking circular dependencies (NEW)
-- `utils.py` - General utilities (1231 lines, 5 categories: memory, file ops, context managers, model utils, validation)
-- `io_utils.py` - File operations with FileOperationManager (renamed from DataManager)
-- `validation_utils.py` - Validation decorators and utilities
+### Model Implementation
 
-**Dependencies**: None (foundation layer)
+**`models/sparse_gfa_fixed.py`**
+- Regularized horseshoe priors with slab regularization
+- Non-centered parameterization
+- Data-dependent global scale (Piironen & Vehtari 2017)
+- NumPyro MCMC implementation
 
-### Data (`data/`)
-**Purpose**: Data loading and preprocessing
-**Key Files**:
-- `qmap_pd.py` - qMAP-PD dataset loader
-- `synthetic.py` - Synthetic data generation
-- `preprocessing.py` - Preprocessing pipelines
+**`models/factory.py`**
+- Model instantiation
+- Configuration validation
 
-**Dependencies**: core
+### Experiments
 
-### Analysis (`analysis/`)
-**Purpose**: Core analysis components
-**Key Files**:
-- `component_factory.py` - Unified component creation and integration (replaces analysis_integration.py + experiment_utils.py)
-- `data_manager.py` - Data loading with `DataManagerConfig`
-- `model_runner.py` - Model execution with `ModelRunnerConfig`
-- `config_manager.py` - Configuration management
-- `cross_validation.py` - CV orchestrator (unified entry point)
-- `cross_validation_library.py` - Neuroimaging-aware CV implementation
-- `cv_integration.py` - Pipeline integration
-- `cv_fallbacks.py` - Graceful fallbacks
+**`experiments/data_validation.py`**
+- Data quality assessment
+- Distribution analysis
+- PCA dimensionality analysis
 
-**Submodules**:
-- `clinical/` - Clinical validation modules with integration factory
+**`experiments/robustness_testing.py`**
+- Seed reproducibility
+- Perturbation analysis
+- Initialization stability
 
-**Dependencies**: core, data
+**`experiments/framework.py`**
+- Experiment base infrastructure
+- Result standardization
+- Plot saving utilities
 
-### Models (`models/`)
-**Purpose**: Model implementations
-**Key Files**:
-- `sparse_gfa.py` - Sparse GFA implementation
-- `standard_gfa.py` - Standard GFA
-- `factory.py` - Model factory pattern
+### Analysis
 
-**Dependencies**: core (minimal)
+**`analysis/factor_stability.py`**
+- Multi-chain stability analysis (Ferreira et al. 2024)
+- Cosine similarity factor matching
+- Consensus loadings/scores computation
+- CSV export for W, Z matrices
 
-### Experiments (`experiments/`)
-**Purpose**: Validation and comparison experiments with comprehensive output
-**Key Files**:
-- `framework.py` - Experiment orchestration (1358 lines) with matrix saving utilities
-- `data_validation.py` - Data quality checks with ROI selection support
-- `model_comparison.py` - Method comparison with factor map export
-- `sgfa_hyperparameter_tuning.py` - Hyperparameter tuning with optimized NUTS settings
-- `clinical_validation.py` - Clinical validation
-- `sensitivity_analysis.py` - Sensitivity testing including group sparsity
-- `robustness_testing.py` - Robustness testing and quality control validation
+**`analysis/mcmc_diagnostics.py`**
+- R-hat computation
+- ESS calculation
+- Trace plots
+- Convergence diagnostics
 
-**Recent Enhancements (Jan 2025)**:
-- ✅ **Factor map export**: All models (sparseGFA, PCA, ICA, FA, NMF, K-means, CCA) now save W and Z matrices to CSV
-  - Location: `results/<run>/methods_comparison/factor_maps/`
-  - Format: CSV with semantic names for MATLAB/external analysis
-- ✅ **ROI selection fixes**: `--select-rois` flag now properly respected throughout pipeline
-- ✅ **Group sparsity support**: Added group_λ extraction and passing to downstream experiments
-- ✅ **NUTS optimization**: Reverted to `max_tree_depth=10` (default) for standard configs after memory leak fix
-  - Better posterior exploration and effective sample size
-  - Only reduces to 8 for extreme configs (K≥10 AND percW≥50)
-- ✅ **Enhanced logging**: Clear warnings when metrics fail (CV reconstruction, factor stability)
+## Data Flow
 
-**Dependencies**: analysis, core, models
-
-**Note**: Experiments are intentionally larger (67KB avg) as they orchestrate complex workflows.
-
-### Optimization (`optimization/`)
-**Purpose**: Performance and memory optimization
-**Key Files**:
-- `memory_optimizer.py` - Memory management
-- `mcmc_optimizer.py` - MCMC optimization
-- `performance_integration.py` - Integration layer
-
-**Dependencies**: core
-
-### Visualization (`visualization/`)
-**Purpose**: Result visualization with human-readable naming and consistent formatting
-**Key Files**:
-- `brain_plots.py` - Brain mapping visualizations
-- `factor_plots.py` - Factor analysis plots
-- `report_generator.py` - HTML reports
-- `core_plots.py` - Core visualization utilities (moved from core/visualization.py)
-- `cv_plots.py` - Cross-validation visualizations
-- `comparison_plots.py` - Model comparison visualizations
-- `preprocessing_plots.py` - Data preprocessing visualizations with view name formatting
-
-**Recent Enhancements (Jan 2025)**:
-- ✅ **Human-readable view names**: All plots now use formatted names (e.g., "Substantia Nigra" instead of "volume_sn_voxels")
-- ✅ **Consistent plot naming**: Plot filenames match their content (no more swapped names)
-- ✅ **Comprehensive comparison table**: New table figure showing all methods and metrics with smart N/A handling
-- ✅ **Enhanced labels**: Factor scores with subtitles, quality plots with legend-only best values
-- ✅ **View name formatter**: `_format_view_name()` utility used across all experiments
-
-**Dependencies**: core
-
-## Dependency Flow
-
-**Clean Dependency Hierarchy** (no circular dependencies):
+### Preprocessing Flow
 
 ```
-core (foundation)
-  ↓
-data, models (domain logic)
-  ↓
-analysis (orchestration)
-  ↓
-experiments (validation)
-  ↓
-visualization (presentation)
+Raw Data (1794 voxels)
+    │
+    ├─> MAD filtering (threshold=3.0)
+    │       └─> ~531 voxels (70% removed)
+    │
+    ├─> Spatial imputation
+    │       └─> Fill missing with neighbors
+    │
+    ├─> Median imputation
+    │       └─> Fill remaining missing
+    │
+    └─> Position tracking
+            └─> Save filtered position lookup
 ```
 
-**Cross-cutting concerns**: optimization (used by all layers)
+### Experiment Flow
 
-## Code Readability Assessment
+```
+run_experiments.py
+    │
+    ├─> Load config (config_convergence.yaml)
+    │
+    ├─> Apply preprocessing
+    │       └─> apply_preprocessing_to_pipeline()
+    │               ├─> Merge configs (global overrides)
+    │               ├─> Create NeuroImagingPreprocessor
+    │               └─> Return X_list + preprocessing_info
+    │
+    ├─> Run experiments
+    │       ├─> data_validation
+    │       ├─> robustness_testing
+    │       └─> factor_stability
+    │               ├─> Run 4 independent chains
+    │               ├─> Compute cosine similarity
+    │               ├─> Identify stable factors
+    │               └─> Save consensus W/Z
+    │
+    └─> Save results
+            ├─> Individual plots (PNG/PDF)
+            ├─> CSV matrices (W, Z per chain + consensus)
+            └─> JSON summaries
+```
 
-### ✅ **Strengths**
+## Key Design Decisions
 
-1. **Documentation**: 100% coverage on new utilities
-2. **Type Safety**: Full type hints on all new code
-3. **Modularity**: Clear separation of concerns
-4. **Naming**: Descriptive names (e.g., `ParameterResolver`, `AnalysisMode`)
-5. **File Size**: Well-structured (avg 15-20KB, not monolithic)
-6. **Patterns**: Consistent design patterns throughout
+### 1. Config Merging Strategy
 
-### 📊 **Metrics**
+Preprocessing config uses **global-first merge**:
+```python
+global_preprocessing = config.get("preprocessing", {})
+strategy_config = preprocessing_strategies.get(strategy, {})
+merged_config = {**strategy_config, **global_preprocessing}  # Global wins
+```
 
-- **Lines of Code per File**: 100-600 (framework.py is 1358 but well-structured)
-- **Classes per File**: 1-3 (focused responsibility)
-- **Functions per File**: 6-40 (experiments have more orchestration)
-- **Documentation Ratio**: 100% (all classes/functions documented)
+This allows command-line flags to override strategy-specific settings.
 
-### 🎯 **Not Spaghetti Code Because**:
+### 2. Non-Centered Parameterization
 
-1. **Clear Architecture**: Layer separation (core → analysis → experiments)
-2. **No Circular Dependencies**: Clean unidirectional flow
-3. **Explicit Interfaces**: Typed dataclasses and protocols
-4. **Single Responsibility**: Each module has clear purpose
-5. **DRY Principle**: Utilities for common patterns
-6. **Type Safety**: Static checking prevents errors
-7. **Documented**: Every component has docstrings
+Model uses non-centered parameterization for better MCMC geometry:
+```python
+Z_raw ~ Normal(0, 1)
+Z = Z_raw * sqrt(ξ)
+```
 
-## Recent Improvements (October 2025)
+### 3. Position Tracking
 
-### What Was Fixed
+Cumulative mask tracking through preprocessing:
+```python
+cumulative_mask = np.ones(original_n_features, dtype=bool)
+# Apply each filter
+cumulative_mask &= mad_mask
+cumulative_mask &= variance_mask
+# Save filtered positions
+filtered_positions = original_positions[cumulative_mask]
+```
 
-#### Critical Issues (5/5 = 100%)
-1. ✅ **Name Collisions**: Renamed DataManager → FileOperationManager, experiment_utils → component_factory
-2. ✅ **Circular Dependencies**: Created model_interface.py abstraction layer
-3. ✅ **Direct Model Imports**: Migrated 6 files to use model_interface
-4. ✅ **Undefined Variables**: Fixed variant_name in sgfa_hyperparameter_tuning
-5. ✅ **Framework Mismatches**: Fixed parameter order, VisualizationManager
+### 4. Factor Stability
 
-#### Medium Priority (13/~23 = 57%)
-6. ✅ **Simplified analysis_integration.py**: 535 lines → consolidated into component_factory (403 lines)
-7. ✅ **Validation Decorators**: Documented and verified (22 active uses)
-8. ✅ **CV Unification**: Already unified via CVRunner orchestrator
-9. ✅ **ClinicalDataProcessor**: Uses model_interface abstraction
-10. ✅ **Clinical Integration Factory**: Created analysis/clinical/integration.py
-11. ✅ **dict_to_namespace() Applied**: Standardized across 4 files
-12. ✅ **core/visualization.py Moved**: → visualization/core_plots.py
-13. ✅ **Error Handling Standardized**: Created core/error_handling.py with utilities
+Uses cosine similarity matching (Ferreira et al. 2024):
+```python
+similarity = 1 - cosine(W_chain1[:, k], W_chain2[:, k])
+if similarity > threshold:
+    match_found = True
+```
 
-#### Low Priority (5/~12 = 42%)
-14. ✅ **Logger Patterns**: Verified standardized (56 files use module-level logger)
-15. ✅ **Type Hints**: Comprehensive in all new modules
-16. ✅ **Docstrings**: Verified coverage in public APIs
-17. ✅ **CV Architecture**: Documented in docs/CV_ARCHITECTURE.md
-18. ✅ **Error Handling**: Documented in docs/ERROR_HANDLING.md
+## File Organization
 
-### New Modules Created
+```
+sgfa_qmap-pd/
+├── run_experiments.py          # Main entry point
+├── config_convergence.yaml     # Production config
+│
+├── models/
+│   ├── sparse_gfa_fixed.py     # Main model
+│   └── factory.py              # Model factory
+│
+├── data/
+│   ├── qmap_pd.py              # Data loader
+│   ├── preprocessing.py        # Preprocessing
+│   └── preprocessing_integration.py  # Config integration
+│
+├── experiments/
+│   ├── framework.py            # Base infrastructure
+│   ├── data_validation.py      # Data QC
+│   ├── robustness_testing.py   # Reproducibility
+│   └── (others...)
+│
+├── analysis/
+│   ├── factor_stability.py     # Stability analysis
+│   └── mcmc_diagnostics.py     # Diagnostics
+│
+└── core/
+    ├── config_utils.py         # Config helpers
+    └── io_utils.py             # File I/O
+```
 
-**Core Modules**:
-- `core/error_handling.py` - Standardized error handling (302 lines)
-- `core/model_interface.py` - Abstraction layer (breaks circular dependencies)
+## Dependencies
 
-**Analysis Modules**:
-- `analysis/component_factory.py` - Unified component creation (403 lines)
-- `analysis/clinical/integration.py` - Clinical validation workflows (289 lines)
+### External
+- **NumPyro**: MCMC sampling
+- **JAX**: Auto-differentiation
+- **pandas/numpy**: Data manipulation
+- **scikit-learn**: Preprocessing utilities
+- **matplotlib/seaborn**: Visualization
 
-**Documentation**:
-- `docs/CV_ARCHITECTURE.md` - CV system documentation (450+ lines)
-- `docs/ERROR_HANDLING.md` - Error handling best practices (300+ lines)
-- `docs/UTILS_STRUCTURE.md` - core/utils.py structure guide (350+ lines)
+### Internal Dependency Chain
+```
+core/ (foundation)
+    ↓
+data/ (preprocessing)
+    ↓
+models/ (model implementation)
+    ↓
+analysis/ (diagnostics)
+    ↓
+experiments/ (validation pipeline)
+```
 
-**Test Coverage**:
-- `tests/core/test_error_handling.py` - Error handling tests (400+ lines)
-- `tests/analysis/test_component_factory.py` - Component factory tests (500+ lines)
-- `tests/analysis/test_clinical_integration.py` - Clinical integration tests (500+ lines)
+## Critical Implementation Details
 
-### Impact
+### 1. MAD Filtering
 
-- **Type Safety**: Full IDE support and static checking
-- **Maintainability**: Clear patterns, consistent error handling, easy to extend
-- **Readability**: Self-documenting code with explicit types
-- **Production-Ready**: Verified working in pipeline
-- **Modularity**: Better separation of concerns, no circular dependencies
-- **Documentation**: Comprehensive guides for CV, error handling, and utils structure
-- **Test Coverage**: Comprehensive tests for all new modules (1400+ lines of test code)
+Median Absolute Deviation for outlier detection:
+```python
+median = np.median(X, axis=0)
+mad = np.median(np.abs(X - median), axis=0)
+z_scores = np.abs(X - median) / mad
+outliers = z_scores > threshold
+```
 
-## For New Developers
-
-### Entry Points
-
-1. **Run an experiment**: `python run_experiments.py --experiments data_validation`
-2. **Run analysis**: `python core/run_analysis.py --config config.yaml`
-3. **Debug mode**: `python experiments/debug_experiments.py`
-
-### Key Classes to Understand
-
-1. **DataManagerConfig** - How data is loaded
-2. **ModelRunnerConfig** - How models are executed
-3. **ExperimentResult** - How results are structured
-4. **ParameterResolver** - How parameters are resolved
-
-### Common Patterns
+### 2. Regularized Horseshoe Prior
 
 ```python
-# Pattern 1: Creating a DataManager
-from analysis.data_manager import DataManager, DataManagerConfig
+# Global scale (data-dependent)
+τ₀ = (p₀/(D - p₀)) * (σ/√N)
 
-config = DataManagerConfig(dataset='qmap_pd', data_dir='/path/to/data')
-dm = DataManager(config)
+# Local shrinkage
+λ ~ Half-Cauchy(0, 1)
 
-# Pattern 2: Resolving parameters
-from core.parameter_resolver import ParameterResolver
+# Slab regularization
+c² ~ InverseGamma(slab_df/2, slab_scale·slab_df/2)
 
-params = ParameterResolver(args, hypers, config)
-K = params.get('K', default=10)
-
-# Pattern 3: Getting a logger
-from core.logger_utils import get_logger
-
-logger = get_logger(self)
-logger.info("Message")
-
-# Pattern 4: Creating an experiment result
-from experiments.framework import ExperimentResult
-
-result = ExperimentResult(
-    experiment_id="my_experiment",
-    config=exp_config,
-    model_results={"W": W_matrix, "Z": Z_scores},
-    diagnostics={"convergence": True},
-    plots={"factor_plot": fig},
-    status="completed"
-)
+# Regularized shrinkage
+κ = (c² * λ²) / (c² + τ₀² * λ²)
+W = W_raw * τ₀ * √κ
 ```
 
-## Conclusion
+### 3. R-hat Computation
 
-The SGFA codebase is **well-structured and maintainable** with:
-- Clear architecture and separation of concerns
-- Type-safe interfaces and configurations
-- Comprehensive documentation
-- Consistent design patterns
-- Production-verified functionality
+Gelman-Rubin diagnostic:
+```python
+# Between-chain variance
+B = N * var(chain_means)
 
-**Not spaghetti code** - it's a professionally organized, research-grade codebase ready for publication and deployment.
+# Within-chain variance  
+W = mean(chain_variances)
+
+# R-hat
+R_hat = sqrt((W + B/N) / W)
+```
+
+## Testing
+
+```bash
+# Unit tests
+pytest tests/
+
+# Specific modules
+pytest tests/data/
+pytest tests/models/
+pytest tests/experiments/
+```
+
+## Common Operations
+
+### Running Experiments
+```bash
+python run_experiments.py --config config_convergence.yaml \
+  --experiments factor_stability \
+  --select-rois volume_sn_voxels.tsv \
+  --K 20 --qc-outlier-threshold 3.0
+```
+
+### Accessing Results
+```python
+# Load consensus loadings
+W_consensus = pd.read_csv("results/.../consensus_factor_loadings.csv")
+
+# Load per-view loadings
+W_imaging = pd.read_csv("results/.../consensus_factor_loadings_volume_sn_voxels.csv")
+
+# Load stability metrics
+with open("results/.../factor_stability_summary.json") as f:
+    stability = json.load(f)
+```
+
+## Performance Considerations
+
+1. **Memory**: ~8-16GB RAM for typical datasets (86 subjects, 531 voxels)
+2. **Compute**: 4-6 hours for full factor stability (4 chains × 13K samples)
+3. **Storage**: ~100-500MB per experiment run (with all plots + matrices)
+
+## References
+
+- Ferreira et al. 2024: Factor stability methodology
+- Piironen & Vehtari 2017: Regularized horseshoe priors
+- qMAP-PD Study: https://qmaplab.com/qmap-pd

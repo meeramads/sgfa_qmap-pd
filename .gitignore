@@ -77,6 +77,16 @@ docs/_templates/
 # Internal planning documents
 docs/REMAINING_ISSUES.md
 docs/REFACTOR_PLAN.md
+docs/FIXES_AND_ENHANCEMENTS.md
+docs/UTILS_STRUCTURE.md
+docs/TESTING.md
+docs/ERROR_HANDLING.md
+
+# Session summaries and fix documentation
+*_SUMMARY.md
+*_FIX_SUMMARY.md
+SESSION_SUMMARY*.md
+CRITICAL_*.md
 
 # --- allow tracked data for this project ---
 !qMAP-PD_data/
