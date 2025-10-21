@@ -727,6 +727,13 @@ def main():
         # Initialize robustness experiments
         repro_exp = RobustnessExperiments(experiment_config, logger)
 
+        # Override base_output_dir with the run directory (unified_dir)
+        # When running with --experiments factor_stability, we need to ensure
+        # repro_exp uses the run directory, not the global results/ directory
+        if 'unified_dir' in locals() and unified_dir:
+            repro_exp.base_output_dir = unified_dir
+            logger.info(f"📁 Set base_output_dir to run directory: {unified_dir}")
+
         # Create experiment-specific subdirectory inside the run directory
         semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", experiment_config)
         experiment_output_dir = repro_exp.base_output_dir / semantic_name
