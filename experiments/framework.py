@@ -1230,16 +1230,32 @@ class ExperimentFramework:
         plots_dir = output_dir / "plots"
         plots_dir.mkdir(exist_ok=True)
 
+        # Map generic plot keys to descriptive filenames
+        PLOT_NAME_CORRECTIONS = {
+            "mcmc_trace_diagnostics": "01_wz_trace_diagnostics",
+            "mcmc_parameter_distributions": "02_wz_parameter_distributions",
+            "hyperparameter_posteriors": "03_hyperparameter_posteriors",
+            "hyperparameter_traces": "04_hyperparameter_traces",
+            "factor_variance_profile": "05_factor_variance_profile",
+            "enhanced_loading_distributions": "06_enhanced_loading_analysis",
+            "factor_stability_heatmap": "07_factor_stability_heatmap",
+            "factor_stability_summary": "08_factor_stability_summary",
+            "robustness_summary": "09_robustness_summary",
+        }
+
         safe_log(logger.info, f"Saving {len(result.plots)} plots to {plots_dir}")
 
         for plot_name, plot_figure in result.plots.items():
             if plot_figure is None:
                 continue
 
+            # Use corrected filename if mapping exists, otherwise use original name
+            filename = PLOT_NAME_CORRECTIONS.get(plot_name, plot_name)
+
             # Use standardized plot saving from io_utils
             try:
                 # Save as PNG (high quality for viewing)
-                png_path = plots_dir / f"{plot_name}.png"
+                png_path = plots_dir / f"{filename}.png"
                 save_plot(
                     png_path,
                     dpi=300,
@@ -1250,7 +1266,7 @@ class ExperimentFramework:
                 )
 
                 # Save as PDF (vector format for publications)
-                pdf_path = plots_dir / f"{plot_name}.pdf"
+                pdf_path = plots_dir / f"{filename}.pdf"
                 save_plot(
                     pdf_path,
                     bbox_inches="tight",

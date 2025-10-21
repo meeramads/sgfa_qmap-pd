@@ -663,10 +663,91 @@ def save_stability_results(
 
                 view_W_df.index.name = "Feature"
 
-                # Save per-view file
+                # First, save the standard CSV format (D_m × K: features/voxels × factors)
+                # This is the consensus W matrix showing factor loadings
                 view_filename = f"consensus_factor_loadings_{view_name}.csv"
                 save_csv(view_W_df, output_path / view_filename, index=True)
-                logger.info(f"    ✅ Saved {view_name}: {view_W.shape}")
+                logger.info(f"    ✅ Saved {view_name} loadings (W): {view_W.shape}")
+
+                # Check if this is a volume/voxel view
+                is_volume_view = "volume" in view_name.lower() or "voxel" in view_name.lower()
+
+                # Additionally, save per-factor reconstructions (N × D_m matrices)
+                # Reconstruction = Z[:, k] × W[:, k].T gives subject-specific factor maps
+                consensus_Z = stability_results.get("consensus_Z")
+
+                if consensus_Z is not None:
+                    if is_volume_view:
+                        # Extract ROI name from view_name
+                        # e.g., "volume_sn_voxels" -> "SN"
+                        roi_name = view_name.replace("volume_", "").replace("_voxels", "")
+
+                        # Capitalize ROI name appropriately
+                        if roi_name.lower() == "sn":
+                            roi_name = "SN"
+                        elif roi_name.lower() == "all":
+                            roi_name = "All"
+                        else:
+                            roi_name = roi_name.capitalize()
+
+                        # Save each factor as a separate TSV file (N subjects × D_m voxels)
+                        for factor_idx, factor_col in enumerate(view_W_df.columns):
+                            # Get loadings for this factor (D_m × 1)
+                            factor_loadings = view_W[:, factor_idx:factor_idx+1]  # Shape: (D_m, 1)
+
+                            # Get scores for this factor (N × 1)
+                            factor_scores = consensus_Z[:, factor_idx:factor_idx+1]  # Shape: (N, 1)
+
+                            # Compute reconstruction: outer product gives N × D_m
+                            reconstruction = factor_scores @ factor_loadings.T  # Shape: (N, D_m)
+
+                            # Create filename: consensus_loadings_SN_Factor_0.tsv
+                            factor_filename = f"consensus_loadings_{roi_name}_{factor_col}.tsv"
+
+                            # Save as TSV without index or header (just data matrix)
+                            # Each row = subject, each column = voxel
+                            np.savetxt(
+                                output_path / factor_filename,
+                                reconstruction,
+                                delimiter='\t',
+                                fmt='%.10f'
+                            )
+                            logger.info(f"    ✅ Saved {roi_name} {factor_col} reconstruction: {reconstruction.shape[0]} subjects × {reconstruction.shape[1]} voxels")
+                    else:
+                        # Non-volume view (e.g., clinical): save per-factor reconstructions as CSV
+                        for factor_idx, factor_col in enumerate(view_W_df.columns):
+                            # Get loadings for this factor (D_m × 1)
+                            factor_loadings = view_W[:, factor_idx:factor_idx+1]  # Shape: (D_m, 1)
+
+                            # Get scores for this factor (N × 1)
+                            factor_scores = consensus_Z[:, factor_idx:factor_idx+1]  # Shape: (N, 1)
+
+                            # Compute reconstruction: outer product gives N × D_m
+                            reconstruction = factor_scores @ factor_loadings.T  # Shape: (N, D_m)
+
+                            # Create DataFrame with feature names as columns
+                            reconstruction_df = pd.DataFrame(
+                                reconstruction,
+                                columns=view_W_df.index  # Use feature names from view_W_df index
+                            )
+
+                            # Add subject IDs as row index if available
+                            if subject_ids and len(subject_ids) == reconstruction.shape[0]:
+                                reconstruction_df.index = subject_ids
+                            else:
+                                reconstruction_df.index = [f"Subject_{j}" for j in range(reconstruction.shape[0])]
+
+                            # Create filename: consensus_loadings_clinical_Factor_0.csv
+                            factor_filename = f"consensus_loadings_{view_name}_{factor_col}.csv"
+
+                            # Save as CSV with header row (feature names) preserved
+                            reconstruction_df.to_csv(
+                                output_path / factor_filename,
+                                index=True  # Keep subject IDs as first column
+                            )
+                            logger.info(f"    ✅ Saved {view_name} {factor_col} reconstruction: {reconstruction.shape[0]} subjects × {reconstruction.shape[1]} features")
+                else:
+                    logger.info(f"    ℹ️  Skipping reconstructions for {view_name}: consensus_Z not available")
 
                 start_idx = end_idx
 

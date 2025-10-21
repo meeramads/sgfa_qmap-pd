@@ -269,18 +269,9 @@ def main():
         for key, value in hypers.items():
             logger.info(f"  {key}: {value}")
 
-        # Setup output directory
-        if args.output_dir:
-            output_dir = Path(args.output_dir)
-        else:
-            output_dir = Path(get_output_dir(config)) / "factor_stability_analysis"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        logger.info(f"\nOutput directory: {output_dir}")
-
-        # Create experiment framework
+        # Create experiment framework first (before creating output directory)
         exp_config = ExperimentConfig(
-            experiment_name="factor_stability_fixed_params",
+            experiment_name="factor_stability",
             description=f"Factor stability analysis with K={args.K} (fixed parameters)",
             dataset="qmap_pd",
             data_dir=get_data_dir(config),
@@ -288,10 +279,27 @@ def main():
             num_samples=args.num_samples,
             num_warmup=args.num_warmup,
             num_chains=args.num_chains,
+            model_type="sparse_gfa_fixed",
+            K=args.K,
+            percW=args.percW if hasattr(args, 'percW') else 33,
+            slab_df=4,  # Default from config
+            slab_scale=2,  # Default from config
+            qc_outlier_threshold=args.qc_outlier_threshold if hasattr(args, 'qc_outlier_threshold') else 3.0,
+            max_tree_depth=args.max_tree_depth if hasattr(args, 'max_tree_depth') else 10,
         )
 
         # Initialize robustness experiments
         repro_exp = RobustnessExperiments(exp_config, logger)
+
+        # Setup output directory using framework's semantic naming
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            # Use framework's create_experiment_dir to generate semantic name
+            output_dir = repro_exp.create_experiment_dir("factor_stability", exp_config)
+
+        logger.info(f"\nOutput directory: {output_dir}")
 
         # Run factor stability analysis
         logger.info("\n" + "=" * 80)
@@ -305,7 +313,9 @@ def main():
             n_chains=args.num_chains,
             cosine_threshold=STABILITY_CONFIG["cosine_threshold"],
             min_match_rate=STABILITY_CONFIG["min_match_rate"],
+            output_dir=str(output_dir),  # Pass experiment-specific output directory
             subject_ids=subject_ids,  # Pass subject IDs for Z score indexing
+            view_names=view_names,  # Pass view names for plot labeling
         )
 
         # Extract results

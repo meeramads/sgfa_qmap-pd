@@ -643,7 +643,7 @@ class FactorVisualizer:
         fig = plt.figure(figsize=(16, 12))
 
         # 1. Overall loading distribution
-        ax1 = plt.subplot(3, 3, 1)
+        ax1 = fig.add_subplot(3, 3, 1)
         plt.hist(W.flatten(), bins=50, alpha=0.7, color='skyblue', edgecolor='black')
         plt.title('Overall Factor Loading Distribution', fontweight='bold')
         plt.xlabel('Loading Value')
@@ -652,7 +652,7 @@ class FactorVisualizer:
         plt.legend()
 
         # 2. Absolute loading distribution
-        ax2 = plt.subplot(3, 3, 2)
+        ax2 = fig.add_subplot(3, 3, 2)
         abs_loadings = np.abs(W)
         plt.hist(abs_loadings.flatten(), bins=50, alpha=0.7, color='lightcoral', edgecolor='black')
         plt.title('Absolute Factor Loading Distribution', fontweight='bold')
@@ -667,7 +667,7 @@ class FactorVisualizer:
         plt.legend()
 
         # 3. Loading distribution by factor
-        ax3 = plt.subplot(3, 3, 3)
+        ax3 = fig.add_subplot(3, 3, 3)
         factor_colors = plt.cm.tab10(np.linspace(0, 1, n_factors))
         for k in range(n_factors):
             plt.hist(W[:, k], bins=30, alpha=0.6, label=f'Factor {k+1}',
@@ -678,7 +678,7 @@ class FactorVisualizer:
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
         # 4. Loading distribution by view
-        ax4 = plt.subplot(3, 3, 4)
+        ax4 = fig.add_subplot(3, 3, 4)
         d = 0
         view_colors = plt.cm.Set3(np.linspace(0, 1, n_views))
         for m, (view_name, dim) in enumerate(zip(view_names, Dm)):
@@ -692,7 +692,7 @@ class FactorVisualizer:
         plt.legend()
 
         # 5. Sparsity analysis by factor
-        ax5 = plt.subplot(3, 3, 5)
+        ax5 = fig.add_subplot(3, 3, 5)
         sparsity_levels = []
         for k in range(n_factors):
             sparsity = np.mean(np.abs(W[:, k]) < sparsity_threshold) * 100
@@ -710,7 +710,7 @@ class FactorVisualizer:
                     f'{val:.1f}%', ha='center', va='bottom', fontweight='bold')
 
         # 6. Maximum absolute loading by factor
-        ax6 = plt.subplot(3, 3, 6)
+        ax6 = fig.add_subplot(3, 3, 6)
         max_loadings = np.max(np.abs(W), axis=0)
         bars = plt.bar(range(n_factors), max_loadings, color=factor_colors, alpha=0.7, edgecolor='black')
         plt.title('Maximum |Loading| by Factor', fontweight='bold')
@@ -724,7 +724,7 @@ class FactorVisualizer:
                     f'{val:.3f}', ha='center', va='bottom', fontweight='bold')
 
         # 7. Loading variance by view
-        ax7 = plt.subplot(3, 3, 7)
+        ax7 = fig.add_subplot(3, 3, 7)
         d = 0
         view_variances = []
         for m, (view_name, dim) in enumerate(zip(view_names, Dm)):
@@ -740,7 +740,7 @@ class FactorVisualizer:
         plt.xticks(range(n_views), [name[:10] + '...' if len(name) > 10 else name for name in view_names], rotation=45)
 
         # 8. Cross-factor loading correlation
-        ax8 = plt.subplot(3, 3, 8)
+        ax8 = fig.add_subplot(3, 3, 8)
         if n_factors > 1:
             loading_corr = np.corrcoef(W.T)
             im = plt.imshow(loading_corr, cmap='RdBu_r', vmin=-1, vmax=1)
@@ -766,7 +766,7 @@ class FactorVisualizer:
             plt.title('Inter-Factor Loading Correlations', fontweight='bold')
 
         # 9. Summary statistics table
-        ax9 = plt.subplot(3, 3, 9)
+        ax9 = fig.add_subplot(3, 3, 9)
         ax9.axis('off')
 
         # Calculate summary statistics
