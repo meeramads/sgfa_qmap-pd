@@ -2849,16 +2849,13 @@ class RobustnessExperiments(ExperimentFramework):
                     from pathlib import Path
 
                     # Determine the correct output directory for individual plots
-                    # Priority: 1) explicit _experiment_output_dir, 2) output_dir parameter, 3) base_output_dir
+                    # Priority: 1) explicit _experiment_output_dir, 2) base_output_dir
                     if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir:
                         experiment_output_dir = self._experiment_output_dir
                         self.logger.info(f"📁 Using experiment output dir: {experiment_output_dir}")
-                    elif output_dir:
-                        experiment_output_dir = Path(output_dir)
-                        self.logger.info(f"📁 Using provided output_dir: {experiment_output_dir}")
-                    elif hasattr(self, 'base_output_dir'):
+                    elif hasattr(self, 'base_output_dir') and self.base_output_dir:
                         experiment_output_dir = Path(self.base_output_dir)
-                        self.logger.warning(f"⚠️  Falling back to base_output_dir: {experiment_output_dir}")
+                        self.logger.info(f"📁 Using base_output_dir: {experiment_output_dir}")
                     else:
                         raise ValueError("No output directory available for saving individual plots!")
 
