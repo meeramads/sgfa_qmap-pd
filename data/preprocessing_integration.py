@@ -157,7 +157,7 @@ def _save_filtered_position_lookups(
 
 
 def get_advanced_preprocessing_data(
-    config: Dict, data_dir: str, preprocessing_strategy: str = "standard"
+    config: Dict, data_dir: str, preprocessing_strategy: str = "standard", output_dir: Optional[str] = None
 ) -> Tuple[List[np.ndarray], Dict]:
     """
     Load data using comprehensive NeuroImagingPreprocessor instead of basic load_qmap_pd.
@@ -166,6 +166,7 @@ def get_advanced_preprocessing_data(
         config: Configuration dictionary
         data_dir: Data directory path
         preprocessing_strategy: Strategy from config (minimal, standard, aggressive, clinical_focused)
+        output_dir: Output directory for saving filtered position lookups (optional)
 
     Returns:
         Tuple of (X_list, preprocessing_info)
@@ -281,7 +282,7 @@ def get_advanced_preprocessing_data(
         else:
             logger.info("Using advanced NeuroImagingPreprocessor")
             return _apply_advanced_preprocessing(
-                X_list_raw, view_names, strategy_config, data_dir
+                X_list_raw, view_names, strategy_config, data_dir, output_dir
             )
 
     except Exception as e:
@@ -348,8 +349,17 @@ def _apply_advanced_preprocessing(
     view_names: List[str],
     strategy_config: Dict,
     data_dir: str,
+    output_dir: Optional[str] = None,
 ) -> Tuple[List[np.ndarray], Dict]:
-    """Apply advanced preprocessing using NeuroImagingPreprocessor."""
+    """Apply advanced preprocessing using NeuroImagingPreprocessor.
+
+    Args:
+        X_list: List of data matrices
+        view_names: Names of views
+        strategy_config: Preprocessing strategy configuration
+        data_dir: Data directory path
+        output_dir: Output directory for saving filtered position lookups (optional)
+    """
     try:
         from data.preprocessing import NeuroImagingConfig, NeuroImagingPreprocessor
 
@@ -393,7 +403,9 @@ def _apply_advanced_preprocessing(
 
         # Apply advanced preprocessing
         logger.info("Applying comprehensive neuroimaging preprocessing...")
-        X_processed = preprocessor.fit_transform(X_list, view_names)
+        if output_dir:
+            logger.info(f"Filtered position lookups will be saved to: {output_dir}/position_lookup_filtered")
+        X_processed = preprocessor.fit_transform(X_list, view_names, output_dir=output_dir)
 
         # Collect preprocessing information
         steps_applied = ["scaling", "imputation"]
@@ -675,7 +687,7 @@ def apply_preprocessing_to_pipeline(
 
         # Apply preprocessing
         X_processed, preprocessing_info = get_advanced_preprocessing_data(
-            config, data_dir, strategy_name
+            config, data_dir, strategy_name, output_dir=output_dir
         )
 
         # Combine information
