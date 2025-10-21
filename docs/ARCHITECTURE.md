@@ -329,29 +329,64 @@ results/
 
 #### 1. Run Directory Creation
 
-The `ExperimentFramework` base class creates run directories:
+The `ExperimentFramework` base class creates run directories at initialization:
 
 ```python
-# config["experiments"]["base_output_dir"] → "results/"
-self.base_output_dir = ConfigHelper.get_output_dir_safe(config)
+# In run_experiments.py (lines 448-460):
+if len(args.experiments) == 1:
+    unified_dir = output_dir / f"{args.experiments[0]}{config_suffix}_run_{run_timestamp}"
+else:
+    unified_dir = output_dir / f"{'_'.join(args.experiments)}{config_suffix}_run_{run_timestamp}"
 
-# Creates: results/{semantic_run_name}/
-# Example: results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_204130/
+unified_dir.mkdir(parents=True, exist_ok=True)
+config["experiments"]["base_output_dir"] = str(unified_dir)
 ```
+
+**Example run directories:**
+- `factor_stability_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251022_000604/`
+- `all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_110602/`
 
 #### 2. Experiment Subdirectories
 
 **Within run_experiments.py pipeline:**
-- Automatically created as subdirectories inside run directory
-- Format: `{run_dir}/{experiment_name}_{params}/`
+
+Subdirectories are created automatically for integrated experiments:
+
+```python
+# In ExperimentFramework (lines 730-741 of run_experiments.py):
+repro_exp = RobustnessExperiments(experiment_config, logger)
+
+# CRITICAL: Override base_output_dir with unified_dir (run directory)
+if 'unified_dir' in locals() and unified_dir:
+    repro_exp.base_output_dir = unified_dir
+    logger.info(f"📁 Set base_output_dir to run directory: {unified_dir}")
+
+# Create experiment subdirectory inside run directory
+semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", experiment_config)
+experiment_output_dir = repro_exp.base_output_dir / semantic_name
+experiment_output_dir.mkdir(parents=True, exist_ok=True)
+```
+
+**Format:** `{run_dir}/{experiment_name}_{params}/`
+
+**Examples:**
+- `data_validation_tree10_20251022_000604/`
+- `robustness_tests_fixed_K2_percW33_slab4_2_MAD1000.0_tree10_20251022_000622/`
+- `03_factor_stability_fixed_K2_percW33_slab4_2_MAD1000.0_tree10/`
 
 **Standalone scripts (train_sparse_gfa_fixed.py):**
-- Must explicitly create experiment subdirectory inside run directory:
-  ```python
-  semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", exp_config)
-  output_dir = repro_exp.base_output_dir / semantic_name  # Create inside run dir
-  output_dir.mkdir(parents=True, exist_ok=True)
-  ```
+
+Must explicitly create experiment subdirectory inside run directory:
+
+```python
+semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", exp_config)
+output_dir = repro_exp.base_output_dir / semantic_name  # Create inside run dir
+output_dir.mkdir(parents=True, exist_ok=True)
+
+# CRITICAL: Update base_output_dir to experiment-specific directory
+# This ensures all output (including individual_plots) goes to the right place
+repro_exp.base_output_dir = output_dir
+```
 
 #### 3. Individual Plots Directory Resolution
 
@@ -383,6 +418,144 @@ result = repro_exp.run_factor_stability_analysis(
     # ...
 )
 ```
+
+#### 4. Execution Modes: Integrated vs Standalone
+
+**Two execution patterns exist in the codebase:**
+
+**Integrated Execution (via run_experiments.py)**
+
+```python
+# run_experiments.py orchestrates experiments
+if "factor_stability" in experiments_to_run:
+    # 1. Create unified run directory
+    unified_dir = output_dir / f"factor_stability_rois-sn...run_20251022_000604"
+
+    # 2. Instantiate experiment class
+    repro_exp = RobustnessExperiments(experiment_config, logger)
+
+    # 3. Override base_output_dir (critical!)
+    repro_exp.base_output_dir = unified_dir
+
+    # 4. Create experiment subdirectory
+    experiment_output_dir = unified_dir / "03_factor_stability_fixed_K2..."
+    experiment_output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 5. Call experiment method with output_dir
+    result = repro_exp.run_factor_stability_analysis(
+        X_list=X_list,
+        output_dir=str(experiment_output_dir),  # Explicit path
+        ...
+    )
+```
+
+**Characteristics:**
+- Run directory created by framework
+- Experiment subdirectories created inside run directory
+- Logging goes to run-specific `{run_dir}/experiments.log`
+- Multiple experiments can share data (via `pipeline_context`)
+
+**Standalone Execution (direct script)**
+
+```python
+# experiments/train_sparse_gfa_fixed.py
+if __name__ == "__main__":
+    # 1. Create own run directory
+    run_dir = output_dir / f"factor_stability_rois-sn...run_20251022_000604"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # 2. Instantiate experiment class
+    repro_exp = RobustnessExperiments(exp_config, logger)
+    # repro_exp.base_output_dir initially points to "results/"
+
+    # 3. Create experiment subdirectory
+    semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", exp_config)
+    experiment_dir = run_dir / semantic_name
+    experiment_dir.mkdir(parents=True, exist_ok=True)
+
+    # 4. Update base_output_dir to experiment directory
+    repro_exp.base_output_dir = experiment_dir
+
+    # 5. Call experiment method
+    result = repro_exp.run_factor_stability_analysis(
+        X_list=X_list,
+        # No output_dir needed - uses self.base_output_dir
+        ...
+    )
+```
+
+**Characteristics:**
+- Script manages its own directory structure
+- Logging goes to global `results/experiments.log`
+- Single experiment per execution
+- Must manually update `base_output_dir` after directory creation
+
+#### 5. ExperimentFramework and ExperimentConfig Relationship
+
+**Key architectural insight:**
+
+```python
+# ExperimentConfig is a dataclass (no base_output_dir field)
+@dataclass
+class ExperimentConfig:
+    experiment_name: str
+    K: int
+    percW: float
+    # ... but NO base_output_dir attribute
+
+# ExperimentFramework is initialized with config OR path
+class ExperimentFramework:
+    def __init__(self, config_or_output_dir, ...):
+        if hasattr(config_or_output_dir, "experiment_name"):
+            # It's an ExperimentConfig
+            self.config = config_or_output_dir
+            # Gets base_output_dir from ConfigHelper
+            self.base_output_dir = ConfigHelper.get_output_dir_safe(config_or_output_dir)
+        else:
+            # It's a direct path
+            self.base_output_dir = Path(config_or_output_dir)
+```
+
+**This means:**
+1. `ExperimentConfig` stores model/experiment parameters only
+2. `base_output_dir` is set at `ExperimentFramework` initialization
+3. Config dict's `["experiments"]["base_output_dir"]` doesn't automatically become `self.base_output_dir`
+4. Must manually override `base_output_dir` when run directory is created outside the class
+
+#### 6. Output Directory Parameter Flow
+
+**Method signature pattern:**
+
+```python
+def run_factor_stability_analysis(
+    self,
+    X_list: List[np.ndarray],
+    output_dir: str = None,  # Optional experiment-specific directory
+    **kwargs
+) -> ExperimentResult:
+    # Store for use by plotting methods
+    if output_dir:
+        self._experiment_output_dir = Path(output_dir)
+    else:
+        self._experiment_output_dir = None
+```
+
+**Directory resolution hierarchy in plotting/analysis code:**
+
+```python
+# Priority chain (highest to lowest):
+if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir:
+    base_dir = self._experiment_output_dir  # 1. Explicit output_dir parameter
+elif hasattr(self, 'base_output_dir') and self.base_output_dir:
+    base_dir = Path(self.base_output_dir)   # 2. Framework base_output_dir
+else:
+    base_dir = get_output_dir(config) / "factor_stability"  # 3. Global fallback
+```
+
+**This pattern allows:**
+- Integrated execution: Pass explicit `output_dir` for full control
+- Standalone execution: Rely on `base_output_dir` set by script
+- Legacy support: Fallback to global directories if neither is set
 
 ### Logging Patterns
 
