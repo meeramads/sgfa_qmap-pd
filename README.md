@@ -64,6 +64,7 @@ preprocessing:
 ```
 
 **MAD Threshold Guide**:
+
 - `2.5-3.0`: Stringent QC, cleaner signal
 - `3.0-4.0`: Moderate QC (default)
 - `4.5-5.0`: Permissive, preserve heterogeneity for subtype discovery
@@ -92,20 +93,24 @@ factor_stability:
 ## Project Structure
 
 ### Core
+
 - **models/sparse_gfa_fixed.py**: Sparse GFA with regularized horseshoe
 - **data/preprocessing.py**: Neuroimaging preprocessing
 - **data/preprocessing_integration.py**: Config merging
 
 ### Experiments  
+
 - **experiments/data_validation.py**: Data quality validation
 - **experiments/robustness_testing.py**: Reproducibility testing
 - **experiments/framework.py**: Experiment infrastructure
 
 ### Analysis
+
 - **analysis/factor_stability.py**: Multi-chain consensus
 - **analysis/mcmc_diagnostics.py**: Convergence diagnostics
 
 ### Main
+
 - **run_experiments.py**: Experiment runner
 - **config_convergence.yaml**: Production config
 
@@ -139,11 +144,13 @@ results/all_rois-sn_K20_percW33_MAD3.0_YYYYMMDD_HHMMSS/
 4. **Position Tracking**: Maintain voxel→brain coordinates
 
 **Example (MAD 3.0)**:
+
 - Raw: 1794 voxels → After QC: ~531 voxels (~70% removed)
 
 ## Model Priors
 
 **Regularized Horseshoe for Loadings (W)**:
+
 - Global scale: τ₀ (data-dependent, Piironen & Vehtari 2017)
 - Local shrinkage: λ ~ Half-Cauchy(0, 1)
 - Slab regularization: c² ~ InverseGamma(slab_df/2, slab_scale·slab_df/2)
@@ -160,9 +167,11 @@ results/all_rois-sn_K20_percW33_MAD3.0_YYYYMMDD_HHMMSS/
 - **Tree Depth**: Monitor if max limit is reached
 
 **Good convergence (K=2, MAD 3.0)**:
+
 - R-hat < 1.1, acceptance ~0.79, 2/2 effective factors
 
 **Failed convergence (K=2, MAD 100)**:
+
 - R-hat = 1339, 0/2 effective factors (over-shrinkage from noise)
 
 ## Testing
@@ -175,11 +184,11 @@ pytest tests/data/       # Specific module
 
 ## References
 
-- qMAP-PD: https://qmaplab.com/qmap-pd
+- qMAP-PD: <https://qmaplab.com/qmap-pd>
 - Ferreira et al. 2024: Factor stability
 - Piironen & Vehtari 2017: Regularized horseshoe  
-- NumPyro: https://num.pyro.ai/
-- JAX: https://jax.readthedocs.io/
+- NumPyro: <https://num.pyro.ai/>
+- JAX: <https://jax.readthedocs.io/>
 
 ## License
 

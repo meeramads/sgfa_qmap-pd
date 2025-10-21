@@ -3147,6 +3147,10 @@ def run_robustness_testing(config):
             from core.config_utils import ConfigHelper
             config_dict = ConfigHelper.to_dict(config)
 
+            # Set experiment-specific output directory (from framework)
+            repro_exp.base_output_dir = output_dir
+            logger.info(f"📁 Set robustness_testing base_output_dir to: {output_dir}")
+
             # Get robustness testing configuration
             repro_config = config_dict.get("robustness_testing", {})
             seed_values = repro_config.get("seed_values", [42, 123, 456])
