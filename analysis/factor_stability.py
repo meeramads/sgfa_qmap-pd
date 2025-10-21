@@ -698,10 +698,16 @@ def save_stability_results(
         )
 
         # Also save as CSV for easier inspection
+        # Average across factors for summary (shape: n_chains x n_chains x K -> n_chains x n_chains)
+        if similarity_matrix.ndim == 3:
+            similarity_matrix_avg = np.mean(similarity_matrix, axis=2)
+        else:
+            similarity_matrix_avg = similarity_matrix
+
         similarity_df = pd.DataFrame(
-            similarity_matrix,
-            index=[f"Factor_{i+1}" for i in range(similarity_matrix.shape[0])],
-            columns=[f"Factor_{i+1}" for i in range(similarity_matrix.shape[1])]
+            similarity_matrix_avg,
+            index=[f"Chain_{i}" for i in range(similarity_matrix_avg.shape[0])],
+            columns=[f"Chain_{i}" for i in range(similarity_matrix_avg.shape[1])]
         )
         similarity_df.to_csv(output_path / "similarity_matrix.csv")
         logger.info(f"  ✅ Saved similarity matrix: .npy and .csv formats")

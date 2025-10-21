@@ -1625,7 +1625,7 @@ def plot_hyperparameter_traces(
                 individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9)
                 individual_fig.tight_layout()
                 individual_path = output_dir / f"trace_tauZ_factor{k}.png"
-                save_plot(individual_fig, str(individual_path))
+                individual_fig.savefig(str(individual_path), dpi=150, bbox_inches='tight')
                 plt.close(individual_fig)
 
         else:
@@ -1725,7 +1725,7 @@ def plot_hyperparameter_traces(
                 individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9)
                 individual_fig.tight_layout()
                 individual_path = output_dir / f"trace_sigma_{view_label}.png"
-                save_plot(individual_fig, str(individual_path))
+                individual_fig.savefig(str(individual_path), dpi=150, bbox_inches='tight')
                 plt.close(individual_fig)
 
         # Hide any unused subplots in the sigma row
@@ -1830,7 +1830,7 @@ def plot_hyperparameter_traces(
                     individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
                     individual_fig.tight_layout()
                     individual_path = output_dir / f"trace_cW_{view_label}_factor{k}.png"
-                    save_plot(individual_fig, str(individual_path))
+                    individual_fig.savefig(str(individual_path), dpi=150, bbox_inches='tight')
                     plt.close(individual_fig)
 
             # Hide unused columns for this view
@@ -1903,7 +1903,7 @@ def plot_hyperparameter_traces(
                 individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9)
                 individual_fig.tight_layout()
                 individual_path = output_dir / f"trace_cZ_factor{k}.png"
-                save_plot(individual_fig, str(individual_path))
+                individual_fig.savefig(str(individual_path), dpi=150, bbox_inches='tight')
                 plt.close(individual_fig)
 
         # Hide unused columns in cZ row
