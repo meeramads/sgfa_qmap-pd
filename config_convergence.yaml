@@ -60,9 +60,9 @@ preprocessing:
   enable_spatial_processing: true
   imputation_strategy: "median"
   feature_selection_method: "none"
-  variance_threshold: 0.02
+  variance_threshold: 0.0  # Disabled: low-variance features may have biological significance
   missing_threshold: 0.8
-  roi_based_selection: true
+  roi_based_selection: false  # Disabled: allow spatially clustered voxels (biologically meaningful)
   n_top_features: null
   min_voxel_distance: 3.0
   drop_confounds_from_clinical: true
