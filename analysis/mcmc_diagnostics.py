@@ -1557,7 +1557,7 @@ def plot_hyperparameter_traces(
                     individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
                     individual_fig.tight_layout()
                     individual_path = output_dir / f"trace_tauW_{view_label}_factor{k}.png"
-                    save_plot(individual_fig, str(individual_path))
+                    individual_fig.savefig(str(individual_path), dpi=150, bbox_inches='tight')
                     plt.close(individual_fig)
 
             else:

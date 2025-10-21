@@ -698,7 +698,6 @@ def save_stability_results(
         )
 
         # Also save as CSV for easier inspection
-        import pandas as pd
         similarity_df = pd.DataFrame(
             similarity_matrix,
             index=[f"Factor_{i+1}" for i in range(similarity_matrix.shape[0])],
