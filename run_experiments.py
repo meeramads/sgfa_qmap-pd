@@ -727,6 +727,12 @@ def main():
         # Initialize robustness experiments
         repro_exp = RobustnessExperiments(experiment_config, logger)
 
+        # Create experiment-specific subdirectory inside the run directory
+        semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", experiment_config)
+        experiment_output_dir = repro_exp.base_output_dir / semantic_name
+        experiment_output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📁 Created factor_stability experiment directory: {experiment_output_dir}")
+
         # Load data if not already available
         if exp_config.get("_shared_data") and exp_config["_shared_data"].get("X_list"):
             X_list = exp_config["_shared_data"]["X_list"]
@@ -806,6 +812,7 @@ def main():
                 n_chains=experiment_config.num_chains,
                 cosine_threshold=experiment_config.cosine_threshold,
                 min_match_rate=experiment_config.min_match_rate,
+                output_dir=str(experiment_output_dir),  # Pass experiment-specific output directory
                 view_names=view_names,  # Pass view names for plotting
                 feature_names=feature_names,  # Pass feature names for plotting
                 subject_ids=subject_ids,  # Pass subject IDs for Z score indexing
