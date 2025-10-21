@@ -261,11 +261,16 @@ def _create_model_args_from_config(config: Dict, hypers: Dict) -> argparse.Names
     hyperparam_config = config.get("hyperparameter_optimization", {})
     model_config = config.get("model", {})
 
+    # CRITICAL: Get K and percW from correct locations with proper priority
+    # Priority: config["K"] > model_config["K"] > hypers["K"] > hyperparam_config fallback > default
+    K_value = config.get("K") or model_config.get("K") or hypers.get("K") or hyperparam_config.get("fallback_K", 10)
+    percW_value = config.get("percW") or model_config.get("percW") or hypers.get("percW") or hyperparam_config.get("fallback_percW", 33)
+
     args = argparse.Namespace(
         # Model parameters
         model=model_config.get("type", "sparseGFA"),
-        K=hyperparam_config.get("fallback_K", 10),
-        percW=hyperparam_config.get("fallback_percW", 33),
+        K=K_value,
+        percW=percW_value,
         # Model-specific settings
         reghsZ=model_config.get("reghsZ", True),
         use_sparse=model_config.get("use_sparse", True),
