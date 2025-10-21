@@ -2847,8 +2847,21 @@ class RobustnessExperiments(ExperimentFramework):
                     # Create trace diagnostic plots
                     # Set up individual plots directory
                     from pathlib import Path
-                    # Use experiment-specific output_dir if provided, otherwise fall back to base_output_dir
-                    experiment_output_dir = self._experiment_output_dir if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir else (Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir))
+
+                    # Determine the correct output directory for individual plots
+                    # Priority: 1) explicit _experiment_output_dir, 2) output_dir parameter, 3) base_output_dir
+                    if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir:
+                        experiment_output_dir = self._experiment_output_dir
+                        self.logger.info(f"📁 Using experiment output dir: {experiment_output_dir}")
+                    elif output_dir:
+                        experiment_output_dir = Path(output_dir)
+                        self.logger.info(f"📁 Using provided output_dir: {experiment_output_dir}")
+                    elif hasattr(self, 'base_output_dir'):
+                        experiment_output_dir = Path(self.base_output_dir)
+                        self.logger.warning(f"⚠️  Falling back to base_output_dir: {experiment_output_dir}")
+                    else:
+                        raise ValueError("No output directory available for saving individual plots!")
+
                     self.logger.info(f"📁 Individual plots will be saved to: {experiment_output_dir}/individual_plots")
                     trace_plots_dir = experiment_output_dir / "individual_plots" / "trace_diagnostics"
                     trace_plots_dir.mkdir(parents=True, exist_ok=True)

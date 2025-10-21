@@ -644,38 +644,41 @@ class FactorVisualizer:
 
         # 1. Overall loading distribution
         ax1 = fig.add_subplot(3, 3, 1)
-        plt.hist(W.flatten(), bins=50, alpha=0.7, color='skyblue', edgecolor='black')
-        plt.title('Overall Factor Loading Distribution', fontweight='bold')
-        plt.xlabel('Loading Value')
-        plt.ylabel('Frequency')
-        plt.axvline(0, color='red', linestyle='--', alpha=0.7, label='Zero')
-        plt.legend()
+        ax1.hist(W.flatten(), bins=50, alpha=0.7, color='skyblue', edgecolor='black')
+        ax1.set_title('Overall Factor Loading Distribution', fontweight='bold')
+        ax1.set_xlabel('Loading Value')
+        ax1.set_ylabel('Frequency')
+        ax1.axvline(0, color='red', linestyle='--', alpha=0.7, label='Zero')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
 
         # 2. Absolute loading distribution
         ax2 = fig.add_subplot(3, 3, 2)
         abs_loadings = np.abs(W)
-        plt.hist(abs_loadings.flatten(), bins=50, alpha=0.7, color='lightcoral', edgecolor='black')
-        plt.title('Absolute Factor Loading Distribution', fontweight='bold')
-        plt.xlabel('|Loading Value|')
-        plt.ylabel('Frequency')
+        ax2.hist(abs_loadings.flatten(), bins=50, alpha=0.7, color='lightcoral', edgecolor='black')
+        ax2.set_title('Absolute Factor Loading Distribution', fontweight='bold')
+        ax2.set_xlabel('|Loading Value|')
+        ax2.set_ylabel('Frequency')
 
         # Add sparsity information
         sparsity_threshold = 0.1
         sparse_percent = np.mean(abs_loadings < sparsity_threshold) * 100
-        plt.axvline(sparsity_threshold, color='orange', linestyle='--', alpha=0.7,
+        ax2.axvline(sparsity_threshold, color='orange', linestyle='--', alpha=0.7,
                    label=f'Threshold (0.1)\n{sparse_percent:.1f}% below')
-        plt.legend()
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
 
         # 3. Loading distribution by factor
         ax3 = fig.add_subplot(3, 3, 3)
         factor_colors = plt.cm.tab10(np.linspace(0, 1, n_factors))
         for k in range(n_factors):
-            plt.hist(W[:, k], bins=30, alpha=0.6, label=f'Factor {k+1}',
+            ax3.hist(W[:, k], bins=30, alpha=0.6, label=f'Factor {k+1}',
                     color=factor_colors[k], edgecolor='black', linewidth=0.5)
-        plt.title('Loading Distribution by Factor', fontweight='bold')
-        plt.xlabel('Loading Value')
-        plt.ylabel('Frequency')
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax3.set_title('Loading Distribution by Factor', fontweight='bold')
+        ax3.set_xlabel('Loading Value')
+        ax3.set_ylabel('Frequency')
+        ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax3.grid(True, alpha=0.3)
 
         # 4. Loading distribution by view
         ax4 = fig.add_subplot(3, 3, 4)
@@ -683,13 +686,14 @@ class FactorVisualizer:
         view_colors = plt.cm.Set3(np.linspace(0, 1, n_views))
         for m, (view_name, dim) in enumerate(zip(view_names, Dm)):
             W_view = W[d:d+dim, :]
-            plt.hist(W_view.flatten(), bins=30, alpha=0.6, label=view_name,
+            ax4.hist(W_view.flatten(), bins=30, alpha=0.6, label=view_name,
                     color=view_colors[m], edgecolor='black', linewidth=0.5)
             d += dim
-        plt.title('Loading Distribution by View', fontweight='bold')
-        plt.xlabel('Loading Value')
-        plt.ylabel('Frequency')
-        plt.legend()
+        ax4.set_title('Loading Distribution by View', fontweight='bold')
+        ax4.set_xlabel('Loading Value')
+        ax4.set_ylabel('Frequency')
+        ax4.legend()
+        ax4.grid(True, alpha=0.3)
 
         # 5. Sparsity analysis by factor
         ax5 = fig.add_subplot(3, 3, 5)
@@ -698,30 +702,34 @@ class FactorVisualizer:
             sparsity = np.mean(np.abs(W[:, k]) < sparsity_threshold) * 100
             sparsity_levels.append(sparsity)
 
-        bars = plt.bar(range(n_factors), sparsity_levels, color=factor_colors, alpha=0.7, edgecolor='black')
-        plt.title(f'Sparsity by Factor (% < {sparsity_threshold})', fontweight='bold', fontsize=10)
-        plt.xlabel('Factor', fontsize=9)
-        plt.ylabel('Sparsity (%)', fontsize=9)
-        plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)], fontsize=8)
+        bars = ax5.bar(range(n_factors), sparsity_levels, color=factor_colors, alpha=0.7, edgecolor='black')
+        ax5.set_title(f'Sparsity by Factor (% < {sparsity_threshold})', fontweight='bold', fontsize=10)
+        ax5.set_xlabel('Factor', fontsize=9)
+        ax5.set_ylabel('Sparsity (%)', fontsize=9)
+        ax5.set_xticks(range(n_factors))
+        ax5.set_xticklabels([f'F{k+1}' for k in range(n_factors)], fontsize=8)
+        ax5.grid(True, alpha=0.3, axis='y')
 
         # Add value labels on bars
         for i, (bar, val) in enumerate(zip(bars, sparsity_levels)):
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
-                    f'{val:.1f}%', ha='center', va='bottom', fontweight='bold')
+            ax5.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.1f}%', ha='center', va='bottom', fontweight='bold', fontsize=8)
 
         # 6. Maximum absolute loading by factor
         ax6 = fig.add_subplot(3, 3, 6)
         max_loadings = np.max(np.abs(W), axis=0)
-        bars = plt.bar(range(n_factors), max_loadings, color=factor_colors, alpha=0.7, edgecolor='black')
-        plt.title('Maximum |Loading| by Factor', fontweight='bold')
-        plt.xlabel('Factor')
-        plt.ylabel('Max |Loading|')
-        plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
+        bars = ax6.bar(range(n_factors), max_loadings, color=factor_colors, alpha=0.7, edgecolor='black')
+        ax6.set_title('Maximum |Loading| by Factor', fontweight='bold')
+        ax6.set_xlabel('Factor')
+        ax6.set_ylabel('Max |Loading|')
+        ax6.set_xticks(range(n_factors))
+        ax6.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+        ax6.grid(True, alpha=0.3, axis='y')
 
         # Add value labels on bars
         for i, (bar, val) in enumerate(zip(bars, max_loadings)):
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                    f'{val:.3f}', ha='center', va='bottom', fontweight='bold')
+            ax6.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                    f'{val:.3f}', ha='center', va='bottom', fontweight='bold', fontsize=8)
 
         # 7. Loading variance by view
         ax7 = fig.add_subplot(3, 3, 7)
@@ -733,37 +741,42 @@ class FactorVisualizer:
             view_variances.append(view_var)
             d += dim
 
-        bars = plt.bar(range(n_views), view_variances, color=view_colors, alpha=0.7, edgecolor='black')
-        plt.title('Loading Variance by View', fontweight='bold')
-        plt.xlabel('View')
-        plt.ylabel('Loading Variance')
-        plt.xticks(range(n_views), [name[:10] + '...' if len(name) > 10 else name for name in view_names], rotation=45)
+        bars = ax7.bar(range(n_views), view_variances, color=view_colors, alpha=0.7, edgecolor='black')
+        ax7.set_title('Loading Variance by View', fontweight='bold')
+        ax7.set_xlabel('View')
+        ax7.set_ylabel('Loading Variance')
+        ax7.set_xticks(range(n_views))
+        ax7.set_xticklabels([name[:10] + '...' if len(name) > 10 else name for name in view_names], rotation=45, ha='right')
+        ax7.grid(True, alpha=0.3, axis='y')
 
         # 8. Cross-factor loading correlation
         ax8 = fig.add_subplot(3, 3, 8)
         if n_factors > 1:
             loading_corr = np.corrcoef(W.T)
-            im = plt.imshow(loading_corr, cmap='RdBu_r', vmin=-1, vmax=1)
-            plt.title('Inter-Factor Loading Correlations', fontweight='bold')
-            plt.xlabel('Factor')
-            plt.ylabel('Factor')
+            im = ax8.imshow(loading_corr, cmap='RdBu_r', vmin=-1, vmax=1)
+            ax8.set_title('Inter-Factor Loading Correlations', fontweight='bold')
+            ax8.set_xlabel('Factor')
+            ax8.set_ylabel('Factor')
 
             # Add correlation values as text
             for i in range(n_factors):
                 for j in range(n_factors):
-                    plt.text(j, i, f'{loading_corr[i, j]:.2f}',
+                    ax8.text(j, i, f'{loading_corr[i, j]:.2f}',
                             ha='center', va='center',
                             color='white' if abs(loading_corr[i, j]) > 0.5 else 'black',
-                            fontweight='bold')
+                            fontweight='bold', fontsize=8)
 
-            plt.xticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
-            plt.yticks(range(n_factors), [f'F{k+1}' for k in range(n_factors)])
-            plt.colorbar(im, shrink=0.8)
+            ax8.set_xticks(range(n_factors))
+            ax8.set_xticklabels([f'F{k+1}' for k in range(n_factors)])
+            ax8.set_yticks(range(n_factors))
+            ax8.set_yticklabels([f'F{k+1}' for k in range(n_factors)])
+            plt.colorbar(im, ax=ax8, shrink=0.8)
         else:
-            plt.text(0.5, 0.5, 'Single Factor\nNo Correlations',
+            ax8.text(0.5, 0.5, 'Single Factor\nNo Correlations',
                     ha='center', va='center', transform=ax8.transAxes,
                     fontsize=12, fontweight='bold')
-            plt.title('Inter-Factor Loading Correlations', fontweight='bold')
+            ax8.set_title('Inter-Factor Loading Correlations', fontweight='bold')
+            ax8.axis('off')
 
         # 9. Summary statistics table
         ax9 = fig.add_subplot(3, 3, 9)

@@ -254,7 +254,7 @@ sgfa_qmap-pd/
 │   ├── framework.py            # Base infrastructure
 │   ├── data_validation.py      # Data QC
 │   ├── robustness_testing.py   # Reproducibility
-│   └── (others...)
+│   └── train_sparse_gfa_fixed.py  # Standalone factor stability
 │
 ├── analysis/
 │   ├── factor_stability.py     # Stability analysis
@@ -264,6 +264,179 @@ sgfa_qmap-pd/
     ├── config_utils.py         # Config helpers
     └── io_utils.py             # File I/O
 ```
+
+## Output Directory Structure
+
+### Run-Based Organization
+
+All experiments follow a hierarchical directory structure:
+
+```
+results/
+├── experiments.log                          # Global log (standalone scripts)
+│
+└── {experiment_name}_{params}_run_{timestamp}/   # Run directory
+    ├── experiments.log                      # Run-specific log
+    ├── README.md                            # Run metadata
+    ├── summaries/                           # Cross-experiment summaries
+    │
+    ├── data_validation_{params}/            # Experiment subdirectory
+    │   ├── config.yaml                      # Experiment config
+    │   ├── result.json                      # Structured results
+    │   ├── plots/                           # Summary plots (PNG + PDF)
+    │   │   ├── mad_distribution_sn.png
+    │   │   └── elbow_analysis_all_views.png
+    │   └── position_lookup_filtered/        # Filtered voxel positions (TSV)
+    │       └── position_sn_voxels_filtered.tsv
+    │
+    ├── robustness_tests_{params}/
+    │   ├── config.yaml
+    │   ├── result.json
+    │   └── plots/
+    │
+    └── factor_stability_{params}/           # Main stability analysis
+        ├── config.yaml
+        ├── plots/                           # Summary plots
+        │   ├── factor_stability_heatmap.png
+        │   ├── hyperparameter_posteriors.png
+        │   └── mcmc_trace_diagnostics.png
+        │
+        ├── individual_plots/                # Per-factor diagnostics
+        │   └── trace_diagnostics/           # Individual factor traces
+        │       ├── factor_00_trace.png
+        │       ├── factor_01_trace.png
+        │       └── ...
+        │
+        ├── chains/                          # Per-chain MCMC samples
+        │   ├── chain_0_samples.npz
+        │   ├── chain_1_samples.npz
+        │   └── ...
+        │
+        └── stability_analysis/              # Consensus results
+            ├── consensus_factor_loadings_SN.csv           # W matrix (features × K)
+            ├── consensus_factor_scores.csv                # Z matrix (subjects × K)
+            │
+            ├── consensus_loadings_SN_factor_00.tsv        # Per-factor reconstruction (N × D)
+            ├── consensus_loadings_SN_factor_01.tsv
+            │
+            ├── consensus_loadings_Clinical_factor_00.csv  # Clinical per-factor (N × features)
+            ├── consensus_loadings_Clinical_factor_01.csv
+            │
+            └── factor_stability_summary.json              # Stability metrics
+```
+
+### Directory Management Patterns
+
+#### 1. Run Directory Creation
+
+The `ExperimentFramework` base class creates run directories:
+
+```python
+# config["experiments"]["base_output_dir"] → "results/"
+self.base_output_dir = ConfigHelper.get_output_dir_safe(config)
+
+# Creates: results/{semantic_run_name}/
+# Example: results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_204130/
+```
+
+#### 2. Experiment Subdirectories
+
+**Within run_experiments.py pipeline:**
+- Automatically created as subdirectories inside run directory
+- Format: `{run_dir}/{experiment_name}_{params}/`
+
+**Standalone scripts (train_sparse_gfa_fixed.py):**
+- Must explicitly create experiment subdirectory inside run directory:
+  ```python
+  semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", exp_config)
+  output_dir = repro_exp.base_output_dir / semantic_name  # Create inside run dir
+  output_dir.mkdir(parents=True, exist_ok=True)
+  ```
+
+#### 3. Individual Plots Directory Resolution
+
+**Critical pattern for ensuring plots go to the correct location:**
+
+```python
+# Priority chain in analysis/plotting code:
+if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir:
+    experiment_output_dir = self._experiment_output_dir  # Set by run_factor_stability_analysis
+elif output_dir:
+    experiment_output_dir = Path(output_dir)             # From method parameter
+elif hasattr(self, 'base_output_dir'):
+    experiment_output_dir = Path(self.base_output_dir)   # Fallback (usually just "results/")
+else:
+    raise ValueError("No output directory available!")
+
+individual_plots_dir = experiment_output_dir / "individual_plots"
+```
+
+**Common pitfall:** If `output_dir` is not passed to `run_factor_stability_analysis()`, plots will fall back to `base_output_dir` (typically just `"results/"`), creating a global `results/individual_plots/` directory instead of the experiment-specific location.
+
+**Solution:** Always pass `output_dir` parameter:
+```python
+result = repro_exp.run_factor_stability_analysis(
+    X_list=X_list,
+    hypers=hypers,
+    args=mcmc_args,
+    output_dir=str(output_dir),  # ← CRITICAL: Pass experiment-specific directory
+    # ...
+)
+```
+
+### Logging Patterns
+
+#### Two-Tier Logging System
+
+1. **Global log (`results/experiments.log`)**:
+   - Used by standalone scripts (train_sparse_gfa_fixed.py)
+   - Accumulates across multiple runs
+   - Logger name: `__main__`
+
+2. **Run-specific log (`{run_dir}/experiments.log`)**:
+   - Created by ExperimentFramework._setup_logging()
+   - Scoped to single run
+   - Captures all module loggers (experiments.*, analysis.*, etc.)
+
+#### Log Handler Management
+
+```python
+# ExperimentFramework._setup_logging() adds handler to ROOT logger
+root_logger = logging.getLogger()
+root_logger.addHandler(file_handler)
+
+# All child loggers inherit, so logs from all modules go to run-specific file
+# This includes: __main__, experiments.*, analysis.*, data.*, models.*
+```
+
+### Output File Naming Conventions
+
+#### Consensus Results
+- **W matrices (features × factors)**: `consensus_factor_loadings_{view_name}.csv`
+  - Example: `consensus_factor_loadings_volume_sn_voxels.csv`
+
+- **Z matrices (subjects × factors)**: `consensus_factor_scores.csv`
+  - Rows: Subject IDs
+  - Columns: Factor_00, Factor_01, ...
+
+#### Per-Factor Reconstructions
+
+**Volume data (TSV, no headers):**
+- Format: `consensus_loadings_{ROI}_{factor_name}.tsv`
+- Example: `consensus_loadings_SN_factor_00.tsv`
+- Matrix: N subjects × D_m voxels
+- Computation: `Z[:, k] @ W[:, k].T`
+
+**Clinical data (CSV, with headers):**
+- Format: `consensus_loadings_Clinical_{factor_name}.csv`
+- Example: `consensus_loadings_Clinical_factor_00.csv`
+- Matrix: N subjects × clinical features
+- Columns: Feature names from original data
+
+#### Position Lookup Files
+- **Filtered positions**: `position_lookup_filtered/position_{roi}_filtered.tsv`
+- **Format**: TSV with columns [x, y, z] for voxel brain coordinates
+- **Purpose**: Map filtered feature indices back to brain space
 
 ## Dependencies
 
