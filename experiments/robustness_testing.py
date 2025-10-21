@@ -2690,7 +2690,9 @@ class RobustnessExperiments(ExperimentFramework):
                         for vn in view_names
                     )
 
-                    if has_brain_data:
+                    # Skip brain visualization for factor_stability - consensus loadings
+                    # are already saved in CSV format in stability_analysis/ directory
+                    if has_brain_data and False:  # Disabled: brain viz expects legacy pickle format
                         self.logger.info("Creating brain visualization summary...")
 
                         # Prepare analysis results dict
