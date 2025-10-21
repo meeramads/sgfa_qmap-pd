@@ -413,22 +413,12 @@ class DataValidationExperiments(ExperimentFramework):
         try:
             from core.io_utils import save_all_plots_individually
 
-            # Use experiment-specific output directory if available (set by experiment framework)
+            # Use experiment-specific output directory
+            # When running via experiment framework, self.base_output_dir is already set
+            # to the experiment-specific directory (e.g., results/.../data_validation_tree10.../)
             if hasattr(self, 'base_output_dir') and self.base_output_dir:
-                # base_output_dir is the run directory when called via run_experiments.py
-                # We need to find the experiment-specific subdirectory within it
-                # Check if there's a data_validation subdirectory
-                run_dir = Path(self.base_output_dir)
-
-                # Look for data_validation experiment subdirectory
-                data_val_dirs = list(run_dir.glob("data_validation*"))
-                if data_val_dirs:
-                    base_dir = data_val_dirs[0]  # Use first match
-                    logger.info(f"📁 Using experiment subdirectory: {base_dir}")
-                else:
-                    # Fallback: use base_output_dir directly
-                    base_dir = run_dir
-                    logger.warning(f"⚠️  No data_validation subdirectory found, using run dir: {base_dir}")
+                base_dir = Path(self.base_output_dir)
+                logger.info(f"📁 Using experiment output dir: {base_dir}")
             else:
                 # Fallback to global directory
                 from core.config_utils import ConfigHelper

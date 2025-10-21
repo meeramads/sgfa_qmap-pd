@@ -3402,17 +3402,11 @@ def run_robustness_testing(config):
                 from core.io_utils import save_all_plots_individually
                 from pathlib import Path
 
-                # Use experiment-specific output directory if available
+                # Use experiment-specific output directory
+                # repro_exp.base_output_dir is set by experiment framework
                 if hasattr(repro_exp, 'base_output_dir') and repro_exp.base_output_dir:
-                    run_dir = Path(repro_exp.base_output_dir)
-                    # Look for robustness_testing experiment subdirectory
-                    robustness_dirs = list(run_dir.glob("robustness_tests*"))
-                    if robustness_dirs:
-                        base_dir = robustness_dirs[0]
-                        logger.info(f"📁 Using experiment subdirectory: {base_dir}")
-                    else:
-                        base_dir = run_dir
-                        logger.warning(f"⚠️  No robustness_tests subdirectory found, using run dir: {base_dir}")
+                    base_dir = Path(repro_exp.base_output_dir)
+                    logger.info(f"📁 Using experiment output dir: {base_dir}")
                 else:
                     base_dir = get_output_dir(config_dict) / "robustness_testing"
                     logger.warning(f"⚠️  Falling back to global robustness_testing dir: {base_dir}")
