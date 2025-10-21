@@ -824,8 +824,13 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Generate plots using PDSubtypeVisualizer
         visualizer = PDSubtypeVisualizer()
-        plot_dir = get_output_dir(self.config) / "pd_subtype_plots"
-        plot_dir.mkdir(exist_ok=True)
+        # Use experiment-specific output directory if available
+        if hasattr(self, 'base_output_dir') and self.base_output_dir:
+            from pathlib import Path
+            plot_dir = Path(self.base_output_dir) / "pd_subtype_plots"
+        else:
+            plot_dir = get_output_dir(self.config) / "pd_subtype_plots"
+        plot_dir.mkdir(exist_ok=True, parents=True)
         plots = visualizer.create_pd_subtype_plots(results, Z_sgfa, clinical_data, plot_dir)
 
         return ExperimentResult(
@@ -849,7 +854,11 @@ class ClinicalValidationExperiments(ExperimentFramework):
             from pathlib import Path
             import csv
 
-            output_dir = get_output_dir(self.config) / "laterality_validation"
+            # Use experiment-specific output directory if available
+            if hasattr(self, 'base_output_dir') and self.base_output_dir:
+                output_dir = Path(self.base_output_dir) / "laterality_validation"
+            else:
+                output_dir = get_output_dir(self.config) / "laterality_validation"
             output_dir.mkdir(parents=True, exist_ok=True)
 
             # Create filename with ROI name
@@ -2705,8 +2714,13 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
         # Generate plots using PDSubtypeVisualizer
         visualizer = PDSubtypeVisualizer(self.config)
-        plot_dir = get_output_dir(self.config) / "clinical_optimization_plots"
-        plot_dir.mkdir(exist_ok=True)
+        # Use experiment-specific output directory if available
+        if hasattr(self, 'base_output_dir') and self.base_output_dir:
+            from pathlib import Path
+            plot_dir = Path(self.base_output_dir) / "clinical_optimization_plots"
+        else:
+            plot_dir = get_output_dir(self.config) / "clinical_optimization_plots"
+        plot_dir.mkdir(exist_ok=True, parents=True)
 
         # Pass only the clinical_optimization data to the visualizer
         optimization_results = results.get("clinical_optimization", {})
