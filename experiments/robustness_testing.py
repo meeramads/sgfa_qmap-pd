@@ -3002,9 +3002,18 @@ class RobustnessExperiments(ExperimentFramework):
         # Save all plots as individual files
         try:
             from core.io_utils import save_all_plots_individually
-            from core.config_utils import ConfigHelper
-            config_dict = ConfigHelper.to_dict(self.config)
-            output_dir = get_output_dir(config_dict) / "factor_stability" / "individual_plots"
+
+            # Use experiment-specific output directory if available
+            if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir:
+                base_dir = self._experiment_output_dir
+                self.logger.info(f"📁 Using experiment output dir for plots: {base_dir}")
+            else:
+                from core.config_utils import ConfigHelper
+                config_dict = ConfigHelper.to_dict(self.config)
+                base_dir = get_output_dir(config_dict) / "factor_stability"
+                self.logger.warning(f"⚠️  Falling back to global factor_stability dir: {base_dir}")
+
+            output_dir = base_dir / "individual_plots"
             save_all_plots_individually(plots, output_dir, dpi=300)
             self.logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
         except Exception as e:
