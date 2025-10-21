@@ -150,9 +150,13 @@ def create_numpyro_init_params(
         # For Z: D₀ ≈ K (expected effective dimensionality)
         tau0_Z = (K / (N - K)) * (1.0 / jnp.sqrt(N))
 
+        # CRITICAL: After tau prior fix, model samples tau directly (not tau_tilde)
+        # Initialize tauZ near tau0_Z (data-dependent prior scale)
+        init_params['tauZ'] = jnp.ones((1, K)) * tau0_Z
+
         # Initialize Z_raw from PCA scores
         # Since Z = Z_raw * lmbZ_tilde * tauZ, need to rescale
-        # Use lmbZ_tilde ≈ 0.5 (conservative) and tauZ_tilde ≈ 1
+        # Use lmbZ_tilde ≈ 0.5 (conservative) and tauZ ≈ tau0_Z
         # So Z_raw ≈ Z_pca / (tau0_Z * 0.5)
         init_params['Z_raw'] = jnp.array(pca_init['Z'] / (tau0_Z * 0.5))
 
@@ -162,12 +166,10 @@ def create_numpyro_init_params(
         tau0_W_approx = 0.05
         init_params['W_raw'] = jnp.array(pca_init['W'] / (tau0_W_approx * 0.5))
 
-        # Initialize tauZ_tilde near 1 (will be scaled by tau0_Z in model)
-        init_params['tauZ_tilde'] = jnp.ones((1, K))
-
-        # Initialize tauW_tilde per view (model samples tauW_tilde_{m+1})
+        # Initialize tauW per view near tau0_W (data-dependent prior scale)
+        # Model now samples tauW{m+1} directly (not tauW_tilde_{m+1})
         for m in range(len(X_list)):
-            init_params[f'tauW_tilde_{m+1}'] = jnp.ones(())  # Scalar per view
+            init_params[f'tauW{m+1}'] = tau0_W_approx  # Scalar per view
 
         # Initialize local scales conservatively
         logger.info(f"  Initializing lmbZ: shape ({N}, {K})")

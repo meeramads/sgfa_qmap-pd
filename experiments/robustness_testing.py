@@ -841,10 +841,11 @@ class RobustnessExperiments(ExperimentFramework):
                     if args.get("use_pca_initialization", False):
                         try:
                             from core.pca_initialization import create_numpyro_init_params
-                            # Use model_args.model (not args.model_type) since that's what the actual model uses
-                            # model_args.model is set to "sparseGFA" at line 731
-                            pca_model_type = "sparseGFA"  # Always use sparseGFA for this model
-                            self.logger.info(f"   🔧 Creating PCA initialization for chain {chain_idx + 1}...")
+                            # CRITICAL: Use the actual model_type from integrate_models_with_pipeline
+                            # sparse_gfa_fixed uses non-centered parameterization (W_raw, Z_raw, etc.)
+                            # sparseGFA uses centered parameterization (W, Z directly)
+                            pca_model_type = model_type  # Use the actual model type!
+                            self.logger.info(f"   🔧 Creating PCA initialization for chain {chain_idx + 1} (model_type={pca_model_type})...")
                             init_params = create_numpyro_init_params(X_list, K, pca_model_type)
                             if chain_idx == 0:  # Log detailed info only for first chain
                                 self.logger.info(f"   ✓ PCA initialization created with params: {list(init_params.keys())}")
@@ -1072,10 +1073,12 @@ class RobustnessExperiments(ExperimentFramework):
                 if args.get("use_pca_initialization", False):
                     try:
                         from core.pca_initialization import create_numpyro_init_params
-                        # Use "sparseGFA" since that's what model_args.model is set to (line 731)
-                        pca_model_type = "sparseGFA"
+                        # CRITICAL: Use the actual model_type from integrate_models_with_pipeline
+                        # sparse_gfa_fixed uses non-centered parameterization (W_raw, Z_raw, etc.)
+                        # sparseGFA uses centered parameterization (W, Z directly)
+                        pca_model_type = model_type  # Use the actual model type!
                         init_params = create_numpyro_init_params(X_list, K, pca_model_type)
-                        self.logger.info(f"   Using PCA initialization for MCMC")
+                        self.logger.info(f"   Using PCA initialization for MCMC (model_type={pca_model_type})")
                     except Exception as e:
                         self.logger.warning(f"   PCA initialization failed, using default: {e}")
                         init_params = None
