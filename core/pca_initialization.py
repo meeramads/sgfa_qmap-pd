@@ -169,7 +169,7 @@ def create_numpyro_init_params(
         # Initialize tauW per view near tau0_W (data-dependent prior scale)
         # Model now samples tauW{m+1} directly (not tauW_tilde_{m+1})
         for m in range(len(X_list)):
-            init_params[f'tauW{m+1}'] = tau0_W_approx  # Scalar per view
+            init_params[f'tauW{m+1}'] = jnp.array(tau0_W_approx)  # Convert to JAX scalar
 
         # Initialize local scales conservatively
         logger.info(f"  Initializing lmbZ: shape ({N}, {K})")
