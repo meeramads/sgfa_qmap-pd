@@ -291,15 +291,21 @@ def main():
         # Initialize robustness experiments
         repro_exp = RobustnessExperiments(exp_config, logger)
 
-        # Setup output directory using framework's semantic naming
+        # Setup output directory - create experiment subdirectory inside the run directory
+        # The run directory is already created by ExperimentFramework at repro_exp.base_output_dir
         if args.output_dir:
             output_dir = Path(args.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
         else:
-            # Use framework's create_experiment_dir to generate semantic name
-            output_dir = repro_exp.create_experiment_dir("factor_stability", exp_config)
+            # Create experiment subdirectory inside the run directory
+            # Generate semantic experiment name
+            semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", exp_config)
+            # Create subdirectory inside base_output_dir (the run directory)
+            output_dir = repro_exp.base_output_dir / semantic_name
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"\nOutput directory: {output_dir}")
+        logger.info(f"\nFactor stability output directory: {output_dir}")
+        logger.info(f"Run directory: {repro_exp.base_output_dir}")
 
         # Run factor stability analysis
         logger.info("\n" + "=" * 80)

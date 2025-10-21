@@ -2141,8 +2141,10 @@ class RobustnessExperiments(ExperimentFramework):
         # Store experiment-specific output directory if provided
         if output_dir:
             self._experiment_output_dir = Path(output_dir)
+            self.logger.info(f"📁 Experiment output directory set to: {self._experiment_output_dir}")
         else:
             self._experiment_output_dir = None
+            self.logger.warning("⚠️  No experiment output_dir provided - will use base_output_dir")
 
         # Validate inputs
         self.logger.info("=" * 80)
@@ -2847,8 +2849,10 @@ class RobustnessExperiments(ExperimentFramework):
                     from pathlib import Path
                     # Use experiment-specific output_dir if provided, otherwise fall back to base_output_dir
                     experiment_output_dir = self._experiment_output_dir if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir else (Path(self.base_output_dir) if hasattr(self, 'base_output_dir') else Path(self.output_dir))
+                    self.logger.info(f"📁 Individual plots will be saved to: {experiment_output_dir}/individual_plots")
                     trace_plots_dir = experiment_output_dir / "individual_plots" / "trace_diagnostics"
                     trace_plots_dir.mkdir(parents=True, exist_ok=True)
+                    self.logger.info(f"   Created trace diagnostics directory: {trace_plots_dir}")
 
                     fig_trace = plot_trace_diagnostics(
                         W_samples=W_samples,
