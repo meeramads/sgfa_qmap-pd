@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib.gridspec import GridSpec
+from numpyro.diagnostics import split_gelman_rubin
 
 logger = logging.getLogger(__name__)
 
@@ -352,70 +353,99 @@ def plot_trace_diagnostics(
         ax.grid(True, alpha=0.3)
 
     # ============================================================================
-    # Row 3: R-hat Evolution Over Time
+    # Row 3: R-hat Distributions (ALL Parameters)
     # ============================================================================
-    logger.info("  Computing R-hat evolution...")
+    logger.info("  Computing R-hat for ALL parameters using split_gelman_rubin...")
 
-    # R-hat for W
+    # Compute R-hat for ALL parameters in W and Z using NumPyro's split_gelman_rubin
+    rhat_W = split_gelman_rubin(W_samples)  # Shape: (D, K)
+    rhat_Z = split_gelman_rubin(Z_samples)  # Shape: (N, K)
+
+    # Flatten to get all R-hat values
+    rhat_W_flat = rhat_W.flatten()
+    rhat_Z_flat = rhat_Z.flatten()
+
+    # R-hat distribution for W (boxplot + histogram)
     ax_w = fig.add_subplot(gs[2, 0])
 
-    # Compute R-hat at different sample sizes
-    sample_points, rhat_w_evolution = compute_rhat_evolution(
-        W_samples[:, :, :, 0]  # Use first factor for efficiency
-    )
+    # Create violin plot showing distribution
+    parts = ax_w.violinplot([rhat_W_flat], positions=[0], showmeans=True, showmedians=True, widths=0.7)
+    for pc in parts['bodies']:
+        pc.set_facecolor('steelblue')
+        pc.set_alpha(0.7)
 
-    ax_w.plot(sample_points, rhat_w_evolution, 'o-', linewidth=2, markersize=6)
-    ax_w.axhline(1.1, color='orange', linestyle='--', label='R-hat = 1.1 (threshold)', linewidth=2)
-    ax_w.axhline(1.01, color='green', linestyle='--', label='R-hat = 1.01 (excellent)', linewidth=2)
-    ax_w.set_xlabel('Number of Samples')
-    ax_w.set_ylabel('R-hat')
-    ax_w.set_title('R-hat Evolution: W (Factor 0)')
-    ax_w.grid(True, alpha=0.3)
-    ax_w.legend(fontsize=8)
+    ax_w.axhline(1.1, color='orange', linestyle='--', label='Threshold (1.1)', linewidth=2, zorder=10)
+    ax_w.axhline(1.01, color='green', linestyle='--', label='Excellent (1.01)', linewidth=2, zorder=10)
+    ax_w.set_ylabel('R-hat', fontsize=11)
+    ax_w.set_title(f'R-hat Distribution: W\n({rhat_W_flat.size:,} parameters)', fontsize=11, fontweight='bold')
+    ax_w.set_xticks([])
+    ax_w.grid(True, alpha=0.3, axis='y')
     ax_w.set_yscale('log')
+    ax_w.legend(fontsize=8, loc='upper right')
 
-    # R-hat for Z
+    # Add summary statistics as text
+    max_rhat_w = np.max(rhat_W_flat)
+    mean_rhat_w = np.mean(rhat_W_flat)
+    median_rhat_w = np.median(rhat_W_flat)
+    pct_converged_w = np.sum(rhat_W_flat < 1.1) / len(rhat_W_flat) * 100
+
+    stats_text_w = f'Max: {max_rhat_w:.2f}\nMean: {mean_rhat_w:.2f}\nMedian: {median_rhat_w:.2f}\n< 1.1: {pct_converged_w:.1f}%'
+    ax_w.text(0.02, 0.98, stats_text_w, transform=ax_w.transAxes,
+             fontsize=9, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    # R-hat distribution for Z (boxplot + histogram)
     ax_z = fig.add_subplot(gs[2, 1])
 
-    sample_points, rhat_z_evolution = compute_rhat_evolution(
-        Z_samples[:, :, :, 0]  # Use first factor for efficiency
-    )
+    parts = ax_z.violinplot([rhat_Z_flat], positions=[0], showmeans=True, showmedians=True, widths=0.7)
+    for pc in parts['bodies']:
+        pc.set_facecolor('coral')
+        pc.set_alpha(0.7)
 
-    ax_z.plot(sample_points, rhat_z_evolution, 'o-', linewidth=2, markersize=6)
-    ax_z.axhline(1.1, color='orange', linestyle='--', label='R-hat = 1.1 (threshold)', linewidth=2)
-    ax_z.axhline(1.01, color='green', linestyle='--', label='R-hat = 1.01 (excellent)', linewidth=2)
-    ax_z.set_xlabel('Number of Samples')
-    ax_z.set_ylabel('R-hat')
-    ax_z.set_title('R-hat Evolution: Z (Factor 0)')
-    ax_z.grid(True, alpha=0.3)
-    ax_z.legend(fontsize=8)
+    ax_z.axhline(1.1, color='orange', linestyle='--', label='Threshold (1.1)', linewidth=2, zorder=10)
+    ax_z.axhline(1.01, color='green', linestyle='--', label='Excellent (1.01)', linewidth=2, zorder=10)
+    ax_z.set_ylabel('R-hat', fontsize=11)
+    ax_z.set_title(f'R-hat Distribution: Z\n({rhat_Z_flat.size:,} parameters)', fontsize=11, fontweight='bold')
+    ax_z.set_xticks([])
+    ax_z.grid(True, alpha=0.3, axis='y')
     ax_z.set_yscale('log')
+    ax_z.legend(fontsize=8, loc='upper right')
 
-    # Summary panel: R-hat per factor
+    # Add summary statistics as text
+    max_rhat_z = np.max(rhat_Z_flat)
+    mean_rhat_z = np.mean(rhat_Z_flat)
+    median_rhat_z = np.median(rhat_Z_flat)
+    pct_converged_z = np.sum(rhat_Z_flat < 1.1) / len(rhat_Z_flat) * 100
+
+    stats_text_z = f'Max: {max_rhat_z:.2f}\nMean: {mean_rhat_z:.2f}\nMedian: {median_rhat_z:.2f}\n< 1.1: {pct_converged_z:.1f}%'
+    ax_z.text(0.02, 0.98, stats_text_z, transform=ax_z.transAxes,
+             fontsize=9, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    # Summary panel: R-hat per factor (max across features/subjects)
     ax_summary = fig.add_subplot(gs[2, 2])
 
-    rhat_per_factor_w = []
-    rhat_per_factor_z = []
-    for k in range(K):
-        rhat_w = compute_rhat(W_samples[:, :, :, k])
-        rhat_z = compute_rhat(Z_samples[:, :, :, k])
-        rhat_per_factor_w.append(rhat_w)
-        rhat_per_factor_z.append(rhat_z)
+    # Compute max R-hat per factor
+    rhat_W_max_per_factor = np.max(rhat_W, axis=0)  # Max across features for each factor
+    rhat_Z_max_per_factor = np.max(rhat_Z, axis=0)  # Max across subjects for each factor
 
     x_pos = np.arange(K)
     width = 0.35
 
-    ax_summary.bar(x_pos - width/2, rhat_per_factor_w, width, label='W (loadings)', alpha=0.7)
-    ax_summary.bar(x_pos + width/2, rhat_per_factor_z, width, label='Z (scores)', alpha=0.7)
-    ax_summary.axhline(1.1, color='orange', linestyle='--', linewidth=2)
-    ax_summary.axhline(1.01, color='green', linestyle='--', linewidth=2)
-    ax_summary.set_xlabel('Factor Index')
-    ax_summary.set_ylabel('R-hat')
-    ax_summary.set_title('Final R-hat per Factor')
+    ax_summary.bar(x_pos - width/2, rhat_W_max_per_factor, width, label='W (loadings)', alpha=0.7, color='steelblue')
+    ax_summary.bar(x_pos + width/2, rhat_Z_max_per_factor, width, label='Z (scores)', alpha=0.7, color='coral')
+    ax_summary.axhline(1.1, color='orange', linestyle='--', linewidth=2, label='Threshold')
+    ax_summary.axhline(1.01, color='green', linestyle='--', linewidth=2, label='Excellent')
+    ax_summary.set_xlabel('Factor Index', fontsize=11)
+    ax_summary.set_ylabel('Max R-hat', fontsize=11)
+    ax_summary.set_title('Max R-hat per Factor', fontsize=11, fontweight='bold')
     ax_summary.set_xticks(x_pos)
-    ax_summary.legend(fontsize=8)
+    ax_summary.legend(fontsize=8, loc='upper right')
     ax_summary.grid(True, alpha=0.3, axis='y')
     ax_summary.set_yscale('log')
+
+    # Log summary statistics
+    logger.info(f"  R-hat for W: max={max_rhat_w:.4f}, mean={mean_rhat_w:.4f}, median={median_rhat_w:.4f}")
+    logger.info(f"  R-hat for Z: max={max_rhat_z:.4f}, mean={mean_rhat_z:.4f}, median={median_rhat_z:.4f}")
+    logger.info(f"  Convergence: W={pct_converged_w:.1f}% < 1.1, Z={pct_converged_z:.1f}% < 1.1")
 
     # ============================================================================
     # Row 4: Autocorrelation Plots

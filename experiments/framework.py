@@ -324,8 +324,21 @@ class ExperimentFramework:
         )
         file_handler.setFormatter(formatter)
 
-        # Add handler to logger
-        logger.addHandler(file_handler)
+        # Add handler to ROOT logger so all child loggers inherit it
+        # This ensures logs from all modules (__main__, experiments.*, analysis.*, etc.)
+        # get written to the per-run experiments.log file
+        root_logger = logging.getLogger()
+        root_logger.addHandler(file_handler)
+
+        # Also store handler reference for cleanup
+        self._log_file_handler = file_handler
+
+    def _cleanup_logging(self):
+        """Remove the experiment-specific file handler from root logger."""
+        if hasattr(self, '_log_file_handler'):
+            root_logger = logging.getLogger()
+            root_logger.removeHandler(self._log_file_handler)
+            self._log_file_handler.close()
 
     def _generate_semantic_experiment_name(self, base_name: str, config: Optional[ExperimentConfig] = None) -> str:
         """
@@ -506,6 +519,8 @@ class ExperimentFramework:
         finally:
             # Critical memory cleanup regardless of success/failure
             self._comprehensive_memory_cleanup(logger)
+            # Remove the experiment-specific log handler
+            self._cleanup_logging()
 
         # Save results
         self._save_experiment_result(result, exp_dir, config)
