@@ -668,7 +668,8 @@ class RobustnessExperiments(ExperimentFramework):
                 return cached_result
 
         try:
-            K = hypers.get("K", 10)
+            # Get K from args first (command line), then hypers, then default to 10
+            K = args.get("K", hypers.get("K", 10))
             if verbose:
                 self.logger.info(
                     f"Running SGFA: K={K}, n_subjects={X_list[0].shape[0]}, n_features={sum(X.shape[1] for X in X_list)}"
@@ -709,10 +710,18 @@ class RobustnessExperiments(ExperimentFramework):
                 # Use model_type from ExperimentConfig if available
                 config_dict["model"]["model_type"] = config_dict.get("model_type", "sparseGFA")
 
+            # CRITICAL: Ensure K from args (command line) is propagated to config
+            # This ensures model_instance is created with correct K
+            if "K" in args:
+                config_dict["K"] = args["K"]
+                if verbose:
+                    self.logger.info(f"🔧 Setting K={args['K']} from args into config_dict")
+
             # Debug: Log what model_type is in the config
             if verbose:
                 model_type_in_config = config_dict.get("model", {}).get("model_type", "NOT SET")
                 self.logger.info(f"🔍 Config model_type: {model_type_in_config}")
+                self.logger.info(f"🔍 Config K: {config_dict.get('K', 'NOT SET')}")
 
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
                 config=config_dict,
