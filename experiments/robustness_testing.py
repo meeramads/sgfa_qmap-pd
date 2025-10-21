@@ -2138,6 +2138,9 @@ class RobustnessExperiments(ExperimentFramework):
             - effective_factors: Effective factor counts per chain
             - plots: Stability visualization plots
         """
+        # DEBUG: Log the received output_dir parameter
+        self.logger.info(f"🔍 DEBUG: run_factor_stability_analysis received output_dir={output_dir}, type={type(output_dir)}")
+
         # Store experiment-specific output directory if provided
         if output_dir:
             self._experiment_output_dir = Path(output_dir)
@@ -2999,6 +3002,9 @@ class RobustnessExperiments(ExperimentFramework):
         # Save all plots as individual files
         try:
             from core.io_utils import save_all_plots_individually
+
+            # DEBUG: Check _experiment_output_dir status
+            self.logger.info(f"🔍 DEBUG: hasattr(_experiment_output_dir)={hasattr(self, '_experiment_output_dir')}, value={getattr(self, '_experiment_output_dir', None)}")
 
             # Use experiment-specific output directory if available
             if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir:
