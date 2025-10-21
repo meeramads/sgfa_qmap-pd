@@ -2693,7 +2693,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                         # Create brain visualization summary
                         fig_brain = brain_viz.create_brain_visualization_summary(
-                            analysis_results, viz_data, plot_dir=None
+                            results_dir=str(self.output_dir)
                         )
 
                         if fig_brain is not None:

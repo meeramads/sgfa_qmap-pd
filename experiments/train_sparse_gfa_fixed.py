@@ -233,8 +233,29 @@ def main():
 
         # Extract subject_ids, feature_names, and view_names from preprocessing_info
         subject_ids = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("subject_ids", None)
-        feature_names = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("feature_names", {})
+        feature_names_raw = preprocessing_info.get("data_summary", {}).get("original_data", {}).get("feature_names", {})
         view_names = preprocessing_info.get("data_summary", {}).get("view_names", [f"view_{i}" for i in range(len(X_list))])
+
+        # Build feature_names to match actual filtered dimensions
+        # Imaging data has no feature names (use generic labels based on filtered voxel count)
+        # Clinical data has feature names from headers (after confound removal)
+        feature_names = {}
+        if feature_names_raw and view_names:
+            for view_idx, view_name in enumerate(view_names):
+                if view_idx < len(X_list):
+                    actual_dim = X_list[view_idx].shape[1]
+                    if view_name in feature_names_raw:
+                        # Clinical view: use actual feature names from header (already filtered)
+                        original_names = feature_names_raw[view_name]
+                        if len(original_names) == actual_dim:
+                            feature_names[view_name] = original_names
+                        else:
+                            # Mismatch - use generic labels
+                            feature_names[view_name] = [f"{view_name}_feature_{j}" for j in range(actual_dim)]
+                    else:
+                        # Imaging view: no names, use generic labels
+                        feature_names[view_name] = [f"{view_name}_voxel_{j}" for j in range(actual_dim)]
+
         if subject_ids:
             logger.info(f"  Subject IDs: {len(subject_ids)} patients")
         if feature_names:
