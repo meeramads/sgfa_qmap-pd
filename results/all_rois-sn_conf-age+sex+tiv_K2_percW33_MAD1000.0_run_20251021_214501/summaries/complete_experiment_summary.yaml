@@ -1,0 +1,24 @@
+experiment_run_info:
+  config_used: config_convergence.yaml
+  duration_formatted: '0:40:49.495214'
+  duration_seconds: 2449.495214
+  end_time: '2025-10-21T22:25:50.853714'
+  start_time: '2025-10-21T21:45:01.358500'
+  unified_results: true
+experiments_executed:
+  data_validation:
+    duration: 26.697697
+    experiment_id: data_validation_20251021_214501
+    status: completed
+  factor_stability:
+    duration: 2.0e-06
+    experiment_id: factor_stability_analysis
+    status: completed
+  robustness_testing:
+    duration: 181.246176
+    experiment_id: robustness_tests_20251021_214540
+    status: completed
+results_summary:
+  failed_experiments: 0
+  successful_experiments: 3
+  total_experiments: 3
