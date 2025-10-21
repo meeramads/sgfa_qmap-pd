@@ -1770,7 +1770,8 @@ class DataValidationExperiments(ExperimentFramework):
                     output_dir=viz_manager.plot_dir,
                     subsample=500  # Subsample for visualization of large matrices
                 )
-                advanced_plots['covariance_analysis'] = cov_report
+                # Don't add cov_report to advanced_plots - it's a dict, not a Figure
+                # The function already saves its plots to disk
                 logger.info("   ✅ Covariance analysis completed")
             except Exception as e:
                 logger.warning(f"   ⚠️  Failed to create covariance analysis: {e}")
