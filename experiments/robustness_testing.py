@@ -646,7 +646,7 @@ class RobustnessExperiments(ExperimentFramework):
         # Condensed logging for repeated calls
         seed = args.get("random_seed", 42)
         if not verbose:
-            self.logger.info(f"🔄 Seed {seed}: Starting MCMC sampling...")
+            self.logger.debug(f"🔄 Seed {seed}: Starting MCMC sampling...")
         else:
             self.logger.info("=" * 80)
             self.logger.info("_RUN_SGFA_ANALYSIS - STARTING")
@@ -792,15 +792,15 @@ class RobustnessExperiments(ExperimentFramework):
                 import gc
 
                 for chain_idx in range(num_chains):
-                    self.logger.info("=" * 80)
-                    self.logger.info(f"STARTING MCMC SAMPLING - CHAIN {chain_idx + 1}/{num_chains}")
-                    self.logger.info("=" * 80)
-                    self.logger.info(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
+                    self.logger.debug("=" * 80)
+                    self.logger.debug(f"STARTING MCMC SAMPLING - CHAIN {chain_idx + 1}/{num_chains}")
+                    self.logger.debug("=" * 80)
+                    self.logger.debug(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
 
                     # Extra cleanup before starting new chain
                     if chain_idx > 0:
                         import time
-                        self.logger.info("⏳ Performing aggressive memory cleanup before next chain...")
+                        self.logger.debug("⏳ Performing aggressive memory cleanup before next chain...")
 
                         # Multiple rounds of cache clearing and garbage collection
                         for cleanup_round in range(3):
@@ -808,7 +808,7 @@ class RobustnessExperiments(ExperimentFramework):
                             gc.collect()
                             time.sleep(2)  # Give GPU driver time to process deallocations
 
-                        self.logger.info("🧹 Aggressive cleanup complete, waiting 5 seconds for GPU...")
+                        self.logger.debug("🧹 Aggressive cleanup complete, waiting 5 seconds for GPU...")
                         time.sleep(5)
 
                     # Monitor GPU memory before starting chain (only for GPU devices)
@@ -822,7 +822,7 @@ class RobustnessExperiments(ExperimentFramework):
                             allocated_memory_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
                             available_memory_gb = total_memory_gb - allocated_memory_gb
 
-                            self.logger.info(f"📊 GPU Memory Stats BEFORE Chain {chain_idx + 1}:")
+                            self.logger.debug(f"📊 GPU Memory Stats BEFORE Chain {chain_idx + 1}:")
                             self.logger.info(f"   Total: {total_memory_gb:.2f} GB")
                             self.logger.info(f"   Allocated: {allocated_memory_gb:.2f} GB")
                             self.logger.info(f"   Available: {available_memory_gb:.2f} GB")
@@ -836,7 +836,7 @@ class RobustnessExperiments(ExperimentFramework):
                         pass  # Silently skip if memory stats unavailable
 
                     # Create fresh NUTS kernel for this chain (avoid state accumulation)
-                    self.logger.info(f"Creating fresh NUTS kernel for chain {chain_idx + 1}...")
+                    self.logger.debug(f"Creating fresh NUTS kernel for chain {chain_idx + 1}...")
                     # CRITICAL: Use model_instance (not old models function!)
                     # Workaround for JAX 0.7.x + NumPyro 0.19.0 compatibility: only pass max_tree_depth if not default
                     if max_tree_depth != 10:
@@ -865,7 +865,7 @@ class RobustnessExperiments(ExperimentFramework):
                             # sparse_gfa_fixed uses non-centered parameterization (W_raw, Z_raw, etc.)
                             # sparseGFA uses centered parameterization (W, Z directly)
                             pca_model_type = model_type  # Use the actual model type!
-                            self.logger.info(f"   🔧 Creating PCA initialization for chain {chain_idx + 1} (model_type={pca_model_type})...")
+                            self.logger.debug(f"   🔧 Creating PCA initialization for chain {chain_idx + 1} (model_type={pca_model_type})...")
                             init_params = create_numpyro_init_params(X_list, K, pca_model_type)
                             if chain_idx == 0:  # Log detailed info only for first chain
                                 self.logger.info(f"   ✓ PCA initialization created with params: {list(init_params.keys())}")
@@ -878,7 +878,7 @@ class RobustnessExperiments(ExperimentFramework):
                             init_params = None
 
                     start_time = time.time()
-                    self.logger.info(f"   🚀 Starting MCMC sampling for chain {chain_idx + 1}...")
+                    self.logger.debug(f"   🚀 Starting MCMC sampling for chain {chain_idx + 1}...")
                     self.logger.info(f"      Model: {model_instance.__class__.__name__}")
                     self.logger.info(f"      Warmup: {num_warmup}, Samples: {num_samples}")
                     self.logger.info(f"      Using init_params: {init_params is not None}")
@@ -892,7 +892,7 @@ class RobustnessExperiments(ExperimentFramework):
                         )
                         elapsed = time.time() - start_time
                         total_elapsed += elapsed
-                        self.logger.info(f"✅ Chain {chain_idx + 1} COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+                        self.logger.debug(f"✅ Chain {chain_idx + 1} COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
                         # Get samples from this chain and convert to numpy to break JAX references
                         chain_samples = mcmc_single.get_samples()
@@ -900,7 +900,7 @@ class RobustnessExperiments(ExperimentFramework):
                         # Log tau0 values (data-dependent global scales) for diagnostics
                         if "tau0_Z" in chain_samples:
                             tau0_Z_val = float(np.array(chain_samples["tau0_Z"]).mean())
-                            self.logger.info(f"   📊 Prior scale τ₀_Z = {tau0_Z_val:.6f}")
+                            self.logger.debug(f"   📊 Prior scale τ₀_Z = {tau0_Z_val:.6f}")
 
                         # Log tau0 for each view
                         view_tau0_values = []
@@ -909,7 +909,7 @@ class RobustnessExperiments(ExperimentFramework):
                                 view_num = key.split("_")[-1]
                                 tau0_val = float(np.array(chain_samples[key]).mean())
                                 view_tau0_values.append((view_num, tau0_val))
-                                self.logger.info(f"   📊 Prior scale τ₀_W (view {view_num}) = {tau0_val:.6f}")
+                                self.logger.debug(f"   📊 Prior scale τ₀_W (view {view_num}) = {tau0_val:.6f}")
 
                         # Warning if tau0 values seem too large
                         if "tau0_Z" in chain_samples and tau0_Z_val > 1.0:
@@ -919,7 +919,7 @@ class RobustnessExperiments(ExperimentFramework):
                                 self.logger.warning(f"   ⚠️  τ₀_W (view {view_num}) = {tau0_val:.6f} is very large (>1.0) - prior may be too loose!")
 
                         # Log other key hyperparameters for diagnostics
-                        self.logger.info("   📊 Hyperparameter Summary:")
+                        self.logger.debug("   📊 Hyperparameter Summary:")
 
                         # Global shrinkage tauZ (for factors)
                         if "tauZ" in chain_samples:
@@ -967,7 +967,7 @@ class RobustnessExperiments(ExperimentFramework):
                             if device_kind == 'gpu':
                                 mem_stats = device.memory_stats()
                                 allocated_after_sampling_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
-                                self.logger.info(f"📊 GPU Memory AFTER sampling: {allocated_after_sampling_gb:.2f} GB allocated")
+                                self.logger.debug(f"📊 GPU Memory AFTER sampling: {allocated_after_sampling_gb:.2f} GB allocated")
                         except Exception:
                             pass
 
@@ -996,7 +996,7 @@ class RobustnessExperiments(ExperimentFramework):
                         del kernel  # Delete NUTS kernel object
 
                         # Aggressive multi-stage cleanup
-                        self.logger.info(f"🧹 Starting aggressive cleanup after chain {chain_idx + 1}...")
+                        self.logger.debug(f"🧹 Starting aggressive cleanup after chain {chain_idx + 1}...")
 
                         # Stage 1: Clear caches and collect garbage multiple times
                         for cleanup_round in range(3):
@@ -1018,7 +1018,7 @@ class RobustnessExperiments(ExperimentFramework):
                                 allocated_after_cleanup_gb = mem_stats.get('bytes_in_use', 0) / (1024**3)
                                 freed_memory_gb = allocated_after_sampling_gb - allocated_after_cleanup_gb
 
-                                self.logger.info(f"📊 GPU Memory AFTER cleanup:")
+                                self.logger.debug(f"📊 GPU Memory AFTER cleanup:")
                                 self.logger.info(f"   Allocated: {allocated_after_cleanup_gb:.2f} GB")
                                 self.logger.info(f"   Freed: {freed_memory_gb:.2f} GB")
 
@@ -1051,7 +1051,7 @@ class RobustnessExperiments(ExperimentFramework):
                         # Clear JAX cache even on failure
                         jax.clear_caches()
                         gc.collect()
-                        self.logger.info(f"🧹 Cleared JAX caches after chain {chain_idx + 1} failure")
+                        self.logger.debug(f"🧹 Cleared JAX caches after chain {chain_idx + 1} failure")
                         raise
 
                 # Stack all chain samples together using numpy (already converted above)
@@ -1068,7 +1068,7 @@ class RobustnessExperiments(ExperimentFramework):
                 elapsed = total_elapsed
                 log_likelihood = 0.0  # Approximate, can compute if needed
 
-                self.logger.info(f"✅ ALL {num_chains} CHAINS COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+                self.logger.debug(f"✅ ALL {num_chains} CHAINS COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
                 self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
                 self.logger.info(f"Stored full samples for {len(self._all_chain_samples)} chains for MCMC diagnostics")
 
@@ -2582,7 +2582,7 @@ class RobustnessExperiments(ExperimentFramework):
 
         # Create final result
         self.logger.info("=" * 80)
-        self.logger.info("FACTOR STABILITY ANALYSIS - COMPLETED")
+        self.logger.debug("FACTOR STABILITY ANALYSIS - COMPLETED")
         self.logger.info("=" * 80)
         self.logger.info(f"Summary:")
         self.logger.info(f"  - {len(chain_results)} chains completed")

@@ -139,7 +139,7 @@ def create_numpyro_init_params(
     init_params = {}
 
     if model_type == "sparse_gfa_fixed":
-        logger.info("  Using sparse_gfa_fixed parameterization (non-centered)")
+        logger.debug("  Using sparse_gfa_fixed parameterization (non-centered)")
         # For sparse_gfa_fixed (non-centered parameterization)
         # Initialize from PCA to place all chains in same mode (Erosheva & Curtis 2017)
 
@@ -254,6 +254,6 @@ def should_use_pca_initialization(config: Dict) -> bool:
     if use_pca_init is None:
         use_pca_init = (model_type == "sparse_gfa_fixed")
 
-    logger.info(f"PCA initialization: {'ENABLED' if use_pca_init else 'DISABLED'} (model_type={model_type})")
+    logger.debug(f"PCA initialization: {'ENABLED' if use_pca_init else 'DISABLED'} (model_type={model_type})")
 
     return use_pca_init
