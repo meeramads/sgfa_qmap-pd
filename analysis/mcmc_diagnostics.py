@@ -81,6 +81,14 @@ def compute_ess(samples: np.ndarray, axis: int = 0) -> float:
         # Compute autocorrelation
         autocorr = np.correlate(chain, chain, mode='full')
         autocorr = autocorr[len(autocorr)//2:]
+
+        # Handle zero variance case (parameter has no variation, e.g., shrunk by ARD)
+        if autocorr[0] == 0 or np.isnan(autocorr[0]):
+            # Parameter has zero variance - ESS is n_samples (perfect "convergence")
+            ess = n_samples
+            ess_values.append(ess)
+            continue
+
         autocorr = autocorr / autocorr[0]
 
         # Find cutoff where autocorrelation becomes negligible
