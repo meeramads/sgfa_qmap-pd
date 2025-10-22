@@ -692,6 +692,18 @@ class AdvancedPreprocessor(BasePreprocessor):
 
         return X_processed
 
+    def has_pca(self, view_name: str) -> bool:
+        """Check if PCA was applied to a view (always False now)."""
+        return False
+
+    def get_pca_info(self, view_name: str):
+        """Get PCA information for a view (always None now)."""
+        return None
+
+    def inverse_transform_pca_loadings(self, W, view_name: str):
+        """Inverse transform PCA loadings (no-op now, returns W unchanged)."""
+        return W
+
 
 # == NEUROIMAGING-AWARE PREPROCESSOR ==
 
@@ -1148,13 +1160,8 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
                     cumulative_mask = temp_mask
                     logging.debug(f"  After feature selection (indices): {np.sum(cumulative_mask)}/{original_n_features} features")
 
-            # Step 3: Scaling
-            X_scaled = self.fit_transform_scaling(X_selected, view_name)
-
-            # Step 4: PCA dimensionality reduction (if enabled)
-            X_final = self.fit_transform_pca(X_scaled, view_name)
-
-            # Note: PCA is a transformation, not feature selection, so no mask update needed
+            # Step 3: Scaling (final step)
+            X_final = self.fit_transform_scaling(X_selected, view_name)
 
             X_processed.append(X_final)
 
