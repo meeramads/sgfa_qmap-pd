@@ -67,10 +67,6 @@ preprocessing:
   min_voxel_distance: 3.0
   drop_confounds_from_clinical: true
   qc_outlier_threshold: 3.0
-  enable_pca: false
-  pca_n_components: null
-  pca_variance_threshold: 0.95
-  pca_whiten: false
 
 # Cross-Validation Configuration
 cross_validation:

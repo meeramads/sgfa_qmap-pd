@@ -400,10 +400,6 @@ class AdvancedPreprocessor(BasePreprocessor):
         imputation_strategy: str = "median",
         feature_selection_method: str = "variance",
         random_state: int = 42,
-        enable_pca: bool = False,
-        pca_n_components: Optional[int] = None,
-        pca_variance_threshold: float = 0.95,
-        pca_whiten: bool = False,
         **kwargs,
     ):
         """
@@ -419,14 +415,6 @@ class AdvancedPreprocessor(BasePreprocessor):
             'median', 'mean', 'knn', or 'iterative'
         feature_selection_method : str
             'variance', 'statistical', 'mutual_info', or 'combined'
-        enable_pca : bool
-            Whether to apply PCA dimensionality reduction
-        pca_n_components : int, optional
-            Number of PCA components (if None, uses pca_variance_threshold)
-        pca_variance_threshold : float
-            Cumulative variance to retain if pca_n_components is None (default: 0.95)
-        pca_whiten : bool
-            Whether to whiten the PCA components (default: False)
         """
         self.missing_threshold = missing_threshold
         self.variance_threshold = variance_threshold
@@ -435,18 +423,11 @@ class AdvancedPreprocessor(BasePreprocessor):
         self.feature_selection_method = feature_selection_method
         self.random_state = random_state
 
-        # PCA parameters
-        self.enable_pca = enable_pca
-        self.pca_n_components = pca_n_components
-        self.pca_variance_threshold = pca_variance_threshold
-        self.pca_whiten = pca_whiten
-
         # Storage for fitted transformers
         self.imputers_ = {}
         self.scalers_ = {}
         self.feature_selectors_ = {}
         self.selected_features_ = {}
-        self.pca_transformers_ = {}
         self.is_basic = False
 
     def fit_transform_imputation(self, X: np.ndarray, view_name: str) -> np.ndarray:
@@ -624,204 +605,6 @@ class AdvancedPreprocessor(BasePreprocessor):
 
         return X_scaled
 
-    def fit_transform_pca(
-        self, X: np.ndarray, view_name: str
-    ) -> np.ndarray:
-        """
-        Apply PCA dimensionality reduction.
-
-        Parameters
-        ----------
-        X : np.ndarray
-            Input data matrix (n_samples, n_features)
-        view_name : str
-            Name of the view being processed
-
-        Returns
-        -------
-        np.ndarray
-            PCA-transformed data (n_samples, n_components)
-        """
-        logging.info(f"DEBUG: fit_transform_pca called for {view_name}, enable_pca={self.enable_pca}")
-        if not self.enable_pca:
-            logging.info(f"DEBUG: PCA disabled for {view_name}, returning original X with shape {X.shape}")
-            return X
-
-        # Only apply PCA to imaging views, not clinical views
-        if not self._is_imaging_view(view_name):
-            logging.info(f"DEBUG: Skipping PCA for non-imaging view {view_name}, returning original X with shape {X.shape}")
-            return X
-
-        n_features_before = X.shape[1]
-        logging.info(
-            f"Applying PCA dimensionality reduction to {view_name} "
-            f"({n_features_before} features)"
-        )
-
-        from sklearn.decomposition import PCA
-
-        # Determine number of components
-        if self.pca_n_components is not None:
-            # Use fixed number of components
-            n_components = min(self.pca_n_components, X.shape[0], X.shape[1])
-            logging.info(
-                f"  Strategy: fixed number of components (n={n_components})"
-            )
-        else:
-            # Use variance threshold to determine components
-            # First fit with max components to see variance explained
-            n_components = min(X.shape[0], X.shape[1])
-            logging.info(
-                f"  Strategy: variance threshold ({self.pca_variance_threshold*100:.0f}% variance)"
-            )
-
-        # Fit PCA
-        pca = PCA(
-            n_components=n_components,
-            whiten=self.pca_whiten,
-            random_state=self.random_state
-        )
-        X_pca = pca.fit_transform(X)
-
-        # If using variance threshold, select components that meet threshold
-        if self.pca_n_components is None:
-            cumsum_variance = np.cumsum(pca.explained_variance_ratio_)
-            n_components_selected = np.searchsorted(cumsum_variance, self.pca_variance_threshold) + 1
-            n_components_selected = min(n_components_selected, X_pca.shape[1])
-
-            if n_components_selected < X_pca.shape[1]:
-                actual_variance = cumsum_variance[n_components_selected-1]
-                logging.info(
-                    f"  Selected {n_components_selected} components "
-                    f"(actual variance: {actual_variance:.2%})"
-                )
-                X_pca = X_pca[:, :n_components_selected]
-
-                # Refit PCA with selected number of components for cleaner transform
-                pca = PCA(
-                    n_components=n_components_selected,
-                    whiten=self.pca_whiten,
-                    random_state=self.random_state
-                )
-                X_pca = pca.fit_transform(X)
-
-        # Store PCA transformer
-        self.pca_transformers_[view_name] = pca
-
-        # Log transformation summary
-        total_variance = pca.explained_variance_ratio_.sum()
-        n_components_final = X_pca.shape[1]
-        reduction_pct = ((n_features_before - n_components_final) / n_features_before) * 100
-
-        logging.info(
-            f"  PCA complete: {n_features_before} features → {n_components_final} components "
-            f"({reduction_pct:.1f}% reduction, {total_variance:.2%} variance retained)"
-        )
-
-        # Log top principal components contribution
-        if n_components_final >= 5:
-            top5_variance = pca.explained_variance_ratio_[:5].sum()
-            logging.info(
-                f"  Top 5 PCs explain {top5_variance:.2%} of variance"
-            )
-
-        return X_pca
-
-    def inverse_transform_pca_loadings(
-        self, W_pcs: np.ndarray, view_name: str
-    ) -> Optional[np.ndarray]:
-        """
-        Transform factor loadings from PC space back to original feature space.
-
-        This is critical for brain remapping when PCA is used. Factor loadings
-        from SGFA (W_pcs) are in principal component space and need to be
-        transformed back to voxel space for spatial visualization.
-
-        Parameters
-        ----------
-        W_pcs : np.ndarray
-            Factor loadings in PC space, shape (n_components, n_factors)
-        view_name : str
-            Name of the view to transform
-
-        Returns
-        -------
-        np.ndarray or None
-            Factor loadings in original feature space (n_features, n_factors)
-            Returns None if PCA was not applied to this view
-
-        Mathematical relationship:
-            X_pcs = X_features @ PCA.components_.T
-            Therefore: W_features = PCA.components_.T @ W_pcs
-
-        Examples
-        --------
-        >>> # After running SGFA with PCA preprocessing
-        >>> W_pcs = sgfa_results['W'][0]  # Shape: (50, 8) - 50 PCs, 8 factors
-        >>> W_voxels = preprocessor.inverse_transform_pca_loadings(W_pcs, 'volume_sn_voxels')
-        >>> # Shape: (850, 8) - 850 voxels, 8 factors - ready for brain remapping!
-        """
-        if view_name not in self.pca_transformers_:
-            logging.warning(f"No PCA transformer found for {view_name}. Returning None.")
-            return None
-
-        pca = self.pca_transformers_[view_name]
-        n_factors = W_pcs.shape[1] if len(W_pcs.shape) > 1 else 1
-
-        logging.info(
-            f"Performing inverse PCA transform for brain remapping: {view_name}"
-        )
-        logging.info(
-            f"  Input: W_pcs shape = {W_pcs.shape} "
-            f"({W_pcs.shape[0]} principal components × {n_factors} factors)"
-        )
-
-        # Transform: W_features = PCA.components_.T @ W_pcs
-        # PCA.components_ shape: (n_components, n_features)
-        # PCA.components_.T shape: (n_features, n_components)
-        # W_pcs shape: (n_components, n_factors)
-        # Result shape: (n_features, n_factors)
-        W_features = pca.components_.T @ W_pcs
-
-        logging.info(
-            f"  Output: W_voxels shape = {W_features.shape} "
-            f"({W_features.shape[0]} voxels × {n_factors} factors)"
-        )
-        logging.info(
-            f"  Brain remapping ready: W_voxels can be used with position lookup vectors"
-        )
-
-        return W_features
-
-    def has_pca(self, view_name: str) -> bool:
-        """Check if PCA was applied to a view."""
-        return view_name in self.pca_transformers_
-
-    def get_pca_info(self, view_name: str) -> Optional[Dict]:
-        """
-        Get PCA transformation information for a view.
-
-        Returns
-        -------
-        dict or None
-            Dictionary with PCA information:
-            - n_components: Number of components
-            - explained_variance_ratio: Variance explained by each component
-            - total_variance: Total variance explained
-            - components_shape: Shape of PCA components matrix
-        """
-        if view_name not in self.pca_transformers_:
-            return None
-
-        pca = self.pca_transformers_[view_name]
-        return {
-            'n_components': pca.n_components_,
-            'explained_variance_ratio': pca.explained_variance_ratio_,
-            'total_variance': pca.explained_variance_ratio_.sum(),
-            'components_shape': pca.components_.shape,
-            'n_features_original': pca.components_.shape[1],
-        }
-
     def fit_transform(
         self,
         X_list: List[np.ndarray],
@@ -854,11 +637,8 @@ class AdvancedPreprocessor(BasePreprocessor):
             # Step 2: Feature selection
             X_selected = self.fit_transform_feature_selection(X_imputed, view_name, y)
 
-            # Step 3: Scaling
-            X_scaled = self.fit_transform_scaling(X_selected, view_name)
-
-            # Step 4: PCA dimensionality reduction (if enabled)
-            X_final = self.fit_transform_pca(X_scaled, view_name)
+            # Step 3: Scaling (final step)
+            X_final = self.fit_transform_scaling(X_selected, view_name)
 
             X_processed.append(X_final)
 
