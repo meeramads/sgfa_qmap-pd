@@ -2332,13 +2332,19 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info("=" * 80)
         self.logger.info("COUNTING EFFECTIVE FACTORS PER CHAIN")
         self.logger.info("=" * 80)
+
+        # Get ARD thresholds from config (already loaded above as factor_stability_config)
+        sparsity_threshold = factor_stability_config.get("sparsity_threshold", 0.001)
+        min_nonzero_pct = factor_stability_config.get("min_nonzero_pct", 0.01)
+        self.logger.info(f"ARD thresholds: sparsity={sparsity_threshold}, min_nonzero_pct={min_nonzero_pct}")
+
         effective_factors_per_chain = []
         for i, chain_result in enumerate(chain_results):
             W = chain_result["W"]
             effective = count_effective_factors(
                 W,
-                sparsity_threshold=0.001,  # Adjusted from 0.01 to capture meaningful loadings in standardized data
-                min_nonzero_pct=0.01,      # Adjusted from 0.05 to 0.01 (at least 1% of features)
+                sparsity_threshold=sparsity_threshold,
+                min_nonzero_pct=min_nonzero_pct,
             )
             effective["chain_id"] = i
             effective_factors_per_chain.append(effective)
@@ -2349,9 +2355,14 @@ class RobustnessExperiments(ExperimentFramework):
             )
 
         # Compute R-hat (Gelman-Rubin) convergence diagnostics
+        # NOTE: For factor models, raw R-hat is reported for completeness but may be
+        # misleadingly high due to sign/rotation ambiguity. ALIGNED R-hat (computed below)
+        # accounts for factor indeterminacy and is the PRIMARY convergence metric.
         self.logger.info("=" * 80)
-        self.logger.info("COMPUTING R-HAT CONVERGENCE DIAGNOSTICS")
+        self.logger.info("R-HAT CONVERGENCE DIAGNOSTICS")
         self.logger.info("=" * 80)
+        self.logger.info("NOTE: Raw R-hat reported for completeness. Aligned R-hat (below) is primary metric.")
+        self.logger.info("")
 
         rhat_diagnostics = {}
         try:
@@ -2389,10 +2400,11 @@ class RobustnessExperiments(ExperimentFramework):
 
                 # Check for convergence issues
                 if rhat_W_max_overall > 1.1:
-                    self.logger.warning(f"⚠️  High R-hat detected for W: {rhat_W_max_overall:.4f} > 1.1")
-                    self.logger.warning(f"     Chains may not have converged. Consider more MCMC samples.")
+                    self.logger.warning(f"⚠️  High raw R-hat detected for W: {rhat_W_max_overall:.4f} > 1.1")
+                    self.logger.warning(f"     This may reflect sign/rotation ambiguity in factor models.")
+                    self.logger.warning(f"     Check aligned R-hat below for true convergence assessment.")
                 else:
-                    self.logger.info(f"✓ W converged: all R-hat < 1.1")
+                    self.logger.info(f"✓ W converged (raw R-hat < 1.1)")
 
             if Z_samples is not None and len(Z_samples.shape) == 4:
                 # Compute R-hat for Z (factor scores)
@@ -2421,14 +2433,17 @@ class RobustnessExperiments(ExperimentFramework):
 
                 # Check for convergence issues
                 if rhat_Z_max_overall > 1.1:
-                    self.logger.warning(f"⚠️  High R-hat detected for Z: {rhat_Z_max_overall:.4f} > 1.1")
-                    self.logger.warning(f"     Chains may not have converged. Consider more MCMC samples.")
+                    self.logger.warning(f"⚠️  High raw R-hat detected for Z: {rhat_Z_max_overall:.4f} > 1.1")
+                    self.logger.warning(f"     This may reflect sign/rotation ambiguity in factor models.")
+                    self.logger.warning(f"     Check aligned R-hat below for true convergence assessment.")
                 else:
-                    self.logger.info(f"✓ Z converged: all R-hat < 1.1")
+                    self.logger.info(f"✓ Z converged (raw R-hat < 1.1)")
 
             # Compute ALIGNED R-hat (accounting for factor sign/rotation ambiguity)
+            # THIS IS THE PRIMARY CONVERGENCE METRIC for factor models
             self.logger.info("=" * 80)
-            self.logger.info("COMPUTING ALIGNED R-HAT (sign/rotation-corrected)")
+            self.logger.info("ALIGNED R-HAT - PRIMARY CONVERGENCE METRIC")
+            self.logger.info("(Accounts for sign/rotation indeterminacy in factor models)")
             self.logger.info("=" * 80)
 
             from analysis.factor_stability import compute_aligned_rhat
@@ -2578,28 +2593,34 @@ class RobustnessExperiments(ExperimentFramework):
         # Add R-hat summary to final output
         if rhat_diagnostics:
             self.logger.info(f"  Convergence Diagnostics:")
-            if "W" in rhat_diagnostics:
-                rhat_W_max = rhat_diagnostics["W"]["max_rhat_overall"]
-                rhat_W_mean = rhat_diagnostics["W"]["mean_rhat_overall"]
-                W_converged = "✓" if rhat_W_max < 1.1 else "⚠️"
-                self.logger.info(f"    - R-hat (W, raw): max={rhat_W_max:.4f}, mean={rhat_W_mean:.4f} {W_converged}")
+
+            # ALIGNED R-HAT FIRST (primary metric)
             if "W_aligned" in rhat_diagnostics:
                 rhat_W_aligned_max = rhat_diagnostics["W_aligned"]["max_rhat_overall"]
                 rhat_W_aligned_mean = rhat_diagnostics["W_aligned"]["mean_rhat_overall"]
                 W_aligned_converged = "✓" if rhat_W_aligned_max < 1.1 else "⚠️"
                 conv_rate = rhat_diagnostics["W_aligned"]["convergence_rate"]
-                self.logger.info(f"    - R-hat (W, aligned): max={rhat_W_aligned_max:.4f}, mean={rhat_W_aligned_mean:.4f} {W_aligned_converged} ({100*conv_rate:.1f}% < 1.1)")
-            if "Z" in rhat_diagnostics:
-                rhat_Z_max = rhat_diagnostics["Z"]["max_rhat_overall"]
-                rhat_Z_mean = rhat_diagnostics["Z"]["mean_rhat_overall"]
-                Z_converged = "✓" if rhat_Z_max < 1.1 else "⚠️"
-                self.logger.info(f"    - R-hat (Z, raw): max={rhat_Z_max:.4f}, mean={rhat_Z_mean:.4f} {Z_converged}")
+                self.logger.info(f"    - R-hat (W, aligned) [PRIMARY]: max={rhat_W_aligned_max:.4f}, mean={rhat_W_aligned_mean:.4f} {W_aligned_converged} ({100*conv_rate:.1f}% < 1.1)")
             if "Z_aligned" in rhat_diagnostics:
                 rhat_Z_aligned_max = rhat_diagnostics["Z_aligned"]["max_rhat_overall"]
                 rhat_Z_aligned_mean = rhat_diagnostics["Z_aligned"]["mean_rhat_overall"]
                 Z_aligned_converged = "✓" if rhat_Z_aligned_max < 1.1 else "⚠️"
                 conv_rate = rhat_diagnostics["Z_aligned"]["convergence_rate"]
-                self.logger.info(f"    - R-hat (Z, aligned): max={rhat_Z_aligned_max:.4f}, mean={rhat_Z_aligned_mean:.4f} {Z_aligned_converged} ({100*conv_rate:.1f}% < 1.1)")
+                self.logger.info(f"    - R-hat (Z, aligned) [PRIMARY]: max={rhat_Z_aligned_max:.4f}, mean={rhat_Z_aligned_mean:.4f} {Z_aligned_converged} ({100*conv_rate:.1f}% < 1.1)")
+
+            # Raw R-hat for reference
+            if "W" in rhat_diagnostics or "Z" in rhat_diagnostics:
+                self.logger.info(f"    [Raw R-hat for reference - may be high due to sign/rotation ambiguity]")
+            if "W" in rhat_diagnostics:
+                rhat_W_max = rhat_diagnostics["W"]["max_rhat_overall"]
+                rhat_W_mean = rhat_diagnostics["W"]["mean_rhat_overall"]
+                W_converged = "✓" if rhat_W_max < 1.1 else "⚠️"
+                self.logger.info(f"    - R-hat (W, raw): max={rhat_W_max:.4f}, mean={rhat_W_mean:.4f} {W_converged}")
+            if "Z" in rhat_diagnostics:
+                rhat_Z_max = rhat_diagnostics["Z"]["max_rhat_overall"]
+                rhat_Z_mean = rhat_diagnostics["Z"]["mean_rhat_overall"]
+                Z_converged = "✓" if rhat_Z_max < 1.1 else "⚠️"
+                self.logger.info(f"    - R-hat (Z, raw): max={rhat_Z_max:.4f}, mean={rhat_Z_mean:.4f} {Z_converged}")
 
         self.logger.info(f"  - {len(plots)} plots generated")
 

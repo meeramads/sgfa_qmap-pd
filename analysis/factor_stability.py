@@ -365,8 +365,8 @@ def _compute_consensus_scores(
 
 def count_effective_factors(
     W: np.ndarray,
-    sparsity_threshold: float = 0.01,
-    min_nonzero_pct: float = 0.05,
+    sparsity_threshold: float = 0.001,
+    min_nonzero_pct: float = 0.01,
 ) -> Dict:
     """Count how many factors have meaningful (non-zero) loadings.
 
@@ -382,10 +382,11 @@ def count_effective_factors(
     ----------
     W : np.ndarray
         Factor loading matrix, shape (D, K) or list of (D_m, K)
-    sparsity_threshold : float, default=0.01
-        Minimum loading magnitude to be considered non-zero
-    min_nonzero_pct : float, default=0.05
-        Minimum fraction of features with non-zero loadings
+    sparsity_threshold : float, default=0.001
+        Minimum loading magnitude to be considered non-zero.
+        Adjusted for standardized data (0.001 = 0.1% of a standard deviation).
+    min_nonzero_pct : float, default=0.01
+        Minimum fraction of features with non-zero loadings (at least 1% of features).
 
     Returns
     -------
@@ -398,7 +399,7 @@ def count_effective_factors(
     Examples
     --------
     >>> W = np.random.randn(100, 20)
-    >>> effective = count_effective_factors(W, sparsity_threshold=0.01)
+    >>> effective = count_effective_factors(W, sparsity_threshold=0.001)
     >>> print(f"{effective['n_effective']}/{W.shape[1]} factors are effective")
     """
     # Handle multi-view case
