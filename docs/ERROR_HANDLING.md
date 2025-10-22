@@ -226,6 +226,7 @@ except Exception as e:
 ## Common Mistakes to Avoid
 
 ### ❌ Don't: Silent failures
+
 ```python
 try:
     result = risky_operation()
@@ -234,6 +235,7 @@ except:
 ```
 
 ### ✅ Do: Log and handle
+
 ```python
 try:
     result = risky_operation()
@@ -243,16 +245,19 @@ except Exception as e:
 ```
 
 ### ❌ Don't: Inconsistent error formats
+
 ```python
 return {"error": "something went wrong"}  # Missing standard fields
 ```
 
 ### ✅ Do: Use standard format
+
 ```python
 return create_error_result(exception, context)
 ```
 
 ### ❌ Don't: Catch Exception without logging
+
 ```python
 try:
     do_something()
@@ -261,6 +266,7 @@ except Exception:
 ```
 
 ### ✅ Do: Log with context
+
 ```python
 try:
     do_something()

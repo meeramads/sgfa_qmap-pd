@@ -15,6 +15,7 @@
 **Purpose**: Handle memory-intensive MCMC operations and JAX memory management
 
 **Functions**:
+
 - `cleanup_memory(aggressive=False)` - Force garbage collection and JAX cache cleanup
 - `cleanup_mcmc_samples(samples, keep_keys=None)` - Clean up MCMC sample dictionaries
 - `safe_plotting_context()` - Context manager for memory-safe plotting
@@ -24,6 +25,7 @@
 - `check_memory_before_analysis(args, X_list)` - Pre-flight memory check
 
 **Key Use Cases**:
+
 ```python
 # Before large MCMC run
 check_memory_before_analysis(args, X_list)
@@ -46,6 +48,7 @@ cleanup_memory(aggressive=True)
 **Purpose**: Safe file I/O with error handling, backups, and retries
 
 **Functions**:
+
 - `ensure_directory(path)` - Create directory if doesn't exist
 - `safe_file_path(directory, filename)` - Construct safe file paths
 - `validate_file_exists(filepath, description)` - Validate file existence
@@ -59,12 +62,14 @@ cleanup_memory(aggressive=True)
 - `get_relative_path(filepath, base_path)` - Get relative path
 
 **Key Features**:
+
 - **Retry logic**: Automatically retries failed I/O operations
 - **Backup management**: Creates numbered backups before overwriting
 - **Error handling**: Detailed error messages with context
 - **Path safety**: Handles spaces, special characters, cross-platform paths
 
 **Use Cases**:
+
 ```python
 # Safe pickle operations
 data = safe_pickle_load("results/model.pkl", max_retries=3)
@@ -84,10 +89,12 @@ model_files = get_model_files(results_dir, run_id=1)
 **Purpose**: Reusable context managers for common patterns
 
 **Functions**:
+
 - `safe_plotting_context()` - Matplotlib memory management
 - `memory_monitoring_context(operation_name)` - Memory tracking
 
 **Implementation**:
+
 ```python
 @contextmanager
 def safe_plotting_context():
@@ -104,6 +111,7 @@ def safe_plotting_context():
 ```
 
 **Use Cases**:
+
 ```python
 with safe_plotting_context() as plt:
     plt.figure()
@@ -123,23 +131,27 @@ with memory_monitoring_context("Large computation"):
 **Purpose**: SGFA model-specific computations
 
 **Functions**:
+
 - `get_robustK(thrs, args, params, d_comps)` - Determine robust number of factors
 - `get_infparams(samples, hypers, args)` - Compute inference parameters from MCMC
 
 **Details**:
 
 **`get_robustK()`**:
+
 - Analyzes factor loadings to determine "robust" number of factors
 - Uses thresholding and component analysis
 - Returns refined K estimate
 
 **`get_infparams()`**:
+
 - Processes MCMC samples into summary statistics
 - Computes means, std devs, credible intervals
 - Handles W (loadings) and Z (scores) separately
 - Splits concatenated W back into views
 
 **Use Cases**:
+
 ```python
 # After MCMC
 robust_k = get_robustK(threshold=0.3, args, params, d_comps)
@@ -161,6 +173,7 @@ inf_params = get_infparams(samples, hypers, args)
 **Purpose**: Validate configuration and log settings
 
 **Functions**:
+
 - `validate_core_parameters(args)` - Validate basic parameters (K, percW, etc.)
 - `validate_model_parameters(args)` - Validate model-specific parameters
 - `validate_cv_parameters(args, cv_available, neuroimaging_cv_available)` - Validate CV config
@@ -170,6 +183,7 @@ inf_params = get_infparams(samples, hypers, args)
 - `validate_and_setup_args(args, logger)` - Comprehensive validation and setup
 
 **Validation Rules**:
+
 ```python
 # Core parameters
 assert 1 <= args.K <= 50, "K must be between 1 and 50"
@@ -184,6 +198,7 @@ if args.run_cv:
 ```
 
 **Use Cases**:
+
 ```python
 # At experiment start
 validate_and_setup_args(args, logger)
@@ -199,12 +214,14 @@ log_parameter_summary(args)
 
 ## Import Patterns
 
-### Files Using Memory Functions (3):
+### Files Using Memory Functions (3)
+
 - `core/run_analysis.py`
 - `analysis/model_runner.py`
 - `experiments/sgfa_hyperparameter_tuning.py`
 
-### Files Using File Operations (8):
+### Files Using File Operations (8)
+
 - `core/run_analysis.py`
 - `core/visualization.py` → `visualization/core_plots.py`
 - `visualization/brain_plots.py`
@@ -212,11 +229,13 @@ log_parameter_summary(args)
 - `analysis/model_runner.py`
 - `experiments/framework.py`
 
-### Files Using Model Utilities (2):
+### Files Using Model Utilities (2)
+
 - `analysis/model_runner.py`
 - `core/run_analysis.py`
 
-### Files Using Validation (4):
+### Files Using Validation (4)
+
 - `core/run_analysis.py`
 - `debug_experiments.py`
 - `run_experiments.py`
@@ -228,6 +247,7 @@ log_parameter_summary(args)
 If splitting becomes necessary, here's the recommended structure:
 
 ### Option A: Category-Based Split
+
 ```
 core/
 ├── memory_utils.py      (cleanup, monitoring, estimation)
@@ -239,6 +259,7 @@ core/
 ### Option B: Keep as Single Module
 
 **Reasons to keep together**:
+
 1. **Cohesive**: All are "utility" functions
 2. **Small functions**: No individual function > 100 lines
 3. **Clear organization**: Already separated into categories with comments
@@ -252,22 +273,26 @@ core/
 ## Usage Guidelines
 
 ### When to Use Memory Utils
+
 - Before/after large MCMC runs
 - When handling large numpy arrays
 - In long-running experiments
 
 ### When to Use File Utils
+
 - Saving model checkpoints
 - Loading preprocessed data
 - Creating result directories
 - Any file I/O with potential for failure
 
 ### When to Use Model Utils
+
 - After MCMC completion
 - For factor analysis post-processing
 - Computing summary statistics
 
 ### When to Use Validation
+
 - At experiment initialization
 - Before running MCMC
 - When loading configuration files
@@ -277,6 +302,7 @@ core/
 ## Dependencies
 
 **External**:
+
 - `numpy` - Numerical operations
 - `psutil` - System memory monitoring
 - `jax` - JAX-specific memory management
@@ -284,6 +310,7 @@ core/
 - `pathlib` - Path operations
 
 **Internal**:
+
 - None (foundation layer)
 
 ---
@@ -309,6 +336,7 @@ core/
 ## Summary
 
 `core/utils.py` is well-organized into 5 clear categories:
+
 1. ✅ **Memory Management** - JAX and system memory handling
 2. ✅ **File Operations** - Safe I/O with retries and backups
 3. ✅ **Context Managers** - Reusable patterns
@@ -316,6 +344,7 @@ core/
 5. ✅ **Validation** - Configuration checking
 
 While large (1231 lines), the module is:
+
 - Well-documented
 - Clearly organized
 - Widely used (11 import sites)

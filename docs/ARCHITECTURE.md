@@ -71,6 +71,7 @@ This document describes the architecture of the SGFA pipeline for neuroimaging b
 ### Entry Point
 
 **`run_experiments.py`**
+
 - Command-line interface for experiments
 - Config loading and validation
 - Experiment orchestration
@@ -79,6 +80,7 @@ This document describes the architecture of the SGFA pipeline for neuroimaging b
 ### Configuration
 
 **`config_convergence.yaml`**
+
 - Model parameters (K, percW, slab_df, slab_scale)
 - MCMC settings (samples, warmup, chains, tree depth)
 - Preprocessing options (MAD threshold, imputation)
@@ -87,45 +89,53 @@ This document describes the architecture of the SGFA pipeline for neuroimaging b
 ### Data Pipeline
 
 **`data/preprocessing.py`**
+
 - `NeuroImagingPreprocessor`: Main preprocessing class
 - MAD-based quality control
 - Spatial and median imputation
 - Position lookup tracking
 
 **`data/preprocessing_integration.py`**
+
 - `apply_preprocessing_to_pipeline()`: Main integration function
 - Config merging (global overrides strategy-specific)
 - Position file saving
 
 **`data/qmap_pd.py`**
+
 - qMAP-PD dataset loading
 - Multi-view data handling (imaging + clinical)
 
 ### Model Implementation
 
 **`models/sparse_gfa_fixed.py`**
+
 - Regularized horseshoe priors with slab regularization
 - Non-centered parameterization
 - Data-dependent global scale (Piironen & Vehtari 2017)
 - NumPyro MCMC implementation
 
 **`models/factory.py`**
+
 - Model instantiation
 - Configuration validation
 
 ### Experiments
 
 **`experiments/data_validation.py`**
+
 - Data quality assessment
 - Distribution analysis
 - PCA dimensionality analysis
 
 **`experiments/robustness_testing.py`**
+
 - Seed reproducibility
 - Perturbation analysis
 - Initialization stability
 
 **`experiments/framework.py`**
+
 - Experiment base infrastructure
 - Result standardization
 - Plot saving utilities
@@ -133,12 +143,14 @@ This document describes the architecture of the SGFA pipeline for neuroimaging b
 ### Analysis
 
 **`analysis/factor_stability.py`**
+
 - Multi-chain stability analysis (Ferreira et al. 2024)
 - Cosine similarity factor matching
 - Consensus loadings/scores computation
 - CSV export for W, Z matrices
 
 **`analysis/mcmc_diagnostics.py`**
+
 - R-hat computation
 - ESS calculation
 - Trace plots
@@ -197,6 +209,7 @@ run_experiments.py
 ### 1. Config Merging Strategy
 
 Preprocessing config uses **global-first merge**:
+
 ```python
 global_preprocessing = config.get("preprocessing", {})
 strategy_config = preprocessing_strategies.get(strategy, {})
@@ -208,6 +221,7 @@ This allows command-line flags to override strategy-specific settings.
 ### 2. Non-Centered Parameterization
 
 Model uses non-centered parameterization for better MCMC geometry:
+
 ```python
 Z_raw ~ Normal(0, 1)
 Z = Z_raw * sqrt(ξ)
@@ -216,6 +230,7 @@ Z = Z_raw * sqrt(ξ)
 ### 3. Position Tracking
 
 Cumulative mask tracking through preprocessing:
+
 ```python
 cumulative_mask = np.ones(original_n_features, dtype=bool)
 # Apply each filter
@@ -228,6 +243,7 @@ filtered_positions = original_positions[cumulative_mask]
 ### 4. Factor Stability
 
 Uses cosine similarity matching (Ferreira et al. 2024):
+
 ```python
 similarity = 1 - cosine(W_chain1[:, k], W_chain2[:, k])
 if similarity > threshold:
@@ -343,6 +359,7 @@ config["experiments"]["base_output_dir"] = str(unified_dir)
 ```
 
 **Example run directories:**
+
 - `factor_stability_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251022_000604/`
 - `all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD3.0_run_20251021_110602/`
 
@@ -370,6 +387,7 @@ experiment_output_dir.mkdir(parents=True, exist_ok=True)
 **Format:** `{run_dir}/{experiment_name}_{params}/`
 
 **Examples:**
+
 - `data_validation_tree10_20251022_000604/`
 - `robustness_tests_fixed_K2_percW33_slab4_2_MAD1000.0_tree10_20251022_000622/`
 - `03_factor_stability_fixed_K2_percW33_slab4_2_MAD1000.0_tree10/`
@@ -409,6 +427,7 @@ individual_plots_dir = experiment_output_dir / "individual_plots"
 **Common pitfall:** If `output_dir` is not passed to `run_factor_stability_analysis()`, plots will fall back to `base_output_dir` (typically just `"results/"`), creating a global `results/individual_plots/` directory instead of the experiment-specific location.
 
 **Solution:** Always pass `output_dir` parameter:
+
 ```python
 result = repro_exp.run_factor_stability_analysis(
     X_list=X_list,
@@ -450,6 +469,7 @@ if "factor_stability" in experiments_to_run:
 ```
 
 **Characteristics:**
+
 - Run directory created by framework
 - Experiment subdirectories created inside run directory
 - Logging goes to run-specific `{run_dir}/experiments.log`
@@ -485,6 +505,7 @@ if __name__ == "__main__":
 ```
 
 **Characteristics:**
+
 - Script manages its own directory structure
 - Logging goes to global `results/experiments.log`
 - Single experiment per execution
@@ -517,6 +538,7 @@ class ExperimentFramework:
 ```
 
 **This means:**
+
 1. `ExperimentConfig` stores model/experiment parameters only
 2. `base_output_dir` is set at `ExperimentFramework` initialization
 3. Config dict's `["experiments"]["base_output_dir"]` doesn't automatically become `self.base_output_dir`
@@ -553,6 +575,7 @@ else:
 ```
 
 **This pattern allows:**
+
 - Integrated execution: Pass explicit `output_dir` for full control
 - Standalone execution: Rely on `base_output_dir` set by script
 - Legacy support: Fallback to global directories if neither is set
@@ -585,6 +608,7 @@ root_logger.addHandler(file_handler)
 ### Output File Naming Conventions
 
 #### Consensus Results
+
 - **W matrices (features × factors)**: `consensus_factor_loadings_{view_name}.csv`
   - Example: `consensus_factor_loadings_volume_sn_voxels.csv`
 
@@ -595,18 +619,21 @@ root_logger.addHandler(file_handler)
 #### Per-Factor Reconstructions
 
 **Volume data (TSV, no headers):**
+
 - Format: `consensus_loadings_{ROI}_{factor_name}.tsv`
 - Example: `consensus_loadings_SN_factor_00.tsv`
 - Matrix: N subjects × D_m voxels
 - Computation: `Z[:, k] @ W[:, k].T`
 
 **Clinical data (CSV, with headers):**
+
 - Format: `consensus_loadings_Clinical_{factor_name}.csv`
 - Example: `consensus_loadings_Clinical_factor_00.csv`
 - Matrix: N subjects × clinical features
 - Columns: Feature names from original data
 
 #### Position Lookup Files
+
 - **Filtered positions**: `position_lookup_filtered/position_{roi}_filtered.tsv`
 - **Format**: TSV with columns [x, y, z] for voxel brain coordinates
 - **Purpose**: Map filtered feature indices back to brain space
@@ -614,6 +641,7 @@ root_logger.addHandler(file_handler)
 ## Dependencies
 
 ### External
+
 - **NumPyro**: MCMC sampling
 - **JAX**: Auto-differentiation
 - **pandas/numpy**: Data manipulation
@@ -621,6 +649,7 @@ root_logger.addHandler(file_handler)
 - **matplotlib/seaborn**: Visualization
 
 ### Internal Dependency Chain
+
 ```
 core/ (foundation)
     ↓
@@ -638,6 +667,7 @@ experiments/ (validation pipeline)
 ### 1. MAD Filtering
 
 Median Absolute Deviation for outlier detection:
+
 ```python
 median = np.median(X, axis=0)
 mad = np.median(np.abs(X - median), axis=0)
@@ -665,6 +695,7 @@ W = W_raw * τ₀ * √κ
 ### 3. R-hat Computation
 
 Gelman-Rubin diagnostic:
+
 ```python
 # Between-chain variance
 B = N * var(chain_means)
@@ -691,6 +722,7 @@ pytest tests/experiments/
 ## Common Operations
 
 ### Running Experiments
+
 ```bash
 python run_experiments.py --config config_convergence.yaml \
   --experiments factor_stability \
@@ -699,6 +731,7 @@ python run_experiments.py --config config_convergence.yaml \
 ```
 
 ### Accessing Results
+
 ```python
 # Load consensus loadings
 W_consensus = pd.read_csv("results/.../consensus_factor_loadings.csv")
@@ -721,4 +754,4 @@ with open("results/.../factor_stability_summary.json") as f:
 
 - Ferreira et al. 2024: Factor stability methodology
 - Piironen & Vehtari 2017: Regularized horseshoe priors
-- qMAP-PD Study: https://qmaplab.com/qmap-pd
+- qMAP-PD Study: <https://qmaplab.com/qmap-pd>

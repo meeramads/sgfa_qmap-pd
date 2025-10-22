@@ -5,6 +5,7 @@
 Guide for testing MCMC convergence with the `sparse_gfa_fixed` model using `config_convergence.yaml`.
 
 **Model**: The fixed model (`sparse_gfa_fixed`) implements all convergence improvements:
+
 1. Data-dependent global scale τ₀ (Piironen & Vehtari 2017)
 2. Proper slab regularization (InverseGamma prior)
 3. Non-centered parameterization for better geometry
@@ -66,6 +67,7 @@ python run_experiments.py --config config_convergence.yaml \
 ### Main Config: `config_convergence.yaml`
 
 **Model Parameters**:
+
 ```yaml
 model:
   model_type: "sparse_gfa_fixed"
@@ -77,6 +79,7 @@ model:
 ```
 
 **MCMC Settings**:
+
 ```yaml
 factor_stability:
   num_samples: 10000
@@ -87,6 +90,7 @@ factor_stability:
 ```
 
 **Preprocessing**:
+
 ```yaml
 preprocessing:
   qc_outlier_threshold: 3.0
@@ -111,22 +115,26 @@ preprocessing:
 ### Good Convergence
 
 **Acceptance Probability**: 0.6-0.8 (NUTS optimal range)
+
 ```
 INFO: Mean acceptance probability: 0.79
 ```
 
 **R-hat**: < 1.1 for all parameters
+
 ```
 INFO: R-hat for W: max=1.02, mean=1.01
 INFO: R-hat for Z: max=1.03, mean=1.01
 ```
 
 **Effective Factors**: Match expected K
+
 ```
 INFO: 2/2 factors are effective (100.0%)
 ```
 
 **Global Shrinkage**: Reasonable τ_W values
+
 ```
 INFO: τ_W (global shrinkage, view 1): 0.053 ± 0.002
 ```
@@ -134,24 +142,28 @@ INFO: τ_W (global shrinkage, view 1): 0.053 ± 0.002
 ### Warning Signs
 
 **Low Acceptance**: < 0.5
+
 ```
 WARNING: Mean acceptance probability: 0.42
 Action: Decrease max_tree_depth or increase target_accept_prob
 ```
 
 **High R-hat**: > 1.1
+
 ```
 WARNING: R-hat for W: max=1.15, mean=1.08
 Action: Increase num_warmup or num_samples
 ```
 
 **Over-shrinkage**: τ_W extremely small
+
 ```
 WARNING: τ_W (global shrinkage): 0.0005 ± 0.0001
 Action: Check data quality (likely too much noise)
 ```
 
 **No Effective Factors**: 0/K factors
+
 ```
 WARNING: 0/2 factors are effective (0.0%)
 Action: Check preprocessing (likely MAD threshold too permissive)
@@ -162,9 +174,11 @@ Action: Check preprocessing (likely MAD threshold too permissive)
 ### Success: K=2, MAD 3.0
 
 **Preprocessing**:
+
 - 1794 → 531 voxels (70.4% removed)
 
 **Convergence**:
+
 - Acceptance: 0.79
 - R-hat (W): max=1.02
 - R-hat (Z): max=1.03
@@ -176,9 +190,11 @@ Action: Check preprocessing (likely MAD threshold too permissive)
 ### Failure: K=2, MAD 100.0
 
 **Preprocessing**:
+
 - 1794 → 1776 voxels (1% removed - essentially no QC)
 
 **Convergence**:
+
 - Acceptance: varies
 - R-hat (W): max=1339 (catastrophic)
 - R-hat (Z): max=109 (catastrophic)
@@ -194,6 +210,7 @@ Action: Check preprocessing (likely MAD threshold too permissive)
 **Symptom**: Acceptance < 0.5
 
 **Solutions**:
+
 ```bash
 # Option 1: Increase target acceptance
 --target-accept-prob 0.85
@@ -207,6 +224,7 @@ Action: Check preprocessing (likely MAD threshold too permissive)
 **Symptom**: R-hat > 1.1
 
 **Solutions**:
+
 ```bash
 # Increase warmup
 # Edit config_convergence.yaml:
@@ -222,6 +240,7 @@ factor_stability:
 **Symptom**: Many divergent transitions
 
 **Solutions**:
+
 ```bash
 # Increase acceptance probability
 --target-accept-prob 0.9
@@ -239,6 +258,7 @@ factor_stability:
 **Root Cause**: Usually too much noise in data
 
 **Solutions**:
+
 ```bash
 # Decrease MAD threshold (stricter QC)
 --qc-outlier-threshold 2.5
@@ -253,10 +273,12 @@ print('Mean:', X.mean().mean()); print('Std:', X.std().mean())"
 ### Tree Depth (`max_tree_depth`)
 
 **Default**: 13
+
 - Higher: Better exploration, slower, more memory
 - Lower: Faster, less exploration
 
 **When to adjust**:
+
 - K ≤ 5: Use 10
 - K = 10-20: Use 13
 - K > 20: May need 15 (memory permitting)
@@ -264,10 +286,12 @@ print('Mean:', X.mean().mean()); print('Std:', X.std().mean())"
 ### Acceptance Probability (`target_accept_prob`)
 
 **Default**: 0.8
+
 - Higher (0.85-0.9): More careful steps, better for complex posteriors
 - Lower (0.6-0.7): Larger steps, faster but riskier
 
 **When to adjust**:
+
 - Divergences: Increase to 0.85-0.9
 - Very slow: Decrease to 0.7 (but watch R-hat)
 
@@ -276,6 +300,7 @@ print('Mean:', X.mean().mean()); print('Std:', X.std().mean())"
 **Default**: 3000 warmup + 10000 samples per chain
 
 **Guidelines**:
+
 - Minimum: 1000 warmup + 2000 samples (testing only)
 - Production: 3000 warmup + 10000 samples
 - Difficult convergence: 5000 warmup + 15000 samples
@@ -285,16 +310,19 @@ print('Mean:', X.mean().mean()); print('Std:', X.std().mean())"
 ### Stability Analysis
 
 **Stability Rate**: % of factors appearing in >50% of chains
+
 ```
 INFO: Stability rate: 100.0%  # All factors stable
 ```
 
 **Consensus Loadings**: Available when factors are stable
+
 ```
 results/.../stability_analysis/consensus_factor_loadings.csv
 ```
 
 **Similarity Matrix**: Cross-chain factor matching
+
 ```
 results/.../stability_analysis/similarity_matrix.csv
 ```
@@ -304,11 +332,13 @@ results/.../stability_analysis/similarity_matrix.csv
 **Threshold**: Factors with >5% non-zero loadings
 
 **Good**: Most factors effective
+
 ```
 INFO: 18/20 factors are effective (90.0%)
 ```
 
 **Warning**: High shrinkage
+
 ```
 WARNING: 5/20 factors are effective (25.0%)
 Action: May indicate K too high or poor data quality
@@ -317,11 +347,13 @@ Action: May indicate K too high or poor data quality
 ## Performance Notes
 
 **Typical Runtime** (4 chains × 13K samples):
+
 - K=2: ~30 min
 - K=10: ~2 hours
 - K=20: ~4-6 hours
 
 **Memory Usage**:
+
 - K=2: ~4-8 GB
 - K=10: ~8-12 GB
 - K=20: ~12-16 GB

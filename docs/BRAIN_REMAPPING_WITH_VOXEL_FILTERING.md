@@ -5,6 +5,7 @@
 When preprocessing drops voxels via MAD-based quality control, the factor loadings W matrix has fewer rows than the original number of voxels. This breaks brain remapping because you can't map reduced loadings back to the original voxel positions.
 
 **Example**:
+
 - Original: 1794 voxels with known (x, y, z) coordinates
 - After MAD QC (threshold=3.0): ~531 voxels (70% dropped)
 - Factor loadings W: 531 × K matrix
@@ -27,6 +28,7 @@ The `_filter_and_save_position_lookups()` function:
 ### When It Runs
 
 Automatically during preprocessing when:
+
 - `enable_spatial_processing: true` (in config)
 - Using `NeuroImagingPreprocessor`
 - Processing imaging views (names starting with `volume_`)
@@ -36,14 +38,17 @@ Automatically during preprocessing when:
 **Location**: `results/<run>/filtered_positions/`
 
 **Format**:
+
 ```tsv
--12.5	8.3	4.2
--11.2	9.1	5.5
+-12.5 8.3 4.2
+-11.2 9.1 5.5
 ...
 ```
+
 (No header, tab-separated, matching original position lookup format)
 
 **Files created**:
+
 - `position_sn_voxels_filtered.tsv` - If processing substantia nigra
 - `position_putamen_voxels_filtered.tsv` - If processing putamen
 - etc.
@@ -190,6 +195,7 @@ INFO:root:  Saved filtered position file: .../position_sn_voxels_filtered.tsv
 | 100.0 | 1794 (100%) | No QC (not recommended) |
 
 **Command-line override**:
+
 ```bash
 python run_experiments.py --config config_convergence.yaml \
   --qc-outlier-threshold 5.0
@@ -217,6 +223,7 @@ filtered_positions = original_positions[cumulative_mask]
 ### Coordinate System
 
 Position lookups use **MNI space** (Montreal Neurological Institute):
+
 - **Origin**: Anterior commissure
 - **Units**: Millimeters (mm)
 - **Orientation**: RAS (Right-Anterior-Superior)

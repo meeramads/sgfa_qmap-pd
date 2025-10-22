@@ -8,6 +8,7 @@
 ### Problem Confirmed: Catastrophic Non-Convergence
 
 **Evidence from successful run** (before fixes):
+
 ```
 Directory: factor_stability_rois-sn_conf-age+sex+tiv_K2_percW33_run_20251020_034211
 Time: 03:42 AM (BEFORE fixes were applied)
@@ -24,12 +25,14 @@ This confirms your original problem - τ exploring unbounded range causing funne
 ### Current Issue: MCMC Failures After Fixes
 
 **All recent runs (after ~03:30 AM) show**:
+
 ```
 ERROR: ❌ Chain 1 FAILED after 10-13s
 ERROR: Error:                    # <-- Empty error message
 ```
 
 **Directories affected**:
+
 - `factor_stability_rois-sn_conf-age+sex+tiv_K2_run_20251020_033002` - Empty
 - `factor_stability_rois-sn_conf-age+sex+tiv_K2_run_20251020_033114` - Empty (PCA init)
 - `factor_stability_rois-sn_conf-age+sex+tiv_K2_run_20251020_033242` - Empty
@@ -51,15 +54,18 @@ ERROR: Error:                    # <-- Empty error message
 The issue is likely one of:
 
 **A. Parameter Initialization Mismatch**
+
 - Model now expects `tauZ_tilde` but MCMC tries to initialize `tauZ`
 - Model now expects `tauW_tilde_{m+1}` per view but wrong init
 - **Most likely cause** based on PCA init failing the same way
 
 **B. Shape Mismatch**
+
 - `tauZ_tilde` shape expectations don't match
 - Per-view `tauW_tilde` not being created correctly
 
 **C. NumPyro Version Issue**
+
 - Model changes incompatible with NumPyro version
 - `numpyro.deterministic()` calls causing issues
 
@@ -79,6 +85,7 @@ tauZ = numpyro.sample("tauZ", dist.HalfCauchy(tau0_Z), sample_shape=(1, K))
 ```
 
 **Test**:
+
 ```bash
 python run_experiments.py --config config_convergence.yaml \
   --experiments factor_stability \
@@ -113,6 +120,7 @@ if init_params:
 ### Step 3: Test Old Model
 
 **Verify old model still works**:
+
 ```bash
 python run_experiments.py --config config.yaml \
   --experiments factor_stability \
@@ -148,6 +156,7 @@ This isolates Fix #1 from Fix #3.
 **Goal**: Constrain τ but keep centered parameterization
 
 **Changes**:
+
 ```python
 # sparse_gfa_fixed.py
 # For Z (line ~95):
@@ -160,6 +169,7 @@ tauW = numpyro.sample(f"tauW_{m+1}", dist.HalfCauchy(tau0))
 ```
 
 **Test this first**. If it works:
+
 - τ will be constrained
 - May still have some funnel but much better than unbounded
 - R-hat should improve from 19.78 → maybe 2-5
@@ -173,6 +183,7 @@ Once Phase 1 is stable, then add non-centered parameterization.
 **For immediate testing on GPU workstation**:
 
 1. **Backup current changes**:
+
    ```bash
    cd /path/to/sgfa_qmap-pd
    git add -A
@@ -181,6 +192,7 @@ Once Phase 1 is stable, then add non-centered parameterization.
    ```
 
 2. **Create simpler version**:
+
    ```bash
    git checkout -b convergence-fixes-tau0-only
    ```
@@ -191,6 +203,7 @@ Once Phase 1 is stable, then add non-centered parameterization.
    - Keep everything else the same as sparse_gfa.py
 
 4. **Test**:
+
    ```bash
    python run_experiments.py --config config_convergence.yaml \
      --experiments factor_stability \
@@ -207,15 +220,18 @@ Once Phase 1 is stable, then add non-centered parameterization.
 ## What We Know Works
 
 ✅ **Verified correct**:
+
 - Slab regularization (Fix #2)
 - Within-view standardization (Fix #4)
 - Mathematical formulas (all 5 fixes)
 
 ❌ **Has integration issue**:
+
 - Non-centered parameterization (Fix #3) - causes MCMC failure
 - PCA initialization (Fix #5) - same failure
 
 ✅ **Not yet tested but should work**:
+
 - Data-dependent τ₀ in centered form (Fix #1 only)
 
 ## Recommended Path Forward
@@ -277,14 +293,17 @@ After:  R-hat < 1.05, τ constrained
 ## Files to Check
 
 **Model implementation**:
+
 - `models/sparse_gfa_fixed.py` - Has all fixes but causes MCMC failure
 
 **Factory/Integration**:
+
 - `models/factory.py` - Model creation
 - `models/models_integration.py` - Model selection
 - `experiments/robustness_testing.py` - MCMC execution
 
 **Last known working**:
+
 - Check git history before 03:30 AM on Oct 20
 - Directory: `factor_stability_rois-sn_conf-age+sex+tiv_K2_percW33_run_20251020_034211`
 
