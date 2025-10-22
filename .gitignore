@@ -85,9 +85,10 @@ docs/ERROR_HANDLING.md
 # Session summaries and fix documentation
 *_SUMMARY.md
 *_FIX_SUMMARY.md
+*_UPDATE.md
+*_FIXES.md
 SESSION_SUMMARY*.md
 CRITICAL_*.md
-MCMC_SUCCESS_UPDATE.md
 
 # --- allow tracked data for this project ---
 !qMAP-PD_data/
