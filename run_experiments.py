@@ -1049,6 +1049,138 @@ def main():
             else:
                 logger.info(f"   ✓ Factor loadings (W) and scores (Z) saved for all {len(chain_results_data)} chains")
 
+            # Optional: Run PD subtype discovery using consensus factors
+            # Check if pd_subtype_discovery is enabled in config
+            factor_stability_config = config.get("factor_stability", {})
+            if factor_stability_config.get("run_pd_subtype_discovery", False):
+                logger.info("=" * 80)
+                logger.info("🧬 RUNNING PD SUBTYPE DISCOVERY")
+                logger.info("   Using consensus factors from factor stability analysis")
+                logger.info("=" * 80)
+
+                try:
+                    # Get consensus factors from stability results
+                    stability_results_data = result.model_results.get("stability_results", {})
+                    W_consensus = stability_results_data.get("consensus_W")
+                    Z_consensus = stability_results_data.get("consensus_Z")
+
+                    if W_consensus is None or Z_consensus is None:
+                        logger.warning("   ⚠️  Consensus factors not available, skipping subtype discovery")
+                    else:
+                        logger.info(f"   Consensus factors: W={W_consensus.shape}, Z={Z_consensus.shape}")
+
+                        # Load clinical data for validation
+                        try:
+                            from data.qmap_pd import load_qmap_pd
+                            qmap_data = load_qmap_pd(get_data_dir(config))
+
+                            # Extract clinical measures for validation
+                            clinical_data = {}
+                            if hasattr(qmap_data, 'clinical_data') and qmap_data.clinical_data is not None:
+                                clinical_data = {
+                                    "updrs": qmap_data.clinical_data.get("updrs_total"),
+                                    "moca": qmap_data.clinical_data.get("moca_total"),
+                                    "age": qmap_data.clinical_data.get("age"),
+                                    "sex": qmap_data.clinical_data.get("sex"),
+                                    "disease_duration": qmap_data.clinical_data.get("disease_duration"),
+                                }
+                                # Remove None values
+                                clinical_data = {k: v for k, v in clinical_data.items() if v is not None}
+                                logger.info(f"   Clinical data loaded: {list(clinical_data.keys())}")
+                            else:
+                                logger.info("   No clinical data available for validation")
+                        except Exception as e:
+                            logger.warning(f"   Failed to load clinical data: {e}")
+                            clinical_data = {}
+
+                        # Initialize clinical validation experiment
+                        from experiments.clinical_validation import ClinicalValidationExperiments
+                        from experiments.framework import ExperimentConfig
+
+                        exp_config_subtype = ExperimentConfig(
+                            experiment_name="pd_subtype_discovery",
+                            description="PD subtype discovery using consensus factors from stability analysis",
+                            dataset="qmap_pd",
+                            data_dir=get_data_dir(config),
+                        )
+
+                        clinical_exp = ClinicalValidationExperiments(exp_config_subtype, logger)
+
+                        # Set output directory to factor_stability directory
+                        if unified_dir:
+                            subtype_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "03_factor_stability") / "pd_subtype_discovery"
+                        else:
+                            subtype_output_dir = get_output_dir(config) / "factor_stability" / "pd_subtype_discovery"
+                        subtype_output_dir.mkdir(parents=True, exist_ok=True)
+                        clinical_exp.base_output_dir = subtype_output_dir
+
+                        # Run subtype discovery directly on consensus factors
+                        # We'll call the subtype_analyzer methods directly instead of re-running SGFA
+                        logger.info("   Discovering PD subtypes using clustering...")
+                        subtype_results = clinical_exp.subtype_analyzer.discover_pd_subtypes(Z_consensus)
+
+                        logger.info(f"   ✓ Discovered {subtype_results.get('optimal_k', 'N/A')} subtypes")
+
+                        # Validate discovered subtypes against clinical measures
+                        if clinical_data:
+                            logger.info("   Validating discovered subtypes against clinical measures...")
+                            validation_results = clinical_exp.subtype_analyzer.validate_subtypes_clinical(
+                                subtype_results, clinical_data, Z_consensus
+                            )
+                            logger.info(f"   ✓ Clinical validation complete")
+
+                        # Analyze factor patterns for each discovered subtype
+                        logger.info("   Analyzing factor patterns for each subtype...")
+                        interpretation_results = clinical_exp.subtype_analyzer.analyze_subtype_factor_patterns(
+                            Z_consensus,
+                            subtype_results,
+                            {"W": W_consensus, "Z": Z_consensus}
+                        )
+
+                        # Generate visualizations
+                        logger.info("   Generating subtype visualizations...")
+                        from visualization.pd_subtype_visualizer import PDSubtypeVisualizer
+                        visualizer = PDSubtypeVisualizer()
+
+                        results_dict = {
+                            "subtype_discovery": subtype_results,
+                            "clinical_validation": validation_results if clinical_data else None,
+                            "factor_interpretation": interpretation_results,
+                        }
+
+                        plots = visualizer.create_pd_subtype_plots(
+                            results_dict,
+                            Z_consensus,
+                            clinical_data,
+                            subtype_output_dir
+                        )
+
+                        logger.info(f"   ✓ Generated {len(plots)} subtype visualization plots")
+
+                        # Save subtype discovery results
+                        from core.io_utils import save_json
+                        save_json(
+                            {
+                                "subtype_discovery": subtype_results,
+                                "clinical_validation": validation_results if clinical_data else None,
+                                "factor_interpretation": interpretation_results,
+                            },
+                            subtype_output_dir / "subtype_discovery_results.json",
+                            indent=2
+                        )
+
+                        logger.info(f"   ✓ Subtype discovery results saved to: {subtype_output_dir}")
+                        logger.info(f"   ✓ Optimal K: {subtype_results.get('optimal_k', 'N/A')}")
+                        if 'best_solution' in subtype_results:
+                            best_sol = subtype_results['best_solution']
+                            logger.info(f"   ✓ Silhouette score: {best_sol.get('silhouette_score', 'N/A'):.3f}")
+                            logger.info(f"   ✓ Calinski-Harabasz score: {best_sol.get('calinski_harabasz_score', 'N/A'):.2f}")
+
+                except Exception as e:
+                    logger.error(f"   ❌ PD subtype discovery failed: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+
     if "clinical_validation" in experiments_to_run:
         logger.info("🏥 4/4 Starting Clinical Validation with Neuroimaging CV...")
         exp_config = config.copy()

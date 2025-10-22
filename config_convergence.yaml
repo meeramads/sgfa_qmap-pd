@@ -125,3 +125,4 @@ factor_stability:
   target_accept_prob: 0.8
   max_tree_depth: 13
   dense_mass: false
+  run_pd_subtype_discovery: true  # Run PD subtype discovery using consensus factors
