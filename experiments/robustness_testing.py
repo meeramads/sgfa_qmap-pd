@@ -2337,8 +2337,8 @@ class RobustnessExperiments(ExperimentFramework):
             W = chain_result["W"]
             effective = count_effective_factors(
                 W,
-                sparsity_threshold=0.01,
-                min_nonzero_pct=0.05,
+                sparsity_threshold=0.001,  # Adjusted from 0.01 to capture meaningful loadings in standardized data
+                min_nonzero_pct=0.01,      # Adjusted from 0.05 to 0.01 (at least 1% of features)
             )
             effective["chain_id"] = i
             effective_factors_per_chain.append(effective)
@@ -2426,6 +2426,86 @@ class RobustnessExperiments(ExperimentFramework):
                 else:
                     self.logger.info(f"✓ Z converged: all R-hat < 1.1")
 
+            # Compute ALIGNED R-hat (accounting for factor sign/rotation ambiguity)
+            self.logger.info("=" * 80)
+            self.logger.info("COMPUTING ALIGNED R-HAT (sign/rotation-corrected)")
+            self.logger.info("=" * 80)
+
+            from analysis.factor_stability import compute_aligned_rhat
+
+            aligned_rhat_diagnostics = {}
+
+            # Get per-factor matching information from stability analysis
+            per_factor_matches = stability_results.get("per_factor_details", [])
+
+            if W_samples is not None and len(W_samples.shape) == 4 and len(per_factor_matches) > 0:
+                try:
+                    self.logger.info("Computing aligned R-hat for W (factor loadings)...")
+                    aligned_rhat_W = compute_aligned_rhat(
+                        W_samples,
+                        per_factor_matches,
+                        reference_chain=0
+                    )
+
+                    aligned_rhat_diagnostics["W_aligned"] = {
+                        "max_rhat_per_factor": aligned_rhat_W["max_rhat_per_factor"].tolist(),
+                        "mean_rhat_per_factor": aligned_rhat_W["mean_rhat_per_factor"].tolist(),
+                        "max_rhat_overall": aligned_rhat_W["max_rhat_overall"],
+                        "mean_rhat_overall": aligned_rhat_W["mean_rhat_overall"],
+                        "convergence_rate": aligned_rhat_W["convergence_rate"],
+                    }
+
+                    self.logger.info(f"Aligned R-hat for W:")
+                    self.logger.info(f"  Max R-hat overall:  {aligned_rhat_W['max_rhat_overall']:.4f}")
+                    self.logger.info(f"  Mean R-hat overall: {aligned_rhat_W['mean_rhat_overall']:.4f}")
+                    self.logger.info(f"  Convergence rate:   {aligned_rhat_W['convergence_rate']:.1%} (R-hat < 1.1)")
+
+                    if aligned_rhat_W["max_rhat_overall"] < 1.1:
+                        self.logger.info(f"✅ W CONVERGED after alignment (max R-hat < 1.1)")
+                    elif aligned_rhat_W["max_rhat_overall"] < rhat_W_max_overall:
+                        improvement = rhat_W_max_overall - aligned_rhat_W["max_rhat_overall"]
+                        self.logger.info(f"⚡ Alignment improved R-hat by {improvement:.2f}")
+                        self.logger.info(f"   Raw: {rhat_W_max_overall:.4f} → Aligned: {aligned_rhat_W['max_rhat_overall']:.4f}")
+
+                except Exception as e_align:
+                    self.logger.warning(f"Failed to compute aligned R-hat for W: {e_align}")
+
+            if Z_samples is not None and len(Z_samples.shape) == 4 and len(per_factor_matches) > 0:
+                try:
+                    self.logger.info("Computing aligned R-hat for Z (factor scores)...")
+                    aligned_rhat_Z = compute_aligned_rhat(
+                        Z_samples,
+                        per_factor_matches,
+                        reference_chain=0
+                    )
+
+                    aligned_rhat_diagnostics["Z_aligned"] = {
+                        "max_rhat_per_factor": aligned_rhat_Z["max_rhat_per_factor"].tolist(),
+                        "mean_rhat_per_factor": aligned_rhat_Z["mean_rhat_per_factor"].tolist(),
+                        "max_rhat_overall": aligned_rhat_Z["max_rhat_overall"],
+                        "mean_rhat_overall": aligned_rhat_Z["mean_rhat_overall"],
+                        "convergence_rate": aligned_rhat_Z["convergence_rate"],
+                    }
+
+                    self.logger.info(f"Aligned R-hat for Z:")
+                    self.logger.info(f"  Max R-hat overall:  {aligned_rhat_Z['max_rhat_overall']:.4f}")
+                    self.logger.info(f"  Mean R-hat overall: {aligned_rhat_Z['mean_rhat_overall']:.4f}")
+                    self.logger.info(f"  Convergence rate:   {aligned_rhat_Z['convergence_rate']:.1%} (R-hat < 1.1)")
+
+                    if aligned_rhat_Z["max_rhat_overall"] < 1.1:
+                        self.logger.info(f"✅ Z CONVERGED after alignment (max R-hat < 1.1)")
+                    elif aligned_rhat_Z["max_rhat_overall"] < rhat_Z_max_overall:
+                        improvement = rhat_Z_max_overall - aligned_rhat_Z["max_rhat_overall"]
+                        self.logger.info(f"⚡ Alignment improved R-hat by {improvement:.2f}")
+                        self.logger.info(f"   Raw: {rhat_Z_max_overall:.4f} → Aligned: {aligned_rhat_Z['max_rhat_overall']:.4f}")
+
+                except Exception as e_align:
+                    self.logger.warning(f"Failed to compute aligned R-hat for Z: {e_align}")
+
+            # Add aligned diagnostics to rhat_diagnostics
+            if aligned_rhat_diagnostics:
+                rhat_diagnostics.update(aligned_rhat_diagnostics)
+
         except Exception as e:
             self.logger.warning(f"Failed to compute R-hat diagnostics: {e}")
             import traceback
@@ -2497,16 +2577,29 @@ class RobustnessExperiments(ExperimentFramework):
 
         # Add R-hat summary to final output
         if rhat_diagnostics:
+            self.logger.info(f"  Convergence Diagnostics:")
             if "W" in rhat_diagnostics:
                 rhat_W_max = rhat_diagnostics["W"]["max_rhat_overall"]
                 rhat_W_mean = rhat_diagnostics["W"]["mean_rhat_overall"]
                 W_converged = "✓" if rhat_W_max < 1.1 else "⚠️"
-                self.logger.info(f"  - R-hat (W): max={rhat_W_max:.4f}, mean={rhat_W_mean:.4f} {W_converged}")
+                self.logger.info(f"    - R-hat (W, raw): max={rhat_W_max:.4f}, mean={rhat_W_mean:.4f} {W_converged}")
+            if "W_aligned" in rhat_diagnostics:
+                rhat_W_aligned_max = rhat_diagnostics["W_aligned"]["max_rhat_overall"]
+                rhat_W_aligned_mean = rhat_diagnostics["W_aligned"]["mean_rhat_overall"]
+                W_aligned_converged = "✓" if rhat_W_aligned_max < 1.1 else "⚠️"
+                conv_rate = rhat_diagnostics["W_aligned"]["convergence_rate"]
+                self.logger.info(f"    - R-hat (W, aligned): max={rhat_W_aligned_max:.4f}, mean={rhat_W_aligned_mean:.4f} {W_aligned_converged} ({100*conv_rate:.1f}% < 1.1)")
             if "Z" in rhat_diagnostics:
                 rhat_Z_max = rhat_diagnostics["Z"]["max_rhat_overall"]
                 rhat_Z_mean = rhat_diagnostics["Z"]["mean_rhat_overall"]
                 Z_converged = "✓" if rhat_Z_max < 1.1 else "⚠️"
-                self.logger.info(f"  - R-hat (Z): max={rhat_Z_max:.4f}, mean={rhat_Z_mean:.4f} {Z_converged}")
+                self.logger.info(f"    - R-hat (Z, raw): max={rhat_Z_max:.4f}, mean={rhat_Z_mean:.4f} {Z_converged}")
+            if "Z_aligned" in rhat_diagnostics:
+                rhat_Z_aligned_max = rhat_diagnostics["Z_aligned"]["max_rhat_overall"]
+                rhat_Z_aligned_mean = rhat_diagnostics["Z_aligned"]["mean_rhat_overall"]
+                Z_aligned_converged = "✓" if rhat_Z_aligned_max < 1.1 else "⚠️"
+                conv_rate = rhat_diagnostics["Z_aligned"]["convergence_rate"]
+                self.logger.info(f"    - R-hat (Z, aligned): max={rhat_Z_aligned_max:.4f}, mean={rhat_Z_aligned_mean:.4f} {Z_aligned_converged} ({100*conv_rate:.1f}% < 1.1)")
 
         self.logger.info(f"  - {len(plots)} plots generated")
 
