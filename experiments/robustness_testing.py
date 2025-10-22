@@ -1107,10 +1107,10 @@ class RobustnessExperiments(ExperimentFramework):
                         init_params = None
 
                 # Run inference
-                self.logger.info("=" * 80)
-                self.logger.info("STARTING MCMC SAMPLING")
-                self.logger.info("=" * 80)
-                self.logger.info(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
+                self.logger.debug("=" * 80)
+                self.logger.debug("STARTING MCMC SAMPLING")
+                self.logger.debug("=" * 80)
+                self.logger.debug(f"This will run {num_warmup} warmup + {num_samples} sampling iterations")
                 start_time = time.time()
 
                 try:
@@ -1120,12 +1120,12 @@ class RobustnessExperiments(ExperimentFramework):
                         rng_key, X_list, init_params=init_params, extra_fields=("potential_energy",)
                     )
                     elapsed = time.time() - start_time
-                    self.logger.info(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+                    self.logger.debug(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
                     # Clear JAX cache immediately after MCMC to free GPU memory
                     import jax
                     jax.clear_caches()
-                    self.logger.info("🧹 Cleared JAX caches after MCMC completion")
+                    self.logger.debug("🧹 Cleared JAX caches after MCMC completion")
 
                 except Exception as e:
                     elapsed = time.time() - start_time
@@ -1137,16 +1137,16 @@ class RobustnessExperiments(ExperimentFramework):
                     # Clear JAX cache even on failure to prevent memory leaks
                     import jax
                     jax.clear_caches()
-                    self.logger.info("🧹 Cleared JAX caches after MCMC failure")
+                    self.logger.debug("🧹 Cleared JAX caches after MCMC failure")
                     raise
 
                 # Get samples - group by chain if running multiple chains
                 if num_chains > 1:
                     samples = mcmc.get_samples(group_by_chain=True)
-                    self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
+                    self.logger.debug(f"Got samples grouped by chain: {num_chains} chains")
                 else:
                     samples = mcmc.get_samples()
-                    self.logger.info(f"Got samples from single chain")
+                    self.logger.debug(f"Got samples from single chain")
 
                 # Calculate log likelihood
                 extra_fields = mcmc.get_extra_fields()

@@ -43,19 +43,19 @@ def compute_pca_initialization(
         'variance_explained': float - Actual variance explained
         'n_components': int - Number of components used
     """
-    logger.info("🔧 Computing PCA initialization...")
+    logger.debug("🔧 Computing PCA initialization...")
     n_samples = X_list[0].shape[0]
     n_views = len(X_list)
-    logger.info(f"  Input: {n_views} views, N={n_samples} samples, K={K} factors")
-    logger.info(f"  View shapes: {[X.shape for X in X_list]}")
+    logger.debug(f"  Input: {n_views} views, N={n_samples} samples, K={K} factors")
+    logger.debug(f"  View shapes: {[X.shape for X in X_list]}")
 
     # Concatenate all views
     X_concat = np.concatenate(X_list, axis=1)
-    logger.info(f"  Concatenated data shape: {X_concat.shape}")
+    logger.debug(f"  Concatenated data shape: {X_concat.shape}")
 
-    logger.info(f"Computing PCA initialization for K={K} factors")
-    logger.info(f"  Data shape: {X_concat.shape} ({n_samples} samples, {X_concat.shape[1]} total features)")
-    logger.info(f"  Number of views: {n_views}")
+    logger.debug(f"Computing PCA initialization for K={K} factors")
+    logger.debug(f"  Data shape: {X_concat.shape} ({n_samples} samples, {X_concat.shape[1]} total features)")
+    logger.debug(f"  Number of views: {n_views}")
 
     # Fit PCA on concatenated data
     # Use min(K, n_samples-1, n_features) components
@@ -91,11 +91,11 @@ def compute_pca_initialization(
     # Compute variance explained
     var_explained = np.sum(pca.explained_variance_ratio_[:min(K, n_components)])
 
-    logger.info(f"  PCA initialization computed:")
-    logger.info(f"    Z shape: {Z_init.shape}")
-    logger.info(f"    W shape: {W_init.shape}")
-    logger.info(f"    Variance explained: {var_explained:.2%}")
-    logger.info(f"    Per-component variance: {pca.explained_variance_ratio_[:min(K, n_components)]}")
+    logger.debug(f"  PCA initialization computed:")
+    logger.debug(f"    Z shape: {Z_init.shape}")
+    logger.debug(f"    W shape: {W_init.shape}")
+    logger.info(f"  PCA init: K={K}, variance explained={var_explained:.2%}")
+    logger.debug(f"    Per-component variance: {pca.explained_variance_ratio_[:min(K, n_components)]}")
 
     return {
         'Z': Z_init,
@@ -127,13 +127,13 @@ def create_numpyro_init_params(
     -------
     Dict mapping parameter names to JAX arrays for initialization
     """
-    logger.info("🔧 Creating NumPyro initialization parameters...")
-    logger.info(f"  Model type: {model_type}")
-    logger.info(f"  K={K}, n_views={len(X_list)}")
+    logger.debug("🔧 Creating NumPyro initialization parameters...")
+    logger.debug(f"  Model type: {model_type}")
+    logger.debug(f"  K={K}, n_views={len(X_list)}")
 
     # Compute PCA initialization
     pca_init = compute_pca_initialization(X_list, K)
-    logger.info("  ✓ PCA initialization computed")
+    logger.debug("  ✓ PCA initialization computed")
 
     # Convert to JAX arrays
     init_params = {}
@@ -172,21 +172,21 @@ def create_numpyro_init_params(
             init_params[f'tauW{m+1}'] = jnp.array(tau0_W_approx)  # Convert to JAX scalar
 
         # Initialize local scales conservatively
-        logger.info(f"  Initializing lmbZ: shape ({N}, {K})")
+        logger.debug(f"  Initializing lmbZ: shape ({N}, {K})")
         init_params['lmbZ'] = jnp.ones((N, K)) * 0.5
-        logger.info(f"  Initializing lmbW: shape ({D_total}, {K})")
+        logger.debug(f"  Initializing lmbW: shape ({D_total}, {K})")
         init_params['lmbW'] = jnp.ones((D_total, K)) * 0.5
 
         # Initialize slab parameters near expected values
         # c2_tilde ~ IG(2,2), so E[c2_tilde] = 2/(2-1) = 2
         # With slab_scale=2, E[c2] = 4 * 2 = 8, so c2_tilde ≈ 2
-        logger.info(f"  Initializing cZ_tilde: shape (1, {K})")
+        logger.debug(f"  Initializing cZ_tilde: shape (1, {K})")
         init_params['cZ_tilde'] = jnp.ones((1, K)) * 2.0
-        logger.info(f"  Initializing cW_tilde: shape ({len(X_list)}, {K})")
+        logger.debug(f"  Initializing cW_tilde: shape ({len(X_list)}, {K})")
         init_params['cW_tilde'] = jnp.ones((len(X_list), K)) * 2.0
 
     else:
-        logger.info("  Using sparse_gfa parameterization (centered)")
+        logger.debug("  Using sparse_gfa parameterization (centered)")
         # For sparse_gfa (centered parameterization)
         # Can directly initialize Z and W from PCA
         # Note: The model samples Z and W from Normal(0,1) then transforms them
@@ -220,14 +220,14 @@ def create_numpyro_init_params(
         init_params['cW'] = jnp.ones((len(X_list), K)) * 2.0
 
     # Initialize noise parameters (sigma)
-    logger.info(f"  Initializing sigma: shape (1, {len(X_list)})")
+    logger.debug(f"  Initializing sigma: shape (1, {len(X_list)})")
     init_params['sigma'] = jnp.ones((1, len(X_list)))
 
-    logger.info(f"✓ Created NumPyro init params for {model_type}")
-    logger.info(f"  Total parameters initialized: {len(init_params)}")
-    logger.info(f"  Parameter names: {list(init_params.keys())}")
+    logger.debug(f"✓ Created NumPyro init params for {model_type}")
+    logger.debug(f"  Total parameters initialized: {len(init_params)}")
+    logger.debug(f"  Parameter names: {list(init_params.keys())}")
     for key, val in init_params.items():
-        logger.info(f"    {key}: shape={val.shape}, dtype={val.dtype}")
+        logger.debug(f"    {key}: shape={val.shape}, dtype={val.dtype}")
 
     return init_params
 
