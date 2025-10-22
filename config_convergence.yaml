@@ -68,14 +68,6 @@ preprocessing:
   drop_confounds_from_clinical: true
   qc_outlier_threshold: 3.0
 
-# Cross-Validation Configuration
-cross_validation:
-  n_folds: 10
-  n_repeats: 3
-  stratified: true
-  group_aware: false
-  random_seed: 42
-
 # Monitoring Configuration
 monitoring:
   checkpoint_dir: "./results/checkpoints"
