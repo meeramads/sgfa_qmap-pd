@@ -768,7 +768,7 @@ class RobustnessExperiments(ExperimentFramework):
             if verbose:
                 self.logger.info(f"NUTS kernel parameters: target_accept_prob={target_accept_prob}, max_tree_depth={max_tree_depth}, dense_mass={dense_mass}")
                 if not dense_mass:
-                    self.logger.info("   Using diagonal mass matrix for ~5GB memory savings per chain")
+                    self.logger.debug("   Using diagonal mass matrix for ~5GB memory savings per chain")
 
             # Get chain method from args (parallel, sequential, or vectorized)
             chain_method = args.get("chain_method", "sequential")
@@ -781,7 +781,7 @@ class RobustnessExperiments(ExperimentFramework):
             if num_chains > 1:
                 self.logger.warning("⚠️  Running chains in explicit sequential mode with JAX cache clearing to prevent OOM")
                 self.logger.warning("    (NumPyro's default chain execution can cause GPU memory accumulation)")
-                self.logger.info("    (JAX memory preallocation disabled at function entry)")
+                self.logger.debug("    (JAX memory preallocation disabled at function entry)")
 
                 all_samples_W = []
                 all_samples_Z = []
@@ -1642,7 +1642,7 @@ class RobustnessExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["data_perturbation_robustness"] = fig
-            self.logger.info("   ✅ Data perturbation robustness plot created")
+            self.logger.debug("   ✅ Data perturbation robustness plot created")
 
         except Exception as e:
             self.logger.warning(
@@ -1777,7 +1777,7 @@ class RobustnessExperiments(ExperimentFramework):
         plots = {}
 
         try:
-            self.logger.info("   Creating 4-panel computational robustness plot...")
+            self.logger.debug("   Creating 4-panel computational robustness plot...")
             fig, axes = plt.subplots(2, 2, figsize=(15, 10))
             fig.suptitle("Computational Robustness Analysis", fontsize=16)
 
@@ -1856,7 +1856,7 @@ class RobustnessExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["computational_robustness"] = fig
-            self.logger.info("   ✅ Computational robustness plot created")
+            self.logger.debug("   ✅ Computational robustness plot created")
 
         except Exception as e:
             self.logger.warning(
@@ -2909,7 +2909,7 @@ class RobustnessExperiments(ExperimentFramework):
                 plt.tight_layout()
 
                 plots["factor_stability_heatmap"] = fig
-                self.logger.info("   ✅ Factor stability heatmap created")
+                self.logger.debug("   ✅ Factor stability heatmap created")
 
         except Exception as e:
             self.logger.warning(f"Failed to create factor stability heatmap: {str(e)}")
@@ -2994,7 +2994,7 @@ class RobustnessExperiments(ExperimentFramework):
                         view_names=view_names,
                     )
                     plots["mcmc_trace_diagnostics"] = fig_trace
-                    self.logger.info("   ✅ MCMC trace diagnostics created")
+                    self.logger.debug("   ✅ MCMC trace diagnostics created")
 
                     # Create parameter distribution plots
                     # Reuse experiment_output_dir from trace diagnostics above
@@ -3011,7 +3011,7 @@ class RobustnessExperiments(ExperimentFramework):
                         view_names=view_names,
                     )
                     plots["mcmc_parameter_distributions"] = fig_dist
-                    self.logger.info("   ✅ Parameter distribution plots created")
+                    self.logger.debug("   ✅ Parameter distribution plots created")
 
                     # Create hyperparameter posterior plots (tauW, tauZ)
                     if len(samples_by_chain) > 0:
@@ -3037,7 +3037,7 @@ class RobustnessExperiments(ExperimentFramework):
                             view_names=view_names,
                         )
                         plots["hyperparameter_posteriors"] = fig_hyper_post
-                        self.logger.info("   ✅ Hyperparameter posterior plots created")
+                        self.logger.debug("   ✅ Hyperparameter posterior plots created")
 
                         # Create hyperparameter trace plots
                         fig_hyper_trace = plot_hyperparameter_traces(
@@ -3050,7 +3050,7 @@ class RobustnessExperiments(ExperimentFramework):
                             output_dir=str(individual_plots_dir),
                         )
                         plots["hyperparameter_traces"] = fig_hyper_trace
-                        self.logger.info("   ✅ Hyperparameter trace plots created")
+                        self.logger.debug("   ✅ Hyperparameter trace plots created")
 
                     # Create factor variance profile analysis (ARD shrinkage assessment)
                     try:
@@ -3100,7 +3100,7 @@ class RobustnessExperiments(ExperimentFramework):
                                 self.logger.warning(f"      ⚠️  Mismatch between stability ({n_stable_factors}) and variance ({n_active})")
                                 self.logger.warning(f"         → May indicate measurement artifact or convergence issues")
 
-                        self.logger.info("   ✅ Factor variance profile analysis created")
+                        self.logger.debug("   ✅ Factor variance profile analysis created")
 
                     except Exception as e:
                         self.logger.warning(f"Failed to create variance profile: {str(e)}")

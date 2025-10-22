@@ -278,7 +278,7 @@ class DataValidationExperiments(ExperimentFramework):
             if use_pca:
                 # Use apply_preprocessing_to_pipeline for full preprocessing including PCA
                 from data.preprocessing_integration import apply_preprocessing_to_pipeline
-                logger.info("   Using apply_preprocessing_to_pipeline for PCA support...")
+                logger.debug("   Using apply_preprocessing_to_pipeline for PCA support...")
 
                 # Use experiment-specific output_dir if available, otherwise fall back to general output_dir
                 preprocessing_output_dir = getattr(self, 'base_output_dir', None) or get_output_dir(config)
@@ -1641,7 +1641,7 @@ class DataValidationExperiments(ExperimentFramework):
 
             # Quality metrics summary plot
             if "quality_metrics" in results:
-                logger.info("   Creating quality metrics summary plot...")
+                logger.debug("   Creating quality metrics summary plot...")
 
                 # Create figure explicitly to ensure proper reference
                 fig_quality = plt.figure(figsize=(10, 6))
@@ -1765,14 +1765,14 @@ class DataValidationExperiments(ExperimentFramework):
             }
 
             # Focus on preprocessing visualizations
-            logger.info("   Creating preprocessing quality visualizations...")
+            logger.debug("   Creating preprocessing quality visualizations...")
             viz_manager.preprocessing_viz.create_plots(
                 data["preprocessing"], viz_manager.plot_dir
             )
-            logger.info("   ✅ Preprocessing visualizations created")
+            logger.debug("   ✅ Preprocessing visualizations created")
 
             # Add covariance structure analysis
-            logger.info("   Creating covariance structure analysis...")
+            logger.debug("   Creating covariance structure analysis...")
             try:
                 from visualization.covariance_plots import create_covariance_report
 
@@ -1784,12 +1784,12 @@ class DataValidationExperiments(ExperimentFramework):
                 )
                 # Don't add cov_report to advanced_plots - it's a dict, not a Figure
                 # The function already saves its plots to disk
-                logger.info("   ✅ Covariance analysis completed")
+                logger.debug("   ✅ Covariance analysis completed")
             except Exception as e:
                 logger.warning(f"   ⚠️  Failed to create covariance analysis: {e}")
 
             # Extract the generated plots and convert to matplotlib figures
-            logger.info("   Loading and converting generated plots to figures...")
+            logger.debug("   Loading and converting generated plots to figures...")
             if hasattr(viz_manager, "plot_dir") and viz_manager.plot_dir.exists():
                 plot_files = list(viz_manager.plot_dir.glob("**/*.png"))
                 logger.info(f"   Found {len(plot_files)} plot files to convert")
@@ -2939,7 +2939,7 @@ class DataValidationExperiments(ExperimentFramework):
         if flagged_subjects:
             self._save_flagged_subjects_table(flagged_subjects, view_names, threshold_pct, output_path)
         else:
-            logger.info("      No subjects flagged (all below threshold)")
+            logger.debug("      No subjects flagged (all below threshold)")
 
         return flagged_subjects
 

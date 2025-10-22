@@ -442,7 +442,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
             if not sgfa_results.get("success", False):
                 return plots
 
-            self.logger.info("   Creating 4-panel clinical validation plot...")
+            self.logger.debug("   Creating 4-panel clinical validation plot...")
             fig, axes = plt.subplots(2, 2, figsize=(15, 12))
             fig.suptitle("Neuroimaging Clinical Validation Results", fontsize=16)
 
@@ -511,7 +511,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
 
             plt.tight_layout()
             plots["neuroimaging_clinical_validation"] = fig
-            self.logger.info("   ✅ Neuroimaging clinical validation plot created")
+            self.logger.debug("   ✅ Neuroimaging clinical validation plot created")
 
         except Exception as e:
             self.logger.warning(f"Failed to create neuroimaging clinical validation plots: {str(e)}")
@@ -532,7 +532,7 @@ class ClinicalValidationExperiments(ExperimentFramework):
                     break
 
             if W_for_viz is not None:
-                self.logger.info("   Creating clinical factor loadings visualization...")
+                self.logger.debug("   Creating clinical factor loadings visualization...")
                 from visualization.factor_plots import FactorVisualizer
 
                 # Prepare data dict for visualizer
@@ -562,13 +562,13 @@ class ClinicalValidationExperiments(ExperimentFramework):
                     )
                     plots["clinical_factor_loadings"] = plt.gcf()
 
-                    self.logger.info("   ✅ Clinical factor loadings plot created")
+                    self.logger.debug("   ✅ Clinical factor loadings plot created")
                     self.logger.info(f"   Views used: {view_names_for_viz}")
                 else:
                     self.logger.info(f"   ⚠️  X_list or view_names not available for clinical factor loadings plot")
                     self.logger.info(f"      X_list available: {X_list_for_viz is not None}, view_names available: {view_names_for_viz is not None}")
             else:
-                self.logger.info("   ⚠️  No successful fold with W matrix found for clinical factor loadings plot")
+                self.logger.debug("   ⚠️  No successful fold with W matrix found for clinical factor loadings plot")
 
         except Exception as e:
             self.logger.warning(f"Failed to create clinical factor loadings plot: {str(e)}")
@@ -812,9 +812,9 @@ class ClinicalValidationExperiments(ExperimentFramework):
                     self._save_laterality_validation_csv(laterality_results, roi_name)
 
                 else:
-                    self.logger.info("   ⚠️  No clinical features found for laterality validation")
+                    self.logger.debug("   ⚠️  No clinical features found for laterality validation")
             else:
-                self.logger.info("   ⚠️  No factor loadings (W) available for laterality validation")
+                self.logger.debug("   ⚠️  No factor loadings (W) available for laterality validation")
         except Exception as e:
             self.logger.warning(f"Laterality validation failed: {e}")
             results["laterality_validation"] = None
