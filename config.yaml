@@ -259,6 +259,9 @@ factor_stability:
   max_tree_depth: 13                    # Maximum tree depth for NUTS sampler (10-15, default: 13)
   dense_mass: false                     # Use diagonal mass matrix (false) for memory efficiency vs dense (true) for better adaptation
 
+  # PD Subtype Discovery
+  run_pd_subtype_discovery: false       # Run unsupervised PD subtype discovery using consensus factors (enable for clinical interpretation)
+
 # =============================================================================
 # CONFIGURATION EXAMPLES FOR DIFFERENT USE CASES
 # =============================================================================
