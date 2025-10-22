@@ -197,24 +197,24 @@ class SparseGFAFixedModel(BaseGFAModel):
         FIX #1: Data-dependent global scale τ₀
         FIX #2: Proper slab regularization with correct InverseGamma
         """
-        logger.debug("    🟢 _sample_loadings starting")
+        logger.info("    🟢 _sample_loadings starting")
 
         # FIX #3: NON-CENTERED - Sample raw standard normals
-        logger.debug("      Sampling W_raw ~ Normal(0,1)...")
+        logger.info("      Sampling W_raw ~ Normal(0,1)...")
         z_raw = numpyro.sample("W_raw", dist.Normal(0, 1), sample_shape=(D, K))
-        logger.debug(f"      ✓ W_raw shape: {z_raw.shape}")
+        logger.info(f"      ✓ W_raw shape: {z_raw.shape}")
 
         # Horseshoe local scales (keep centered as simpler and works with regularization)
-        logger.debug("      Sampling lmbW ~ HalfCauchy(1.0)...")
+        logger.info("      Sampling lmbW ~ HalfCauchy(1.0)...")
         lmbW = numpyro.sample(
             "lmbW", dist.HalfCauchy(1.0), sample_shape=(D, K)
         )
-        logger.debug(f"      ✓ lmbW shape: {lmbW.shape}")
+        logger.info(f"      ✓ lmbW shape: {lmbW.shape}")
 
         # FIX #2: PROPER SLAB REGULARIZATION
         # Correct InverseGamma parameterization: IG(α=2, β=2)
         # This gives E[c²] ≈ slab_scale² and prevents exploration of extreme values
-        logger.debug("      Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...")
+        logger.info("      Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...")
         # Use M (actual number of views) not self.num_sources (config value)
         cW_tilde = numpyro.sample(
             "cW_tilde",
@@ -224,7 +224,7 @@ class SparseGFAFixedModel(BaseGFAModel):
         # Scale to get proper distribution
         cW_squared = (self.hypers["slab_scale"] ** 2) * cW_tilde
         cW = jnp.sqrt(cW_squared)
-        logger.debug(f"      ✓ cW computed (slab_scale={self.hypers['slab_scale']}), shape: {cW.shape}")
+        logger.info(f"      ✓ cW computed (slab_scale={self.hypers['slab_scale']}), shape: {cW.shape}")
 
         # Log for diagnostics
         numpyro.deterministic("cW_squared", cW_squared)
@@ -233,7 +233,7 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         # Calculate expected sparsity per source using static dimensions
         pW_static = [max(1, min(int((percW / 100.0) * dim), dim - 1)) for dim in Dm_static]
-        logger.debug(f"      Expected sparsity per view (pW_static): {pW_static}")
+        logger.info(f"      Expected sparsity per view (pW_static): {pW_static}")
 
         # Initialize W (will be constructed deterministically)
         W = jnp.zeros((D, K))
@@ -244,11 +244,11 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         # Apply sparsity to each source
         d = 0
-        logger.debug(f"      Processing {M} views...")
+        logger.info(f"      Processing {M} views...")
         for m in range(M):
             pW_m = pW_static[m]
             Dm_m = Dm_static[m]
-            logger.debug(f"        View {m+1}: Dm={Dm_m}, pW={pW_m}, percW={percW}%")
+            logger.info(f"        View {m+1}: Dm={Dm_m}, pW={pW_m}, percW={percW}%")
 
             # FIX #1: DATA-DEPENDENT GLOBAL SCALE τ₀
             # Using Piironen & Vehtari (2017) formula:
@@ -256,12 +256,12 @@ class SparseGFAFixedModel(BaseGFAModel):
             D0_per_factor = pW_m  # Expected non-zero loadings per factor
             sigma_std = 1.0  # After standardization
             tau0_W_scale = (D0_per_factor / (Dm_m - D0_per_factor)) * (sigma_std / jnp.sqrt(N))
-            logger.debug(f"        Calculated τ₀_W_view{m+1} scale = {tau0_W_scale}")
+            logger.info(f"        Calculated τ₀_W_view{m+1} scale = {tau0_W_scale}")
 
             # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
             # Following Piironen & Vehtari (2017) recommendation
             # NOT tau0 * HalfCauchy(1) - that allows tau to explore extreme values!
-            logger.debug(f"        Sampling tauW{m+1} ~ HalfStudentT(df=2, scale={tau0_W_scale})...")
+            logger.info(f"        Sampling tauW{m+1} ~ HalfStudentT(df=2, scale={tau0_W_scale})...")
             tauW = numpyro.sample(
                 f"tauW{m + 1}",
                 dist.LeftTruncatedDistribution(
@@ -269,7 +269,7 @@ class SparseGFAFixedModel(BaseGFAModel):
                     low=0
                 )
             )
-            logger.debug(f"        ✓ tauW{m+1} sampled directly")
+            logger.info(f"        ✓ tauW{m+1} sampled directly")
 
             # Log the calculated tau0_W scale for verification
             numpyro.deterministic(f"tau0_view_{m+1}", tau0_W_scale)

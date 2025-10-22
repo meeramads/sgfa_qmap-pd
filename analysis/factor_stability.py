@@ -365,8 +365,8 @@ def _compute_consensus_scores(
 
 def count_effective_factors(
     W: np.ndarray,
-    sparsity_threshold: float = 0.01,
-    min_nonzero_pct: float = 0.05,
+    sparsity_threshold: float = 0.001,
+    min_nonzero_pct: float = 0.01,
 ) -> Dict:
     """Count how many factors have meaningful (non-zero) loadings.
 
@@ -382,10 +382,11 @@ def count_effective_factors(
     ----------
     W : np.ndarray
         Factor loading matrix, shape (D, K) or list of (D_m, K)
-    sparsity_threshold : float, default=0.01
-        Minimum loading magnitude to be considered non-zero
-    min_nonzero_pct : float, default=0.05
-        Minimum fraction of features with non-zero loadings
+    sparsity_threshold : float, default=0.001
+        Minimum loading magnitude to be considered non-zero.
+        Adjusted for standardized data (0.001 = 0.1% of a standard deviation).
+    min_nonzero_pct : float, default=0.01
+        Minimum fraction of features with non-zero loadings (at least 1% of features).
 
     Returns
     -------
@@ -398,7 +399,7 @@ def count_effective_factors(
     Examples
     --------
     >>> W = np.random.randn(100, 20)
-    >>> effective = count_effective_factors(W, sparsity_threshold=0.01)
+    >>> effective = count_effective_factors(W, sparsity_threshold=0.001)
     >>> print(f"{effective['n_effective']}/{W.shape[1]} factors are effective")
     """
     # Handle multi-view case
@@ -466,6 +467,153 @@ def count_effective_factors(
     logger.info(f"  - Effective factor indices: {effective_factors}")
 
     return result
+
+
+def compute_aligned_rhat(
+    samples_per_chain: np.ndarray,
+    per_factor_matches: List[Dict],
+    reference_chain: int = 0,
+) -> Dict:
+    """Compute R-hat after aligning chains to account for sign/rotation ambiguity.
+
+    Factor models have inherent sign and rotational indeterminacy, meaning chains
+    may converge to equivalent solutions that differ only in sign flips or factor
+    ordering. Standard R-hat diagnostics don't account for this and will incorrectly
+    indicate poor convergence. This function aligns factors across chains before
+    computing R-hat.
+
+    Parameters
+    ----------
+    samples_per_chain : np.ndarray
+        MCMC samples with shape (n_chains, n_samples, D, K) for W
+        or (n_chains, n_samples, N, K) for Z
+    per_factor_matches : List[Dict]
+        Factor matching information from assess_factor_stability_cosine,
+        containing "matched_in_chains" for each factor
+    reference_chain : int, default=0
+        Which chain to use as reference for alignment
+
+    Returns
+    -------
+    Dict
+        - max_rhat_per_factor: np.ndarray of shape (K,) with max R-hat per factor
+        - mean_rhat_per_factor: np.ndarray of shape (K,) with mean R-hat per factor
+        - max_rhat_overall: float, maximum R-hat across all parameters
+        - mean_rhat_overall: float, mean R-hat across all parameters
+        - n_aligned: int, number of chains successfully aligned
+
+    Examples
+    --------
+    >>> # W_samples has shape (4 chains, 10000 samples, 1808 features, 5 factors)
+    >>> aligned_rhat = compute_aligned_rhat(W_samples, per_factor_matches)
+    >>> print(f"Aligned max R-hat: {aligned_rhat['max_rhat_overall']:.4f}")
+    """
+    from numpyro.diagnostics import split_gelman_rubin
+
+    n_chains, n_samples, dim1, K = samples_per_chain.shape
+
+    logger.info("Computing aligned R-hat (accounting for factor sign/rotation ambiguity)")
+    logger.info(f"  Input shape: {samples_per_chain.shape}")
+    logger.info(f"  Reference chain: {reference_chain}")
+
+    # Create aligned samples array
+    aligned_samples = np.zeros_like(samples_per_chain)
+
+    # Reference chain stays as is
+    aligned_samples[reference_chain] = samples_per_chain[reference_chain]
+    n_aligned = 1
+
+    # Align each other chain to reference
+    for chain_idx in range(n_chains):
+        if chain_idx == reference_chain:
+            continue
+
+        # Get samples from this chain
+        chain_samples = samples_per_chain[chain_idx]  # (n_samples, dim1, K)
+
+        # Create aligned version by reordering and flipping factors
+        aligned_chain = np.zeros_like(chain_samples)
+
+        # For each factor in reference chain, find its match in this chain
+        for ref_k in range(K):
+            match_info = per_factor_matches[ref_k]
+            matched_indices = match_info["matched_in_chains"]
+
+            # Get which factor index in this chain matches ref_k
+            if chain_idx < len(matched_indices):
+                matched_k = matched_indices[chain_idx]
+            else:
+                matched_k = None
+
+            if matched_k is not None:
+                # Copy matched factor to aligned position
+                factor_samples = chain_samples[:, :, matched_k]  # (n_samples, dim1)
+
+                # Check if we need to flip sign
+                # Compare sign of mean loadings/scores to reference
+                ref_mean = np.mean(aligned_samples[reference_chain, :, :, ref_k], axis=0)  # (dim1,)
+                chain_mean = np.mean(factor_samples, axis=0)  # (dim1,)
+
+                # Cosine similarity to detect sign flip
+                from scipy.spatial.distance import cosine
+                similarity = 1 - cosine(ref_mean, chain_mean)
+
+                # If similarity is negative, flip the sign
+                if similarity < 0:
+                    factor_samples = -factor_samples
+                    logger.debug(f"  Chain {chain_idx}, factor {matched_k} → ref factor {ref_k} (flipped)")
+                else:
+                    logger.debug(f"  Chain {chain_idx}, factor {matched_k} → ref factor {ref_k}")
+
+                aligned_chain[:, :, ref_k] = factor_samples
+            else:
+                # No match found - use zeros (this factor not stable across chains)
+                logger.warning(
+                    f"  Chain {chain_idx}: No match for reference factor {ref_k}, "
+                    "using zeros (factor not stable)"
+                )
+                aligned_chain[:, :, ref_k] = 0.0
+
+        aligned_samples[chain_idx] = aligned_chain
+        n_aligned += 1
+
+    logger.info(f"  Aligned {n_aligned}/{n_chains} chains to reference")
+
+    # Now compute R-hat on aligned samples
+    # Reshape to (n_chains, n_samples, -1) for split_gelman_rubin
+    aligned_flat = aligned_samples.reshape(n_chains, n_samples, -1)
+
+    logger.info(f"  Computing split Gelman-Rubin on aligned samples...")
+    rhat_values = split_gelman_rubin(aligned_flat)  # Shape: (dim1 * K,)
+
+    # Reshape back to (dim1, K) for per-factor analysis
+    rhat_matrix = rhat_values.reshape(dim1, K)
+
+    # Compute per-factor statistics
+    max_rhat_per_factor = np.max(rhat_matrix, axis=0)  # Max R-hat across features for each factor
+    mean_rhat_per_factor = np.mean(rhat_matrix, axis=0)  # Mean R-hat across features for each factor
+
+    max_rhat_overall = float(np.max(rhat_values))
+    mean_rhat_overall = float(np.mean(rhat_values))
+
+    logger.info(f"  Aligned R-hat results:")
+    logger.info(f"    Max R-hat overall:  {max_rhat_overall:.4f}")
+    logger.info(f"    Mean R-hat overall: {mean_rhat_overall:.4f}")
+
+    # Count how many parameters have good convergence
+    n_converged = np.sum(rhat_values < 1.1)
+    n_total = len(rhat_values)
+    convergence_pct = 100 * n_converged / n_total
+    logger.info(f"    Parameters with R-hat < 1.1: {n_converged}/{n_total} ({convergence_pct:.1f}%)")
+
+    return {
+        "max_rhat_per_factor": max_rhat_per_factor,
+        "mean_rhat_per_factor": mean_rhat_per_factor,
+        "max_rhat_overall": max_rhat_overall,
+        "mean_rhat_overall": mean_rhat_overall,
+        "n_aligned": n_aligned,
+        "convergence_rate": convergence_pct / 100,  # Fraction with R-hat < 1.1
+    }
 
 
 def create_stability_summary_table(stability_results: Dict) -> pd.DataFrame:

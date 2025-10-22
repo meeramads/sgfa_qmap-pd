@@ -67,18 +67,6 @@ preprocessing:
   min_voxel_distance: 3.0
   drop_confounds_from_clinical: true
   qc_outlier_threshold: 3.0
-  enable_pca: false
-  pca_n_components: null
-  pca_variance_threshold: 0.95
-  pca_whiten: false
-
-# Cross-Validation Configuration
-cross_validation:
-  n_folds: 10
-  n_repeats: 3
-  stratified: true
-  group_aware: false
-  random_seed: 42
 
 # Monitoring Configuration
 monitoring:
@@ -132,8 +120,8 @@ factor_stability:
   chain_method: 'parallel'
   cosine_threshold: 0.8
   min_match_rate: 0.5
-  sparsity_threshold: 0.01
-  min_nonzero_pct: 0.05
+  sparsity_threshold: 0.001  # Adjusted for standardized data (was 0.01)
+  min_nonzero_pct: 0.01      # At least 1% of features (was 0.05)
   target_accept_prob: 0.8
   max_tree_depth: 13
   dense_mass: false

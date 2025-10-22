@@ -115,8 +115,8 @@ class ExperimentConfig:
     # Factor Stability Analysis (Ferreira et al. 2024)
     cosine_threshold: float = 0.8  # Minimum cosine similarity for factor matching
     min_match_rate: float = 0.5  # Minimum fraction of chains for robust factor (>50%)
-    sparsity_threshold: float = 0.01  # Threshold for effective factor counting
-    min_nonzero_pct: float = 0.05  # Minimum fraction of non-zero loadings
+    sparsity_threshold: float = 0.001  # Threshold for effective factor counting (adjusted for standardized data)
+    min_nonzero_pct: float = 0.01  # Minimum fraction of non-zero loadings (at least 1% of features)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""

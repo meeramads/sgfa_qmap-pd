@@ -720,8 +720,8 @@ def main():
             num_chains=fs_config.get("num_chains", 4),
             cosine_threshold=fs_config.get("cosine_threshold", 0.8),
             min_match_rate=fs_config.get("min_match_rate", 0.5),
-            sparsity_threshold=fs_config.get("sparsity_threshold", 0.01),
-            min_nonzero_pct=fs_config.get("min_nonzero_pct", 0.05),
+            sparsity_threshold=fs_config.get("sparsity_threshold", 0.001),  # Adjusted for standardized data
+            min_nonzero_pct=fs_config.get("min_nonzero_pct", 0.01),        # At least 1% of features
         )
 
         # Initialize robustness experiments
