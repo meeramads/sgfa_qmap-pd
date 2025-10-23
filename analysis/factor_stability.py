@@ -523,6 +523,9 @@ def compute_aligned_rhat(
     aligned_samples[reference_chain] = samples_per_chain[reference_chain]
     n_aligned = 1
 
+    # Track factor matching statistics for summary
+    unmatched_factors_per_chain = {}
+
     # Align each other chain to reference
     for chain_idx in range(n_chains):
         if chain_idx == reference_chain:
@@ -533,6 +536,9 @@ def compute_aligned_rhat(
 
         # Create aligned version by reordering and flipping factors
         aligned_chain = np.zeros_like(chain_samples)
+
+        # Track unmatched factors for this chain
+        unmatched_factors = []
 
         # For each factor in reference chain, find its match in this chain
         for ref_k in range(K):
@@ -568,43 +574,113 @@ def compute_aligned_rhat(
                 aligned_chain[:, :, ref_k] = factor_samples
             else:
                 # No match found - use zeros (this factor not stable across chains)
-                logger.warning(
-                    f"  Chain {chain_idx}: No match for reference factor {ref_k}, "
-                    "using zeros (factor not stable)"
-                )
+                unmatched_factors.append(ref_k)
                 aligned_chain[:, :, ref_k] = 0.0
 
         aligned_samples[chain_idx] = aligned_chain
         n_aligned += 1
 
+        # Store unmatched factors for this chain
+        if unmatched_factors:
+            unmatched_factors_per_chain[chain_idx] = unmatched_factors
+
     logger.info(f"  Aligned {n_aligned}/{n_chains} chains to reference")
 
-    # Now compute R-hat on aligned samples
-    # Reshape to (n_chains, n_samples, -1) for split_gelman_rubin
-    aligned_flat = aligned_samples.reshape(n_chains, n_samples, -1)
+    # Determine which factors matched across all chains
+    # A factor is "matched" if it has a match in ALL non-reference chains
+    matched_factors = []
+    for ref_k in range(K):
+        match_info = per_factor_matches[ref_k]
+        matched_indices = match_info["matched_in_chains"]
 
-    logger.info(f"  Computing split Gelman-Rubin on aligned samples...")
-    rhat_values = split_gelman_rubin(aligned_flat)  # Shape: (dim1 * K,)
+        # Check if this factor matched in all chains (excluding reference)
+        is_fully_matched = True
+        for chain_idx in range(n_chains):
+            if chain_idx == reference_chain:
+                continue
+            if chain_idx >= len(matched_indices) or matched_indices[chain_idx] is None:
+                is_fully_matched = False
+                break
 
-    # Reshape back to (dim1, K) for per-factor analysis
-    rhat_matrix = rhat_values.reshape(dim1, K)
+        if is_fully_matched:
+            matched_factors.append(ref_k)
 
-    # Compute per-factor statistics
-    max_rhat_per_factor = np.max(rhat_matrix, axis=0)  # Max R-hat across features for each factor
-    mean_rhat_per_factor = np.mean(rhat_matrix, axis=0)  # Mean R-hat across features for each factor
+    # Calculate factor match rate
+    factor_match_rate = len(matched_factors) / K if K > 0 else 0.0
 
-    max_rhat_overall = float(np.max(rhat_values))
-    mean_rhat_overall = float(np.mean(rhat_values))
+    # Log summary of unmatched factors
+    if unmatched_factors_per_chain:
+        total_unmatched = sum(len(factors) for factors in unmatched_factors_per_chain.values())
+        total_possible = (n_chains - 1) * K  # Exclude reference chain
+        match_rate = 1.0 - (total_unmatched / total_possible)
 
-    logger.info(f"  Aligned R-hat results:")
-    logger.info(f"    Max R-hat overall:  {max_rhat_overall:.4f}")
-    logger.info(f"    Mean R-hat overall: {mean_rhat_overall:.4f}")
+        logger.warning(f"  ⚠️  Factor instability detected:")
+        logger.warning(f"      {total_unmatched}/{total_possible} factors unmatched across chains ({match_rate*100:.1f}% match rate)")
+        logger.warning(f"      {len(matched_factors)}/{K} factors matched across ALL chains ({factor_match_rate*100:.1f}%)")
+        logger.warning(f"      {len(unmatched_factors_per_chain)}/{n_chains-1} chains have unmatched factors")
 
-    # Count how many parameters have good convergence
-    n_converged = np.sum(rhat_values < 1.1)
-    n_total = len(rhat_values)
-    convergence_pct = 100 * n_converged / n_total
-    logger.info(f"    Parameters with R-hat < 1.1: {n_converged}/{n_total} ({convergence_pct:.1f}%)")
+        # Show per-chain summary (condensed)
+        for chain_idx in sorted(unmatched_factors_per_chain.keys()):
+            n_unmatched = len(unmatched_factors_per_chain[chain_idx])
+            logger.warning(f"      Chain {chain_idx}: {n_unmatched}/{K} factors unmatched")
+
+        logger.warning(f"  ⚠️  This indicates poor convergence - chains exploring different factor structures")
+
+        # Decide whether to compute R-hat
+        if len(matched_factors) > 0:
+            logger.warning(f"  → Computing R-hat only on {len(matched_factors)} matched factors (more reliable)")
+        else:
+            logger.warning(f"  → Cannot compute reliable R-hat (no factors matched across all chains)")
+    else:
+        logger.info(f"  ✓ All factors matched across chains (good stability)")
+
+    # Now compute R-hat only on matched factors (if any)
+    if len(matched_factors) > 0:
+        # Extract only matched factors for R-hat computation
+        matched_samples = aligned_samples[:, :, :, matched_factors]  # (n_chains, n_samples, dim1, n_matched)
+
+        # Reshape to (n_chains, n_samples, -1) for split_gelman_rubin
+        matched_flat = matched_samples.reshape(n_chains, n_samples, -1)
+
+        logger.info(f"  Computing split Gelman-Rubin on {len(matched_factors)} matched factors...")
+        rhat_values = split_gelman_rubin(matched_flat)  # Shape: (dim1 * n_matched,)
+
+        # Reshape back to (dim1, n_matched) for per-factor analysis
+        n_matched = len(matched_factors)
+        rhat_matrix = rhat_values.reshape(dim1, n_matched)
+
+        # Compute per-factor statistics (only for matched factors)
+        max_rhat_per_factor_matched = np.max(rhat_matrix, axis=0)  # Max R-hat across features for each matched factor
+        mean_rhat_per_factor_matched = np.mean(rhat_matrix, axis=0)  # Mean R-hat across features for each matched factor
+
+        max_rhat_overall = float(np.max(rhat_values))
+        mean_rhat_overall = float(np.mean(rhat_values))
+
+        logger.info(f"  Aligned R-hat results (matched factors only):")
+        logger.info(f"    Max R-hat overall:  {max_rhat_overall:.4f}")
+        logger.info(f"    Mean R-hat overall: {mean_rhat_overall:.4f}")
+
+        # Count how many parameters have good convergence
+        n_converged = np.sum(rhat_values < 1.1)
+        n_total = len(rhat_values)
+        convergence_pct = 100 * n_converged / n_total
+        logger.info(f"    Parameters with R-hat < 1.1: {n_converged}/{n_total} ({convergence_pct:.1f}%)")
+
+        # Expand per-factor R-hat arrays to include unmatched factors (filled with NaN)
+        max_rhat_per_factor = np.full(K, np.nan)
+        mean_rhat_per_factor = np.full(K, np.nan)
+        for i, factor_idx in enumerate(matched_factors):
+            max_rhat_per_factor[factor_idx] = max_rhat_per_factor_matched[i]
+            mean_rhat_per_factor[factor_idx] = mean_rhat_per_factor_matched[i]
+
+    else:
+        # No matched factors - cannot compute R-hat
+        logger.error(f"  ❌ Cannot compute R-hat: no factors matched across all chains")
+        max_rhat_overall = np.inf
+        mean_rhat_overall = np.inf
+        convergence_pct = 0.0
+        max_rhat_per_factor = np.full(K, np.inf)
+        mean_rhat_per_factor = np.full(K, np.inf)
 
     return {
         "max_rhat_per_factor": max_rhat_per_factor,
@@ -613,6 +689,9 @@ def compute_aligned_rhat(
         "mean_rhat_overall": mean_rhat_overall,
         "n_aligned": n_aligned,
         "convergence_rate": convergence_pct / 100,  # Fraction with R-hat < 1.1
+        "factor_match_rate": factor_match_rate,  # NEW: Fraction of factors matched across all chains
+        "n_matched_factors": len(matched_factors),  # NEW: Number of factors matched
+        "matched_factor_indices": matched_factors,  # NEW: Which factors matched
     }
 
 

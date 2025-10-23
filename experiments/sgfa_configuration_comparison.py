@@ -524,22 +524,32 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 "convergence_iterations": variant_result.get("n_iterations", 0),
             }
 
-            # Add aligned R-hat metrics if available
+            # Add aligned R-hat metrics if available (NEW: includes factor_match_rate)
             mcmc_diag = variant_result.get("mcmc_diagnostics", {})
             if "aligned_rhat_W" in mcmc_diag:
                 perf_metrics["aligned_rhat_W_max"] = mcmc_diag["aligned_rhat_W"]["max_rhat_overall"]
                 perf_metrics["aligned_rhat_W_mean"] = mcmc_diag["aligned_rhat_W"]["mean_rhat_overall"]
                 perf_metrics["aligned_rhat_W_convergence_rate"] = mcmc_diag["aligned_rhat_W"]["convergence_rate"]
+                perf_metrics["factor_match_rate_W"] = mcmc_diag["aligned_rhat_W"].get("factor_match_rate", 0.0)
+                perf_metrics["n_matched_factors_W"] = mcmc_diag["aligned_rhat_W"].get("n_matched_factors", 0)
             if "aligned_rhat_Z" in mcmc_diag:
                 perf_metrics["aligned_rhat_Z_max"] = mcmc_diag["aligned_rhat_Z"]["max_rhat_overall"]
                 perf_metrics["aligned_rhat_Z_mean"] = mcmc_diag["aligned_rhat_Z"]["mean_rhat_overall"]
                 perf_metrics["aligned_rhat_Z_convergence_rate"] = mcmc_diag["aligned_rhat_Z"]["convergence_rate"]
+                perf_metrics["factor_match_rate_Z"] = mcmc_diag["aligned_rhat_Z"].get("factor_match_rate", 0.0)
+                perf_metrics["n_matched_factors_Z"] = mcmc_diag["aligned_rhat_Z"].get("n_matched_factors", 0)
 
             # Compute overall aligned R-hat metric (max of W and Z)
+            # Also compute minimum factor match rate (conservative estimate)
             if "aligned_rhat_W_max" in perf_metrics and "aligned_rhat_Z_max" in perf_metrics:
                 perf_metrics["aligned_rhat_max_overall"] = max(
                     perf_metrics["aligned_rhat_W_max"],
                     perf_metrics["aligned_rhat_Z_max"]
+                )
+                # Use minimum match rate (most conservative)
+                perf_metrics["factor_match_rate"] = min(
+                    perf_metrics.get("factor_match_rate_W", 0.0),
+                    perf_metrics.get("factor_match_rate_Z", 0.0)
                 )
 
             performance_metrics[variant_name] = perf_metrics
@@ -555,15 +565,30 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 rhat_max = perf_metrics["aligned_rhat_max_overall"]
                 rhat_w = perf_metrics["aligned_rhat_W_max"]
                 rhat_z = perf_metrics["aligned_rhat_Z_max"]
+                match_rate = perf_metrics.get("factor_match_rate", 0.0) * 100
+                n_matched_w = perf_metrics.get("n_matched_factors_W", 0)
+                n_matched_z = perf_metrics.get("n_matched_factors_Z", 0)
+
                 conv_rate = min(
                     perf_metrics.get("aligned_rhat_W_convergence_rate", 0),
                     perf_metrics.get("aligned_rhat_Z_convergence_rate", 0)
                 ) * 100
 
-                convergence_status = "✓ CONVERGED" if rhat_max < 1.1 else "⚠ POOR CONVERGENCE"
+                # Convergence requires both good R-hat AND good factor matching
+                good_rhat = rhat_max < 1.1
+                good_matching = match_rate >= 80.0  # At least 80% of factors should match
+                convergence_status = "✓ CONVERGED" if (good_rhat and good_matching) else "⚠ POOR CONVERGENCE"
+
                 self.logger.info(f"  Convergence: {convergence_status}")
-                self.logger.info(f"  Aligned R-hat: W={rhat_w:.4f}, Z={rhat_z:.4f}, max={rhat_max:.4f}")
-                self.logger.info(f"  Convergence rate: {conv_rate:.1f}% of parameters with R-hat < 1.1")
+                self.logger.info(f"  Factor match rate: {match_rate:.1f}% (W: {n_matched_w} factors, Z: {n_matched_z} factors)")
+                self.logger.info(f"  Aligned R-hat (matched factors): W={rhat_w:.4f}, Z={rhat_z:.4f}, max={rhat_max:.4f}")
+                self.logger.info(f"  Parameter convergence: {conv_rate:.1f}% with R-hat < 1.1")
+
+                # Explain convergence status
+                if not good_matching:
+                    self.logger.warning(f"  ⚠ Poor factor matching ({match_rate:.1f}% < 80%) indicates chains exploring different solutions")
+                if not good_rhat and good_matching:
+                    self.logger.warning(f"  ⚠ Poor R-hat ({rhat_max:.4f} >= 1.1) despite good matching - needs more sampling")
             else:
                 self.logger.warning(f"  ⚠ No aligned R-hat computed (need ≥2 chains)")
 
@@ -1337,12 +1362,14 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 "num_chains": num_chains,
             }
 
-            # Add aligned R-hat metrics if available
+            # Add aligned R-hat metrics if available (now includes factor_match_rate)
             if aligned_rhat_W is not None:
                 mcmc_diagnostics["aligned_rhat_W"] = {
                     "max_rhat_overall": float(aligned_rhat_W["max_rhat_overall"]),
                     "mean_rhat_overall": float(aligned_rhat_W["mean_rhat_overall"]),
                     "convergence_rate": float(aligned_rhat_W["convergence_rate"]),
+                    "factor_match_rate": float(aligned_rhat_W["factor_match_rate"]),
+                    "n_matched_factors": int(aligned_rhat_W["n_matched_factors"]),
                     "max_rhat_per_factor": aligned_rhat_W["max_rhat_per_factor"].tolist(),
                     "mean_rhat_per_factor": aligned_rhat_W["mean_rhat_per_factor"].tolist(),
                 }
@@ -1351,17 +1378,24 @@ class SGFAConfigurationComparison(ExperimentFramework):
                     "max_rhat_overall": float(aligned_rhat_Z["max_rhat_overall"]),
                     "mean_rhat_overall": float(aligned_rhat_Z["mean_rhat_overall"]),
                     "convergence_rate": float(aligned_rhat_Z["convergence_rate"]),
+                    "factor_match_rate": float(aligned_rhat_Z["factor_match_rate"]),
+                    "n_matched_factors": int(aligned_rhat_Z["n_matched_factors"]),
                     "max_rhat_per_factor": aligned_rhat_Z["max_rhat_per_factor"].tolist(),
                     "mean_rhat_per_factor": aligned_rhat_Z["mean_rhat_per_factor"].tolist(),
                 }
 
-            # Determine convergence based on aligned R-hat (if available)
-            # Use threshold of 1.1 for good convergence
+            # Determine convergence based on BOTH aligned R-hat AND factor matching
+            # Convergence requires: R-hat < 1.1 AND factor_match_rate >= 0.8 (80%)
             if aligned_rhat_W is not None and aligned_rhat_Z is not None:
-                converged = (
+                good_rhat = (
                     aligned_rhat_W["max_rhat_overall"] < 1.1 and
                     aligned_rhat_Z["max_rhat_overall"] < 1.1
                 )
+                good_matching = (
+                    aligned_rhat_W["factor_match_rate"] >= 0.8 and
+                    aligned_rhat_Z["factor_match_rate"] >= 0.8
+                )
+                converged = good_rhat and good_matching
             else:
                 converged = True  # Fallback if aligned R-hat not available
 
