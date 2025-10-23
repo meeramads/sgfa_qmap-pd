@@ -364,7 +364,7 @@ def plot_trace_diagnostics(
     # ============================================================================
     # Row 3: R-hat Distributions (ALL Parameters)
     # ============================================================================
-    logger.info("  Computing R-hat for ALL parameters using split_gelman_rubin...")
+    logger.debug("  Computing R-hat for ALL parameters using split_gelman_rubin...")
 
     # Compute R-hat for ALL parameters in W and Z using NumPyro's split_gelman_rubin
     rhat_W = split_gelman_rubin(W_samples)  # Shape: (D, K)
@@ -459,7 +459,7 @@ def plot_trace_diagnostics(
     # ============================================================================
     # Row 4: Autocorrelation Plots
     # ============================================================================
-    logger.info("  Creating autocorrelation plots...")
+    logger.debug("  Creating autocorrelation plots...")
 
     max_lag = min(100, n_samples // 4)
 
@@ -515,7 +515,7 @@ def plot_trace_diagnostics(
     ax_ess.legend(fontsize=8)
     ax_ess.grid(True, alpha=0.3, axis='y')
 
-    logger.info("  ✓ Trace diagnostic plots completed")
+    logger.debug("  ✓ Trace diagnostic plots completed")
 
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
@@ -1059,9 +1059,9 @@ def plot_hyperparameter_posteriors(
     has_cZ = "cZ" in samples_by_chain[0]
 
     if has_cW:
-        logger.info("  Including cW (slab scale for loadings) posteriors...")
+        logger.debug("  Including cW (slab scale for loadings) posteriors...")
     if has_cZ:
-        logger.info("  Including cZ (slab scale for factors) posteriors...")
+        logger.debug("  Including cZ (slab scale for factors) posteriors...")
 
     # Calculate number of rows needed
     # Base: num_sources rows for tauW + 1 row for tauZ
@@ -1211,7 +1211,7 @@ def plot_hyperparameter_posteriors(
     # Plot sigma (noise precision) for each view
     # ========================================================================
     if has_sigma:
-        logger.info("  Including sigma (noise precision) posteriors...")
+        logger.debug("  Including sigma (noise precision) posteriors...")
         for m in range(num_sources):
             ax_idx = num_sources + 1  # Row index for sigma plots
             col_idx = m  # Column index (one per view)
@@ -1289,7 +1289,7 @@ def plot_hyperparameter_posteriors(
     # Plot cW (slab scale for loadings) for each view and factor
     # ========================================================================
     if has_cW:
-        logger.info("  Plotting cW (slab scale for loadings) posteriors...")
+        logger.debug("  Plotting cW (slab scale for loadings) posteriors...")
         # Calculate row offset for cW plots
         row_offset = num_sources + 1  # After tauW and tauZ
         if has_sigma:
@@ -1370,7 +1370,7 @@ def plot_hyperparameter_posteriors(
     # Plot cZ (slab scale for factors)
     # ========================================================================
     if has_cZ:
-        logger.info("  Plotting cZ (slab scale for factors) posteriors...")
+        logger.debug("  Plotting cZ (slab scale for factors) posteriors...")
         # Calculate row offset for cZ plots
         row_offset = num_sources + 1  # After tauW and tauZ
         if has_sigma:
@@ -1424,14 +1424,14 @@ def plot_hyperparameter_posteriors(
 
     # Save individual plots if requested
     if save_individual and output_dir:
-        logger.info("  Saving individual posterior plots...")
+        logger.debug("  Saving individual posterior plots...")
         _save_individual_posteriors(
             samples_by_chain, colors, num_sources, K,
             has_sigma, has_cW, has_cZ, output_dir, view_names
         )
         logger.info(f"  ✓ Saved individual plots to {output_dir}")
 
-    logger.info("  ✓ Hyperparameter posterior plots completed")
+    logger.debug("  ✓ Hyperparameter posterior plots completed")
 
     return fig
 
@@ -1991,7 +1991,7 @@ def plot_hyperparameter_traces(
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         logger.info(f"  ✓ Saved combined trace figure to {save_path}")
 
-    logger.info("  ✓ Hyperparameter trace plots completed")
+    logger.debug("  ✓ Hyperparameter trace plots completed")
 
     return fig
 
@@ -2262,7 +2262,7 @@ INTERPRETATION:
             plt.savefig(save_path, dpi=150, bbox_inches='tight')
             logger.info(f"  ✓ Saved variance profile plot to {save_path}")
 
-    logger.info("  ✓ Factor variance analysis completed")
+    logger.debug("  ✓ Factor variance analysis completed")
 
     return {
         'factor_variances': factor_variances,

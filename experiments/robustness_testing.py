@@ -2560,7 +2560,7 @@ class RobustnessExperiments(ExperimentFramework):
 
         # Generate plots
         self.logger.info("=" * 80)
-        self.logger.info("GENERATING FACTOR STABILITY PLOTS")
+        self.logger.debug("GENERATING FACTOR STABILITY PLOTS")
         self.logger.info("=" * 80)
         try:
             plots = self._plot_factor_stability(
@@ -2773,7 +2773,7 @@ class RobustnessExperiments(ExperimentFramework):
                     visualizer = FactorVisualizer(self.config)
 
                     # Create enhanced loading distributions plot
-                    self.logger.info("Creating enhanced factor loading distribution plot...")
+                    self.logger.debug("Creating enhanced factor loading distribution plot...")
                     fig_loadings = visualizer.plot_enhanced_factor_loading_distributions(
                         consensus_W, viz_data, save_path=None
                     )
@@ -2841,7 +2841,7 @@ class RobustnessExperiments(ExperimentFramework):
             similarity_matrix = stability_results.get("similarity_matrix")
 
             if similarity_matrix is not None and len(chain_results) > 0:
-                self.logger.info("Creating factor stability heatmap (chain-to-chain matching)...")
+                self.logger.debug("Creating factor stability heatmap (chain-to-chain matching)...")
 
                 n_chains = similarity_matrix.shape[0]
                 K = similarity_matrix.shape[2]  # Number of factors
@@ -2926,7 +2926,7 @@ class RobustnessExperiments(ExperimentFramework):
                     plot_hyperparameter_traces,
                 )
 
-                self.logger.info("Creating MCMC trace diagnostic plots...")
+                self.logger.debug("Creating MCMC trace diagnostic plots...")
 
                 # Extract W and Z samples from chain results
                 # Expected format: chain_results contains samples with shape (n_chains, n_samples, ...)
@@ -3015,7 +3015,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                     # Create hyperparameter posterior plots (tauW, tauZ)
                     if len(samples_by_chain) > 0:
-                        self.logger.info("Creating hyperparameter posterior plots...")
+                        self.logger.debug("Creating hyperparameter posterior plots...")
 
                         # Infer number of sources from X_list
                         num_sources = len(X_list) if X_list is not None else None
@@ -3056,7 +3056,7 @@ class RobustnessExperiments(ExperimentFramework):
                     try:
                         from analysis.mcmc_diagnostics import analyze_factor_variance_profile
 
-                        self.logger.info("Creating factor variance profile analysis (ARD shrinkage)...")
+                        self.logger.debug("Creating factor variance profile analysis (ARD shrinkage)...")
 
                         # Analyze variance profile to assess effective dimensionality
                         variance_results = analyze_factor_variance_profile(
