@@ -58,6 +58,53 @@ class SGFAConfigurationComparison(ExperimentFramework):
     This class compares SGFA configurations (K, percW, group_lambda) on the full dataset
     to identify which settings produce the most interpretable and stable factors.
     No train/test split is used since this is unsupervised configuration exploration.
+
+    Convergence Metric: Aligned R-hat
+    -----------------------------------
+    Uses aligned R-hat as the primary convergence metric, which accounts for sign and
+    permutation indeterminacy in factor models. Standard R-hat incorrectly indicates
+    poor convergence when chains converge to equivalent solutions that differ only in
+    sign flips or factor ordering. Aligned R-hat:
+    1. Matches factors across chains using cosine similarity
+    2. Aligns signs to reference chain
+    3. Computes R-hat on aligned samples
+
+    Variants are ranked by:
+    1. Convergence quality (aligned R-hat < 1.1)
+    2. Execution time (faster is better)
+    3. Memory usage (lower is better)
+
+    MCMC Configuration
+    ------------------
+    - Minimum 2 chains required for aligned R-hat computation
+    - Default: 2 chains, 1000 samples, 500 warmup (configurable via config.yaml)
+    - Chains run sequentially on remote workstation (computationally slow but memory-safe)
+
+    Performance Note
+    ----------------
+    This experiment is computationally intensive because:
+    - Each variant runs multiple MCMC chains sequentially
+    - Multiple variants tested (standard, sparse_only, group_only, basic_fa)
+    - Total runtime: ~(num_variants × num_chains × chain_runtime)
+
+    Example: 4 variants × 2 chains × 30 min/chain = ~4 hours total
+
+    Configuration
+    -------------
+    Add to config.yaml or config_convergence.yaml:
+
+        sgfa_configuration_comparison:
+          num_chains: 2              # Minimum 2 for aligned R-hat
+          num_samples: 1000          # Samples per chain
+          num_warmup: 500            # Warmup per chain
+          target_accept_prob: 0.8    # NUTS acceptance probability
+          max_tree_depth: 10         # NUTS max tree depth
+
+    Usage
+    -----
+    python run_experiments.py --config config_convergence.yaml \\
+      --experiments sgfa_configuration_comparison \\
+      --select-rois volume_sn_voxels.tsv
     """
 
     def __init__(
@@ -440,13 +487,24 @@ class SGFAConfigurationComparison(ExperimentFramework):
         self, X_list: List[np.ndarray], hypers: Dict, args: Dict, **kwargs
     ) -> ExperimentResult:
         """Compare different SGFA variants."""
-        self.logger.info("Running SGFA variant comparison")
+        self.logger.info("=" * 80)
+        self.logger.info("🔬 SGFA VARIANT COMPARISON - Using Aligned R-hat Convergence Metric")
+        self.logger.info("=" * 80)
+        self.logger.info(f"Testing {len(self.sgfa_variants)} SGFA variants:")
+        for vname in self.sgfa_variants.keys():
+            self.logger.info(f"  - {vname}")
+        self.logger.info("")
+        self.logger.info("Convergence Assessment: Aligned R-hat (accounts for sign/permutation indeterminacy)")
+        self.logger.info("Ranking Criteria: (1) Convergence (R-hat < 1.1), (2) Speed, (3) Memory")
+        self.logger.info("=" * 80)
 
         results = {}
         performance_metrics = {}
 
-        for variant_name, variant_config in self.sgfa_variants.items():
-            self.logger.info(f"Testing SGFA variant: {variant_name}")
+        for idx, (variant_name, variant_config) in enumerate(self.sgfa_variants.items(), 1):
+            self.logger.info("")
+            self.logger.info(f"▶ Testing variant {idx}/{len(self.sgfa_variants)}: {variant_name}")
+            self.logger.info("-" * 80)
 
             # Update hyperparameters with variant config
             variant_hypers = hypers.copy()
@@ -486,8 +544,79 @@ class SGFAConfigurationComparison(ExperimentFramework):
 
             performance_metrics[variant_name] = perf_metrics
 
+            # Log convergence results for this variant
+            converged = variant_result.get("convergence", False)
+            exec_time = perf_metrics["execution_time"]
+
+            self.logger.info("")
+            self.logger.info(f"✓ Variant '{variant_name}' completed in {exec_time:.1f}s")
+
+            if "aligned_rhat_max_overall" in perf_metrics:
+                rhat_max = perf_metrics["aligned_rhat_max_overall"]
+                rhat_w = perf_metrics["aligned_rhat_W_max"]
+                rhat_z = perf_metrics["aligned_rhat_Z_max"]
+                conv_rate = min(
+                    perf_metrics.get("aligned_rhat_W_convergence_rate", 0),
+                    perf_metrics.get("aligned_rhat_Z_convergence_rate", 0)
+                ) * 100
+
+                convergence_status = "✓ CONVERGED" if rhat_max < 1.1 else "⚠ POOR CONVERGENCE"
+                self.logger.info(f"  Convergence: {convergence_status}")
+                self.logger.info(f"  Aligned R-hat: W={rhat_w:.4f}, Z={rhat_z:.4f}, max={rhat_max:.4f}")
+                self.logger.info(f"  Convergence rate: {conv_rate:.1f}% of parameters with R-hat < 1.1")
+            else:
+                self.logger.warning(f"  ⚠ No aligned R-hat computed (need ≥2 chains)")
+
+            self.logger.info("-" * 80)
+
         # Analyze results
         analysis = self._analyze_sgfa_variants(results, performance_metrics)
+
+        # Log summary of all variants
+        self.logger.info("")
+        self.logger.info("=" * 80)
+        self.logger.info("📊 SGFA VARIANT COMPARISON SUMMARY")
+        self.logger.info("=" * 80)
+
+        # Convergence ranking
+        if "best_convergence" in analysis.get("performance_ranking", {}):
+            best_conv_list = analysis["performance_ranking"]["best_convergence"]
+            if best_conv_list:
+                self.logger.info("🏆 Convergence Ranking (by aligned R-hat):")
+                for rank, variant in enumerate(best_conv_list[:5], 1):
+                    if variant in performance_metrics:
+                        metrics = performance_metrics[variant]
+                        if "aligned_rhat_max_overall" in metrics:
+                            rhat = metrics["aligned_rhat_max_overall"]
+                            status = "✓" if rhat < 1.1 else "⚠"
+                            self.logger.info(f"  {rank}. {status} {variant:20s} (R-hat = {rhat:.4f})")
+
+        # Well-converged variants
+        well_converged = analysis.get("convergence_analysis", {}).get("well_converged_variants", [])
+        if well_converged:
+            self.logger.info(f"\n✓ Well-converged variants (R-hat < 1.1): {len(well_converged)}/{len(results)}")
+            for variant in well_converged:
+                self.logger.info(f"  - {variant}")
+        else:
+            self.logger.warning(f"\n⚠ No variants achieved good convergence (R-hat < 1.1)")
+
+        # Speed ranking
+        fastest_list = analysis.get("performance_ranking", {}).get("fastest", [])
+        if fastest_list:
+            self.logger.info(f"\n⚡ Fastest variants:")
+            for rank, variant in enumerate(fastest_list[:3], 1):
+                if variant in performance_metrics:
+                    time = performance_metrics[variant]["execution_time"]
+                    self.logger.info(f"  {rank}. {variant:20s} ({time:.1f}s)")
+
+        # Recommendations
+        recommendations = analysis.get("recommendations", [])
+        if recommendations:
+            self.logger.info(f"\n💡 Recommendations:")
+            for rec in recommendations:
+                self.logger.info(f"  • {rec}")
+
+        self.logger.info("=" * 80)
 
         # Generate basic plots
         plots = self._plot_sgfa_comparison(results, performance_metrics)
