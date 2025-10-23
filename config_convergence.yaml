@@ -114,9 +114,9 @@ robustness_testing:
 # Factor Stability Analysis
 factor_stability:
   K: 20
-  num_chains: 2              # Reduced from 4 for faster debugging
-  num_samples: 500           # Reduced from 10000 for faster debugging
-  num_warmup: 200            # Reduced from 3000 for faster debugging
+  num_chains: 4
+  num_samples: 10000
+  num_warmup: 3000
   chain_method: 'parallel'
   cosine_threshold: 0.8
   min_match_rate: 0.5
