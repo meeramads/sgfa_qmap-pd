@@ -1137,7 +1137,7 @@ def main():
                         # Generate visualizations
                         logger.debug("   Generating subtype visualizations...")
                         from visualization.subtype_plots import PDSubtypeVisualizer
-                        visualizer = PDSubtypeVisualizer()
+                        visualizer = PDSubtypeVisualizer(exp_config_subtype)
 
                         results_dict = {
                             "subtype_discovery": subtype_results,
