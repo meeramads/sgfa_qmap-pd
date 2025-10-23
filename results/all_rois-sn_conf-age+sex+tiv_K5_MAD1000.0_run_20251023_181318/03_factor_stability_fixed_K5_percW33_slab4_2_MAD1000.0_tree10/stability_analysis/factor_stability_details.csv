@@ -1,0 +1,6 @@
+Factor_Index,Matches,Match_Rate_%,Status,Mean_Similarity
+0,3,75.0,Robust,0.8321022093296051
+1,3,75.0,Robust,0.7802706509828568
+2,1,25.0,Unstable,0.30794123373925686
+3,1,25.0,Unstable,0.7441170811653137
+4,1,25.0,Unstable,0.2881013659061864

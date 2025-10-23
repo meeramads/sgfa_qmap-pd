@@ -1,0 +1,2 @@
+experiment_id,experiment_name,status,duration_seconds,duration_formatted,start_time,end_time,num_samples,num_chains,K_values,cv_folds
+data_validation_20251023_181318,data_validation,completed,10.926186,10.9 seconds,2025-10-23 18:13:18,2025-10-23 18:13:29,2000,1,"[5, 10, 15]",5
