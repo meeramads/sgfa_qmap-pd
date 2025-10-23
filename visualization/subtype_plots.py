@@ -86,14 +86,14 @@ class PDSubtypeVisualizer:
             )
 
         # 3. Clinical validation bubble plot
-        if "clinical_validation" in results and clinical_data is not None:
+        if "clinical_validation" in results and results["clinical_validation"] is not None and clinical_data is not None:
             self._plot_clinical_validation_bubble(
                 results["clinical_validation"]["clinical_measures"],
                 plot_dir / "clinical_validation.png"
             )
 
         # 4. PD subtype characterization panel
-        if "clinical_validation" in results and clinical_data is not None:
+        if "clinical_validation" in results and results["clinical_validation"] is not None and clinical_data is not None:
             self._plot_pd_subtype_characterization(
                 results,
                 Z_sgfa,
@@ -389,7 +389,7 @@ class PDSubtypeVisualizer:
         ax1.text(0.5, 0.4, f'Silhouette Score: {best_silhouette:.3f}', ha='center', va='center',
                 transform=ax1.transAxes, fontsize=12)
 
-        if "clinical_validation" in results:
+        if "clinical_validation" in results and results["clinical_validation"] is not None:
             cv_score = results["clinical_validation"]["validation_score"]
             ax1.text(0.5, 0.2, f'Clinical Validation: {cv_score:.3f}', ha='center', va='center',
                     transform=ax1.transAxes, fontsize=12)
@@ -421,7 +421,7 @@ class PDSubtypeVisualizer:
                     f'{score:.3f}', ha='center', va='bottom')
 
         # Plot 4: Clinical significance summary
-        if "clinical_validation" in results:
+        if "clinical_validation" in results and results["clinical_validation"] is not None:
             cv = results["clinical_validation"]
             sig_measures = cv["significant_measures"]
             total_measures = cv["total_measures"]
