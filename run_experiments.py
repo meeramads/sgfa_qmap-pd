@@ -1090,6 +1090,10 @@ def main():
                             logger.warning(f"   Failed to load clinical data: {e}")
                             clinical_data = {}
 
+                        # Convert empty dict to None for consistency
+                        if not clinical_data:
+                            clinical_data = None
+
                         # Initialize clinical validation experiment
                         from experiments.clinical_validation import ClinicalValidationExperiments
                         from experiments.framework import ExperimentConfig
@@ -1119,7 +1123,8 @@ def main():
                         logger.info(f"   ✓ Discovered {subtype_results.get('optimal_k', 'N/A')} subtypes (silhouette={subtype_results.get('best_solution', {}).get('silhouette_score', 'N/A'):.3f})")
 
                         # Validate discovered subtypes against clinical measures
-                        if clinical_data:
+                        validation_results = None
+                        if clinical_data is not None:
                             logger.debug("   Validating discovered subtypes against clinical measures...")
                             validation_results = clinical_exp.subtype_analyzer.validate_subtypes_clinical(
                                 subtype_results, clinical_data, Z_consensus
@@ -1141,25 +1146,25 @@ def main():
 
                         results_dict = {
                             "subtype_discovery": subtype_results,
-                            "clinical_validation": validation_results if clinical_data else None,
+                            "clinical_validation": validation_results,
                             "factor_interpretation": interpretation_results,
                         }
 
-                        plots = visualizer.create_pd_subtype_plots(
+                        visualizer.create_pd_subtype_plots(
                             results_dict,
                             Z_consensus,
                             clinical_data,
                             subtype_output_dir
                         )
 
-                        logger.debug(f"   Generated {len(plots)} subtype visualization plots")
+                        logger.info("   ✓ PD subtype visualization plots generated")
 
                         # Save subtype discovery results
                         from core.io_utils import save_json
                         save_json(
                             {
                                 "subtype_discovery": subtype_results,
-                                "clinical_validation": validation_results if clinical_data else None,
+                                "clinical_validation": validation_results,
                                 "factor_interpretation": interpretation_results,
                             },
                             subtype_output_dir / "subtype_discovery_results.json",
