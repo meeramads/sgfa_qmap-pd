@@ -777,14 +777,14 @@ def main():
             "b_sigma": 1.0,
             "slab_df": model_config.get("slab_df", 4),
             "slab_scale": model_config.get("slab_scale", 2),
-            "percW": model_config.get("percW", 20),
+            "percW": model_config.get("percW", 33),
         }
         logger.info(f"   Using global model hyperparameters: percW={hypers['percW']}, slab_df={hypers['slab_df']}, slab_scale={hypers['slab_scale']}")
 
         # Prepare MCMC args (read from config.yaml)
         # Check both mcmc and factor_stability sections (mcmc takes precedence for command-line overrides)
         mcmc_config = exp_config.get("mcmc", {})
-        max_tree_depth_value = mcmc_config.get("max_tree_depth") or fs_config.get("max_tree_depth", 13)
+        max_tree_depth_value = mcmc_config.get("max_tree_depth") or fs_config.get("max_tree_depth", 10)
         target_accept_prob_value = mcmc_config.get("target_accept_prob") or fs_config.get("target_accept_prob", 0.8)
 
         mcmc_args = {
