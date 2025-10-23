@@ -1053,10 +1053,7 @@ def main():
             # Check if pd_subtype_discovery is enabled in config
             factor_stability_config = config.get("factor_stability", {})
             if factor_stability_config.get("run_pd_subtype_discovery", False):
-                logger.info("=" * 80)
-                logger.info("🧬 RUNNING PD SUBTYPE DISCOVERY")
-                logger.info("   Using consensus factors from factor stability analysis")
-                logger.info("=" * 80)
+                logger.info("🧬 Running PD subtype discovery using consensus factors")
 
                 try:
                     # Get consensus factors from stability results
@@ -1067,7 +1064,7 @@ def main():
                     if W_consensus is None or Z_consensus is None:
                         logger.warning("   ⚠️  Consensus factors not available, skipping subtype discovery")
                     else:
-                        logger.info(f"   Consensus factors: W={W_consensus.shape}, Z={Z_consensus.shape}")
+                        logger.debug(f"   Consensus factors: W={W_consensus.shape}, Z={Z_consensus.shape}")
 
                         # Load clinical data for validation
                         try:
@@ -1138,8 +1135,8 @@ def main():
                         )
 
                         # Generate visualizations
-                        logger.info("   Generating subtype visualizations...")
-                        from visualization.pd_subtype_visualizer import PDSubtypeVisualizer
+                        logger.debug("   Generating subtype visualizations...")
+                        from visualization.subtype_plots import PDSubtypeVisualizer
                         visualizer = PDSubtypeVisualizer()
 
                         results_dict = {
