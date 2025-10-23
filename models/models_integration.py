@@ -82,8 +82,8 @@ def get_optimal_model_configuration(
 
         # Debug logging
         if verbose:
-            logger.info(f"🔍 DEBUG: model_config keys: {list(model_config.keys())}")
-            logger.info(f"🔍 DEBUG: model_type from config: '{model_type}'")
+            logger.debug(f"🔍 DEBUG: model_config keys: {list(model_config.keys())}")
+            logger.debug(f"🔍 DEBUG: model_type from config: '{model_type}'")
 
         # Analyze data characteristics for model selection
         if data_characteristics and verbose:
@@ -92,7 +92,7 @@ def get_optimal_model_configuration(
             n_subjects = data_characteristics.get("n_subjects", 0)
             has_imaging_data = data_characteristics.get("has_imaging_data", False)
 
-            logger.info("Data characteristics for model selection:")
+            logger.debug("Data characteristics for model selection:")
             logger.info(f"   Total features: {total_features:,}")
             logger.info(f"   Views: {n_views}")
             logger.info(f"   Subjects: {n_subjects}")
@@ -134,13 +134,13 @@ def get_optimal_model_configuration(
 
         # Debug logging
         if verbose:
-            logger.info(f"🔍 DEBUG: Available Bayesian models: {bayesian_models}")
-            logger.info(f"🔍 DEBUG: Checking if '{model_type}' in bayesian_models: {model_type in bayesian_models}")
+            logger.debug(f"🔍 DEBUG: Available Bayesian models: {bayesian_models}")
+            logger.debug(f"🔍 DEBUG: Checking if '{model_type}' in bayesian_models: {model_type in bayesian_models}")
 
         if model_type not in bayesian_models:
             if verbose:
                 logger.warning(f"Requested model '{model_type}' not available in Bayesian models")
-                logger.info(f"Available Bayesian models: {bayesian_models}")
+                logger.debug(f"Available Bayesian models: {bayesian_models}")
                 logger.info(f"Available baseline methods: {baseline_methods}")
             model_type = "sparseGFA"  # Fallback to default
             if verbose:

@@ -651,12 +651,12 @@ class RobustnessExperiments(ExperimentFramework):
             self.logger.info("=" * 80)
             self.logger.info("_RUN_SGFA_ANALYSIS - STARTING")
             self.logger.info("=" * 80)
-            self.logger.info(f"Input data: {len(X_list)} views")
+            self.logger.debug(f"Input data: {len(X_list)} views")
             for i, X in enumerate(X_list):
                 self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}, has_nan {np.isnan(X).any()}")
-            self.logger.info(f"Hyperparameters: {hypers}")
-            self.logger.info(f"MCMC args: {args}")
-            self.logger.info(f"Additional kwargs keys: {list(kwargs.keys())}")
+            self.logger.debug(f"Hyperparameters: {hypers}")
+            self.logger.debug(f"MCMC args: {args}")
+            self.logger.debug(f"Additional kwargs keys: {list(kwargs.keys())}")
 
         # Check cache first
         from core.config_utils import ConfigHelper
@@ -689,14 +689,14 @@ class RobustnessExperiments(ExperimentFramework):
 
             # Get optimal model configuration via factory
             if verbose:
-                self.logger.info("Setting up model via factory...")
+                self.logger.debug("Setting up model via factory...")
 
             # Debug: Log what's in config_dict BEFORE structuring
             if verbose:
-                self.logger.info(f"🔍 DEBUG: config_dict.get('model_type') = {config_dict.get('model_type', 'NOT FOUND')}")
-                self.logger.info(f"🔍 DEBUG: 'model' in config_dict = {'model' in config_dict}")
+                self.logger.debug(f"🔍 DEBUG: config_dict.get('model_type') = {config_dict.get('model_type', 'NOT FOUND')}")
+                self.logger.debug(f"🔍 DEBUG: 'model' in config_dict = {'model' in config_dict}")
                 if "model_type" in args:
-                    self.logger.info(f"🔍 DEBUG: args['model_type'] = {args['model_type']}")
+                    self.logger.debug(f"🔍 DEBUG: args['model_type'] = {args['model_type']}")
 
             # Ensure model configuration is structured correctly for integration
             if "model" not in config_dict:
@@ -721,8 +721,8 @@ class RobustnessExperiments(ExperimentFramework):
             # Debug: Log what model_type is in the config
             if verbose:
                 model_type_in_config = config_dict.get("model", {}).get("model_type", "NOT SET")
-                self.logger.info(f"🔍 Config model_type: {model_type_in_config}")
-                self.logger.info(f"🔍 Config K: {config_dict.get('K', 'NOT SET')}")
+                self.logger.debug(f"🔍 Config model_type: {model_type_in_config}")
+                self.logger.debug(f"🔍 Config K: {config_dict.get('K', 'NOT SET')}")
 
             model_type, model_instance, models_summary = integrate_models_with_pipeline(
                 config=config_dict,
@@ -736,7 +736,7 @@ class RobustnessExperiments(ExperimentFramework):
                 self.logger.info(f"✅ Model setup complete: {model_type}")
                 # Log only key hyperparameters (not full models summary with available_models list)
                 hypers_log = models_summary.get('hyperparameters', {})
-                self.logger.info(f"   Hyperparameters: Dm={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
+                self.logger.debug(f"   Hyperparameters: Dm={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
 
             # CRITICAL FIX: Use model_instance from integrate_models_with_pipeline
             # NOT the old models function from run_analysis.py!
@@ -756,7 +756,7 @@ class RobustnessExperiments(ExperimentFramework):
             # Setup MCMC with seed control for robustness
             seed = args.get("random_seed", 42)
             if verbose:
-                self.logger.info(f"Setting up MCMC with seed: {seed}")
+                self.logger.debug(f"Setting up MCMC with seed: {seed}")
             rng_key = jax.random.PRNGKey(seed)
 
             # Store kernel parameters for reuse (create fresh kernel per chain to avoid state accumulation)
@@ -2139,7 +2139,7 @@ class RobustnessExperiments(ExperimentFramework):
             - plots: Stability visualization plots
         """
         # DEBUG: Log the received output_dir parameter
-        self.logger.info(f"🔍 DEBUG: run_factor_stability_analysis received output_dir={output_dir}, type={type(output_dir)}")
+        self.logger.debug(f"🔍 DEBUG: run_factor_stability_analysis received output_dir={output_dir}, type={type(output_dir)}")
 
         # Store experiment-specific output directory if provided
         if output_dir:
@@ -2153,11 +2153,11 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info("=" * 80)
         self.logger.info("FACTOR STABILITY ANALYSIS - STARTING")
         self.logger.info("=" * 80)
-        self.logger.info(f"Input data: {len(X_list)} views")
+        self.logger.debug(f"Input data: {len(X_list)} views")
         for i, X in enumerate(X_list):
             self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}")
-        self.logger.info(f"Hyperparameters: K={hypers.get('K')}, percW={hypers.get('percW')}, Dm={hypers.get('Dm')}")
-        self.logger.info(f"MCMC args: num_samples={args.get('num_samples')}, num_warmup={args.get('num_warmup')}")
+        self.logger.debug(f"Hyperparameters: K={hypers.get('K')}, percW={hypers.get('percW')}, Dm={hypers.get('Dm')}")
+        self.logger.debug(f"MCMC args: num_samples={args.get('num_samples')}, num_warmup={args.get('num_warmup')}")
         if self._experiment_output_dir:
             self.logger.info(f"Output directory: {self._experiment_output_dir}")
 
@@ -3095,7 +3095,7 @@ class RobustnessExperiments(ExperimentFramework):
                         # Compare to stability results if available
                         n_stable_factors = stability_results.get("n_stable_factors", 0)
                         if n_stable_factors > 0:
-                            self.logger.info(f"   🔍 Cross-check: {n_stable_factors} stable factors vs {n_active} active factors")
+                            self.logger.debug(f"   🔍 Cross-check: {n_stable_factors} stable factors vs {n_active} active factors")
                             if abs(n_stable_factors - n_active) > 2:
                                 self.logger.warning(f"      ⚠️  Mismatch between stability ({n_stable_factors}) and variance ({n_active})")
                                 self.logger.warning(f"         → May indicate measurement artifact or convergence issues")
@@ -3120,7 +3120,7 @@ class RobustnessExperiments(ExperimentFramework):
             from core.io_utils import save_all_plots_individually
 
             # DEBUG: Check _experiment_output_dir status
-            self.logger.info(f"🔍 DEBUG: hasattr(_experiment_output_dir)={hasattr(self, '_experiment_output_dir')}, value={getattr(self, '_experiment_output_dir', None)}")
+            self.logger.debug(f"🔍 DEBUG: hasattr(_experiment_output_dir)={hasattr(self, '_experiment_output_dir')}, value={getattr(self, '_experiment_output_dir', None)}")
 
             # Use experiment-specific output directory if available
             if hasattr(self, '_experiment_output_dir') and self._experiment_output_dir:
