@@ -126,3 +126,19 @@ factor_stability:
   max_tree_depth: 10         # Reduced from 13 for faster sampling
   dense_mass: false
   run_pd_subtype_discovery: true  # Run PD subtype discovery using consensus factors
+
+# SGFA Parameter Comparison (Hyperparameter Search)
+sgfa_configuration_comparison:
+  # MCMC sampling parameters for parameter comparison
+  # NOTE: Uses minimum 2 chains to enable aligned R-hat convergence diagnostics
+  num_chains: 2              # Minimum 2 chains required for aligned R-hat (accounts for sign/permutation indeterminacy)
+  num_samples: 1000          # Samples per chain (reduced from factor_stability for faster comparison)
+  num_warmup: 500            # Warmup samples per chain
+  target_accept_prob: 0.8    # NUTS acceptance probability
+  max_tree_depth: 10         # NUTS max tree depth
+
+  # Performance metrics - aligned R-hat is now the primary convergence metric
+  # Variants ranked by:
+  # 1. Convergence quality (aligned R-hat < 1.1)
+  # 2. Execution time
+  # 3. Memory usage

@@ -459,12 +459,32 @@ class SGFAConfigurationComparison(ExperimentFramework):
 
             results[variant_name] = variant_result
 
-            # Store basic performance metrics
-            performance_metrics[variant_name] = {
+            # Store basic performance metrics including aligned R-hat
+            perf_metrics = {
                 "execution_time": variant_result.get("execution_time", 0),
                 "peak_memory_gb": 0.0,  # Will be filled by system monitoring
                 "convergence_iterations": variant_result.get("n_iterations", 0),
             }
+
+            # Add aligned R-hat metrics if available
+            mcmc_diag = variant_result.get("mcmc_diagnostics", {})
+            if "aligned_rhat_W" in mcmc_diag:
+                perf_metrics["aligned_rhat_W_max"] = mcmc_diag["aligned_rhat_W"]["max_rhat_overall"]
+                perf_metrics["aligned_rhat_W_mean"] = mcmc_diag["aligned_rhat_W"]["mean_rhat_overall"]
+                perf_metrics["aligned_rhat_W_convergence_rate"] = mcmc_diag["aligned_rhat_W"]["convergence_rate"]
+            if "aligned_rhat_Z" in mcmc_diag:
+                perf_metrics["aligned_rhat_Z_max"] = mcmc_diag["aligned_rhat_Z"]["max_rhat_overall"]
+                perf_metrics["aligned_rhat_Z_mean"] = mcmc_diag["aligned_rhat_Z"]["mean_rhat_overall"]
+                perf_metrics["aligned_rhat_Z_convergence_rate"] = mcmc_diag["aligned_rhat_Z"]["convergence_rate"]
+
+            # Compute overall aligned R-hat metric (max of W and Z)
+            if "aligned_rhat_W_max" in perf_metrics and "aligned_rhat_Z_max" in perf_metrics:
+                perf_metrics["aligned_rhat_max_overall"] = max(
+                    perf_metrics["aligned_rhat_W_max"],
+                    perf_metrics["aligned_rhat_Z_max"]
+                )
+
+            performance_metrics[variant_name] = perf_metrics
 
         # Analyze results
         analysis = self._analyze_sgfa_variants(results, performance_metrics)
@@ -1002,20 +1022,30 @@ class SGFAConfigurationComparison(ExperimentFramework):
             # Create variant name for checkpoint identification (includes group_lambda)
             variant_name = f"K{K}_percW{int(percW)}_grp{group_lambda}"
 
-            # Reduce sampling parameters for high memory variants
+            # Get MCMC parameters from config (sgfa_configuration_comparison section)
+            # Falls back to args, then to defaults
+            # NOTE: Use at least 2 chains to enable aligned R-hat convergence diagnostics
+            config_dict = getattr(self.config, 'config_dict', {}) if hasattr(self.config, 'config_dict') else {}
+            comparison_config = config_dict.get('sgfa_configuration_comparison', {})
+
+            # Read from config, then args, then defaults
+            # Minimum 2 chains required for aligned R-hat (accounts for sign/permutation indeterminacy)
+            num_chains = comparison_config.get('num_chains', args.get("num_chains", 2))
+            num_samples = comparison_config.get('num_samples', args.get("num_samples", 1000))
+            num_warmup = comparison_config.get('num_warmup', args.get("num_warmup", 500))
+
+            # Reduce sampling parameters for very high memory variants
             if K >= 10 and percW >= 33:
-                num_warmup = args.get(
-                    "num_warmup", 200
-                )  # Even more reduced for high memory
-                num_samples = args.get("num_samples", 300)  # Even more reduced
-                num_chains = 1  # Force single chain for high memory variants
+                # Scale down by factor of 2 for high-memory configs
+                num_warmup = max(200, num_warmup // 2)
+                num_samples = max(300, num_samples // 2)
                 self.logger.info(
-                    f"Using heavily reduced sampling for high memory variant: warmup={num_warmup}, samples={num_samples}, chains={num_chains}"
+                    f"Using reduced sampling for high memory variant: warmup={num_warmup}, samples={num_samples}, chains={num_chains}"
                 )
             else:
-                num_warmup = args.get("num_warmup", 500)
-                num_samples = args.get("num_samples", 1000)
-                num_chains = args.get("num_chains", 1)  # Single chain for GPU memory
+                self.logger.info(
+                    f"Using standard sampling: warmup={num_warmup}, samples={num_samples}, chains={num_chains}"
+                )
 
             # Create args object for model
             import argparse
@@ -1088,8 +1118,73 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 self.logger.warning("No potential energy data collected - log likelihood unavailable")
 
             # Extract mean parameters
-            W_samples = samples["W"]  # Shape: (num_samples, D, K)
-            Z_samples = samples["Z"]  # Shape: (num_samples, N, K)
+            # Note: samples shape depends on chain_method
+            # For sequential chains: (num_chains * num_samples, D, K)
+            # For parallel chains: (num_chains, num_samples, D, K) - but we use sequential
+            W_samples = samples["W"]  # Shape: (num_chains * num_samples, D, K) for sequential
+            Z_samples = samples["Z"]  # Shape: (num_chains * num_samples, N, K) for sequential
+
+            # Reshape samples to (num_chains, num_samples, D, K) for aligned R-hat computation
+            # Sequential chain method concatenates chains, so we need to split them back
+            total_samples = W_samples.shape[0]
+            samples_per_chain = total_samples // num_chains
+
+            W_samples_reshaped = W_samples[:num_chains * samples_per_chain].reshape(
+                num_chains, samples_per_chain, W_samples.shape[1], W_samples.shape[2]
+            )  # (num_chains, samples_per_chain, D, K)
+            Z_samples_reshaped = Z_samples[:num_chains * samples_per_chain].reshape(
+                num_chains, samples_per_chain, Z_samples.shape[1], Z_samples.shape[2]
+            )  # (num_chains, samples_per_chain, N, K)
+
+            # Compute aligned R-hat if we have multiple chains
+            aligned_rhat_W = None
+            aligned_rhat_Z = None
+            if num_chains >= 2:
+                try:
+                    from analysis.factor_stability import (
+                        assess_factor_stability_cosine,
+                        compute_aligned_rhat,
+                    )
+
+                    self.logger.info(f"Computing aligned R-hat for convergence diagnostics...")
+
+                    # Assess factor stability to get matching information
+                    # Use W samples for factor matching
+                    stability_results = assess_factor_stability_cosine(
+                        samples_per_chain=W_samples_reshaped,
+                        cosine_threshold=0.8,
+                        min_match_rate=0.5,
+                    )
+
+                    per_factor_matches = stability_results["per_factor_matches"]
+
+                    # Compute aligned R-hat for W
+                    aligned_rhat_W = compute_aligned_rhat(
+                        samples_per_chain=W_samples_reshaped,
+                        per_factor_matches=per_factor_matches,
+                        reference_chain=0,
+                    )
+
+                    # Compute aligned R-hat for Z (using same factor matching)
+                    aligned_rhat_Z = compute_aligned_rhat(
+                        samples_per_chain=Z_samples_reshaped,
+                        per_factor_matches=per_factor_matches,
+                        reference_chain=0,
+                    )
+
+                    self.logger.info(
+                        f"  W aligned R-hat: max={aligned_rhat_W['max_rhat_overall']:.4f}, "
+                        f"mean={aligned_rhat_W['mean_rhat_overall']:.4f}"
+                    )
+                    self.logger.info(
+                        f"  Z aligned R-hat: max={aligned_rhat_Z['max_rhat_overall']:.4f}, "
+                        f"mean={aligned_rhat_Z['mean_rhat_overall']:.4f}"
+                    )
+
+                except Exception as e:
+                    self.logger.warning(f"Could not compute aligned R-hat: {str(e)}")
+                    aligned_rhat_W = None
+                    aligned_rhat_Z = None
 
             W_mean = np.mean(W_samples, axis=0)
             Z_mean = np.mean(Z_samples, axis=0)
@@ -1106,6 +1201,41 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 f"SGFA training completed in { elapsed:.2f}s, log_likelihood: { log_likelihood:.3f}"
             )
 
+            # Build MCMC diagnostics dict
+            mcmc_diagnostics = {
+                "num_samples": num_samples,
+                "num_warmup": num_warmup,
+                "num_chains": num_chains,
+            }
+
+            # Add aligned R-hat metrics if available
+            if aligned_rhat_W is not None:
+                mcmc_diagnostics["aligned_rhat_W"] = {
+                    "max_rhat_overall": float(aligned_rhat_W["max_rhat_overall"]),
+                    "mean_rhat_overall": float(aligned_rhat_W["mean_rhat_overall"]),
+                    "convergence_rate": float(aligned_rhat_W["convergence_rate"]),
+                    "max_rhat_per_factor": aligned_rhat_W["max_rhat_per_factor"].tolist(),
+                    "mean_rhat_per_factor": aligned_rhat_W["mean_rhat_per_factor"].tolist(),
+                }
+            if aligned_rhat_Z is not None:
+                mcmc_diagnostics["aligned_rhat_Z"] = {
+                    "max_rhat_overall": float(aligned_rhat_Z["max_rhat_overall"]),
+                    "mean_rhat_overall": float(aligned_rhat_Z["mean_rhat_overall"]),
+                    "convergence_rate": float(aligned_rhat_Z["convergence_rate"]),
+                    "max_rhat_per_factor": aligned_rhat_Z["max_rhat_per_factor"].tolist(),
+                    "mean_rhat_per_factor": aligned_rhat_Z["mean_rhat_per_factor"].tolist(),
+                }
+
+            # Determine convergence based on aligned R-hat (if available)
+            # Use threshold of 1.1 for good convergence
+            if aligned_rhat_W is not None and aligned_rhat_Z is not None:
+                converged = (
+                    aligned_rhat_W["max_rhat_overall"] < 1.1 and
+                    aligned_rhat_Z["max_rhat_overall"] < 1.1
+                )
+            else:
+                converged = True  # Fallback if aligned R-hat not available
+
             result = {
                 "W": W_list,
                 "Z": Z_mean,
@@ -1114,13 +1244,9 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 "samples": samples,
                 "log_likelihood": float(log_likelihood),
                 "n_iterations": num_samples,
-                "convergence": True,
+                "convergence": converged,
                 "execution_time": elapsed,
-                "mcmc_diagnostics": {
-                    "num_samples": num_samples,
-                    "num_warmup": num_warmup,
-                    "num_chains": num_chains,
-                },
+                "mcmc_diagnostics": mcmc_diagnostics,
                 "view_names": kwargs.get("view_names", [f"view_{i}" for i in range(len(X_list))]),
             }
 
@@ -1192,6 +1318,16 @@ class SGFAConfigurationComparison(ExperimentFramework):
                 "iterations": metrics["convergence_iterations"],
             }
 
+            # Add aligned R-hat metrics if available
+            if "aligned_rhat_max_overall" in metrics:
+                variant_summary["aligned_rhat_max"] = metrics["aligned_rhat_max_overall"]
+                variant_summary["aligned_rhat_W_max"] = metrics.get("aligned_rhat_W_max", np.nan)
+                variant_summary["aligned_rhat_Z_max"] = metrics.get("aligned_rhat_Z_max", np.nan)
+                variant_summary["convergence_rate"] = min(
+                    metrics.get("aligned_rhat_W_convergence_rate", 0),
+                    metrics.get("aligned_rhat_Z_convergence_rate", 0)
+                )
+
             # Calculate ROI specificity if W_list is available
             if "W" in result and isinstance(result["W"], list):
                 try:
@@ -1228,24 +1364,52 @@ class SGFAConfigurationComparison(ExperimentFramework):
             performance_metrics.items(), key=lambda x: x[1]["peak_memory_gb"]
         )
 
+        # Rank by aligned R-hat (lower is better) - only include variants with aligned R-hat
+        convergence_ranking = sorted(
+            [(name, metrics) for name, metrics in performance_metrics.items()
+             if "aligned_rhat_max_overall" in metrics],
+            key=lambda x: x[1]["aligned_rhat_max_overall"]
+        )
+
         analysis["performance_ranking"] = {
             "fastest": [name for name, _ in time_ranking],
             "memory_efficient": [name for name, _ in memory_ranking],
+            "best_convergence": [name for name, _ in convergence_ranking],  # Based on aligned R-hat
         }
 
-        # Convergence analysis
+        # Convergence analysis based on aligned R-hat
         converged_variants = [
             name for name, result in results.items() if result.get("convergence", False)
         ]
 
+        # Count variants with good convergence (aligned R-hat < 1.1)
+        well_converged = [
+            name for name, metrics in performance_metrics.items()
+            if "aligned_rhat_max_overall" in metrics and metrics["aligned_rhat_max_overall"] < 1.1
+        ]
+
         analysis["convergence_analysis"] = {
             "converged_variants": converged_variants,
-            "convergence_rate": len(converged_variants) / len(results),
+            "convergence_rate": len(converged_variants) / len(results) if results else 0,
+            "well_converged_variants": well_converged,  # aligned R-hat < 1.1
+            "well_convergence_rate": len(well_converged) / len(results) if results else 0,
         }
 
-        # Recommendations
+        # Recommendations based on aligned R-hat
+        if well_converged:
+            best_converged = convergence_ranking[0][0] if convergence_ranking else None
+            if best_converged:
+                best_rhat = convergence_ranking[0][1]["aligned_rhat_max_overall"]
+                analysis["recommendations"].append(
+                    f"Best convergence (aligned R-hat): {best_converged} "
+                    f"(max R-hat = {best_rhat:.4f})"
+                )
+
         if "standard" in converged_variants:
-            analysis["recommendations"].append("Standard SGFA converged successfully")
+            if "standard" in well_converged:
+                analysis["recommendations"].append("Standard SGFA converged successfully (R-hat < 1.1)")
+            else:
+                analysis["recommendations"].append("Standard SGFA ran but convergence may be poor (R-hat >= 1.1)")
 
         fastest_variant = time_ranking[0][0]
         analysis["recommendations"].append(f"Fastest variant: {fastest_variant}")
@@ -1346,6 +1510,58 @@ class SGFAConfigurationComparison(ExperimentFramework):
             )
             plots["sgfa_variant_quality"] = quality_fig
             self.logger.info("   ✅ Quality comparison plot created")
+
+            # Convergence comparison (aligned R-hat)
+            self.logger.info("   Creating convergence comparison plot (aligned R-hat)...")
+            variants_with_rhat = [
+                v for v in variants
+                if "aligned_rhat_max_overall" in performance_metrics[v]
+            ]
+
+            if variants_with_rhat:
+                import matplotlib.pyplot as plt
+                import numpy as np
+
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+                # Plot 1: Max aligned R-hat (W and Z)
+                rhat_W = [performance_metrics[v].get("aligned_rhat_W_max", np.nan) for v in variants_with_rhat]
+                rhat_Z = [performance_metrics[v].get("aligned_rhat_Z_max", np.nan) for v in variants_with_rhat]
+                x = np.arange(len(variants_with_rhat))
+                width = 0.35
+
+                ax1.bar(x - width/2, rhat_W, width, label='W (loadings)', color='steelblue', alpha=0.7)
+                ax1.bar(x + width/2, rhat_Z, width, label='Z (scores)', color='coral', alpha=0.7)
+                ax1.axhline(y=1.1, color='red', linestyle='--', linewidth=2, label='Convergence threshold')
+                ax1.set_xlabel('SGFA Variant')
+                ax1.set_ylabel('Max Aligned R-hat')
+                ax1.set_title('Convergence: Max Aligned R-hat by Variant')
+                ax1.set_xticks(x)
+                ax1.set_xticklabels(variants_with_rhat, rotation=45, ha='right')
+                ax1.legend()
+                ax1.grid(True, alpha=0.3, axis='y')
+
+                # Plot 2: Convergence rate (% parameters with R-hat < 1.1)
+                conv_rates = [
+                    performance_metrics[v].get("aligned_rhat_W_convergence_rate", 0) * 100
+                    for v in variants_with_rhat
+                ]
+                ax2.bar(x, conv_rates, color='green', alpha=0.7)
+                ax2.axhline(y=95, color='red', linestyle='--', linewidth=2, label='95% threshold')
+                ax2.set_xlabel('SGFA Variant')
+                ax2.set_ylabel('Convergence Rate (%)')
+                ax2.set_title('Convergence: % Parameters with R-hat < 1.1')
+                ax2.set_xticks(x)
+                ax2.set_xticklabels(variants_with_rhat, rotation=45, ha='right')
+                ax2.set_ylim([0, 100])
+                ax2.legend()
+                ax2.grid(True, alpha=0.3, axis='y')
+
+                plt.tight_layout()
+                plots["sgfa_variant_convergence"] = fig
+                self.logger.info(f"   ✅ Convergence comparison plot created ({len(variants_with_rhat)} variants)")
+            else:
+                self.logger.info("   ⚠️  No aligned R-hat data available for convergence plot")
 
             # ROI Specificity comparison across variants (only if multiple imaging views)
             # Check if there are multiple imaging views (exclude clinical view)
