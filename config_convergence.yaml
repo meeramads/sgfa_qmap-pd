@@ -123,6 +123,6 @@ factor_stability:
   sparsity_threshold: 0.001  # Adjusted for standardized data (was 0.01)
   min_nonzero_pct: 0.01      # At least 1% of features (was 0.05)
   target_accept_prob: 0.8
-  max_tree_depth: 13
+  max_tree_depth: 10         # Reduced from 13 for faster sampling
   dense_mass: false
   run_pd_subtype_discovery: true  # Run PD subtype discovery using consensus factors

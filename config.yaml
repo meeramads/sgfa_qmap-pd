@@ -261,7 +261,7 @@ factor_stability:
 
   # MCMC sampler parameters
   target_accept_prob: 0.8               # MCMC acceptance probability (0.6-0.95, default: 0.8)
-  max_tree_depth: 13                    # Maximum tree depth for NUTS sampler (10-15, default: 13)
+  max_tree_depth: 10                    # Maximum tree depth for NUTS sampler (10-15, default: 10)
   dense_mass: false                     # Use diagonal mass matrix (false) for memory efficiency vs dense (true) for better adaptation
 
   # PD Subtype Discovery
