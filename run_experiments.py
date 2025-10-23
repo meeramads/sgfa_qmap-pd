@@ -547,14 +547,14 @@ def main():
     # Determine which experiments to run
     experiments_to_run = args.experiments
     if "all" in experiments_to_run:
-        # Default: Core analysis pipeline (skip comparison/sensitivity studies and clinical validation)
-        # Order: validate data → robustness testing → stability
+        # Default: Core analysis pipeline
+        # Order: validate data → factor stability
+        # Note: robustness_testing available but skipped by default (only 150 iterations, not a real analysis)
         experiments_to_run = [
             "data_validation",
-            "robustness_testing",
             "factor_stability",
         ]
-        logger.info("ℹ️  Running core analysis pipeline following Ferreira et al. 2024 methodology")
+        logger.info("ℹ️  Running core analysis pipeline: data_validation → factor_stability")
 
     # Determine execution mode
     use_shared_data = not args.no_shared_data and not args.independent_mode
@@ -582,7 +582,7 @@ def main():
 
     # Run experiments sequentially, passing context through config
     if "data_validation" in experiments_to_run:
-        logger.info("🔍 1/6 Starting Data Validation Experiment...")
+        logger.info("🔍 1/2 Starting Data Validation Experiment...")
         results["data_validation"] = run_data_validation(config)
 
         # Update pipeline context with results from data validation
