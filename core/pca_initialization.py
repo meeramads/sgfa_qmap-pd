@@ -139,9 +139,16 @@ def create_numpyro_init_params(
     init_params = {}
 
     if model_type == "sparse_gfa_fixed":
+        logger.warning(
+            "⚠️  PCA initialization with non-centered parameterization (sparse_gfa_fixed) "
+            "may SLOW sampling compared to default initialization. "
+            "Empirical testing (MAD 1000, K=5,12) shows faster convergence WITHOUT PCA init. "
+            "Geometric mismatch: PCA operates in data space, non-centered uses N(0,1) space. "
+            "Consider use_pca_initialization=false."
+        )
         logger.debug("  Using sparse_gfa_fixed parameterization (non-centered)")
         # For sparse_gfa_fixed (non-centered parameterization)
-        # Initialize from PCA to place all chains in same mode (Erosheva & Curtis 2017)
+        # Note: This may not be optimal - see warning above
 
         N = X_list[0].shape[0]
         D_total = pca_init['W'].shape[0]
@@ -186,11 +193,14 @@ def create_numpyro_init_params(
         init_params['cW_tilde'] = jnp.ones((len(X_list), K)) * 2.0
 
     else:
+        logger.info(
+            "✓ PCA initialization with centered parameterization (sparse_gfa/sparseGFA). "
+            "This may help convergence as PCA directly initializes Z and W in data space."
+        )
         logger.debug("  Using sparse_gfa parameterization (centered)")
         # For sparse_gfa (centered parameterization)
-        # Can directly initialize Z and W from PCA
-        # Note: The model samples Z and W from Normal(0,1) then transforms them
-        # So we need to provide the untransformed values
+        # Can directly initialize Z and W from PCA - appropriate for centered models
+        # The model samples Z ~ N(0,1) then scales, so initialize directly with PCA values
 
         N = X_list[0].shape[0]
         D_total = pca_init['W'].shape[0]

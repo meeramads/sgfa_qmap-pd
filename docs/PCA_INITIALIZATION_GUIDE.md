@@ -1,8 +1,31 @@
 # PCA Initialization for MCMC Sampling
 
+## ⚠️ Warning for Non-Centered Parameterization
+
+**Empirical finding**: PCA initialization may **slow** sampling for `sparse_gfa_fixed`
+(non-centered parameterization) compared to default initialization.
+
+**Evidence**: Runs with MAD 1000, K=5 and K=12 complete faster without PCA init.
+
+**Why**: PCA operates in data space while non-centered parameterization uses
+standardized Z_raw ~ N(0,1) space. The geometric mismatch forces longer warmup
+as the sampler must "unwind" the initialization to align with the prior geometry.
+
+**Theoretical issues**:
+- Violates the N(0,1) prior structure that Z_raw is designed for
+- Defeats geometric advantages of non-centered parameterization
+- Requires rescaling (Z_raw = Z_pca / scale) with guessed scale factors
+- May cause numerical instability for high K (small tau0 → large Z_raw)
+
+**Recommendation**:
+- ✅ **Use default initialization** (`use_pca_initialization: false`) for `sparse_gfa_fixed`
+- ✅ PCA init may help with **centered** parameterization (`model_type: "sparseGFA"`)
+- ⚠️ Only consider PCA init for non-centered if empirically verified on your specific problem
+
 ## Overview
 
-PCA initialization is the 5th convergence fix for the `sparse_gfa_fixed` model, providing smart initialization of MCMC chains using Principal Component Analysis. This can significantly improve convergence, especially for high-dimensional neuroimaging data.
+PCA initialization provides initialization of MCMC chains using Principal Component Analysis.
+However, its effectiveness depends on the parameterization used (see warning above).
 
 ## Why PCA Initialization?
 
@@ -19,16 +42,18 @@ PCA initialization is the 5th convergence fix for the `sparse_gfa_fixed` model, 
 
 ## When to Use
 
-**Recommended for**:
-- `sparse_gfa_fixed` model (non-centered parameterization)
-- High-dimensional data (>500 features)
-- Convergence issues (R-hat > 1.1)
-- Limited computational budget
-
-**Not needed for**:
-- Small datasets (<100 features)
+**⚠️ Generally NOT recommended for**:
+- `sparse_gfa_fixed` model (non-centered parameterization) - **empirically slower**
+- Multi-chain convergence testing (violates R-hat assumptions)
 - Already achieving good convergence
-- Standard `sparse_gfa` model (works but less benefit)
+
+**May help for**:
+- `sparseGFA` model (centered parameterization)
+- Single long chain runs (after validating convergence)
+- Extremely limited computational budget (verify empirically)
+
+**Deprecated recommendation**: Earlier versions recommended PCA init for `sparse_gfa_fixed`.
+Empirical testing shows this actually slows sampling due to geometry mismatch.
 
 ## How It Works
 
@@ -300,14 +325,32 @@ mcmc:
 
 ## Examples
 
-### Example 1: Basic Usage
+### Example 1: Using PCA Init with Centered Parameterization (Recommended)
+
+```yaml
+# config.yaml
+model:
+  model_type: "sparse_gfa"          # Centered parameterization
+  use_pca_initialization: true      # ✓ Appropriate for centered model
+  K: 20
+  num_samples: 2000
+  num_warmup: 1000
+```
+
+```bash
+python run_experiments.py --config config.yaml \
+  --experiments factor_stability \
+  --select-rois volume_sn_voxels.tsv
+```
+
+### Example 2: Non-Centered WITHOUT PCA (Recommended for sparse_gfa_fixed)
 
 ```yaml
 # config_convergence.yaml
 model:
-  model_type: "sparse_gfa_fixed"
-  use_pca_initialization: true
-  K: 2
+  model_type: "sparse_gfa_fixed"    # Non-centered parameterization
+  use_pca_initialization: false     # ✓ Empirically faster
+  K: 20
 ```
 
 ```bash
@@ -316,7 +359,7 @@ python run_experiments.py --config config_convergence.yaml \
   --select-rois volume_sn_voxels.tsv
 ```
 
-### Example 2: Programmatic Control
+### Example 3: Programmatic Control
 
 ```python
 from core.pca_initialization import compute_pca_initialization
@@ -333,47 +376,53 @@ print(f"Z shape: {pca_result['Z'].shape}")
 print(f"W per view: {[W.shape for W in pca_result['W_list']]}")
 ```
 
-### Example 3: Comparing With/Without PCA Init
+### Example 4: Comparing With/Without PCA Init (Centered Model)
 
 ```bash
-# Without PCA init
+# Centered model without PCA init
 python run_experiments.py --config config.yaml \
   --experiments factor_stability \
   --select-rois volume_sn_voxels.tsv
 
-# With PCA init
-python run_experiments.py --config config_convergence.yaml \
+# Centered model with PCA init (may be faster)
+# Edit config.yaml: use_pca_initialization: true
+python run_experiments.py --config config.yaml \
   --experiments factor_stability \
   --select-rois volume_sn_voxels.tsv
 ```
 
-Compare R-hat and acceptance probability in the output.
+Compare R-hat, acceptance probability, and wall-clock time to validate benefit.
 
 ## FAQ
 
 **Q: Should I always use PCA initialization?**
 
-A: For `sparse_gfa_fixed`, yes. It's enabled by default in `config_convergence.yaml` and has minimal overhead.
+A: **No.** For `sparse_gfa_fixed` (non-centered), empirical testing shows it actually **slows** sampling. Keep `use_pca_initialization: false` (the current default in `config_convergence.yaml`). Only consider PCA init for centered parameterization models.
 
 **Q: Can I use PCA init with `sparse_gfa` (centered)?**
 
-A: Yes, but benefit is smaller. The implementation supports both models.
+A: Yes, PCA init is more appropriate for centered parameterization. However, still validate empirically that it helps rather than hurts.
 
 **Q: What if my data is already PCA-reduced?**
 
-A: PCA initialization still helps! It re-computes PCA on the reduced data to get optimal starting values.
+A: For non-centered parameterization, still use default initialization. The parameterization is designed to work with standardized priors, not data-driven starting points.
 
 **Q: Does PCA init affect final results?**
 
-A: No! MCMC converges to the same posterior regardless of initialization. PCA init only affects:
-- Speed of convergence
-- Efficiency of warmup
+A: Theoretically no - MCMC eventually converges to the same posterior. However:
+- For non-centered parameterization: May **slow** convergence rather than speed it up
+- Affects computational efficiency (can be positive or negative depending on parameterization)
+- Does not change the final posterior distribution (assuming convergence is achieved)
+
+**Q: Why was PCA init originally recommended for `sparse_gfa_fixed`?**
+
+A: The guidance was adapted from centered parameterization literature without recognizing the geometric incompatibility with non-centered parameterization. Empirical testing has since revealed the mismatch.
 
 **Q: How do I disable PCA initialization?**
 
 ```yaml
 model:
-  use_pca_initialization: false
+  use_pca_initialization: false  # Recommended for sparse_gfa_fixed
 ```
 
 ---

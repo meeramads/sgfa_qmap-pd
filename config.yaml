@@ -59,6 +59,11 @@ model:
   slab_scale: 2                          # Slab scale for regularized horseshoe (1-5 typical)
   reghsZ: true                           # Apply regularized horseshoe to latent factors Z
 
+  # PCA Initialization (OPTIONAL)
+  # Only recommended for centered parameterization (sparse_gfa)
+  # NOT recommended for non-centered (sparse_gfa_fixed) - see docs/PCA_INITIALIZATION_GUIDE.md
+  use_pca_initialization: false          # Default: false. Set true for centered parameterization only.
+
   # Random Seed (OPTIONAL)
   random_seed: 42                        # Random seed for reproducible results
 
