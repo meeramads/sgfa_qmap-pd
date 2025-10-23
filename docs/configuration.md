@@ -182,6 +182,113 @@ system:
 - `memory_limit_gb`: >0 (reasonable values: 2-1000)
 - `n_cpu_cores`: ≥1 (should not exceed system cores)
 
+### 8. Experiment-Specific Configurations
+
+#### Factor Stability Analysis (`factor_stability`)
+
+**Purpose**: Configure multi-chain MCMC analysis for identifying stable latent factors.
+
+```yaml
+factor_stability:
+  K: 20                      # Number of latent factors (default: 20)
+  num_chains: 4              # Number of independent MCMC chains (default: 4)
+  num_samples: 10000         # MCMC samples per chain (default: 10000)
+  num_warmup: 3000           # MCMC warmup samples (default: 3000)
+  chain_method: 'parallel'   # Chain execution method (default: 'parallel')
+
+  # Factor matching parameters (Ferreira et al. 2024)
+  cosine_threshold: 0.8      # Minimum cosine similarity for matching (default: 0.8)
+  min_match_rate: 0.5        # Minimum fraction of chains (default: 0.5)
+
+  # MCMC sampler parameters
+  target_accept_prob: 0.8    # NUTS acceptance probability (default: 0.8)
+  max_tree_depth: 10         # NUTS max tree depth (default: 10)
+  dense_mass: false          # Use diagonal mass matrix (default: false)
+```
+
+**Key Features**:
+
+- Runs multiple independent MCMC chains to assess convergence
+- Uses **aligned R-hat** convergence diagnostics (accounts for sign/permutation indeterminacy)
+- Identifies consensus factors stable across chains using cosine similarity
+- Convergence threshold: aligned R-hat < 1.1 for all parameters
+
+**Recommended Settings**:
+
+- **Production**: 4 chains, 10000 samples, 3000 warmup
+- **Development**: 2 chains, 1000 samples, 500 warmup
+- **Quick test**: 2 chains, 200 samples, 100 warmup
+
+#### SGFA Parameter Comparison (`sgfa_configuration_comparison`)
+
+**Purpose**: Compare different SGFA hyperparameter configurations to identify optimal settings.
+
+```yaml
+sgfa_configuration_comparison:
+  # MCMC sampling parameters
+  # NOTE: Minimum 2 chains required for aligned R-hat convergence diagnostics
+  num_chains: 2              # Number of MCMC chains (minimum: 2, default: 2)
+  num_samples: 1000          # Samples per chain (default: 1000)
+  num_warmup: 500            # Warmup samples per chain (default: 500)
+  target_accept_prob: 0.8    # NUTS acceptance probability (default: 0.8)
+  max_tree_depth: 10         # NUTS max tree depth (default: 10)
+```
+
+**Key Features**:
+
+- Tests multiple SGFA variants (standard, sparse_only, group_only, basic_fa)
+- Uses **aligned R-hat** as primary convergence metric
+- Ranks variants by: (1) Convergence quality (R-hat < 1.1), (2) Speed, (3) Memory
+- Automatically generates convergence comparison plots
+
+**Performance Metrics**:
+
+1. **Aligned R-hat (Primary)**: Max R-hat for W (loadings) and Z (scores)
+   - Accounts for sign and permutation indeterminacy in factor models
+   - Threshold: < 1.1 for good convergence
+2. **Convergence Rate**: % of parameters with R-hat < 1.1
+3. **Execution Time**: Wall-clock time per variant
+4. **Memory Usage**: Peak memory consumption
+
+**Why Aligned R-hat?**
+
+Standard R-hat incorrectly indicates poor convergence in factor models because chains can converge to equivalent solutions that differ only in sign flips or factor ordering. Aligned R-hat corrects for this by:
+
+1. Matching factors across chains using cosine similarity
+2. Aligning signs to reference chain
+3. Computing R-hat on aligned samples
+
+This provides accurate convergence assessment for factor models.
+
+**Minimum Requirements**:
+
+- **num_chains ≥ 2**: Aligned R-hat requires multiple chains to compare between-chain vs. within-chain variance
+- **num_samples ≥ 200**: Need sufficient samples for reliable R-hat estimates
+
+**Performance Considerations**:
+
+⚠️ **Computationally Intensive**: This experiment runs multiple MCMC chains sequentially for each variant, which is time-consuming but memory-safe on remote workstations.
+
+- **Runtime estimate**: ~(num_variants × num_chains × chain_runtime)
+- **Example**: 4 variants × 2 chains × 30 min/chain = ~4 hours total
+- **Memory**: No issues (sequential chains prevent memory overflow)
+- **Recommendation**: Use reduced sampling (num_samples=1000, num_warmup=500) for parameter comparison; use full sampling (num_samples=10000, num_warmup=3000) only for final validation
+
+#### Robustness Testing (`robustness_testing`)
+
+**Purpose**: Smoke test to verify model code runs without crashing (150 iterations).
+
+```yaml
+robustness_testing:
+  test_scenarios:
+    - "identical_seeds"
+    - "different_hardware"
+  seed_values: [42, 123, 456]
+  n_repetitions: 3
+```
+
+**Note**: This is a quick smoke test (50 warmup + 100 samples = 150 total) and does NOT check convergence. Not part of default pipeline (`--experiments all`). Use `factor_stability` for real convergence analysis.
+
 ## Configuration Examples
 
 ### Minimal Configuration

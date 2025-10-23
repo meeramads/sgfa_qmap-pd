@@ -42,38 +42,77 @@ Compare SGFA against traditional dimensionality reduction methods (PCA, ICA, Fac
 
 ## SGFA Hyperparameter Comparison
 
-**Status**: ⏳ **Blocked - Awaiting Suitable Comparison Metric**
+**Status**: ✅ **Implemented - Aligned R-hat Comparison Metric**
 
 ### Description
 
-Systematic comparison of SGFA configurations across the hyperparameter grid:
+Systematic comparison of SGFA configurations using aligned R-hat convergence diagnostics:
 - K (number of factors): 2, 5, 10, 15, 20
 - percW (sparsity %): 10%, 25%, 33%, 50%
 - slab parameters: (df=4, scale=2) vs other configurations
 
-### Framework Available
+### Implementation Complete
 
-- `experiments/sgfa_configuration_comparison.py`: Grid search infrastructure
-- Automated hyperparameter sweeps
-- Result aggregation across configurations
+**Framework**: `experiments/sgfa_configuration_comparison.py`
+- ✅ Multi-chain MCMC (minimum 2 chains per variant)
+- ✅ Aligned R-hat convergence diagnostics (accounts for sign/permutation indeterminacy)
+- ✅ Automatic factor matching across chains using cosine similarity
+- ✅ Convergence comparison plots (max R-hat, convergence rate)
+- ✅ Variant ranking by: (1) Convergence quality, (2) Speed, (3) Memory
 
-### Blocker: Same as Model Comparison
+**Configuration**: `config_convergence.yaml` or `config.yaml`
+```yaml
+sgfa_configuration_comparison:
+  num_chains: 2              # Minimum 2 for aligned R-hat
+  num_samples: 1000          # Samples per chain
+  num_warmup: 500            # Warmup per chain
+```
 
-**Problem**: Cannot objectively compare different K/percW combinations without a comparison metric.
+### Comparison Metric: Aligned R-hat
 
-**Current Workaround**: Use factor stability analysis to assess individual configurations, but cannot rank them.
+**Why This Solves the Problem**:
 
-**What's Needed**:
-- Define metric for comparing different K values (e.g., stability rate + effective factors)
-- Define metric for comparing sparsity levels (e.g., interpretability vs coverage trade-off)
-- Could use multi-objective optimization (stability + clinical relevance + interpretability)
+Standard R-hat fails for factor models because chains can converge to equivalent solutions that differ only in sign flips or factor ordering, incorrectly indicating poor convergence.
 
-**Estimated Effort**: 2-3 weeks (metric definition + validation)
+**Aligned R-hat Solution**:
+1. Match factors across chains using cosine similarity
+2. Align signs to reference chain
+3. Compute R-hat on aligned samples
+
+**Ranking Criteria**:
+- **Primary**: Aligned R-hat < 1.1 (good convergence)
+- **Secondary**: Execution time (faster is better)
+- **Tertiary**: Memory usage (lower is better)
+
+This provides objective, automatic comparison of SGFA variants based on convergence quality.
+
+### Usage
+
+```bash
+python run_experiments.py --config config_convergence.yaml \
+  --experiments sgfa_configuration_comparison \
+  --select-rois volume_sn_voxels.tsv
+```
+
+### Output
+
+- **Convergence plots**: Max R-hat and convergence rate by variant
+- **Performance metrics**: Aligned R-hat, execution time, memory usage
+- **Recommendations**: Best converged variant automatically identified
+
+### Performance Note
+
+⚠️ **Computationally Intensive**: This experiment is time-consuming because chains run sequentially on remote workstations (memory-safe but slow).
+
+- **Runtime estimate**: ~(num_variants × num_chains × chain_runtime)
+- **Example**: 4 variants × 2 chains × 30 min/chain = ~4 hours total
+- **Recommendation**: Use reduced sampling for initial comparison; full sampling only for final validation
 
 ### Files
 
-- `experiments/sgfa_configuration_comparison.py`
-- Infrastructure complete, needs comparison framework
+- `experiments/sgfa_configuration_comparison.py` - Main implementation
+- `analysis/factor_stability.py` - Aligned R-hat computation
+- `config_convergence.yaml`, `config.yaml` - Configuration sections
 
 ---
 

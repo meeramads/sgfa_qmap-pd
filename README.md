@@ -47,6 +47,36 @@ The default pipeline (`--experiments all`) runs two stages with shared preproces
 
 **Note**: `robustness_testing` is available but not part of the default pipeline (only 150 iterations, primarily a smoke test). Run explicitly if needed: `--experiments robustness_testing`
 
+### Optional Experiments
+
+**SGFA Parameter Comparison** (`sgfa_configuration_comparison`)
+
+Compare different SGFA hyperparameter configurations using aligned R-hat convergence diagnostics:
+
+```bash
+python run_experiments.py --config config_convergence.yaml \
+  --experiments sgfa_configuration_comparison \
+  --select-rois volume_sn_voxels.tsv
+```
+
+**Features**:
+- Tests multiple SGFA variants (standard, sparse_only, group_only, basic_fa)
+- Uses **aligned R-hat** as primary convergence metric (accounts for sign/permutation indeterminacy)
+- Ranks variants by: (1) Convergence quality (R-hat < 1.1), (2) Speed, (3) Memory
+- Generates convergence comparison plots showing max R-hat and convergence rate
+
+**Why Aligned R-hat?** Standard R-hat incorrectly indicates poor convergence in factor models because chains can converge to equivalent solutions that differ only in sign flips or factor ordering. Aligned R-hat matches factors across chains using cosine similarity and aligns signs before computing R-hat.
+
+**Configuration**:
+```yaml
+sgfa_configuration_comparison:
+  num_chains: 2              # Minimum 2 chains for aligned R-hat
+  num_samples: 1000          # Samples per chain
+  num_warmup: 500            # Warmup per chain
+```
+
+See [docs/configuration.md](docs/configuration.md#sgfa-parameter-comparison-sgfa_configuration_comparison) for details.
+
 ## Configuration (`config_convergence.yaml`)
 
 ### Model Parameters
