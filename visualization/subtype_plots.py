@@ -5,6 +5,7 @@ Provides specialized visualizations for Parkinson's Disease subtype discovery,
 including clinical validation, subtype characterization, and research decision support.
 """
 
+import gc
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -65,7 +66,6 @@ class PDSubtypeVisualizer:
         plot_dir : Path
             Directory for saving plots
         """
-        import gc
         logger.info("Creating PD subtype discovery visualizations")
 
         plot_dir.mkdir(parents=True, exist_ok=True)
