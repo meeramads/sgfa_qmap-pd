@@ -1083,9 +1083,9 @@ def main():
                                 }
                                 # Remove None values
                                 clinical_data = {k: v for k, v in clinical_data.items() if v is not None}
-                                logger.info(f"   Clinical data loaded: {list(clinical_data.keys())}")
+                                logger.debug(f"   Clinical data loaded: {list(clinical_data.keys())}")
                             else:
-                                logger.info("   No clinical data available for validation")
+                                logger.debug("   No clinical data available for validation")
                         except Exception as e:
                             logger.warning(f"   Failed to load clinical data: {e}")
                             clinical_data = {}
@@ -1113,21 +1113,21 @@ def main():
 
                         # Run subtype discovery directly on consensus factors
                         # We'll call the subtype_analyzer methods directly instead of re-running SGFA
-                        logger.info("   Discovering PD subtypes using clustering...")
+                        logger.debug("   Discovering PD subtypes using clustering...")
                         subtype_results = clinical_exp.subtype_analyzer.discover_pd_subtypes(Z_consensus)
 
-                        logger.info(f"   ✓ Discovered {subtype_results.get('optimal_k', 'N/A')} subtypes")
+                        logger.info(f"   ✓ Discovered {subtype_results.get('optimal_k', 'N/A')} subtypes (silhouette={subtype_results.get('best_solution', {}).get('silhouette_score', 'N/A'):.3f})")
 
                         # Validate discovered subtypes against clinical measures
                         if clinical_data:
-                            logger.info("   Validating discovered subtypes against clinical measures...")
+                            logger.debug("   Validating discovered subtypes against clinical measures...")
                             validation_results = clinical_exp.subtype_analyzer.validate_subtypes_clinical(
                                 subtype_results, clinical_data, Z_consensus
                             )
-                            logger.info(f"   ✓ Clinical validation complete")
+                            logger.debug(f"   ✓ Clinical validation complete")
 
                         # Analyze factor patterns for each discovered subtype
-                        logger.info("   Analyzing factor patterns for each subtype...")
+                        logger.debug("   Analyzing factor patterns for each subtype...")
                         interpretation_results = clinical_exp.subtype_analyzer.analyze_subtype_factor_patterns(
                             Z_consensus,
                             subtype_results,
@@ -1152,7 +1152,7 @@ def main():
                             subtype_output_dir
                         )
 
-                        logger.info(f"   ✓ Generated {len(plots)} subtype visualization plots")
+                        logger.debug(f"   Generated {len(plots)} subtype visualization plots")
 
                         # Save subtype discovery results
                         from core.io_utils import save_json
@@ -1166,12 +1166,7 @@ def main():
                             indent=2
                         )
 
-                        logger.info(f"   ✓ Subtype discovery results saved to: {subtype_output_dir}")
-                        logger.info(f"   ✓ Optimal K: {subtype_results.get('optimal_k', 'N/A')}")
-                        if 'best_solution' in subtype_results:
-                            best_sol = subtype_results['best_solution']
-                            logger.info(f"   ✓ Silhouette score: {best_sol.get('silhouette_score', 'N/A'):.3f}")
-                            logger.info(f"   ✓ Calinski-Harabasz score: {best_sol.get('calinski_harabasz_score', 'N/A'):.2f}")
+                        logger.info(f"   ✓ Results saved to: {subtype_output_dir.name}/")
 
                 except Exception as e:
                     logger.error(f"   ❌ PD subtype discovery failed: {e}")
