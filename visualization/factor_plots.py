@@ -807,7 +807,11 @@ class FactorVisualizer:
             table[(0, i)].set_text_props(weight='bold', color='white')
 
         fig.suptitle('Enhanced Factor Loading Analysis', fontsize=16, fontweight='bold', y=0.98)
-        fig.tight_layout(rect=[0, 0.03, 1, 0.96], h_pad=3.0, w_pad=2.0)
+        try:
+            fig.tight_layout(rect=[0, 0.03, 1, 0.96], h_pad=3.0, w_pad=2.0)
+        except ValueError:
+            # tight_layout may fail if plot is too crowded, use default spacing
+            pass
 
         if save_path:
             save_plot(save_path)

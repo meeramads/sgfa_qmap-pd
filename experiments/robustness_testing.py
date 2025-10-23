@@ -2559,9 +2559,9 @@ class RobustnessExperiments(ExperimentFramework):
         }
 
         # Generate plots
-        self.logger.info("=" * 80)
+        self.logger.debug("=" * 80)
         self.logger.debug("GENERATING FACTOR STABILITY PLOTS")
-        self.logger.info("=" * 80)
+        self.logger.debug("=" * 80)
         try:
             plots = self._plot_factor_stability(
                 chain_results,
