@@ -235,9 +235,9 @@ def create_model_instance(
         }
 
         if verbose:
-            logger.info(f"✅ Model instance created successfully")
-            logger.info(f"   Model type: {model_type}")
-            logger.info(f"   Model class: {metadata['model_class']}")
+            logger.debug(f"✅ Model instance created successfully")
+            logger.debug(f"   Model type: {model_type}")
+            logger.debug(f"   Model class: {metadata['model_class']}")
 
         return ModelCreationResult(
             mode=ModelCreationMode.FACTORY,
@@ -367,9 +367,9 @@ def apply_models_framework_to_pipeline(
             }
 
         if verbose:
-            logger.info("✅ Models framework integration completed")
-            logger.info(f"   Model type: {model_type}")
-            logger.info(f"   Model class: {creation_result.metadata.get('model_class', 'unknown')}")
+            logger.debug("✅ Models framework integration completed")
+            logger.debug(f"   Model type: {model_type}")
+            logger.debug(f"   Model class: {creation_result.metadata.get('model_class', 'unknown')}")
             logger.info(
                 f"   Factory method: {creation_result.metadata.get('factory_method_used', False)}"
             )
@@ -726,7 +726,7 @@ def integrate_models_with_pipeline(
 
         if model_instance:
             if verbose:
-                logger.info("✅ Models framework pipeline integration completed")
+                logger.debug("✅ Models framework pipeline integration completed")
                 logger.info(
                     f" Model type: { integration_summary.get( 'model_type_selected', 'unknown')}"
                 )

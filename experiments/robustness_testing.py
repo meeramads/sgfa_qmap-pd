@@ -653,7 +653,7 @@ class RobustnessExperiments(ExperimentFramework):
             self.logger.info("=" * 80)
             self.logger.debug(f"Input data: {len(X_list)} views")
             for i, X in enumerate(X_list):
-                self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}, has_nan {np.isnan(X).any()}")
+                self.logger.debug(f"  View {i}: shape {X.shape}, dtype {X.dtype}, has_nan {np.isnan(X).any()}")
             self.logger.debug(f"Hyperparameters: {hypers}")
             self.logger.debug(f"MCMC args: {args}")
             self.logger.debug(f"Additional kwargs keys: {list(kwargs.keys())}")
@@ -716,7 +716,7 @@ class RobustnessExperiments(ExperimentFramework):
             if "K" in args:
                 config_dict["K"] = args["K"]
                 if verbose:
-                    self.logger.info(f"🔧 Setting K={args['K']} from args into config_dict")
+                    self.logger.debug(f"🔧 Setting K={args['K']} from args into config_dict")
 
             # Debug: Log what model_type is in the config
             if verbose:
@@ -733,7 +733,7 @@ class RobustnessExperiments(ExperimentFramework):
             )
 
             if verbose:
-                self.logger.info(f"✅ Model setup complete: {model_type}")
+                self.logger.debug(f"✅ Model setup complete: {model_type}")
                 # Log only key hyperparameters (not full models summary with available_models list)
                 hypers_log = models_summary.get('hyperparameters', {})
                 self.logger.debug(f"   Hyperparameters: Dm={hypers_log.get('Dm')}, percW={hypers_log.get('percW')}, slab_df={hypers_log.get('slab_df')}, slab_scale={hypers_log.get('slab_scale')}")
@@ -743,8 +743,8 @@ class RobustnessExperiments(ExperimentFramework):
             # model_instance is already configured with the correct model class (e.g., SparseGFAFixedModel)
             # and is callable via __call__ method
             if verbose:
-                self.logger.info(f"✅ Using model instance: {model_type}")
-                self.logger.info(f"   Model class: {model_instance.__class__.__name__}")
+                self.logger.debug(f"✅ Using model instance: {model_type}")
+                self.logger.debug(f"   Model class: {model_instance.__class__.__name__}")
 
             # Setup MCMC configuration for robustness testing
             num_warmup = args.get("num_warmup", 50)
@@ -2155,7 +2155,7 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info("=" * 80)
         self.logger.debug(f"Input data: {len(X_list)} views")
         for i, X in enumerate(X_list):
-            self.logger.info(f"  View {i}: shape {X.shape}, dtype {X.dtype}")
+            self.logger.debug(f"  View {i}: shape {X.shape}, dtype {X.dtype}")
         self.logger.debug(f"Hyperparameters: K={hypers.get('K')}, percW={hypers.get('percW')}, Dm={hypers.get('Dm')}")
         self.logger.debug(f"MCMC args: num_samples={args.get('num_samples')}, num_warmup={args.get('num_warmup')}")
         if self._experiment_output_dir:
