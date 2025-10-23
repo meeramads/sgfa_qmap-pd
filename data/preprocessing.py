@@ -1043,7 +1043,7 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         positions = self.position_lookups_.get(view_name)
 
         if positions is None:
-            logging.warning(f"No position lookup available for {view_name} - cannot filter")
+            logging.debug(f"No position lookup available for {view_name} - cannot filter")
             return None
 
         # Extract ROI name for verification
