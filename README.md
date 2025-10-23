@@ -17,13 +17,19 @@ SGFA discovers latent factors that explain shared variation across multiple neur
 ## Main Pipeline
 
 ```bash
-# Full validation pipeline
+# Default pipeline (recommended)
 python run_experiments.py --config config_convergence.yaml \
-  --experiments data_validation robustness_testing factor_stability \
+  --experiments all \
   --select-rois volume_sn_voxels.tsv \
   --regress-confounds age sex tiv
 
-# Factor stability analysis (main experiment)
+# Or specify stages explicitly
+python run_experiments.py --config config_convergence.yaml \
+  --experiments data_validation factor_stability \
+  --select-rois volume_sn_voxels.tsv \
+  --K 20 --percW 33 --qc-outlier-threshold 3.0
+
+# Factor stability only (if data already validated)
 python run_experiments.py --config config_convergence.yaml \
   --experiments factor_stability \
   --select-rois volume_sn_voxels.tsv \
@@ -32,11 +38,14 @@ python run_experiments.py --config config_convergence.yaml \
 
 ### Pipeline Stages
 
+The default pipeline (`--experiments all`) runs two stages with shared preprocessed data:
+
 | Experiment | Purpose | Outputs |
 |------------|---------|---------|
-| **data_validation** | Data quality, PCA analysis | Distribution plots, quality metrics |
-| **robustness_testing** | Seed reproducibility | Robustness metrics |
+| **data_validation** | Data quality, PCA analysis | Distribution plots, quality metrics, preprocessed data |
 | **factor_stability** | Multi-chain consensus | Consensus W/Z, stability heatmap, R-hat |
+
+**Note**: `robustness_testing` is available but not part of the default pipeline (only 150 iterations, primarily a smoke test). Run explicitly if needed: `--experiments robustness_testing`
 
 ## Configuration (`config_convergence.yaml`)
 
@@ -74,7 +83,7 @@ preprocessing:
 ```yaml
 factor_stability:
   target_accept_prob: 0.8       # NUTS acceptance
-  max_tree_depth: 13            # NUTS depth limit
+  max_tree_depth: 10            # NUTS depth limit (2^10 = 1024 leapfrog steps)
   cosine_threshold: 0.8         # Factor matching
   min_match_rate: 0.5           # Chain agreement
 ```
@@ -83,9 +92,9 @@ factor_stability:
 
 ```bash
 --K 20                          # Number of factors
---percW 33                      # Sparsity percentage  
+--percW 33                      # Sparsity percentage
 --qc-outlier-threshold 3.0      # MAD threshold
---max-tree-depth 13             # NUTS max depth
+--max-tree-depth 10             # NUTS max depth (2^10 = 1024 leapfrog steps)
 --select-rois <file>            # ROI selection
 --regress-confounds age sex tiv # Confound regression
 ```
@@ -95,10 +104,11 @@ factor_stability:
 ```
 sgfa_qmap-pd/
 ├── run_experiments.py          # Main entry point
-├── config_convergence.yaml     # Production configuration
+├── config_convergence.yaml     # Production configuration (non-centered parameterization)
+├── config.yaml                 # Original configuration (centered parameterization)
 │
 ├── models/                     # Model implementations
-│   ├── sparse_gfa_fixed.py     # Sparse GFA with regularized horseshoe priors
+│   ├── sparse_gfa_fixed.py     # Non-centered sparse GFA with regularized horseshoe
 │   └── factory.py              # Model instantiation factory
 │
 ├── data/                       # Data loading and preprocessing
@@ -109,7 +119,7 @@ sgfa_qmap-pd/
 ├── experiments/                # Experimental validation pipeline
 │   ├── framework.py            # Base infrastructure (logging, output management)
 │   ├── data_validation.py      # Data quality assessment
-│   ├── robustness_testing.py   # Seed reproducibility and perturbation testing
+│   ├── robustness_testing.py   # Optional smoke test (150 iterations)
 │   └── train_sparse_gfa_fixed.py  # Standalone factor stability runner
 │
 ├── analysis/                   # Post-hoc analysis and diagnostics
@@ -119,17 +129,24 @@ sgfa_qmap-pd/
 ├── visualization/              # Plotting utilities
 │   ├── factor_plots.py         # Factor loading visualizations
 │   ├── brain_plots.py          # Brain region mapping
+│   ├── subtype_plots.py        # PD subtype discovery visualizations
 │   └── neuroimaging_utils.py   # Neuroimaging-specific plotting
 │
 ├── core/                       # Core utilities
 │   ├── config_utils.py         # Configuration helpers
 │   ├── io_utils.py             # File I/O (save plots, results)
 │   ├── logger_utils.py         # Logging setup
+│   ├── pca_initialization.py   # PCA-based MCMC initialization (centered only)
 │   └── utils.py                # General utilities
 │
-└── tools/                      # Additional tools
-    └── nifti_utils.py          # NIfTI neuroimaging utilities
+└── docs/                       # Documentation
+    ├── ARCHITECTURE.md         # Detailed architecture and design patterns
+    ├── CONVERGENCE_TESTING_GUIDE.md  # MCMC convergence testing guide
+    ├── PCA_INITIALIZATION_GUIDE.md   # PCA initialization (centered only)
+    └── configuration.md        # Configuration reference
 ```
+
+**See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.**
 
 ### Module Descriptions
 
@@ -235,11 +252,21 @@ pytest --cov=.           # With coverage
 pytest tests/data/       # Specific module
 ```
 
+## Documentation
+
+For detailed information about specific aspects of the codebase:
+
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Complete architecture documentation, data flow diagrams, design patterns, and output directory structure
+- **[CONVERGENCE_TESTING_GUIDE.md](docs/CONVERGENCE_TESTING_GUIDE.md)** - MCMC convergence diagnostics, R-hat interpretation, and troubleshooting
+- **[PCA_INITIALIZATION_GUIDE.md](docs/PCA_INITIALIZATION_GUIDE.md)** - PCA initialization for MCMC (centered parameterization only; NOT recommended for non-centered)
+- **[configuration.md](docs/configuration.md)** - Complete configuration reference and parameter descriptions
+- **[TESTING.md](docs/TESTING.md)** - Testing guide and test suite documentation
+
 ## References
 
 - qMAP-PD: <https://qmaplab.com/qmap-pd>
-- Ferreira et al. 2024: Factor stability
-- Piironen & Vehtari 2017: Regularized horseshoe  
+- Ferreira et al. 2024: Factor stability methodology
+- Piironen & Vehtari 2017: Regularized horseshoe priors
 - NumPyro: <https://num.pyro.ai/>
 - JAX: <https://jax.readthedocs.io/>
 

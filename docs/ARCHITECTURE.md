@@ -15,11 +15,14 @@ This document describes the architecture of the SGFA pipeline for neuroimaging b
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Experiments (Production Pipeline)               │
-│  ┌────────────────┐  ┌──────────────┐  ┌─────────────────┐ │
-│  │ data_validation│  │ robustness_  │  │ factor_stability│ │
-│  │                │  │ testing      │  │                 │ │
-│  └────────────────┘  └──────────────┘  └─────────────────┘ │
+│         Experiments (Default Pipeline: --experiments all)   │
+│  ┌────────────────┐                    ┌─────────────────┐ │
+│  │ data_validation│ ──── shared ────▶ │ factor_stability│ │
+│  │                │      data          │                 │ │
+│  └────────────────┘                    └─────────────────┘ │
+│                                                             │
+│  Note: robustness_testing available but not in default     │
+│  pipeline (only 150 iterations, smoke test only)           │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -50,7 +53,7 @@ This document describes the architecture of the SGFA pipeline for neuroimaging b
 │              MCMC Sampling (NumPyro NUTS)                    │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │ - Adaptive step size                                 │  │
-│  │ - Tree depth control (max_tree_depth=13)            │  │
+│  │ - Tree depth control (max_tree_depth=10)            │  │
 │  │ - Target acceptance probability (0.8)                │  │
 │  │ - R-hat/ESS convergence diagnostics                  │  │
 │  └──────────────────────────────────────────────────────┘  │
@@ -130,9 +133,10 @@ This document describes the architecture of the SGFA pipeline for neuroimaging b
 
 **`experiments/robustness_testing.py`**
 
-- Seed reproducibility
-- Perturbation analysis
-- Initialization stability
+- Smoke test (150 iterations: 50 warmup + 100 samples)
+- Not part of default pipeline
+- Available for explicit use: `--experiments robustness_testing`
+- Does not check convergence (just verifies code runs)
 
 **`experiments/framework.py`**
 
@@ -176,33 +180,63 @@ Raw Data (1794 voxels)
             └─> Save filtered position lookup
 ```
 
-### Experiment Flow
+### Experiment Flow (Default Pipeline)
 
 ```
-run_experiments.py
+run_experiments.py --experiments all
     │
     ├─> Load config (config_convergence.yaml)
     │
-    ├─> Apply preprocessing
-    │       └─> apply_preprocessing_to_pipeline()
-    │               ├─> Merge configs (global overrides)
-    │               ├─> Create NeuroImagingPreprocessor
-    │               └─> Return X_list + preprocessing_info
+    ├─> Initialize pipeline_context (shared data mode)
+    │       └─> X_list: None, preprocessing_info: None
     │
-    ├─> Run experiments
-    │       ├─> data_validation
-    │       ├─> robustness_testing
-    │       └─> factor_stability
-    │               ├─> Run 4 independent chains
-    │               ├─> Compute cosine similarity
-    │               ├─> Identify stable factors
-    │               └─> Save consensus W/Z
+    ├─> Run data_validation (stage 1/2)
+    │       ├─> Apply preprocessing
+    │       │       └─> apply_preprocessing_to_pipeline()
+    │       │               ├─> Merge configs (global overrides)
+    │       │               ├─> Create NeuroImagingPreprocessor
+    │       │               └─> Return X_list + preprocessing_info
+    │       │
+    │       ├─> Store in pipeline_context
+    │       │       └─> pipeline_context["X_list"] = X_list
+    │       │           pipeline_context["preprocessing_info"] = preprocessing_info
+    │       │
+    │       └─> Save validation plots and metrics
     │
-    └─> Save results
-            ├─> Individual plots (PNG/PDF)
-            ├─> CSV matrices (W, Z per chain + consensus)
-            └─> JSON summaries
+    ├─> Run factor_stability (stage 2/2)
+    │       ├─> Check pipeline_context for shared data
+    │       │       └─> if X_list available: use shared data ✓
+    │       │           else: load fresh data
+    │       │
+    │       ├─> Run 4 independent MCMC chains (parallel)
+    │       │       └─> 10,000 samples + 3,000 warmup per chain
+    │       │
+    │       ├─> Factor stability analysis
+    │       │       ├─> Align factors across chains (sign/permutation)
+    │       │       ├─> Compute aligned R-hat
+    │       │       ├─> Cosine similarity matching (threshold=0.8)
+    │       │       └─> Identify consensus factors (≥50% chain agreement)
+    │       │
+    │       └─> Save consensus W/Z
+    │               ├─> Per-chain samples (NPZ)
+    │               ├─> Consensus matrices (CSV)
+    │               └─> Stability plots (PNG/PDF)
+    │
+    └─> Complete
+            └─> All results in unified run directory
 ```
+
+**Key Feature: Shared Data Flow**
+
+The default pipeline (`--experiments all`) efficiently reuses preprocessed data:
+
+1. **data_validation** preprocesses data once → stores in `pipeline_context`
+2. **factor_stability** retrieves from `pipeline_context` → avoids re-preprocessing
+
+This ensures:
+- **Consistency**: Same data used across all stages
+- **Efficiency**: Preprocessing happens only once
+- **Provenance**: Shared preprocessing_info tracks all transformations
 
 ## Key Design Decisions
 
@@ -227,6 +261,8 @@ Z_raw ~ Normal(0, 1)
 Z = Z_raw * sqrt(ξ)
 ```
 
+**Important**: PCA initialization is NOT recommended for non-centered parameterization (see [PCA_INITIALIZATION_GUIDE.md](PCA_INITIALIZATION_GUIDE.md)). Empirical testing shows PCA init actually slows convergence due to geometric mismatch between data space (PCA) and standardized space (non-centered parameterization).
+
 ### 3. Position Tracking
 
 Cumulative mask tracking through preprocessing:
@@ -249,6 +285,56 @@ similarity = 1 - cosine(W_chain1[:, k], W_chain2[:, k])
 if similarity > threshold:
     match_found = True
 ```
+
+### 5. PCA Initialization (Centered Parameterization Only)
+
+PCA-based initialization available via `use_pca_initialization: true` in config:
+
+```yaml
+# config.yaml (centered parameterization)
+preprocessing:
+  use_pca_initialization: true  # OK for sparse_gfa (centered)
+
+# config_convergence.yaml (non-centered parameterization)
+preprocessing:
+  use_pca_initialization: false  # NOT recommended for sparse_gfa_fixed
+```
+
+**Why non-centered + PCA is incompatible**:
+
+- PCA operates in data space: `X ≈ ZW^T`
+- Non-centered uses standardized space: `Z_raw ~ N(0,1)`, then `Z = Z_raw × scale`
+- Geometric mismatch forces longer warmup (empirically verified: MAD 1000, K=5,12 faster WITHOUT PCA init)
+
+**When to use PCA init**:
+
+- ✅ Centered parameterization (`model_type: "sparseGFA"`)
+- ✅ High-dimensional data where default init struggles
+- ❌ Non-centered parameterization (`model_type: "sparse_gfa_fixed"`)
+
+See [PCA_INITIALIZATION_GUIDE.md](PCA_INITIALIZATION_GUIDE.md) for details.
+
+### 6. Shared Data Pipeline
+
+Data preprocessed once and shared across experiments (default mode):
+
+```python
+# In run_experiments.py
+pipeline_context = {
+    "X_list": None,              # Preprocessed data
+    "preprocessing_info": None,  # Transformation metadata
+    "shared_mode": True          # Enable sharing
+}
+
+# data_validation populates context
+pipeline_context["X_list"] = X_list
+
+# factor_stability uses shared data
+if pipeline_context["X_list"] is not None:
+    X_list = pipeline_context["X_list"]  # Reuse
+```
+
+Override with `--no-shared-data` or `--independent-mode` for troubleshooting.
 
 ## File Organization
 
@@ -724,6 +810,19 @@ pytest tests/experiments/
 ### Running Experiments
 
 ```bash
+# Default pipeline (recommended)
+python run_experiments.py --config config_convergence.yaml \
+  --experiments all \
+  --select-rois volume_sn_voxels.tsv \
+  --regress-confounds age sex tiv
+
+# Specific stages
+python run_experiments.py --config config_convergence.yaml \
+  --experiments data_validation factor_stability \
+  --select-rois volume_sn_voxels.tsv \
+  --K 20 --qc-outlier-threshold 3.0
+
+# Factor stability only (if data already validated)
 python run_experiments.py --config config_convergence.yaml \
   --experiments factor_stability \
   --select-rois volume_sn_voxels.tsv \
@@ -747,8 +846,22 @@ with open("results/.../factor_stability_summary.json") as f:
 ## Performance Considerations
 
 1. **Memory**: ~8-16GB RAM for typical datasets (86 subjects, 531 voxels)
-2. **Compute**: 4-6 hours for full factor stability (4 chains × 13K samples)
+2. **Compute**: 4-6 hours for full factor stability (4 chains × 13K samples, max_tree_depth=10)
 3. **Storage**: ~100-500MB per experiment run (with all plots + matrices)
+
+**MCMC Settings**:
+- `max_tree_depth: 10` → 2^10 = 1024 max leapfrog steps (sufficient for most cases)
+- `max_tree_depth: 13` → 2^13 = 8192 max leapfrog steps (overkill, much slower)
+
+## Related Documentation
+
+For more specific information, see:
+
+- **[../README.md](../README.md)** - Quick start guide and overview
+- **[CONVERGENCE_TESTING_GUIDE.md](CONVERGENCE_TESTING_GUIDE.md)** - MCMC convergence diagnostics
+- **[PCA_INITIALIZATION_GUIDE.md](PCA_INITIALIZATION_GUIDE.md)** - PCA initialization (centered only)
+- **[configuration.md](configuration.md)** - Complete configuration reference
+- **[TESTING.md](TESTING.md)** - Testing guide
 
 ## References
 
