@@ -46,7 +46,7 @@ class DataStreamer:
         self.chunk_cache = {} if cache_chunks else None
         self._memory_optimizer = MemoryOptimizer()
 
-        logger.info(
+        logger.debug(
             f"DataStreamer initialized: chunk_size={chunk_size}, "
             f"memory_limit={memory_limit_gb}GB"
         )

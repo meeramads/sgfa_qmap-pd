@@ -57,7 +57,7 @@ class MemoryOptimizer:
         self._monitoring_active = False
         self._monitor_thread = None
 
-        logger.info(
+        logger.debug(
             f"MemoryOptimizer initialized: max_memory={self.max_memory_gb:.2f}GB"
         )
 

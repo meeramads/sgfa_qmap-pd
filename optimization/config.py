@@ -350,7 +350,7 @@ class PerformanceConfig:
             self.memory.enable_aggressive_cleanup = True
             self.memory.enable_dtype_optimization = True
 
-        logger.info(
+        logger.debug(
             f"Configuration optimized for system: "
             f"{available_gb:.1f}GB RAM, {cpu_count} CPUs"
         )

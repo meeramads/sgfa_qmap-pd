@@ -48,7 +48,7 @@ class MCMCMemoryOptimizer:
         self.enable_batch_sampling = enable_batch_sampling
         self._memory_optimizer = MemoryOptimizer(max_memory_gb=memory_limit_gb)
 
-        logger.info(f"MCMCMemoryOptimizer initialized with {memory_limit_gb}GB limit")
+        logger.debug(f"MCMCMemoryOptimizer initialized with {memory_limit_gb}GB limit")
 
     def optimize_mcmc_config(
         self, X_list: List[np.ndarray], base_config: Dict[str, Any]

@@ -588,7 +588,7 @@ def load_qmap_pd(
                 f"{n_features_data} features in data vs {n_features_names} feature names"
             )
         else:
-            logging.info(
+            logging.debug(
                 f"✓ Feature names verified for {view_name}: {n_features_names} features"
             )
 
