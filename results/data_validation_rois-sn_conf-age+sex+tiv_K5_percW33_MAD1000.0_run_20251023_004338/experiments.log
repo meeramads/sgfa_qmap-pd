@@ -1,0 +1,55 @@
+2025-10-23 00:43:38,206 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K5_percW33_MAD1000.0_run_20251023_004338
+2025-10-23 00:43:38,209 - experiments.framework - INFO - Starting experiment: data_validation_20251023_004338
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - Running comprehensive data validation...
+2025-10-23 00:43:38,209 - optimization.config - INFO - Configuration optimized for system: 56.1GB RAM, 24 CPUs
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - Auto-configured system: 44.9GB memory limit
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - ExperimentFramework initialized with output dir: results
+2025-10-23 00:43:38,209 - optimization.config - INFO - Configuration optimized for system: 56.1GB RAM, 24 CPUs
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - Auto-configured system: 44.9GB memory limit
+2025-10-23 00:43:38,209 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.89GB
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - Memory optimizer initialized with 44.9GB limit
+2025-10-23 00:43:38,209 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.89GB
+2025-10-23 00:43:38,209 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.88916015625GB
+2025-10-23 00:43:38,209 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.89GB
+2025-10-23 00:43:38,209 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.88916015625GB
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - Data streaming components initialized
+2025-10-23 00:43:38,209 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.89GB
+2025-10-23 00:43:38,209 - optimization.mcmc_optimizer - INFO - MCMCMemoryOptimizer initialized with 44.88916015625GB limit
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - MCMC memory optimizer initialized
+2025-10-23 00:43:38,209 - experiments.data_validation - INFO - Running data quality assessment
+2025-10-23 00:43:38,210 - experiments.data_validation - INFO - Loading qMAP-PD data for quality assessment...
+2025-10-23 00:43:38,210 - experiments.data_validation - INFO -    ROI selection: ['volume_sn_voxels.tsv']
+2025-10-23 00:43:38,210 - experiments.data_validation - INFO -    Confound regression: ['age', 'sex', 'tiv']
+2025-10-23 00:43:38,210 - experiments.data_validation - INFO -    Feature selection: none
+2025-10-23 00:43:38,213 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-23 00:43:38,264 - root - INFO - === Applying Basic Preprocessing ===
+2025-10-23 00:43:38,268 - root - INFO - Preprocessing module imported successfully
+2025-10-23 00:43:38,268 - root - INFO - Regressing out confounds: ['age', 'sex', 'tiv']
+2025-10-23 00:43:38,272 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-23 00:43:38,272 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-23 00:43:38,272 - root - INFO -   Remaining clinical features: 14
+2025-10-23 00:43:38,272 - root - INFO - ✓ Feature names verified for volume_sn_voxels: 1794 features
+2025-10-23 00:43:38,272 - root - INFO - ✓ Feature names verified for clinical: 14 features
+2025-10-23 00:43:38,272 - experiments.data_validation - INFO -    PCA enabled in preprocessing_config: False
+2025-10-23 00:43:38,275 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-23 00:43:38,415 - root - INFO - === Applying Advanced Preprocessing ===
+2025-10-23 00:43:38,415 - root - INFO - Starting neuroimaging-aware preprocessing pipeline
+2025-10-23 00:43:38,415 - root - INFO - Processing view: volume_sn_voxels (shape: (86, 1794))
+2025-10-23 00:43:38,415 - root - INFO - MAD filtering disabled for volume_sn_voxels (threshold=1000.0)
+2025-10-23 00:43:38,415 - root - INFO - Applying spatial imputation to volume_sn_voxels
+2025-10-23 00:43:38,416 - root - INFO - Loaded 1794 voxel positions for sn
+2025-10-23 00:43:38,416 - root - INFO - Applying median imputation to volume_sn_voxels
+2025-10-23 00:43:38,421 - root - INFO - Applying none feature selection to volume_sn_voxels
+2025-10-23 00:43:38,421 - root - INFO - Applying robust scaling to volume_sn_voxels
+2025-10-23 00:43:38,467 - experiments.data_validation - ERROR - data_quality_assessment failed: 'NeuroImagingPreprocessor' object has no attribute 'fit_transform_pca'
+2025-10-23 00:43:38,467 - experiments.data_validation - INFO - ✅ Data validation with EDA completed!
+2025-10-23 00:43:38,467 - experiments.data_validation - INFO -    Plots generated: 0
+2025-10-23 00:43:38,467 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251023_004338
+2025-10-23 00:43:38,467 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 0.3 seconds
+2025-10-23 00:43:38,467 - experiments.framework - INFO - 🕐 Started: 2025-10-23 00:43:38
+2025-10-23 00:43:38,467 - experiments.framework - INFO - 🕑 Finished: 2025-10-23 00:43:38
+2025-10-23 00:43:38,467 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251023_004338
+2025-10-23 00:43:38,467 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-23 00:43:38,513 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-23 00:43:38,638 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-23 00:43:39,639 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed

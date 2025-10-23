@@ -1,0 +1,362 @@
+2025-10-23 00:45:04,173 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_percW33_MAD1000.0_run_20251023_004504
+2025-10-23 00:45:04,176 - experiments.framework - INFO - Starting experiment: data_validation_20251023_004504
+2025-10-23 00:45:04,176 - experiments.data_validation - INFO - Running comprehensive data validation...
+2025-10-23 00:45:04,176 - optimization.config - INFO - Configuration optimized for system: 56.1GB RAM, 24 CPUs
+2025-10-23 00:45:04,176 - experiments.data_validation - INFO - Auto-configured system: 44.9GB memory limit
+2025-10-23 00:45:04,176 - experiments.data_validation - INFO - ExperimentFramework initialized with output dir: results
+2025-10-23 00:45:04,176 - optimization.config - INFO - Configuration optimized for system: 56.1GB RAM, 24 CPUs
+2025-10-23 00:45:04,176 - experiments.data_validation - INFO - Auto-configured system: 44.9GB memory limit
+2025-10-23 00:45:04,176 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.87GB
+2025-10-23 00:45:04,176 - experiments.data_validation - INFO - Memory optimizer initialized with 44.9GB limit
+2025-10-23 00:45:04,176 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.87GB
+2025-10-23 00:45:04,176 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.86779479980469GB
+2025-10-23 00:45:04,176 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.87GB
+2025-10-23 00:45:04,176 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.86779479980469GB
+2025-10-23 00:45:04,177 - experiments.data_validation - INFO - Data streaming components initialized
+2025-10-23 00:45:04,177 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.87GB
+2025-10-23 00:45:04,177 - optimization.mcmc_optimizer - INFO - MCMCMemoryOptimizer initialized with 44.86779479980469GB limit
+2025-10-23 00:45:04,177 - experiments.data_validation - INFO - MCMC memory optimizer initialized
+2025-10-23 00:45:04,177 - experiments.data_validation - INFO - Running data quality assessment
+2025-10-23 00:45:04,177 - experiments.data_validation - INFO - Loading qMAP-PD data for quality assessment...
+2025-10-23 00:45:04,177 - experiments.data_validation - INFO -    ROI selection: ['volume_sn_voxels.tsv']
+2025-10-23 00:45:04,177 - experiments.data_validation - INFO -    Confound regression: ['age', 'sex', 'tiv']
+2025-10-23 00:45:04,177 - experiments.data_validation - INFO -    Feature selection: none
+2025-10-23 00:45:04,180 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-23 00:45:04,231 - root - INFO - === Applying Basic Preprocessing ===
+2025-10-23 00:45:04,233 - root - INFO - Preprocessing module imported successfully
+2025-10-23 00:45:04,234 - root - INFO - Regressing out confounds: ['age', 'sex', 'tiv']
+2025-10-23 00:45:04,245 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-23 00:45:04,245 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-23 00:45:04,245 - root - INFO -   Remaining clinical features: 14
+2025-10-23 00:45:04,245 - root - INFO - ✓ Feature names verified for volume_sn_voxels: 1794 features
+2025-10-23 00:45:04,245 - root - INFO - ✓ Feature names verified for clinical: 14 features
+2025-10-23 00:45:04,245 - experiments.data_validation - INFO -    PCA enabled in preprocessing_config: False
+2025-10-23 00:45:04,252 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-23 00:45:04,386 - root - INFO - === Applying Advanced Preprocessing ===
+2025-10-23 00:45:04,386 - root - INFO - Starting neuroimaging-aware preprocessing pipeline
+2025-10-23 00:45:04,386 - root - INFO - Processing view: volume_sn_voxels (shape: (86, 1794))
+2025-10-23 00:45:04,386 - root - INFO - MAD filtering disabled for volume_sn_voxels (threshold=1000.0)
+2025-10-23 00:45:04,386 - root - INFO - Applying spatial imputation to volume_sn_voxels
+2025-10-23 00:45:04,387 - root - INFO - Loaded 1794 voxel positions for sn
+2025-10-23 00:45:04,387 - root - INFO - Applying median imputation to volume_sn_voxels
+2025-10-23 00:45:04,392 - root - INFO - Applying none feature selection to volume_sn_voxels
+2025-10-23 00:45:04,392 - root - INFO - Applying robust scaling to volume_sn_voxels
+2025-10-23 00:45:04,438 - experiments.data_validation - ERROR - data_quality_assessment failed: 'NeuroImagingPreprocessor' object has no attribute 'fit_transform_pca'
+2025-10-23 00:45:04,438 - experiments.data_validation - INFO - ✅ Data validation with EDA completed!
+2025-10-23 00:45:04,438 - experiments.data_validation - INFO -    Plots generated: 0
+2025-10-23 00:45:04,438 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251023_004504
+2025-10-23 00:45:04,438 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 0.3 seconds
+2025-10-23 00:45:04,438 - experiments.framework - INFO - 🕐 Started: 2025-10-23 00:45:04
+2025-10-23 00:45:04,438 - experiments.framework - INFO - 🕑 Finished: 2025-10-23 00:45:04
+2025-10-23 00:45:04,438 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251023_004504
+2025-10-23 00:45:04,438 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-23 00:45:04,484 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-23 00:45:04,620 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-23 00:45:05,622 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-23 00:45:06,040 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_percW33_MAD1000.0_run_20251023_004504
+2025-10-23 00:45:06,040 - experiments.robustness_testing - INFO -    Using command-line K override: 5 (default is 10)
+2025-10-23 00:45:06,040 - experiments.robustness_testing - INFO -    Using global model hyperparameters: K=5, percW=33.0, slab_df=4, slab_scale=2
+2025-10-23 00:45:06,040 - experiments.robustness_testing - INFO -    QC outlier threshold (MAD): 1000.0
+2025-10-23 00:45:06,040 - experiments.robustness_testing - INFO -    Using model type: sparse_gfa_fixed
+2025-10-23 00:45:06,040 - optimization.config - INFO - Configuration optimized for system: 56.0GB RAM, 24 CPUs
+2025-10-23 00:45:06,040 - experiments.robustness_testing - INFO - Auto-configured system: 44.8GB memory limit
+2025-10-23 00:45:06,041 - experiments.robustness_testing - INFO - ExperimentFramework initialized with output dir: results
+2025-10-23 00:45:06,042 - optimization.config - INFO - Configuration optimized for system: 56.0GB RAM, 24 CPUs
+2025-10-23 00:45:06,042 - experiments.robustness_testing - INFO - Auto-configured system: 44.8GB memory limit
+2025-10-23 00:45:06,042 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.83GB
+2025-10-23 00:45:06,042 - experiments.robustness_testing - INFO - Memory optimizer initialized with 44.8GB limit
+2025-10-23 00:45:06,042 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.83GB
+2025-10-23 00:45:06,042 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.83370361328125GB
+2025-10-23 00:45:06,042 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.83GB
+2025-10-23 00:45:06,042 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.83370361328125GB
+2025-10-23 00:45:06,042 - experiments.robustness_testing - INFO - Data streaming components initialized
+2025-10-23 00:45:06,042 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.83GB
+2025-10-23 00:45:06,042 - optimization.mcmc_optimizer - INFO - MCMCMemoryOptimizer initialized with 44.83370361328125GB limit
+2025-10-23 00:45:06,042 - experiments.robustness_testing - INFO - MCMC memory optimizer initialized
+2025-10-23 00:45:06,046 - experiments.framework - INFO - Starting experiment: robustness_tests_20251023_004506
+2025-10-23 00:45:06,046 - experiments.robustness_testing - INFO - 🔄 Running comprehensive robustness tests...
+2025-10-23 00:45:06,046 - experiments.robustness_testing - INFO - 📁 Set robustness_testing base_output_dir to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_percW33_MAD1000.0_run_20251023_004504/robustness_tests_fixed_K5_percW33_slab4_2_MAD1000.0_tree10_20251023_004506
+2025-10-23 00:45:06,046 - experiments.robustness_testing - INFO - 📊 Testing seed robustness...
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - _RUN_SGFA_ANALYSIS - STARTING
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - Input data: 2 views
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO -   View 0: shape (86, 1794), dtype float64, has_nan False
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO -   View 1: shape (86, 14), dtype float64, has_nan False
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - Hyperparameters: {'Dm': [1794, 14], 'a_sigma': 1.0, 'b_sigma': 1.0, 'slab_df': 4, 'slab_scale': 2, 'percW': 33.0, 'K': 5}
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - MCMC args: {'K': 5, 'num_warmup': 50, 'num_samples': 100, 'num_chains': 1, 'target_accept_prob': 0.8, 'reghsZ': True, 'max_tree_depth': 10, 'use_pca_initialization': True, 'model_type': 'sparse_gfa_fixed', 'random_seed': 42}
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - Additional kwargs keys: []
+2025-10-23 00:45:06,119 - experiments.robustness_testing - INFO - Running SGFA: K=5, n_subjects=86, n_features=1808
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - Setting up model via factory...
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - 🔍 DEBUG: config_dict.get('model_type') = sparse_gfa_fixed
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - 🔍 DEBUG: 'model' in config_dict = False
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - 🔍 DEBUG: args['model_type'] = sparse_gfa_fixed
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - 🔧 Setting K=5 from args into config_dict
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - 🔍 Config model_type: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - 🔍 Config K: 5
+2025-10-23 00:45:06,123 - models.models_integration - INFO - 🔍 DEBUG: model_config keys: ['model_type']
+2025-10-23 00:45:06,123 - models.models_integration - INFO - 🔍 DEBUG: model_type from config: 'sparse_gfa_fixed'
+2025-10-23 00:45:06,123 - models.models_integration - INFO - Data characteristics for model selection:
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Total features: 1,808
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Views: 2
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Subjects: 86
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Has imaging data: True
+2025-10-23 00:45:06,123 - models.models_integration - INFO - 🔍 DEBUG: Available Bayesian models: ['GFA', 'neuroGFA', 'sparseGFA', 'sparse_gfa', 'sparse_gfa_fixed', 'standard_gfa']
+2025-10-23 00:45:06,123 - models.models_integration - INFO - 🔍 DEBUG: Checking if 'sparse_gfa_fixed' in bayesian_models: True
+2025-10-23 00:45:06,123 - models.models_integration - INFO - ✅ Selected model type: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - models.models_integration - INFO - 🏗️ Creating model instance: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - models.models_integration - INFO - ✅ Model instance created successfully
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 00:45:06,123 - models.models_integration - INFO - ✅ Models framework integration completed
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 00:45:06,123 - models.models_integration - INFO -    Factory method: True
+2025-10-23 00:45:06,123 - models.models_integration - INFO - ✅ Models framework pipeline integration completed
+2025-10-23 00:45:06,123 - models.models_integration - INFO -  Model type: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - models.models_integration - INFO -  Model factory: True
+2025-10-23 00:45:06,123 - models.models_integration - INFO -  Structured management: True
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - ✅ Model setup complete: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO -    Hyperparameters: Dm=[1794, 14], percW=33.0, slab_df=4, slab_scale=2
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - ✅ Using model instance: sparse_gfa_fixed
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - MCMC configuration: warmup=50, samples=100, chains=1
+2025-10-23 00:45:06,123 - experiments.robustness_testing - INFO - Setting up MCMC with seed: 42
+2025-10-23 00:45:06,198 - experiments.robustness_testing - INFO - NUTS kernel parameters: target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-23 00:45:06,198 - experiments.robustness_testing - INFO -    Using diagonal mass matrix for ~5GB memory savings per chain
+2025-10-23 00:45:06,198 - experiments.robustness_testing - INFO - Creating MCMC sampler with chain_method=sequential...
+2025-10-23 00:45:06,198 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 00:45:06,198 - core.pca_initialization - INFO - 🔧 Creating NumPyro initialization parameters...
+2025-10-23 00:45:06,198 - core.pca_initialization - INFO -   Model type: sparse_gfa_fixed
+2025-10-23 00:45:06,198 - core.pca_initialization - INFO -   K=5, n_views=2
+2025-10-23 00:45:06,198 - core.pca_initialization - INFO - 🔧 Computing PCA initialization...
+2025-10-23 00:45:06,199 - core.pca_initialization - INFO -   Input: 2 views, N=86 samples, K=5 factors
+2025-10-23 00:45:06,199 - core.pca_initialization - INFO -   View shapes: [(86, 1794), (86, 14)]
+2025-10-23 00:45:06,199 - core.pca_initialization - INFO -   Concatenated data shape: (86, 1808)
+2025-10-23 00:45:06,199 - core.pca_initialization - INFO - Computing PCA initialization for K=5 factors
+2025-10-23 00:45:06,199 - core.pca_initialization - INFO -   Data shape: (86, 1808) (86 samples, 1808 total features)
+2025-10-23 00:45:06,199 - core.pca_initialization - INFO -   Number of views: 2
+2025-10-23 00:45:06,213 - core.pca_initialization - INFO -   PCA initialization computed:
+2025-10-23 00:45:06,213 - core.pca_initialization - INFO -     Z shape: (86, 5)
+2025-10-23 00:45:06,213 - core.pca_initialization - INFO -     W shape: (1808, 5)
+2025-10-23 00:45:06,213 - core.pca_initialization - INFO -     Variance explained: 69.62%
+2025-10-23 00:45:06,213 - core.pca_initialization - INFO -     Per-component variance: [0.40891143 0.08923628 0.08235639 0.06329002 0.05245407]
+2025-10-23 00:45:06,213 - core.pca_initialization - INFO -   ✓ PCA initialization computed
+2025-10-23 00:45:06,213 - core.pca_initialization - INFO -   Using sparse_gfa_fixed parameterization (non-centered)
+2025-10-23 00:45:06,316 - core.pca_initialization - INFO -   Initializing lmbZ: shape (86, 5)
+2025-10-23 00:45:06,338 - core.pca_initialization - INFO -   Initializing lmbW: shape (1808, 5)
+2025-10-23 00:45:06,360 - core.pca_initialization - INFO -   Initializing cZ_tilde: shape (1, 5)
+2025-10-23 00:45:06,361 - core.pca_initialization - INFO -   Initializing cW_tilde: shape (2, 5)
+2025-10-23 00:45:06,382 - core.pca_initialization - INFO -   Initializing sigma: shape (1, 2)
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO - ✓ Created NumPyro init params for sparse_gfa_fixed
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -   Total parameters initialized: 10
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -   Parameter names: ['tauZ', 'Z_raw', 'W_raw', 'tauW1', 'tauW2', 'lmbZ', 'lmbW', 'cZ_tilde', 'cW_tilde', 'sigma']
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     tauZ: shape=(1, 5), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     Z_raw: shape=(86, 5), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     W_raw: shape=(1808, 5), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     tauW1: shape=(), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     tauW2: shape=(), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     lmbZ: shape=(86, 5), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     lmbW: shape=(1808, 5), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     cZ_tilde: shape=(1, 5), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     cW_tilde: shape=(2, 5), dtype=float32
+2025-10-23 00:45:06,392 - core.pca_initialization - INFO -     sigma: shape=(1, 2), dtype=float32
+2025-10-23 00:45:06,392 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 00:45:06,392 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:45:06,392 - experiments.robustness_testing - INFO - STARTING MCMC SAMPLING
+2025-10-23 00:45:06,392 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:45:06,392 - experiments.robustness_testing - INFO - This will run 50 warmup + 100 sampling iterations
+2025-10-23 00:45:59,495 - experiments.robustness_testing - INFO - ✅ MCMC SAMPLING COMPLETED in 53.1s (0.9 min)
+2025-10-23 00:45:59,776 - experiments.robustness_testing - INFO - 🧹 Cleared JAX caches after MCMC completion
+2025-10-23 00:45:59,780 - experiments.robustness_testing - INFO - Got samples from single chain
+2025-10-23 00:45:59,935 - optimization.profiler - INFO - Performance: seed_42: 53.745s, 1.79GB peak, 102.5% CPU
+2025-10-23 00:45:59,935 - experiments.robustness_testing - INFO - ✅ Seed 42: 53.7s, LL=-3877830144.00
+2025-10-23 00:46:00,027 - experiments.robustness_testing - INFO - 🔄 Seed 123: Starting MCMC sampling...
+2025-10-23 00:46:00,044 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO - 🔧 Creating NumPyro initialization parameters...
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO -   Model type: sparse_gfa_fixed
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO -   K=5, n_views=2
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO - 🔧 Computing PCA initialization...
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO -   Input: 2 views, N=86 samples, K=5 factors
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO -   View shapes: [(86, 1794), (86, 14)]
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO -   Concatenated data shape: (86, 1808)
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO - Computing PCA initialization for K=5 factors
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO -   Data shape: (86, 1808) (86 samples, 1808 total features)
+2025-10-23 00:46:00,044 - core.pca_initialization - INFO -   Number of views: 2
+2025-10-23 00:46:00,050 - core.pca_initialization - INFO -   PCA initialization computed:
+2025-10-23 00:46:00,050 - core.pca_initialization - INFO -     Z shape: (86, 5)
+2025-10-23 00:46:00,050 - core.pca_initialization - INFO -     W shape: (1808, 5)
+2025-10-23 00:46:00,050 - core.pca_initialization - INFO -     Variance explained: 69.62%
+2025-10-23 00:46:00,050 - core.pca_initialization - INFO -     Per-component variance: [0.40891143 0.08923628 0.08235639 0.06329002 0.05245407]
+2025-10-23 00:46:00,050 - core.pca_initialization - INFO -   ✓ PCA initialization computed
+2025-10-23 00:46:00,050 - core.pca_initialization - INFO -   Using sparse_gfa_fixed parameterization (non-centered)
+2025-10-23 00:46:00,124 - core.pca_initialization - INFO -   Initializing lmbZ: shape (86, 5)
+2025-10-23 00:46:00,138 - core.pca_initialization - INFO -   Initializing lmbW: shape (1808, 5)
+2025-10-23 00:46:00,152 - core.pca_initialization - INFO -   Initializing cZ_tilde: shape (1, 5)
+2025-10-23 00:46:00,152 - core.pca_initialization - INFO -   Initializing cW_tilde: shape (2, 5)
+2025-10-23 00:46:00,165 - core.pca_initialization - INFO -   Initializing sigma: shape (1, 2)
+2025-10-23 00:46:00,171 - core.pca_initialization - INFO - ✓ Created NumPyro init params for sparse_gfa_fixed
+2025-10-23 00:46:00,171 - core.pca_initialization - INFO -   Total parameters initialized: 10
+2025-10-23 00:46:00,171 - core.pca_initialization - INFO -   Parameter names: ['tauZ', 'Z_raw', 'W_raw', 'tauW1', 'tauW2', 'lmbZ', 'lmbW', 'cZ_tilde', 'cW_tilde', 'sigma']
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     tauZ: shape=(1, 5), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     Z_raw: shape=(86, 5), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     W_raw: shape=(1808, 5), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     tauW1: shape=(), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     tauW2: shape=(), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     lmbZ: shape=(86, 5), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     lmbW: shape=(1808, 5), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     cZ_tilde: shape=(1, 5), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     cW_tilde: shape=(2, 5), dtype=float32
+2025-10-23 00:46:00,172 - core.pca_initialization - INFO -     sigma: shape=(1, 2), dtype=float32
+2025-10-23 00:46:00,172 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 00:46:00,172 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:46:00,172 - experiments.robustness_testing - INFO - STARTING MCMC SAMPLING
+2025-10-23 00:46:00,172 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:46:00,172 - experiments.robustness_testing - INFO - This will run 50 warmup + 100 sampling iterations
+2025-10-23 00:46:50,798 - experiments.robustness_testing - INFO - ✅ MCMC SAMPLING COMPLETED in 50.6s (0.8 min)
+2025-10-23 00:46:51,082 - experiments.robustness_testing - INFO - 🧹 Cleared JAX caches after MCMC completion
+2025-10-23 00:46:51,082 - experiments.robustness_testing - INFO - Got samples from single chain
+2025-10-23 00:46:51,243 - optimization.profiler - INFO - Performance: seed_123: 51.125s, 1.80GB peak, 104.7% CPU
+2025-10-23 00:46:51,243 - experiments.robustness_testing - INFO - ✅ Seed 123: 51.1s, LL=-3877460992.00
+2025-10-23 00:46:51,338 - experiments.robustness_testing - INFO - 🔄 Seed 456: Starting MCMC sampling...
+2025-10-23 00:46:51,355 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO - 🔧 Creating NumPyro initialization parameters...
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO -   Model type: sparse_gfa_fixed
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO -   K=5, n_views=2
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO - 🔧 Computing PCA initialization...
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO -   Input: 2 views, N=86 samples, K=5 factors
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO -   View shapes: [(86, 1794), (86, 14)]
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO -   Concatenated data shape: (86, 1808)
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO - Computing PCA initialization for K=5 factors
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO -   Data shape: (86, 1808) (86 samples, 1808 total features)
+2025-10-23 00:46:51,355 - core.pca_initialization - INFO -   Number of views: 2
+2025-10-23 00:46:51,361 - core.pca_initialization - INFO -   PCA initialization computed:
+2025-10-23 00:46:51,361 - core.pca_initialization - INFO -     Z shape: (86, 5)
+2025-10-23 00:46:51,361 - core.pca_initialization - INFO -     W shape: (1808, 5)
+2025-10-23 00:46:51,361 - core.pca_initialization - INFO -     Variance explained: 69.62%
+2025-10-23 00:46:51,361 - core.pca_initialization - INFO -     Per-component variance: [0.40891143 0.08923628 0.08235639 0.06329002 0.05245407]
+2025-10-23 00:46:51,361 - core.pca_initialization - INFO -   ✓ PCA initialization computed
+2025-10-23 00:46:51,361 - core.pca_initialization - INFO -   Using sparse_gfa_fixed parameterization (non-centered)
+2025-10-23 00:46:51,436 - core.pca_initialization - INFO -   Initializing lmbZ: shape (86, 5)
+2025-10-23 00:46:51,449 - core.pca_initialization - INFO -   Initializing lmbW: shape (1808, 5)
+2025-10-23 00:46:51,463 - core.pca_initialization - INFO -   Initializing cZ_tilde: shape (1, 5)
+2025-10-23 00:46:51,464 - core.pca_initialization - INFO -   Initializing cW_tilde: shape (2, 5)
+2025-10-23 00:46:51,477 - core.pca_initialization - INFO -   Initializing sigma: shape (1, 2)
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO - ✓ Created NumPyro init params for sparse_gfa_fixed
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -   Total parameters initialized: 10
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -   Parameter names: ['tauZ', 'Z_raw', 'W_raw', 'tauW1', 'tauW2', 'lmbZ', 'lmbW', 'cZ_tilde', 'cW_tilde', 'sigma']
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     tauZ: shape=(1, 5), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     Z_raw: shape=(86, 5), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     W_raw: shape=(1808, 5), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     tauW1: shape=(), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     tauW2: shape=(), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     lmbZ: shape=(86, 5), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     lmbW: shape=(1808, 5), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     cZ_tilde: shape=(1, 5), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     cW_tilde: shape=(2, 5), dtype=float32
+2025-10-23 00:46:51,483 - core.pca_initialization - INFO -     sigma: shape=(1, 2), dtype=float32
+2025-10-23 00:46:51,483 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 00:46:51,483 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:46:51,483 - experiments.robustness_testing - INFO - STARTING MCMC SAMPLING
+2025-10-23 00:46:51,483 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:46:51,483 - experiments.robustness_testing - INFO - This will run 50 warmup + 100 sampling iterations
+2025-10-23 00:47:44,788 - experiments.robustness_testing - INFO - ✅ MCMC SAMPLING COMPLETED in 53.3s (0.9 min)
+2025-10-23 00:47:45,075 - experiments.robustness_testing - INFO - 🧹 Cleared JAX caches after MCMC completion
+2025-10-23 00:47:45,076 - experiments.robustness_testing - INFO - Got samples from single chain
+2025-10-23 00:47:45,241 - optimization.profiler - INFO - Performance: seed_456: 53.808s, 1.81GB peak, 104.4% CPU
+2025-10-23 00:47:45,241 - experiments.robustness_testing - INFO - ✅ Seed 456: 53.8s, LL=-3877899264.00
+2025-10-23 00:47:45,296 - experiments.robustness_testing - INFO - 📊 Testing data perturbation robustness...
+2025-10-23 00:47:45,341 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:47:45,341 - experiments.robustness_testing - INFO - _RUN_SGFA_ANALYSIS - STARTING
+2025-10-23 00:47:45,341 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:47:45,341 - experiments.robustness_testing - INFO - Input data: 2 views
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO -   View 0: shape (86, 1794), dtype float64, has_nan False
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO -   View 1: shape (86, 14), dtype float64, has_nan False
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - Hyperparameters: {'Dm': [1794, 14], 'a_sigma': 1.0, 'b_sigma': 1.0, 'slab_df': 4, 'slab_scale': 2, 'percW': 33.0, 'K': 5}
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - MCMC args: {'K': 5, 'num_warmup': 50, 'num_samples': 100, 'num_chains': 1, 'target_accept_prob': 0.8, 'reghsZ': True, 'max_tree_depth': 10, 'use_pca_initialization': True, 'model_type': 'sparse_gfa_fixed'}
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - Additional kwargs keys: []
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - Running SGFA: K=5, n_subjects=86, n_features=1808
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - Setting up model via factory...
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - 🔍 DEBUG: config_dict.get('model_type') = sparse_gfa_fixed
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - 🔍 DEBUG: 'model' in config_dict = False
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - 🔍 DEBUG: args['model_type'] = sparse_gfa_fixed
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - 🔧 Setting K=5 from args into config_dict
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - 🔍 Config model_type: sparse_gfa_fixed
+2025-10-23 00:47:45,342 - experiments.robustness_testing - INFO - 🔍 Config K: 5
+2025-10-23 00:47:45,342 - models.models_integration - INFO - 🔍 DEBUG: model_config keys: ['model_type']
+2025-10-23 00:47:45,342 - models.models_integration - INFO - 🔍 DEBUG: model_type from config: 'sparse_gfa_fixed'
+2025-10-23 00:47:45,342 - models.models_integration - INFO - Data characteristics for model selection:
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Total features: 1,808
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Views: 2
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Subjects: 86
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Has imaging data: True
+2025-10-23 00:47:45,342 - models.models_integration - INFO - 🔍 DEBUG: Available Bayesian models: ['GFA', 'neuroGFA', 'sparseGFA', 'sparse_gfa', 'sparse_gfa_fixed', 'standard_gfa']
+2025-10-23 00:47:45,342 - models.models_integration - INFO - 🔍 DEBUG: Checking if 'sparse_gfa_fixed' in bayesian_models: True
+2025-10-23 00:47:45,342 - models.models_integration - INFO - ✅ Selected model type: sparse_gfa_fixed
+2025-10-23 00:47:45,342 - models.models_integration - INFO - 🏗️ Creating model instance: sparse_gfa_fixed
+2025-10-23 00:47:45,342 - models.models_integration - INFO - ✅ Model instance created successfully
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 00:47:45,342 - models.models_integration - INFO - ✅ Models framework integration completed
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 00:47:45,342 - models.models_integration - INFO -    Factory method: True
+2025-10-23 00:47:45,342 - models.models_integration - INFO - ✅ Models framework pipeline integration completed
+2025-10-23 00:47:45,342 - models.models_integration - INFO -  Model type: sparse_gfa_fixed
+2025-10-23 00:47:45,343 - models.models_integration - INFO -  Model factory: True
+2025-10-23 00:47:45,343 - models.models_integration - INFO -  Structured management: True
+2025-10-23 00:47:45,343 - experiments.robustness_testing - INFO - ✅ Model setup complete: sparse_gfa_fixed
+2025-10-23 00:47:45,343 - experiments.robustness_testing - INFO -    Hyperparameters: Dm=[1794, 14], percW=33.0, slab_df=4, slab_scale=2
+2025-10-23 00:47:45,343 - experiments.robustness_testing - INFO - ✅ Using model instance: sparse_gfa_fixed
+2025-10-23 00:47:45,343 - experiments.robustness_testing - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 00:47:45,343 - experiments.robustness_testing - INFO - MCMC configuration: warmup=50, samples=100, chains=1
+2025-10-23 00:47:45,343 - experiments.robustness_testing - INFO - Setting up MCMC with seed: 42
+2025-10-23 00:47:45,359 - experiments.robustness_testing - INFO - NUTS kernel parameters: target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-23 00:47:45,360 - experiments.robustness_testing - INFO -    Using diagonal mass matrix for ~5GB memory savings per chain
+2025-10-23 00:47:45,360 - experiments.robustness_testing - INFO - Creating MCMC sampler with chain_method=sequential...
+2025-10-23 00:47:45,360 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO - 🔧 Creating NumPyro initialization parameters...
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO -   Model type: sparse_gfa_fixed
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO -   K=5, n_views=2
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO - 🔧 Computing PCA initialization...
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO -   Input: 2 views, N=86 samples, K=5 factors
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO -   View shapes: [(86, 1794), (86, 14)]
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO -   Concatenated data shape: (86, 1808)
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO - Computing PCA initialization for K=5 factors
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO -   Data shape: (86, 1808) (86 samples, 1808 total features)
+2025-10-23 00:47:45,360 - core.pca_initialization - INFO -   Number of views: 2
+2025-10-23 00:47:45,365 - core.pca_initialization - INFO -   PCA initialization computed:
+2025-10-23 00:47:45,365 - core.pca_initialization - INFO -     Z shape: (86, 5)
+2025-10-23 00:47:45,365 - core.pca_initialization - INFO -     W shape: (1808, 5)
+2025-10-23 00:47:45,365 - core.pca_initialization - INFO -     Variance explained: 69.62%
+2025-10-23 00:47:45,365 - core.pca_initialization - INFO -     Per-component variance: [0.40884129 0.0892187  0.0823543  0.06330664 0.05243881]
+2025-10-23 00:47:45,365 - core.pca_initialization - INFO -   ✓ PCA initialization computed
+2025-10-23 00:47:45,365 - core.pca_initialization - INFO -   Using sparse_gfa_fixed parameterization (non-centered)
+2025-10-23 00:47:45,440 - core.pca_initialization - INFO -   Initializing lmbZ: shape (86, 5)
+2025-10-23 00:47:45,454 - core.pca_initialization - INFO -   Initializing lmbW: shape (1808, 5)
+2025-10-23 00:47:45,468 - core.pca_initialization - INFO -   Initializing cZ_tilde: shape (1, 5)
+2025-10-23 00:47:45,469 - core.pca_initialization - INFO -   Initializing cW_tilde: shape (2, 5)
+2025-10-23 00:47:45,482 - core.pca_initialization - INFO -   Initializing sigma: shape (1, 2)
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO - ✓ Created NumPyro init params for sparse_gfa_fixed
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -   Total parameters initialized: 10
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -   Parameter names: ['tauZ', 'Z_raw', 'W_raw', 'tauW1', 'tauW2', 'lmbZ', 'lmbW', 'cZ_tilde', 'cW_tilde', 'sigma']
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     tauZ: shape=(1, 5), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     Z_raw: shape=(86, 5), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     W_raw: shape=(1808, 5), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     tauW1: shape=(), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     tauW2: shape=(), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     lmbZ: shape=(86, 5), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     lmbW: shape=(1808, 5), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     cZ_tilde: shape=(1, 5), dtype=float32
+2025-10-23 00:47:45,488 - core.pca_initialization - INFO -     cW_tilde: shape=(2, 5), dtype=float32
+2025-10-23 00:47:45,489 - core.pca_initialization - INFO -     sigma: shape=(1, 2), dtype=float32
+2025-10-23 00:47:45,489 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 00:47:45,489 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:47:45,489 - experiments.robustness_testing - INFO - STARTING MCMC SAMPLING
+2025-10-23 00:47:45,489 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 00:47:45,489 - experiments.robustness_testing - INFO - This will run 50 warmup + 100 sampling iterations
+2025-10-23 00:48:12,126 - optimization.profiler - INFO - Performance: noise_0.01: 26.725s, 1.81GB peak, 108.9% CPU
+2025-10-23 00:48:12,127 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-23 00:48:12,220 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-23 00:48:12,528 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-23 00:48:13,529 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed

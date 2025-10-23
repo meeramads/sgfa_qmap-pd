@@ -1,0 +1,52 @@
+{
+  "W": {
+    "max_rhat_per_factor": [
+      18.604110717773438,
+      17.783315658569336
+    ],
+    "mean_rhat_per_factor": [
+      10.280500411987305,
+      8.505120277404785
+    ],
+    "max_rhat_overall": 18.604110717773438,
+    "mean_rhat_overall": 9.39280891418457
+  },
+  "Z": {
+    "max_rhat_per_factor": [
+      29.718856811523438,
+      8.702347755432129
+    ],
+    "mean_rhat_per_factor": [
+      10.280594825744629,
+      6.763072967529297
+    ],
+    "max_rhat_overall": 29.718856811523438,
+    "mean_rhat_overall": 8.521833419799805
+  },
+  "W_aligned": {
+    "max_rhat_per_factor": [
+      18.604110717773438,
+      17.783315658569336
+    ],
+    "mean_rhat_per_factor": [
+      10.280500411987305,
+      8.505120277404785
+    ],
+    "max_rhat_overall": 18.604110717773438,
+    "mean_rhat_overall": 9.39280891418457,
+    "convergence_rate": 0.005254424778761062
+  },
+  "Z_aligned": {
+    "max_rhat_per_factor": [
+      29.718856811523438,
+      8.702347755432129
+    ],
+    "mean_rhat_per_factor": [
+      10.280594825744629,
+      6.763072967529297
+    ],
+    "max_rhat_overall": 29.718856811523438,
+    "mean_rhat_overall": 8.521833419799805,
+    "convergence_rate": 0.0
+  }
+}

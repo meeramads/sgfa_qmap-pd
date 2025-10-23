@@ -1,0 +1,409 @@
+2025-10-23 01:24:14,334 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414
+2025-10-23 01:24:14,337 - experiments.framework - INFO - Starting experiment: data_validation_20251023_012414
+2025-10-23 01:24:14,337 - experiments.data_validation - INFO - Running comprehensive data validation...
+2025-10-23 01:24:14,338 - optimization.config - INFO - Configuration optimized for system: 56.1GB RAM, 24 CPUs
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - Auto-configured system: 44.9GB memory limit
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - ExperimentFramework initialized with output dir: results
+2025-10-23 01:24:14,338 - optimization.config - INFO - Configuration optimized for system: 56.1GB RAM, 24 CPUs
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - Auto-configured system: 44.9GB memory limit
+2025-10-23 01:24:14,338 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.88GB
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - Memory optimizer initialized with 44.9GB limit
+2025-10-23 01:24:14,338 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.88GB
+2025-10-23 01:24:14,338 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.87528686523438GB
+2025-10-23 01:24:14,338 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.88GB
+2025-10-23 01:24:14,338 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.87528686523438GB
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - Data streaming components initialized
+2025-10-23 01:24:14,338 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.88GB
+2025-10-23 01:24:14,338 - optimization.mcmc_optimizer - INFO - MCMCMemoryOptimizer initialized with 44.87528686523438GB limit
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - MCMC memory optimizer initialized
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - Running data quality assessment
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO - Loading qMAP-PD data for quality assessment...
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO -    ROI selection: ['volume_sn_voxels.tsv']
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO -    Confound regression: ['age', 'sex', 'tiv']
+2025-10-23 01:24:14,338 - experiments.data_validation - INFO -    Feature selection: none
+2025-10-23 01:24:14,342 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-23 01:24:14,392 - root - INFO - === Applying Basic Preprocessing ===
+2025-10-23 01:24:14,398 - root - INFO - Preprocessing module imported successfully
+2025-10-23 01:24:14,399 - root - INFO - Regressing out confounds: ['age', 'sex', 'tiv']
+2025-10-23 01:24:14,410 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-23 01:24:14,410 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-23 01:24:14,410 - root - INFO -   Remaining clinical features: 14
+2025-10-23 01:24:14,410 - root - INFO - ✓ Feature names verified for volume_sn_voxels: 1794 features
+2025-10-23 01:24:14,410 - root - INFO - ✓ Feature names verified for clinical: 14 features
+2025-10-23 01:24:14,410 - experiments.data_validation - INFO -    PCA enabled in preprocessing_config: False
+2025-10-23 01:24:14,416 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-23 01:24:14,551 - root - INFO - === Applying Advanced Preprocessing ===
+2025-10-23 01:24:14,551 - root - INFO - Starting neuroimaging-aware preprocessing pipeline
+2025-10-23 01:24:14,551 - root - INFO - Processing view: volume_sn_voxels (shape: (86, 1794))
+2025-10-23 01:24:14,551 - root - INFO - MAD filtering disabled for volume_sn_voxels (threshold=1000.0)
+2025-10-23 01:24:14,551 - root - INFO - Applying spatial imputation to volume_sn_voxels
+2025-10-23 01:24:14,552 - root - INFO - Loaded 1794 voxel positions for sn
+2025-10-23 01:24:14,553 - root - INFO - Applying median imputation to volume_sn_voxels
+2025-10-23 01:24:14,558 - root - INFO - Applying none feature selection to volume_sn_voxels
+2025-10-23 01:24:14,558 - root - INFO - Applying robust scaling to volume_sn_voxels
+2025-10-23 01:24:14,603 - root - INFO - Final shape for volume_sn_voxels: (86, 1794)
+2025-10-23 01:24:14,603 - root - INFO - Feature retention: 1794/1794 (100.0%)
+2025-10-23 01:24:14,603 - root - INFO - Filtered position lookup for volume_sn_voxels: 1794 → 1794 positions (100.0% retained)
+2025-10-23 01:24:14,606 - root - INFO - Saved filtered position lookup to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414/position_lookup_filtered/position_sn_voxels_filtered.tsv
+2025-10-23 01:24:14,606 - root - INFO - Processing view: clinical (shape: (86, 17))
+2025-10-23 01:24:14,606 - root - INFO - Applying median imputation to clinical
+2025-10-23 01:24:14,607 - root - INFO - Applying none feature selection to clinical
+2025-10-23 01:24:14,607 - root - INFO - Applying robust scaling to clinical
+2025-10-23 01:24:14,608 - root - INFO - Final shape for clinical: (86, 17)
+2025-10-23 01:24:14,608 - root - INFO - Feature retention: 17/17 (100.0%)
+2025-10-23 01:24:14,608 - root - INFO - Regressing out confounds: ['age', 'sex', 'tiv']
+2025-10-23 01:24:14,617 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-23 01:24:14,617 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-23 01:24:14,617 - root - INFO -   Remaining clinical features: 14
+2025-10-23 01:24:14,618 - root - INFO - ✓ Feature names verified for volume_sn_voxels: 1794 features
+2025-10-23 01:24:14,618 - root - INFO - ✓ Feature names verified for clinical: 14 features
+2025-10-23 01:24:14,618 - experiments.data_validation - INFO -    ✅ Filtered position lookups saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414/position_lookup_filtered
+2025-10-23 01:24:14,618 - experiments.data_validation - INFO -    Creating filtered position lookups with output_dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414
+2025-10-23 01:24:14,618 - experiments.data_validation - INFO -   _create_filtered_position_lookups called:
+2025-10-23 01:24:14,618 - experiments.data_validation - INFO -     view_names: ['volume_sn_voxels', 'clinical']
+2025-10-23 01:24:14,618 - experiments.data_validation - INFO -     n_views raw: 2, preprocessed: 2
+2025-10-23 01:24:14,618 - experiments.data_validation - INFO -   Creating filtered position lookup for volume_sn_voxels...
+2025-10-23 01:24:14,619 - root - INFO - Loaded 1794 voxel positions for sn
+2025-10-23 01:24:14,619 - experiments.data_validation - INFO -   Original positions: 1794 rows
+2025-10-23 01:24:14,619 - experiments.data_validation - INFO -   Raw data: 1794 voxels
+2025-10-23 01:24:14,619 - experiments.data_validation - INFO -   Preprocessed data: 1794 voxels
+2025-10-23 01:24:14,619 - experiments.data_validation - INFO -   No voxels dropped, position lookup unchanged
+2025-10-23 01:24:14,623 - experiments.data_validation - INFO -   ✅ Saved filtered position lookup: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414/filtered_position_lookups/sn_filtered_position_lookup.csv
+2025-10-23 01:24:14,624 - experiments.data_validation - INFO -      1794 → 1794 rows
+2025-10-23 01:24:14,624 - experiments.data_validation - INFO -   Skipping clinical view
+2025-10-23 01:24:14,624 - experiments.data_validation - INFO -    ✅ Filtered position lookups saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414/filtered_position_lookups
+2025-10-23 01:24:14,624 - experiments.data_validation - INFO -    Files created: ['/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414/filtered_position_lookups/sn_filtered_position_lookup.csv']
+2025-10-23 01:24:14,624 - experiments.data_validation - INFO - Data structure analysis completed. Raw: 1808 features, Processed: 1808 features
+2025-10-23 01:24:14,624 - experiments.data_validation - INFO - 🔍 Assessing data quality metrics...
+2025-10-23 01:24:14,624 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×1794)...
+2025-10-23 01:24:14,625 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-23 01:24:14,626 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-23 01:24:14,626 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×1794)...
+2025-10-23 01:24:14,627 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-23 01:24:14,627 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-23 01:24:14,632 - experiments.data_validation - INFO - ================================================================================
+2025-10-23 01:24:14,632 - experiments.data_validation - INFO - 🔍 MAD THRESHOLD EXPLORATORY DATA ANALYSIS
+2025-10-23 01:24:14,632 - experiments.data_validation - INFO - ================================================================================
+2025-10-23 01:24:14,632 - experiments.data_validation - INFO - Analyzing optimal MAD threshold values for outlier detection...
+2025-10-23 01:24:14,640 - experiments.data_validation - INFO - Analyzing 1 imaging views: ['volume_sn_voxels']
+2025-10-23 01:24:14,640 - experiments.data_validation - INFO - 📊 Analyzing MAD distributions...
+2025-10-23 01:24:14,640 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-23 01:24:15,053 - experiments.data_validation - INFO -       Saved MAD distribution plot: mad_distribution_sn.png
+2025-10-23 01:24:15,053 - experiments.data_validation - INFO -    ✅ MAD distributions analyzed for 1 views
+2025-10-23 01:24:15,053 - experiments.data_validation - INFO - 📈 Performing elbow analysis...
+2025-10-23 01:24:15,059 - experiments.data_validation - INFO -    volume_sn_voxels: Elbow at 2.26 (7.1% retention)
+2025-10-23 01:24:15,231 - experiments.data_validation - INFO -    ✅ Elbow analysis completed, saved to elbow_analysis_all_views.png
+2025-10-23 01:24:15,231 - experiments.data_validation - INFO - 🗺️  Analyzing spatial distribution of removed voxels...
+2025-10-23 01:24:15,232 - experiments.data_validation - INFO -    Loaded position lookup for volume_sn_voxels: 1793 voxels
+2025-10-23 01:24:15,232 - experiments.data_validation - WARNING -    Dimension mismatch for volume_sn_voxels: 1794 MAD values vs 1793 positions. Skipping spatial analysis.
+2025-10-23 01:24:15,232 - experiments.data_validation - INFO -    ✅ Spatial analysis completed for 1 views
+2025-10-23 01:24:15,232 - experiments.data_validation - INFO - 📊 Analyzing information preservation...
+2025-10-23 01:24:15,232 - experiments.data_validation - INFO -    Processing volume_sn_voxels...
+2025-10-23 01:24:15,489 - experiments.data_validation - INFO -       Saved information preservation plot: information_preservation_all_views.png
+2025-10-23 01:24:15,489 - experiments.data_validation - INFO -    ✅ Information preservation analyzed for 1 views
+2025-10-23 01:24:15,489 - experiments.data_validation - INFO - 👤 Analyzing subject-level data quality...
+2025-10-23 01:24:15,489 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-23 01:24:15,622 - experiments.data_validation - INFO -       Mean outlier %: 1.1%
+2025-10-23 01:24:15,622 - experiments.data_validation - INFO -       Max outlier %: 17.5%
+2025-10-23 01:24:15,815 - experiments.data_validation - INFO -       Saved subject outlier distribution plot: subject_outlier_distributions.png
+2025-10-23 01:24:15,817 - experiments.data_validation - INFO -       Saved flagged subjects table: flagged_subjects.csv (2 subjects)
+2025-10-23 01:24:15,818 - experiments.data_validation - INFO -       Saved flagged subjects report: flagged_subjects_report.txt
+2025-10-23 01:24:15,948 - experiments.data_validation - INFO -       Saved subject outlier comparison plot: subject_outlier_comparison.png
+2025-10-23 01:24:16,164 - experiments.data_validation - INFO -       Saved subject outlier scatter plot: subject_outlier_scatter.png
+2025-10-23 01:24:16,504 - experiments.data_validation - INFO -       Saved top subjects bar chart: subject_outlier_top20.png
+2025-10-23 01:24:16,504 - experiments.data_validation - INFO -    ✅ Subject-level analysis completed: 2 subjects flagged
+2025-10-23 01:24:16,504 - experiments.data_validation - INFO - 📋 Generating threshold comparison summary...
+2025-10-23 01:24:16,506 - experiments.data_validation - INFO -    Saved summary table: mad_threshold_summary_table.csv
+2025-10-23 01:24:16,507 - experiments.data_validation - INFO -    📝 Saved recommendations: mad_threshold_recommendations.txt
+2025-10-23 01:24:16,507 - experiments.data_validation - INFO - ================================================================================
+2025-10-23 01:24:16,507 - experiments.data_validation - INFO - ✅ MAD threshold EDA completed successfully
+2025-10-23 01:24:16,507 - experiments.data_validation - INFO - ================================================================================
+2025-10-23 01:24:16,507 - experiments.data_validation - INFO - 📊 Generating data validation plots...
+2025-10-23 01:24:16,507 - experiments.data_validation - INFO -    Creating distribution histograms for 1 clinical view(s), skipping 1 imaging views
+2025-10-23 01:24:16,557 - experiments.data_validation - INFO -    ✅ Distribution histograms created (stored as data_distribution_comparison)
+2025-10-23 01:24:16,560 - experiments.data_validation - INFO - 📊 Basic data validation plots completed: 1 plots generated
+2025-10-23 01:24:16,560 - experiments.data_validation - INFO - 🎨 Creating comprehensive data validation visualizations for data_quality_assessment
+2025-10-23 01:24:16,562 - visualization.preprocessing_plots - INFO - Creating preprocessing plots
+2025-10-23 01:24:16,763 - visualization.preprocessing_plots - INFO - Saved: results/plots/preprocessing/feature_reduction.png
+2025-10-23 01:24:17,003 - visualization.preprocessing_plots - INFO - Saved: results/plots/preprocessing/variance_distribution.png
+2025-10-23 01:24:17,003 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-23 01:24:17,003 - visualization.covariance_plots - INFO - COVARIANCE STRUCTURE ANALYSIS
+2025-10-23 01:24:17,003 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-23 01:24:17,035 - visualization.covariance_plots - INFO - Intra-modality covariance for volume_sn_voxels: 1794x1794
+2025-10-23 01:24:17,036 - visualization.covariance_plots - INFO - Intra-modality covariance for clinical: 14x14
+2025-10-23 01:24:17,052 - visualization.covariance_plots - INFO - Inter-modality covariance for volume_sn_voxels_vs_clinical: 1794x14
+2025-10-23 01:24:17,108 - visualization.covariance_plots - INFO - 
+Data structure:
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -   Number of views: 2
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -   Number of samples: 86
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -   volume_sn_voxels: 1794 features
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -   clinical: 14 features
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO - 
+Intra-modality correlation statistics:
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -   volume_sn_voxels:
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Mean correlation: 0.388
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Std correlation: 0.219
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Max |correlation|: 0.994
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -   clinical:
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Mean correlation: 0.073
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Std correlation: 0.350
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Max |correlation|: 0.911
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO - 
+Inter-modality correlation statistics:
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -   volume_sn_voxels_vs_clinical:
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Mean correlation: 0.031
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Std correlation: 0.121
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO -     Max |correlation|: 0.371
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO - 
+Generating covariance plots...
+2025-10-23 01:24:17,109 - visualization.covariance_plots - INFO - Subsampling covariance matrix from 1808 to 500 features
+2025-10-23 01:24:17,689 - visualization.covariance_plots - INFO - Saved block covariance matrix plot to results/plots/block_covariance_matrix.png
+2025-10-23 01:24:20,404 - visualization.covariance_plots - INFO - Saved inter/intra comparison plot to results/plots/inter_vs_intra_correlation.png
+2025-10-23 01:24:20,404 - visualization.covariance_plots - INFO - Plots saved to results/plots
+2025-10-23 01:24:20,404 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-23 01:24:20,406 - experiments.data_validation - INFO -    Found 4 plot files to convert
+2025-10-23 01:24:20,812 - experiments.data_validation - INFO -    ✅ Created 4 comprehensive data validation visualizations
+2025-10-23 01:24:20,812 - experiments.data_validation - INFO - 🎨 Comprehensive data validation plots completed: 4 advanced plots generated
+2025-10-23 01:24:20,812 - experiments.data_validation - INFO - 📊 Total plots ready for saving: 5
+2025-10-23 01:24:20,812 - experiments.data_validation - INFO - 📁 Using experiment output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414
+2025-10-23 01:24:24,560 - core.io_utils - INFO - Saved 5 plots individually to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414/individual_plots (0 skipped)
+2025-10-23 01:24:24,560 - core.io_utils - INFO -   Formats: png, pdf
+2025-10-23 01:24:24,560 - experiments.data_validation - INFO - ✅ Saved 5 individual plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/data_validation_tree10_20251023_012414/individual_plots
+2025-10-23 01:24:24,560 - experiments.data_validation - INFO - ✅ Data validation with EDA completed!
+2025-10-23 01:24:24,560 - experiments.data_validation - INFO -    Plots generated: 5
+2025-10-23 01:24:24,560 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251023_012414
+2025-10-23 01:24:24,560 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 10.2 seconds
+2025-10-23 01:24:24,560 - experiments.framework - INFO - 🕐 Started: 2025-10-23 01:24:14
+2025-10-23 01:24:24,560 - experiments.framework - INFO - 🕑 Finished: 2025-10-23 01:24:24
+2025-10-23 01:24:24,560 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251023_012414
+2025-10-23 01:24:24,560 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-23 01:24:24,628 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-23 01:24:24,824 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-23 01:24:25,825 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-23 01:24:30,435 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414
+2025-10-23 01:24:30,435 - experiments.robustness_testing - INFO -    Using command-line K override: 2 (default is 10)
+2025-10-23 01:24:30,435 - experiments.robustness_testing - INFO -    Using global model hyperparameters: K=2, percW=33.0, slab_df=4, slab_scale=2
+2025-10-23 01:24:30,435 - experiments.robustness_testing - INFO -    QC outlier threshold (MAD): 1000.0
+2025-10-23 01:24:30,435 - experiments.robustness_testing - INFO -    Using model type: sparse_gfa_fixed
+2025-10-23 01:24:30,436 - optimization.config - INFO - Configuration optimized for system: 55.3GB RAM, 24 CPUs
+2025-10-23 01:24:30,436 - experiments.robustness_testing - INFO - Auto-configured system: 44.2GB memory limit
+2025-10-23 01:24:30,438 - experiments.robustness_testing - INFO - ExperimentFramework initialized with output dir: results
+2025-10-23 01:24:30,438 - optimization.config - INFO - Configuration optimized for system: 55.3GB RAM, 24 CPUs
+2025-10-23 01:24:30,438 - experiments.robustness_testing - INFO - Auto-configured system: 44.2GB memory limit
+2025-10-23 01:24:30,438 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.20GB
+2025-10-23 01:24:30,438 - experiments.robustness_testing - INFO - Memory optimizer initialized with 44.2GB limit
+2025-10-23 01:24:30,438 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.20GB
+2025-10-23 01:24:30,438 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.203100585937506GB
+2025-10-23 01:24:30,438 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.20GB
+2025-10-23 01:24:30,438 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=44.203100585937506GB
+2025-10-23 01:24:30,438 - experiments.robustness_testing - INFO - Data streaming components initialized
+2025-10-23 01:24:30,438 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=44.20GB
+2025-10-23 01:24:30,438 - optimization.mcmc_optimizer - INFO - MCMCMemoryOptimizer initialized with 44.203100585937506GB limit
+2025-10-23 01:24:30,438 - experiments.robustness_testing - INFO - MCMC memory optimizer initialized
+2025-10-23 01:24:30,442 - experiments.framework - INFO - Starting experiment: robustness_tests_20251023_012430
+2025-10-23 01:24:30,442 - experiments.robustness_testing - INFO - 🔄 Running comprehensive robustness tests...
+2025-10-23 01:24:30,442 - experiments.robustness_testing - INFO - 📁 Set robustness_testing base_output_dir to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/robustness_tests_fixed_K2_percW33_slab4_2_MAD1000.0_tree10_20251023_012430
+2025-10-23 01:24:30,442 - experiments.robustness_testing - INFO - 📊 Testing seed robustness...
+2025-10-23 01:24:30,500 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO - _RUN_SGFA_ANALYSIS - STARTING
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO - Input data: 2 views
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO -   View 0: shape (86, 1794), dtype float64, has_nan False
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO -   View 1: shape (86, 14), dtype float64, has_nan False
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO - Hyperparameters: {'Dm': [1794, 14], 'a_sigma': 1.0, 'b_sigma': 1.0, 'slab_df': 4, 'slab_scale': 2, 'percW': 33.0, 'K': 2}
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO - MCMC args: {'K': 2, 'num_warmup': 50, 'num_samples': 100, 'num_chains': 1, 'target_accept_prob': 0.8, 'reghsZ': True, 'max_tree_depth': 10, 'use_pca_initialization': True, 'model_type': 'sparse_gfa_fixed', 'random_seed': 42}
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO - Additional kwargs keys: []
+2025-10-23 01:24:30,501 - experiments.robustness_testing - INFO - Running SGFA: K=2, n_subjects=86, n_features=1808
+2025-10-23 01:24:30,505 - experiments.robustness_testing - INFO - Setting up model via factory...
+2025-10-23 01:24:30,505 - experiments.robustness_testing - INFO - 🔍 DEBUG: config_dict.get('model_type') = sparse_gfa_fixed
+2025-10-23 01:24:30,505 - experiments.robustness_testing - INFO - 🔍 DEBUG: 'model' in config_dict = False
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - 🔍 DEBUG: args['model_type'] = sparse_gfa_fixed
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - 🔧 Setting K=2 from args into config_dict
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - 🔍 Config model_type: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - 🔍 Config K: 2
+2025-10-23 01:24:30,506 - models.models_integration - INFO - 🔍 DEBUG: model_config keys: ['model_type']
+2025-10-23 01:24:30,506 - models.models_integration - INFO - 🔍 DEBUG: model_type from config: 'sparse_gfa_fixed'
+2025-10-23 01:24:30,506 - models.models_integration - INFO - Data characteristics for model selection:
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Total features: 1,808
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Views: 2
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Subjects: 86
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Has imaging data: True
+2025-10-23 01:24:30,506 - models.models_integration - INFO - 🔍 DEBUG: Available Bayesian models: ['GFA', 'neuroGFA', 'sparseGFA', 'sparse_gfa', 'sparse_gfa_fixed', 'standard_gfa']
+2025-10-23 01:24:30,506 - models.models_integration - INFO - 🔍 DEBUG: Checking if 'sparse_gfa_fixed' in bayesian_models: True
+2025-10-23 01:24:30,506 - models.models_integration - INFO - ✅ Selected model type: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - models.models_integration - INFO - 🏗️ Creating model instance: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - models.models_integration - INFO - ✅ Model instance created successfully
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:24:30,506 - models.models_integration - INFO - ✅ Models framework integration completed
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:24:30,506 - models.models_integration - INFO -    Factory method: True
+2025-10-23 01:24:30,506 - models.models_integration - INFO - ✅ Models framework pipeline integration completed
+2025-10-23 01:24:30,506 - models.models_integration - INFO -  Model type: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - models.models_integration - INFO -  Model factory: True
+2025-10-23 01:24:30,506 - models.models_integration - INFO -  Structured management: True
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - ✅ Model setup complete: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO -    Hyperparameters: Dm=[1794, 14], percW=33.0, slab_df=4, slab_scale=2
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - ✅ Using model instance: sparse_gfa_fixed
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - MCMC configuration: warmup=50, samples=100, chains=1
+2025-10-23 01:24:30,506 - experiments.robustness_testing - INFO - Setting up MCMC with seed: 42
+2025-10-23 01:24:30,577 - experiments.robustness_testing - INFO - NUTS kernel parameters: target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-23 01:24:30,577 - experiments.robustness_testing - INFO - Creating MCMC sampler with chain_method=sequential...
+2025-10-23 01:24:30,577 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:24:30,595 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.90%
+2025-10-23 01:24:30,755 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:24:40,965 - optimization.profiler - INFO - Performance: seed_42: 10.438s, 2.33GB peak, 115.4% CPU
+2025-10-23 01:24:40,965 - experiments.robustness_testing - INFO - ✅ Seed 42: 10.4s, LL=-12755175424.00
+2025-10-23 01:24:41,108 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:24:41,113 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.90%
+2025-10-23 01:24:41,227 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:24:48,425 - optimization.profiler - INFO - Performance: seed_123: 7.290s, 2.34GB peak, 133.5% CPU
+2025-10-23 01:24:48,425 - experiments.robustness_testing - INFO - ✅ Seed 123: 7.3s, LL=-12755174400.00
+2025-10-23 01:24:48,571 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:24:48,575 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.90%
+2025-10-23 01:24:48,690 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:24:55,974 - optimization.profiler - INFO - Performance: seed_456: 7.376s, 2.34GB peak, 134.1% CPU
+2025-10-23 01:24:55,975 - experiments.robustness_testing - INFO - ✅ Seed 456: 7.4s, LL=-12755168256.00
+2025-10-23 01:24:56,046 - experiments.robustness_testing - INFO - 📊 Testing data perturbation robustness...
+2025-10-23 01:24:56,105 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 01:24:56,105 - experiments.robustness_testing - INFO - _RUN_SGFA_ANALYSIS - STARTING
+2025-10-23 01:24:56,105 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 01:24:56,105 - experiments.robustness_testing - INFO - Input data: 2 views
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO -   View 0: shape (86, 1794), dtype float64, has_nan False
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO -   View 1: shape (86, 14), dtype float64, has_nan False
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - Hyperparameters: {'Dm': [1794, 14], 'a_sigma': 1.0, 'b_sigma': 1.0, 'slab_df': 4, 'slab_scale': 2, 'percW': 33.0, 'K': 2}
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - MCMC args: {'K': 2, 'num_warmup': 50, 'num_samples': 100, 'num_chains': 1, 'target_accept_prob': 0.8, 'reghsZ': True, 'max_tree_depth': 10, 'use_pca_initialization': True, 'model_type': 'sparse_gfa_fixed'}
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - Additional kwargs keys: []
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - Running SGFA: K=2, n_subjects=86, n_features=1808
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - Setting up model via factory...
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - 🔍 DEBUG: config_dict.get('model_type') = sparse_gfa_fixed
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - 🔍 DEBUG: 'model' in config_dict = False
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - 🔍 DEBUG: args['model_type'] = sparse_gfa_fixed
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - 🔧 Setting K=2 from args into config_dict
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - 🔍 Config model_type: sparse_gfa_fixed
+2025-10-23 01:24:56,106 - experiments.robustness_testing - INFO - 🔍 Config K: 2
+2025-10-23 01:24:56,106 - models.models_integration - INFO - 🔍 DEBUG: model_config keys: ['model_type']
+2025-10-23 01:24:56,106 - models.models_integration - INFO - 🔍 DEBUG: model_type from config: 'sparse_gfa_fixed'
+2025-10-23 01:24:56,106 - models.models_integration - INFO - Data characteristics for model selection:
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Total features: 1,808
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Views: 2
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Subjects: 86
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Has imaging data: True
+2025-10-23 01:24:56,106 - models.models_integration - INFO - 🔍 DEBUG: Available Bayesian models: ['GFA', 'neuroGFA', 'sparseGFA', 'sparse_gfa', 'sparse_gfa_fixed', 'standard_gfa']
+2025-10-23 01:24:56,106 - models.models_integration - INFO - 🔍 DEBUG: Checking if 'sparse_gfa_fixed' in bayesian_models: True
+2025-10-23 01:24:56,106 - models.models_integration - INFO - ✅ Selected model type: sparse_gfa_fixed
+2025-10-23 01:24:56,106 - models.models_integration - INFO - 🏗️ Creating model instance: sparse_gfa_fixed
+2025-10-23 01:24:56,106 - models.models_integration - INFO - ✅ Model instance created successfully
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:24:56,106 - models.models_integration - INFO - ✅ Models framework integration completed
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:24:56,106 - models.models_integration - INFO -    Factory method: True
+2025-10-23 01:24:56,106 - models.models_integration - INFO - ✅ Models framework pipeline integration completed
+2025-10-23 01:24:56,106 - models.models_integration - INFO -  Model type: sparse_gfa_fixed
+2025-10-23 01:24:56,106 - models.models_integration - INFO -  Model factory: True
+2025-10-23 01:24:56,106 - models.models_integration - INFO -  Structured management: True
+2025-10-23 01:24:56,107 - experiments.robustness_testing - INFO - ✅ Model setup complete: sparse_gfa_fixed
+2025-10-23 01:24:56,107 - experiments.robustness_testing - INFO -    Hyperparameters: Dm=[1794, 14], percW=33.0, slab_df=4, slab_scale=2
+2025-10-23 01:24:56,107 - experiments.robustness_testing - INFO - ✅ Using model instance: sparse_gfa_fixed
+2025-10-23 01:24:56,107 - experiments.robustness_testing - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:24:56,107 - experiments.robustness_testing - INFO - MCMC configuration: warmup=50, samples=100, chains=1
+2025-10-23 01:24:56,107 - experiments.robustness_testing - INFO - Setting up MCMC with seed: 42
+2025-10-23 01:24:56,124 - experiments.robustness_testing - INFO - NUTS kernel parameters: target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-23 01:24:56,124 - experiments.robustness_testing - INFO - Creating MCMC sampler with chain_method=sequential...
+2025-10-23 01:24:56,124 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:24:56,129 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.89%
+2025-10-23 01:24:56,243 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:25:03,301 - optimization.profiler - INFO - Performance: noise_0.01: 7.150s, 2.34GB peak, 135.8% CPU
+2025-10-23 01:25:03,301 - experiments.robustness_testing - INFO - ✅ Noise 0.01: 7.2s, LL=-12753989632.00
+2025-10-23 01:25:03,389 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:25:03,394 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.79%
+2025-10-23 01:25:03,509 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:25:10,977 - optimization.profiler - INFO - Performance: noise_0.05: 7.557s, 2.35GB peak, 132.7% CPU
+2025-10-23 01:25:10,977 - experiments.robustness_testing - INFO - ✅ Noise 0.05: 7.6s, LL=-12762579968.00
+2025-10-23 01:25:11,062 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:25:11,235 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.41%
+2025-10-23 01:25:11,365 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:25:18,812 - optimization.profiler - INFO - Performance: noise_0.1: 7.721s, 2.35GB peak, 185.0% CPU
+2025-10-23 01:25:18,812 - experiments.robustness_testing - INFO - ✅ Noise 0.1: 7.7s, LL=-12759772160.00
+2025-10-23 01:25:18,812 - experiments.robustness_testing - INFO - 📊 Testing initialization robustness...
+2025-10-23 01:25:18,878 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 01:25:18,878 - experiments.robustness_testing - INFO - _RUN_SGFA_ANALYSIS - STARTING
+2025-10-23 01:25:18,878 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-23 01:25:18,878 - experiments.robustness_testing - INFO - Input data: 2 views
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO -   View 0: shape (86, 1794), dtype float64, has_nan False
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO -   View 1: shape (86, 14), dtype float64, has_nan False
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - Hyperparameters: {'Dm': [1794, 14], 'a_sigma': 1.0, 'b_sigma': 1.0, 'slab_df': 4, 'slab_scale': 2, 'percW': 33.0, 'K': 2}
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - MCMC args: {'K': 2, 'num_warmup': 50, 'num_samples': 100, 'num_chains': 1, 'target_accept_prob': 0.8, 'reghsZ': True, 'max_tree_depth': 10, 'use_pca_initialization': True, 'model_type': 'sparse_gfa_fixed', 'random_seed': 1000}
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - Additional kwargs keys: []
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - Running SGFA: K=2, n_subjects=86, n_features=1808
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - Setting up model via factory...
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - 🔍 DEBUG: config_dict.get('model_type') = sparse_gfa_fixed
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - 🔍 DEBUG: 'model' in config_dict = False
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - 🔍 DEBUG: args['model_type'] = sparse_gfa_fixed
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - 🔧 Setting K=2 from args into config_dict
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - 🔍 Config model_type: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - 🔍 Config K: 2
+2025-10-23 01:25:18,879 - models.models_integration - INFO - 🔍 DEBUG: model_config keys: ['model_type']
+2025-10-23 01:25:18,879 - models.models_integration - INFO - 🔍 DEBUG: model_type from config: 'sparse_gfa_fixed'
+2025-10-23 01:25:18,879 - models.models_integration - INFO - Data characteristics for model selection:
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Total features: 1,808
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Views: 2
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Subjects: 86
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Has imaging data: True
+2025-10-23 01:25:18,879 - models.models_integration - INFO - 🔍 DEBUG: Available Bayesian models: ['GFA', 'neuroGFA', 'sparseGFA', 'sparse_gfa', 'sparse_gfa_fixed', 'standard_gfa']
+2025-10-23 01:25:18,879 - models.models_integration - INFO - 🔍 DEBUG: Checking if 'sparse_gfa_fixed' in bayesian_models: True
+2025-10-23 01:25:18,879 - models.models_integration - INFO - ✅ Selected model type: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - models.models_integration - INFO - 🏗️ Creating model instance: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - models.models_integration - INFO - ✅ Model instance created successfully
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:25:18,879 - models.models_integration - INFO - ✅ Models framework integration completed
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:25:18,879 - models.models_integration - INFO -    Factory method: True
+2025-10-23 01:25:18,879 - models.models_integration - INFO - ✅ Models framework pipeline integration completed
+2025-10-23 01:25:18,879 - models.models_integration - INFO -  Model type: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - models.models_integration - INFO -  Model factory: True
+2025-10-23 01:25:18,879 - models.models_integration - INFO -  Structured management: True
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - ✅ Model setup complete: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO -    Hyperparameters: Dm=[1794, 14], percW=33.0, slab_df=4, slab_scale=2
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - ✅ Using model instance: sparse_gfa_fixed
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO -    Model class: SparseGFAFixedModel
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - MCMC configuration: warmup=50, samples=100, chains=1
+2025-10-23 01:25:18,879 - experiments.robustness_testing - INFO - Setting up MCMC with seed: 1000
+2025-10-23 01:25:18,895 - experiments.robustness_testing - INFO - NUTS kernel parameters: target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-23 01:25:18,895 - experiments.robustness_testing - INFO - Creating MCMC sampler with chain_method=sequential...
+2025-10-23 01:25:18,895 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:25:18,900 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.90%
+2025-10-23 01:25:19,029 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:25:25,749 - optimization.profiler - INFO - Performance: init_0: 6.858s, 2.35GB peak, 136.2% CPU
+2025-10-23 01:25:25,749 - experiments.robustness_testing - INFO - ✅ Init 0: 6.9s, LL=-12755168256.00
+2025-10-23 01:25:25,835 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:25:25,841 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.90%
+2025-10-23 01:25:25,951 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:25:33,018 - optimization.profiler - INFO - Performance: init_1: 7.154s, 2.36GB peak, 134.8% CPU
+2025-10-23 01:25:33,018 - experiments.robustness_testing - INFO - ✅ Init 1: 7.2s, LL=-12755164160.00
+2025-10-23 01:25:33,101 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-23 01:25:33,107 - core.pca_initialization - INFO -   PCA init: K=2, variance explained=49.90%
+2025-10-23 01:25:33,238 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-23 01:25:39,956 - optimization.profiler - INFO - Performance: init_2: 6.824s, 2.36GB peak, 137.3% CPU
+2025-10-23 01:25:39,956 - experiments.robustness_testing - INFO - ✅ Init 2: 6.8s, LL=-12755187712.00
+2025-10-23 01:25:39,956 - experiments.robustness_testing - INFO - 🔄 Robustness tests completed!
+2025-10-23 01:25:39,956 - experiments.robustness_testing - INFO -    Successful tests: 9/9
+2025-10-23 01:25:39,995 - experiments.robustness_testing - INFO - 📁 Using experiment output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/robustness_tests_fixed_K2_percW33_slab4_2_MAD1000.0_tree10_20251023_012430
+2025-10-23 01:25:40,319 - core.io_utils - INFO - Saved 1 plots individually to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/robustness_tests_fixed_K2_percW33_slab4_2_MAD1000.0_tree10_20251023_012430/individual_plots (0 skipped)
+2025-10-23 01:25:40,319 - core.io_utils - INFO -   Formats: png, pdf
+2025-10-23 01:25:40,319 - experiments.robustness_testing - INFO - ✅ Saved 1 individual plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K2_percW33_MAD1000.0_run_20251023_012414/robustness_tests_fixed_K2_percW33_slab4_2_MAD1000.0_tree10_20251023_012430/individual_plots
+2025-10-23 01:25:40,319 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: robustness_tests_20251023_012430
+2025-10-23 01:25:40,319 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 1.2 minutes (70s)
+2025-10-23 01:25:40,319 - experiments.framework - INFO - 🕐 Started: 2025-10-23 01:24:30
+2025-10-23 01:25:40,319 - experiments.framework - INFO - 🕑 Finished: 2025-10-23 01:25:40
+2025-10-23 01:25:40,319 - experiments.framework - INFO - Experiment completed successfully: robustness_tests_20251023_012430
+2025-10-23 01:25:40,319 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-23 01:25:40,391 - experiments.framework - INFO - Garbage collection freed 63 objects
+2025-10-23 01:25:40,609 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-23 01:25:41,610 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed

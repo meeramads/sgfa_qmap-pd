@@ -1,0 +1,15 @@
+Feature,Factor_0,Factor_1
+rigidity_left,6.205563e-05,-0.0001221048
+rigidity_right,-4.277538e-05,-7.884541e-06
+tremor_rest_left,9.900413e-05,-0.00030936004
+tremor_rest_right,0.00012105741,-0.00016315743
+tremor_postural_left,-7.5366435e-05,-0.00035175675
+tremor_postural_right,2.8694847e-05,-1.915785e-05
+bradykinesia_speed_left,0.000114652255,3.1174244e-05
+bradykinesia_speed_right,-7.775505e-06,0.00014838853
+bradykinesia_amplitude_left,0.00014435936,2.7353293e-05
+bradykinesia_amplitude_right,-2.9179924e-05,3.640958e-05
+bradykinesia_rhythm_left,8.4143714e-05,9.90435e-05
+bradykinesia_rhythm_right,7.839011e-05,0.00011420034
+mirrormovement_left,-0.00021093027,5.502953e-06
+mirrormovement_right,0.0001882826,-1.6818954e-05

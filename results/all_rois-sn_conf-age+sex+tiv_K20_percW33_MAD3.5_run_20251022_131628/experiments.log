@@ -1,0 +1,993 @@
+2025-10-22 13:16:28,602 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628
+2025-10-22 13:16:28,606 - experiments.framework - INFO - Starting experiment: data_validation_20251022_131628
+2025-10-22 13:16:28,606 - experiments.data_validation - INFO - Running comprehensive data validation...
+2025-10-22 13:16:28,607 - optimization.config - INFO - Configuration optimized for system: 117.1GB RAM, 24 CPUs
+2025-10-22 13:16:28,607 - experiments.data_validation - INFO - Auto-configured system: 93.7GB memory limit
+2025-10-22 13:16:28,607 - experiments.data_validation - INFO - ExperimentFramework initialized with output dir: results
+2025-10-22 13:16:28,608 - optimization.config - INFO - Configuration optimized for system: 117.1GB RAM, 24 CPUs
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO - Auto-configured system: 93.7GB memory limit
+2025-10-22 13:16:28,608 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=93.70GB
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO - Memory optimizer initialized with 93.7GB limit
+2025-10-22 13:16:28,608 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=93.70GB
+2025-10-22 13:16:28,608 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=93.70496215820313GB
+2025-10-22 13:16:28,608 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=93.70GB
+2025-10-22 13:16:28,608 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=93.70496215820313GB
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO - Data streaming components initialized
+2025-10-22 13:16:28,608 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=93.70GB
+2025-10-22 13:16:28,608 - optimization.mcmc_optimizer - INFO - MCMCMemoryOptimizer initialized with 93.70496215820313GB limit
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO - MCMC memory optimizer initialized
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO - Running data quality assessment
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO - Loading qMAP-PD data for quality assessment...
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO -    ROI selection: ['volume_sn_voxels.tsv']
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO -    Confound regression: ['age', 'sex', 'tiv']
+2025-10-22 13:16:28,608 - experiments.data_validation - INFO -    Feature selection: none
+2025-10-22 13:16:28,613 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-22 13:16:28,679 - root - INFO - === Applying Basic Preprocessing ===
+2025-10-22 13:16:28,686 - root - INFO - Preprocessing module imported successfully
+2025-10-22 13:16:28,687 - root - INFO - Regressing out confounds: ['age', 'sex', 'tiv']
+2025-10-22 13:16:28,701 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-22 13:16:28,701 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-22 13:16:28,702 - root - INFO -   Remaining clinical features: 14
+2025-10-22 13:16:28,702 - root - INFO - ✓ Feature names verified for volume_sn_voxels: 1794 features
+2025-10-22 13:16:28,702 - root - INFO - ✓ Feature names verified for clinical: 14 features
+2025-10-22 13:16:28,702 - experiments.data_validation - INFO -    PCA enabled in preprocessing_config: False
+2025-10-22 13:16:28,710 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-22 13:16:28,847 - root - INFO - === Applying Advanced Preprocessing ===
+2025-10-22 13:16:28,847 - root - INFO - Starting neuroimaging-aware preprocessing pipeline
+2025-10-22 13:16:28,847 - root - INFO - Processing view: volume_sn_voxels (shape: (86, 1794))
+2025-10-22 13:16:28,847 - root - INFO - Applying MAD-based quality control to volume_sn_voxels (1794 voxels, threshold=3.5)
+2025-10-22 13:16:28,888 - root - INFO -   MAD outlier detection: threshold=3.5, max_score=13.75, median_score=3.41, outliers=803/1794 voxels
+2025-10-22 13:16:28,888 - root - WARNING -   Outlier voxels detected: 803/1794 (44.8%)
+2025-10-22 13:16:28,888 - root - INFO -   Voxels retained: 991/1794 (55.2%)
+2025-10-22 13:16:28,889 - root - INFO - Applying spatial imputation to volume_sn_voxels
+2025-10-22 13:16:28,891 - root - INFO - Loaded 1794 voxel positions for sn
+2025-10-22 13:16:28,891 - root - ERROR - Position lookup dimension mismatch for volume_sn_voxels (ROI: sn)!
+2025-10-22 13:16:28,891 - root - ERROR -   Data has 991 voxels but position file has 1794 positions
+2025-10-22 13:16:28,891 - root - ERROR -   Expected file: position_sn_voxels.tsv with 991 rows
+2025-10-22 13:16:28,891 - root - WARNING - No spatial information available for volume_sn_voxels, using standard imputation
+2025-10-22 13:16:28,891 - root - INFO - Applying median imputation to volume_sn_voxels
+2025-10-22 13:16:28,894 - root - INFO - Applying none feature selection to volume_sn_voxels
+2025-10-22 13:16:28,894 - root - INFO - Applying robust scaling to volume_sn_voxels
+2025-10-22 13:16:28,924 - root - INFO - DEBUG: fit_transform_pca called for volume_sn_voxels, enable_pca=False
+2025-10-22 13:16:28,924 - root - INFO - DEBUG: PCA disabled for volume_sn_voxels, returning original X with shape (86, 991)
+2025-10-22 13:16:28,924 - root - INFO - Final shape for volume_sn_voxels: (86, 991)
+2025-10-22 13:16:28,924 - root - INFO - Feature retention: 991/1794 (55.2%)
+2025-10-22 13:16:28,924 - root - WARNING - No position lookup available for volume_sn_voxels - cannot filter
+2025-10-22 13:16:28,924 - root - INFO - Processing view: clinical (shape: (86, 17))
+2025-10-22 13:16:28,925 - root - INFO - Applying median imputation to clinical
+2025-10-22 13:16:28,925 - root - INFO - Applying none feature selection to clinical
+2025-10-22 13:16:28,925 - root - INFO - Applying robust scaling to clinical
+2025-10-22 13:16:28,926 - root - INFO - DEBUG: fit_transform_pca called for clinical, enable_pca=False
+2025-10-22 13:16:28,926 - root - INFO - DEBUG: PCA disabled for clinical, returning original X with shape (86, 17)
+2025-10-22 13:16:28,926 - root - INFO - Final shape for clinical: (86, 17)
+2025-10-22 13:16:28,926 - root - INFO - Feature retention: 17/17 (100.0%)
+2025-10-22 13:16:28,926 - root - INFO -   Filtered volume_sn_voxels feature names by QC outlier mask: 1794 → 991
+2025-10-22 13:16:28,926 - root - INFO - Regressing out confounds: ['age', 'sex', 'tiv']
+2025-10-22 13:16:28,935 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-22 13:16:28,935 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-22 13:16:28,935 - root - INFO -   Remaining clinical features: 14
+2025-10-22 13:16:28,935 - root - INFO - ✓ Feature names verified for volume_sn_voxels: 991 features
+2025-10-22 13:16:28,935 - root - INFO - ✓ Feature names verified for clinical: 14 features
+2025-10-22 13:16:28,935 - experiments.data_validation - INFO -    ✅ Filtered position lookups saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628/data_validation_tree10_20251022_131628/position_lookup_filtered
+2025-10-22 13:16:28,935 - experiments.data_validation - INFO -    Creating filtered position lookups with output_dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628/data_validation_tree10_20251022_131628
+2025-10-22 13:16:28,935 - experiments.data_validation - INFO -   _create_filtered_position_lookups called:
+2025-10-22 13:16:28,935 - experiments.data_validation - INFO -     view_names: ['volume_sn_voxels', 'clinical']
+2025-10-22 13:16:28,935 - experiments.data_validation - INFO -     n_views raw: 2, preprocessed: 2
+2025-10-22 13:16:28,935 - experiments.data_validation - INFO -   Creating filtered position lookup for volume_sn_voxels...
+2025-10-22 13:16:28,936 - root - INFO - Loaded 1794 voxel positions for sn
+2025-10-22 13:16:28,937 - experiments.data_validation - INFO -   Original positions: 1794 rows
+2025-10-22 13:16:28,937 - experiments.data_validation - INFO -   Raw data: 1794 voxels
+2025-10-22 13:16:28,937 - experiments.data_validation - INFO -   Preprocessed data: 991 voxels
+2025-10-22 13:16:28,937 - experiments.data_validation - WARNING -   803 voxels dropped
+2025-10-22 13:16:28,937 - experiments.data_validation - WARNING -   Cannot determine exact column mapping without explicit tracking
+2025-10-22 13:16:28,937 - experiments.data_validation - WARNING -   Skipping position lookup for volume_sn_voxels
+2025-10-22 13:16:28,937 - experiments.data_validation - INFO -   Skipping clinical view
+2025-10-22 13:16:28,937 - experiments.data_validation - INFO - Data structure analysis completed. Raw: 1808 features, Processed: 1005 features
+2025-10-22 13:16:28,937 - experiments.data_validation - INFO - 🔍 Assessing data quality metrics...
+2025-10-22 13:16:28,937 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×1794)...
+2025-10-22 13:16:28,939 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-22 13:16:28,939 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-22 13:16:28,940 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×991)...
+2025-10-22 13:16:28,941 - experiments.data_validation - INFO -       Computing correlation matrix for volume_sn_voxels...
+2025-10-22 13:16:29,063 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-22 13:16:29,064 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-22 13:16:29,069 - experiments.data_validation - INFO - ================================================================================
+2025-10-22 13:16:29,069 - experiments.data_validation - INFO - 🔍 MAD THRESHOLD EXPLORATORY DATA ANALYSIS
+2025-10-22 13:16:29,069 - experiments.data_validation - INFO - ================================================================================
+2025-10-22 13:16:29,069 - experiments.data_validation - INFO - Analyzing optimal MAD threshold values for outlier detection...
+2025-10-22 13:16:29,070 - experiments.data_validation - INFO - Analyzing 1 imaging views: ['volume_sn_voxels']
+2025-10-22 13:16:29,070 - experiments.data_validation - INFO - 📊 Analyzing MAD distributions...
+2025-10-22 13:16:29,070 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-22 13:16:29,569 - experiments.data_validation - INFO -       Saved MAD distribution plot: mad_distribution_sn.png
+2025-10-22 13:16:29,569 - experiments.data_validation - INFO -    ✅ MAD distributions analyzed for 1 views
+2025-10-22 13:16:29,569 - experiments.data_validation - INFO - 📈 Performing elbow analysis...
+2025-10-22 13:16:29,576 - experiments.data_validation - INFO -    volume_sn_voxels: Elbow at 2.26 (7.1% retention)
+2025-10-22 13:16:29,778 - experiments.data_validation - INFO -    ✅ Elbow analysis completed, saved to elbow_analysis_all_views.png
+2025-10-22 13:16:29,778 - experiments.data_validation - INFO - 🗺️  Analyzing spatial distribution of removed voxels...
+2025-10-22 13:16:29,779 - experiments.data_validation - INFO -    Loaded position lookup for volume_sn_voxels: 1793 voxels
+2025-10-22 13:16:29,779 - experiments.data_validation - WARNING -    Dimension mismatch for volume_sn_voxels: 1794 MAD values vs 1793 positions. Skipping spatial analysis.
+2025-10-22 13:16:29,779 - experiments.data_validation - INFO -    ✅ Spatial analysis completed for 1 views
+2025-10-22 13:16:29,779 - experiments.data_validation - INFO - 📊 Analyzing information preservation...
+2025-10-22 13:16:29,779 - experiments.data_validation - INFO -    Processing volume_sn_voxels...
+2025-10-22 13:16:30,066 - experiments.data_validation - INFO -       Saved information preservation plot: information_preservation_all_views.png
+2025-10-22 13:16:30,066 - experiments.data_validation - INFO -    ✅ Information preservation analyzed for 1 views
+2025-10-22 13:16:30,066 - experiments.data_validation - INFO - 👤 Analyzing subject-level data quality...
+2025-10-22 13:16:30,066 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-22 13:16:30,202 - experiments.data_validation - INFO -       Mean outlier %: 1.1%
+2025-10-22 13:16:30,202 - experiments.data_validation - INFO -       Max outlier %: 17.5%
+2025-10-22 13:16:30,431 - experiments.data_validation - INFO -       Saved subject outlier distribution plot: subject_outlier_distributions.png
+2025-10-22 13:16:30,435 - experiments.data_validation - INFO -       Saved flagged subjects table: flagged_subjects.csv (2 subjects)
+2025-10-22 13:16:30,437 - experiments.data_validation - INFO -       Saved flagged subjects report: flagged_subjects_report.txt
+2025-10-22 13:16:30,591 - experiments.data_validation - INFO -       Saved subject outlier comparison plot: subject_outlier_comparison.png
+2025-10-22 13:16:30,845 - experiments.data_validation - INFO -       Saved subject outlier scatter plot: subject_outlier_scatter.png
+2025-10-22 13:16:31,200 - experiments.data_validation - INFO -       Saved top subjects bar chart: subject_outlier_top20.png
+2025-10-22 13:16:31,200 - experiments.data_validation - INFO -    ✅ Subject-level analysis completed: 2 subjects flagged
+2025-10-22 13:16:31,200 - experiments.data_validation - INFO - 📋 Generating threshold comparison summary...
+2025-10-22 13:16:31,202 - experiments.data_validation - INFO -    Saved summary table: mad_threshold_summary_table.csv
+2025-10-22 13:16:31,204 - experiments.data_validation - INFO -    📝 Saved recommendations: mad_threshold_recommendations.txt
+2025-10-22 13:16:31,204 - experiments.data_validation - INFO - ================================================================================
+2025-10-22 13:16:31,204 - experiments.data_validation - INFO - ✅ MAD threshold EDA completed successfully
+2025-10-22 13:16:31,204 - experiments.data_validation - INFO - ================================================================================
+2025-10-22 13:16:31,204 - experiments.data_validation - INFO - 📊 Generating data validation plots...
+2025-10-22 13:16:31,204 - experiments.data_validation - INFO -    Creating distribution histograms for 1 clinical view(s), skipping 1 imaging views
+2025-10-22 13:16:31,268 - experiments.data_validation - INFO -    ✅ Distribution histograms created (stored as data_distribution_comparison)
+2025-10-22 13:16:31,268 - experiments.data_validation - INFO -    Creating quality metrics summary plot...
+2025-10-22 13:16:31,272 - experiments.data_validation - INFO - 📊 Basic data validation plots completed: 1 plots generated
+2025-10-22 13:16:31,272 - experiments.data_validation - INFO - 🎨 Creating comprehensive data validation visualizations for data_quality_assessment
+2025-10-22 13:16:31,275 - experiments.data_validation - INFO -    Creating preprocessing quality visualizations...
+2025-10-22 13:16:31,275 - visualization.preprocessing_plots - INFO - Creating preprocessing plots
+2025-10-22 13:16:31,508 - visualization.preprocessing_plots - INFO - Saved: results/plots/preprocessing/feature_reduction.png
+2025-10-22 13:16:31,791 - visualization.preprocessing_plots - INFO - Saved: results/plots/preprocessing/variance_distribution.png
+2025-10-22 13:16:31,792 - experiments.data_validation - INFO -    ✅ Preprocessing visualizations created
+2025-10-22 13:16:31,792 - experiments.data_validation - INFO -    Creating covariance structure analysis...
+2025-10-22 13:16:31,793 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-22 13:16:31,793 - visualization.covariance_plots - INFO - COVARIANCE STRUCTURE ANALYSIS
+2025-10-22 13:16:31,793 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-22 13:16:31,806 - visualization.covariance_plots - INFO - Intra-modality covariance for volume_sn_voxels: 991x991
+2025-10-22 13:16:31,806 - visualization.covariance_plots - INFO - Intra-modality covariance for clinical: 14x14
+2025-10-22 13:16:31,812 - visualization.covariance_plots - INFO - Inter-modality covariance for volume_sn_voxels_vs_clinical: 991x14
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO - 
+Data structure:
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -   Number of views: 2
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -   Number of samples: 86
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -   volume_sn_voxels: 991 features
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -   clinical: 14 features
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO - 
+Intra-modality correlation statistics:
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -   volume_sn_voxels:
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -     Mean correlation: 0.432
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -     Std correlation: 0.219
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -     Max |correlation|: 0.994
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -   clinical:
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -     Mean correlation: 0.073
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -     Std correlation: 0.350
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -     Max |correlation|: 0.911
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO - 
+Inter-modality correlation statistics:
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -   volume_sn_voxels_vs_clinical:
+2025-10-22 13:16:31,831 - visualization.covariance_plots - INFO -     Mean correlation: 0.028
+2025-10-22 13:16:31,832 - visualization.covariance_plots - INFO -     Std correlation: 0.118
+2025-10-22 13:16:31,832 - visualization.covariance_plots - INFO -     Max |correlation|: 0.342
+2025-10-22 13:16:31,832 - visualization.covariance_plots - INFO - 
+Generating covariance plots...
+2025-10-22 13:16:31,832 - visualization.covariance_plots - INFO - Subsampling covariance matrix from 1005 to 500 features
+2025-10-22 13:16:32,480 - visualization.covariance_plots - INFO - Saved block covariance matrix plot to results/plots/block_covariance_matrix.png
+2025-10-22 13:16:33,968 - visualization.covariance_plots - INFO - Saved inter/intra comparison plot to results/plots/inter_vs_intra_correlation.png
+2025-10-22 13:16:33,969 - visualization.covariance_plots - INFO - Plots saved to results/plots
+2025-10-22 13:16:33,969 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-22 13:16:33,969 - experiments.data_validation - INFO -    ✅ Covariance analysis completed
+2025-10-22 13:16:33,969 - experiments.data_validation - INFO -    Loading and converting generated plots to figures...
+2025-10-22 13:16:33,974 - experiments.data_validation - INFO -    Found 4 plot files to convert
+2025-10-22 13:16:34,365 - experiments.data_validation - INFO -    ✅ Created 4 comprehensive data validation visualizations
+2025-10-22 13:16:34,365 - experiments.data_validation - INFO - 🎨 Comprehensive data validation plots completed: 4 advanced plots generated
+2025-10-22 13:16:34,365 - experiments.data_validation - INFO - 📊 Total plots ready for saving: 5
+2025-10-22 13:16:34,365 - experiments.data_validation - INFO - 📁 Using experiment output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628/data_validation_tree10_20251022_131628
+2025-10-22 13:16:39,159 - core.io_utils - INFO - Saved 5 plots individually to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628/data_validation_tree10_20251022_131628/individual_plots (0 skipped)
+2025-10-22 13:16:39,159 - core.io_utils - INFO -   Formats: png, pdf
+2025-10-22 13:16:39,159 - experiments.data_validation - INFO - ✅ Saved 5 individual plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628/data_validation_tree10_20251022_131628/individual_plots
+2025-10-22 13:16:39,159 - experiments.data_validation - INFO - ✅ Data validation with EDA completed!
+2025-10-22 13:16:39,160 - experiments.data_validation - INFO -    Plots generated: 5
+2025-10-22 13:16:39,160 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251022_131628
+2025-10-22 13:16:39,160 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 10.6 seconds
+2025-10-22 13:16:39,160 - experiments.framework - INFO - 🕐 Started: 2025-10-22 13:16:28
+2025-10-22 13:16:39,160 - experiments.framework - INFO - 🕑 Finished: 2025-10-22 13:16:39
+2025-10-22 13:16:39,160 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251022_131628
+2025-10-22 13:16:39,160 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-22 13:16:39,194 - experiments.framework - INFO - Garbage collection freed 10 objects
+2025-10-22 13:16:39,320 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-22 13:16:40,321 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-22 13:16:46,346 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628
+2025-10-22 13:16:46,346 - experiments.robustness_testing - INFO -    Using command-line K override: 20 (default is 10)
+2025-10-22 13:16:46,346 - experiments.robustness_testing - INFO -    Using global model hyperparameters: K=20, percW=33.0, slab_df=4, slab_scale=2
+2025-10-22 13:16:46,346 - experiments.robustness_testing - INFO -    QC outlier threshold (MAD): 3.5
+2025-10-22 13:16:46,346 - experiments.robustness_testing - INFO -    Using model type: sparse_gfa_fixed
+2025-10-22 13:16:46,346 - optimization.config - INFO - Configuration optimized for system: 116.1GB RAM, 24 CPUs
+2025-10-22 13:16:46,346 - experiments.robustness_testing - INFO - Auto-configured system: 92.9GB memory limit
+2025-10-22 13:16:46,350 - experiments.robustness_testing - INFO - ExperimentFramework initialized with output dir: results
+2025-10-22 13:16:46,350 - optimization.config - INFO - Configuration optimized for system: 116.1GB RAM, 24 CPUs
+2025-10-22 13:16:46,350 - experiments.robustness_testing - INFO - Auto-configured system: 92.9GB memory limit
+2025-10-22 13:16:46,350 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=92.91GB
+2025-10-22 13:16:46,350 - experiments.robustness_testing - INFO - Memory optimizer initialized with 92.9GB limit
+2025-10-22 13:16:46,350 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=92.91GB
+2025-10-22 13:16:46,350 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=92.91080322265626GB
+2025-10-22 13:16:46,350 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=92.91GB
+2025-10-22 13:16:46,350 - optimization.data_streaming - INFO - DataStreamer initialized: chunk_size=None, memory_limit=92.91080322265626GB
+2025-10-22 13:16:46,350 - experiments.robustness_testing - INFO - Data streaming components initialized
+2025-10-22 13:16:46,350 - optimization.memory_optimizer - INFO - MemoryOptimizer initialized: max_memory=92.91GB
+2025-10-22 13:16:46,350 - optimization.mcmc_optimizer - INFO - MCMCMemoryOptimizer initialized with 92.91080322265626GB limit
+2025-10-22 13:16:46,350 - experiments.robustness_testing - INFO - MCMC memory optimizer initialized
+2025-10-22 13:16:46,353 - experiments.framework - INFO - Starting experiment: robustness_tests_20251022_131646
+2025-10-22 13:16:46,353 - experiments.robustness_testing - INFO - 🔄 Running comprehensive robustness tests...
+2025-10-22 13:16:46,353 - experiments.robustness_testing - INFO - 📁 Set robustness_testing base_output_dir to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K20_percW33_MAD3.5_run_20251022_131628/robustness_tests_fixed_K20_percW33_slab4_2_MAD3.5_tree10_20251022_131646
+2025-10-22 13:16:46,354 - experiments.robustness_testing - INFO - 📊 Testing seed robustness...
+2025-10-22 13:16:46,387 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:16:46,387 - experiments.robustness_testing - INFO - _RUN_SGFA_ANALYSIS - STARTING
+2025-10-22 13:16:46,387 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:16:46,387 - experiments.robustness_testing - INFO - Input data: 2 views
+2025-10-22 13:16:46,388 - experiments.robustness_testing - INFO -   View 0: shape (86, 991), dtype float64, has_nan False
+2025-10-22 13:16:46,388 - experiments.robustness_testing - INFO -   View 1: shape (86, 14), dtype float64, has_nan False
+2025-10-22 13:16:46,388 - experiments.robustness_testing - INFO - Hyperparameters: {'Dm': [991, 14], 'a_sigma': 1.0, 'b_sigma': 1.0, 'slab_df': 4, 'slab_scale': 2, 'percW': 33.0, 'K': 20}
+2025-10-22 13:16:46,388 - experiments.robustness_testing - INFO - MCMC args: {'K': 20, 'num_warmup': 50, 'num_samples': 100, 'num_chains': 1, 'target_accept_prob': 0.8, 'reghsZ': True, 'max_tree_depth': 10, 'use_pca_initialization': True, 'model_type': 'sparse_gfa_fixed', 'random_seed': 42}
+2025-10-22 13:16:46,388 - experiments.robustness_testing - INFO - Additional kwargs keys: []
+2025-10-22 13:16:46,388 - experiments.robustness_testing - INFO - Running SGFA: K=20, n_subjects=86, n_features=1005
+2025-10-22 13:16:46,398 - experiments.robustness_testing - INFO - Setting up model via factory...
+2025-10-22 13:16:46,398 - experiments.robustness_testing - INFO - 🔍 DEBUG: config_dict.get('model_type') = sparse_gfa_fixed
+2025-10-22 13:16:46,398 - experiments.robustness_testing - INFO - 🔍 DEBUG: 'model' in config_dict = False
+2025-10-22 13:16:46,398 - experiments.robustness_testing - INFO - 🔍 DEBUG: args['model_type'] = sparse_gfa_fixed
+2025-10-22 13:16:46,398 - experiments.robustness_testing - INFO - 🔧 Setting K=20 from args into config_dict
+2025-10-22 13:16:46,398 - experiments.robustness_testing - INFO - 🔍 Config model_type: sparse_gfa_fixed
+2025-10-22 13:16:46,398 - experiments.robustness_testing - INFO - 🔍 Config K: 20
+2025-10-22 13:16:46,398 - models.models_integration - INFO - 🔍 DEBUG: model_config keys: ['model_type']
+2025-10-22 13:16:46,398 - models.models_integration - INFO - 🔍 DEBUG: model_type from config: 'sparse_gfa_fixed'
+2025-10-22 13:16:46,398 - models.models_integration - INFO - Data characteristics for model selection:
+2025-10-22 13:16:46,398 - models.models_integration - INFO -    Total features: 1,005
+2025-10-22 13:16:46,398 - models.models_integration - INFO -    Views: 2
+2025-10-22 13:16:46,398 - models.models_integration - INFO -    Subjects: 86
+2025-10-22 13:16:46,398 - models.models_integration - INFO -    Has imaging data: True
+2025-10-22 13:16:46,398 - models.models_integration - INFO - 🔍 DEBUG: Available Bayesian models: ['GFA', 'neuroGFA', 'sparseGFA', 'sparse_gfa', 'sparse_gfa_fixed', 'standard_gfa']
+2025-10-22 13:16:46,398 - models.models_integration - INFO - 🔍 DEBUG: Checking if 'sparse_gfa_fixed' in bayesian_models: True
+2025-10-22 13:16:46,398 - models.models_integration - INFO - ✅ Selected model type: sparse_gfa_fixed
+2025-10-22 13:16:46,398 - models.models_integration - INFO - 🏗️ Creating model instance: sparse_gfa_fixed
+2025-10-22 13:16:46,399 - models.models_integration - INFO - ✅ Model instance created successfully
+2025-10-22 13:16:46,399 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-22 13:16:46,399 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-22 13:16:46,399 - models.models_integration - INFO - ✅ Models framework integration completed
+2025-10-22 13:16:46,399 - models.models_integration - INFO -    Model type: sparse_gfa_fixed
+2025-10-22 13:16:46,399 - models.models_integration - INFO -    Model class: SparseGFAFixedModel
+2025-10-22 13:16:46,399 - models.models_integration - INFO -    Factory method: True
+2025-10-22 13:16:46,399 - models.models_integration - INFO - ✅ Models framework pipeline integration completed
+2025-10-22 13:16:46,399 - models.models_integration - INFO -  Model type: sparse_gfa_fixed
+2025-10-22 13:16:46,399 - models.models_integration - INFO -  Model factory: True
+2025-10-22 13:16:46,399 - models.models_integration - INFO -  Structured management: True
+2025-10-22 13:16:46,399 - experiments.robustness_testing - INFO - ✅ Model setup complete: sparse_gfa_fixed
+2025-10-22 13:16:46,399 - experiments.robustness_testing - INFO -    Hyperparameters: Dm=[991, 14], percW=33.0, slab_df=4, slab_scale=2
+2025-10-22 13:16:46,399 - experiments.robustness_testing - INFO - ✅ Using model instance: sparse_gfa_fixed
+2025-10-22 13:16:46,399 - experiments.robustness_testing - INFO -    Model class: SparseGFAFixedModel
+2025-10-22 13:16:46,399 - experiments.robustness_testing - INFO - MCMC configuration: warmup=50, samples=100, chains=1
+2025-10-22 13:16:46,399 - experiments.robustness_testing - INFO - Setting up MCMC with seed: 42
+2025-10-22 13:16:46,509 - experiments.robustness_testing - INFO - NUTS kernel parameters: target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-22 13:16:46,509 - experiments.robustness_testing - INFO -    Using diagonal mass matrix for ~5GB memory savings per chain
+2025-10-22 13:16:46,509 - experiments.robustness_testing - INFO - Creating MCMC sampler with chain_method=sequential...
+2025-10-22 13:16:46,509 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO - 🔧 Creating NumPyro initialization parameters...
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO -   Model type: sparse_gfa_fixed
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO -   K=20, n_views=2
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO - 🔧 Computing PCA initialization...
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO -   Input: 2 views, N=86 samples, K=20 factors
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO -   View shapes: [(86, 991), (86, 14)]
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO -   Concatenated data shape: (86, 1005)
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO - Computing PCA initialization for K=20 factors
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO -   Data shape: (86, 1005) (86 samples, 1005 total features)
+2025-10-22 13:16:46,510 - core.pca_initialization - INFO -   Number of views: 2
+2025-10-22 13:16:46,522 - core.pca_initialization - INFO -   PCA initialization computed:
+2025-10-22 13:16:46,523 - core.pca_initialization - INFO -     Z shape: (86, 20)
+2025-10-22 13:16:46,523 - core.pca_initialization - INFO -     W shape: (1005, 20)
+2025-10-22 13:16:46,523 - core.pca_initialization - INFO -     Variance explained: 94.93%
+2025-10-22 13:16:46,523 - core.pca_initialization - INFO -     Per-component variance: [0.45195201 0.10936659 0.08280499 0.05001599 0.04038534 0.03357224
+ 0.03161561 0.02663857 0.01949984 0.0163586  0.01434641 0.01350569
+ 0.0113147  0.00913256 0.00818724 0.00752354 0.00673966 0.00638659
+ 0.00571258 0.0042046 ]
+2025-10-22 13:16:46,523 - core.pca_initialization - INFO -   ✓ PCA initialization computed
+2025-10-22 13:16:46,523 - core.pca_initialization - INFO -   Using sparse_gfa_fixed parameterization (non-centered)
+2025-10-22 13:16:46,669 - core.pca_initialization - INFO -   Initializing lmbZ: shape (86, 20)
+2025-10-22 13:16:46,701 - core.pca_initialization - INFO -   Initializing lmbW: shape (1005, 20)
+2025-10-22 13:16:46,742 - core.pca_initialization - INFO -   Initializing cZ_tilde: shape (1, 20)
+2025-10-22 13:16:46,743 - core.pca_initialization - INFO -   Initializing cW_tilde: shape (2, 20)
+2025-10-22 13:16:46,783 - core.pca_initialization - INFO -   Initializing sigma: shape (1, 2)
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO - ✓ Created NumPyro init params for sparse_gfa_fixed
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -   Total parameters initialized: 10
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -   Parameter names: ['tauZ', 'Z_raw', 'W_raw', 'tauW1', 'tauW2', 'lmbZ', 'lmbW', 'cZ_tilde', 'cW_tilde', 'sigma']
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     tauZ: shape=(1, 20), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     Z_raw: shape=(86, 20), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     W_raw: shape=(1005, 20), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     tauW1: shape=(), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     tauW2: shape=(), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     lmbZ: shape=(86, 20), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     lmbW: shape=(1005, 20), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     cZ_tilde: shape=(1, 20), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     cW_tilde: shape=(2, 20), dtype=float32
+2025-10-22 13:16:46,802 - core.pca_initialization - INFO -     sigma: shape=(1, 2), dtype=float32
+2025-10-22 13:16:46,802 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-22 13:16:46,802 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:16:46,802 - experiments.robustness_testing - INFO - STARTING MCMC SAMPLING
+2025-10-22 13:16:46,802 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:16:46,802 - experiments.robustness_testing - INFO - This will run 50 warmup + 100 sampling iterations
+2025-10-22 13:16:46,897 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:16:46,903 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:16:46,903 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:16:46,903 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:16:46,903 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:16:46,997 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:16:46,997 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:16:46,998 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:16:46,998 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:16:47,135 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:16:47,156 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:16:47,156 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:16:47,303 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:16:47,303 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:16:47,319 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:16:47,319 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:16:47,319 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:47,340 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:16:47,340 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:16:47,568 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:16:47,568 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:16:47,568 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:16:47,568 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:16:47,568 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:16:47,568 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:16:47,663 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:16:47,663 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:16:47,682 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:16:47,682 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:47,810 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:16:47,810 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:16:47,810 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:16:47,810 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:16:47,811 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:16:47,811 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:16:47,926 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:16:48,181 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:16:48,182 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:16:48,182 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:16:48,183 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:16:48,367 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:16:48,711 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:16:48,711 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:16:48,711 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:16:48,711 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:16:48,711 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:16:48,748 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:16:48,748 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:16:48,748 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:16:48,748 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:16:48,748 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:16:48,749 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:16:48,749 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:16:48,897 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:16:48,897 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:16:48,926 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:16:48,926 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:16:48,926 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:48,945 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:16:48,945 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:16:49,196 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:16:49,197 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:16:49,197 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:16:49,197 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:16:49,197 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:16:49,197 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:16:49,197 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:16:49,197 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:16:49,229 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:16:49,229 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:49,295 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:16:49,295 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:16:49,295 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:16:49,295 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:16:49,296 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:16:49,296 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:16:49,388 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:16:49,544 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:16:49,544 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:16:49,544 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:16:49,548 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:16:49,651 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:16:54,642 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:16:54,642 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:16:54,642 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:16:54,642 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:16:54,642 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:16:54,643 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:16:54,643 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:16:54,643 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:16:54,643 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:16:54,643 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:16:54,644 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:16:54,644 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:16:54,647 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:16:54,647 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:16:54,648 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:16:54,648 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:16:54,648 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:54,650 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:16:54,650 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:16:54,827 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:16:54,828 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:16:54,828 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:54,829 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:16:54,829 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:16:54,830 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:16:54,830 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:16:54,830 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:16:54,830 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:16:54,833 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:16:54,839 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:16:54,839 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:16:54,839 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:16:54,842 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:16:54,849 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:16:55,106 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:16:55,106 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:16:55,106 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:16:55,106 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:16:55,106 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:16:55,107 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:16:55,107 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:16:55,107 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:16:55,107 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:16:55,107 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:16:55,108 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)> (from D₀=20, N=86)
+2025-10-22 13:16:55,108 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:16:55,111 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:16:55,111 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:16:55,112 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:16:55,112 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:16:55,112 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:55,113 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:16:55,113 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:16:55,185 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:16:55,186 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:16:55,186 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:16:55,187 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:16:55,187 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:16:55,187 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:16:55,187 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:16:55,188 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>
+2025-10-22 13:16:55,188 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:16:55,190 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:16:55,194 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:16:55,195 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>
+2025-10-22 13:16:55,195 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:16:55,198 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:16:55,201 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:18:18,710 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:18:18,711 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:18:18,712 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)> (from D₀=20, N=86)
+2025-10-22 13:18:18,712 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>)...
+2025-10-22 13:18:18,712 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:18:18,712 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:18:18,713 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:18:18,713 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:18:18,713 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:18,713 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:18:18,713 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:18:18,747 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:18:18,748 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:18:18,749 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:18:18,749 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:18:18,749 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>
+2025-10-22 13:18:18,749 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>)...
+2025-10-22 13:18:18,750 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:18:18,752 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:18:18,752 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>
+2025-10-22 13:18:18,752 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>)...
+2025-10-22 13:18:18,753 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:18:18,755 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:18:19,192 - experiments.robustness_testing - INFO - ✅ MCMC SAMPLING COMPLETED in 92.4s (1.5 min)
+2025-10-22 13:18:19,451 - experiments.robustness_testing - INFO - 🧹 Cleared JAX caches after MCMC completion
+2025-10-22 13:18:19,451 - experiments.robustness_testing - INFO - Got samples from single chain
+2025-10-22 13:18:19,562 - optimization.profiler - INFO - Performance: seed_42: 93.167s, 2.71GB peak, 101.6% CPU
+2025-10-22 13:18:19,562 - experiments.robustness_testing - INFO - ✅ Seed 42: 93.2s, LL=-73694816.00
+2025-10-22 13:18:19,638 - experiments.robustness_testing - INFO - 🔄 Seed 123: Starting MCMC sampling...
+2025-10-22 13:18:19,655 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO - 🔧 Creating NumPyro initialization parameters...
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO -   Model type: sparse_gfa_fixed
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO -   K=20, n_views=2
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO - 🔧 Computing PCA initialization...
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO -   Input: 2 views, N=86 samples, K=20 factors
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO -   View shapes: [(86, 991), (86, 14)]
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO -   Concatenated data shape: (86, 1005)
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO - Computing PCA initialization for K=20 factors
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO -   Data shape: (86, 1005) (86 samples, 1005 total features)
+2025-10-22 13:18:19,655 - core.pca_initialization - INFO -   Number of views: 2
+2025-10-22 13:18:19,742 - core.pca_initialization - INFO -   PCA initialization computed:
+2025-10-22 13:18:19,742 - core.pca_initialization - INFO -     Z shape: (86, 20)
+2025-10-22 13:18:19,742 - core.pca_initialization - INFO -     W shape: (1005, 20)
+2025-10-22 13:18:19,742 - core.pca_initialization - INFO -     Variance explained: 94.93%
+2025-10-22 13:18:19,742 - core.pca_initialization - INFO -     Per-component variance: [0.45195201 0.10936659 0.08280499 0.05001599 0.04038534 0.03357224
+ 0.03161561 0.02663857 0.01949984 0.0163586  0.01434641 0.01350569
+ 0.0113147  0.00913256 0.00818725 0.00752353 0.00673967 0.00638656
+ 0.00571253 0.0042043 ]
+2025-10-22 13:18:19,742 - core.pca_initialization - INFO -   ✓ PCA initialization computed
+2025-10-22 13:18:19,742 - core.pca_initialization - INFO -   Using sparse_gfa_fixed parameterization (non-centered)
+2025-10-22 13:18:19,861 - core.pca_initialization - INFO -   Initializing lmbZ: shape (86, 20)
+2025-10-22 13:18:19,876 - core.pca_initialization - INFO -   Initializing lmbW: shape (1005, 20)
+2025-10-22 13:18:19,892 - core.pca_initialization - INFO -   Initializing cZ_tilde: shape (1, 20)
+2025-10-22 13:18:19,893 - core.pca_initialization - INFO -   Initializing cW_tilde: shape (2, 20)
+2025-10-22 13:18:19,908 - core.pca_initialization - INFO -   Initializing sigma: shape (1, 2)
+2025-10-22 13:18:19,915 - core.pca_initialization - INFO - ✓ Created NumPyro init params for sparse_gfa_fixed
+2025-10-22 13:18:19,915 - core.pca_initialization - INFO -   Total parameters initialized: 10
+2025-10-22 13:18:19,915 - core.pca_initialization - INFO -   Parameter names: ['tauZ', 'Z_raw', 'W_raw', 'tauW1', 'tauW2', 'lmbZ', 'lmbW', 'cZ_tilde', 'cW_tilde', 'sigma']
+2025-10-22 13:18:19,915 - core.pca_initialization - INFO -     tauZ: shape=(1, 20), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     Z_raw: shape=(86, 20), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     W_raw: shape=(1005, 20), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     tauW1: shape=(), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     tauW2: shape=(), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     lmbZ: shape=(86, 20), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     lmbW: shape=(1005, 20), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     cZ_tilde: shape=(1, 20), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     cW_tilde: shape=(2, 20), dtype=float32
+2025-10-22 13:18:19,916 - core.pca_initialization - INFO -     sigma: shape=(1, 2), dtype=float32
+2025-10-22 13:18:19,916 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-22 13:18:19,916 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:18:19,916 - experiments.robustness_testing - INFO - STARTING MCMC SAMPLING
+2025-10-22 13:18:19,916 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:18:19,916 - experiments.robustness_testing - INFO - This will run 50 warmup + 100 sampling iterations
+2025-10-22 13:18:19,993 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:18:19,999 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:18:19,999 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:18:19,999 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:18:19,999 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:18:20,074 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:18:20,075 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:18:20,075 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:18:20,075 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:18:20,198 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:18:20,199 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:18:20,199 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:18:20,307 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:18:20,307 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:18:20,316 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:18:20,316 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:18:20,317 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:20,325 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:18:20,325 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:18:20,461 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:18:20,462 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:18:20,462 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:18:20,462 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:18:20,462 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:18:20,462 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:18:20,547 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:18:20,548 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:18:20,557 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:18:20,557 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:20,656 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:18:20,656 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:18:20,656 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:18:20,657 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:18:20,657 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:18:20,657 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:18:20,747 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:18:20,874 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:18:20,875 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:18:20,875 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:18:20,876 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:18:20,956 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:18:21,101 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:18:21,101 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:18:21,101 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:18:21,101 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:18:21,101 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:18:21,129 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:18:21,129 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:18:21,130 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:18:21,130 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:18:21,130 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:18:21,130 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:18:21,130 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:18:21,227 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:18:21,227 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:18:21,254 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:18:21,254 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:18:21,254 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:21,265 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:18:21,265 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:18:21,480 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:18:21,511 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:18:21,511 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:21,557 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:18:21,558 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:18:21,558 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:18:21,558 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:18:21,558 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:18:21,558 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:18:21,630 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:18:21,744 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:18:21,744 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:18:21,744 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:18:21,747 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:18:21,826 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:18:25,066 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:18:25,066 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:18:25,066 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:18:25,066 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:18:25,066 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:18:25,067 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:18:25,067 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:18:25,067 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:18:25,067 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:18:25,068 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:18:25,068 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:18:25,068 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:18:25,072 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:18:25,072 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:18:25,073 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:18:25,073 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:18:25,073 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:25,075 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:18:25,075 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:18:25,199 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:18:25,200 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:18:25,200 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:25,202 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:18:25,202 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:18:25,202 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:18:25,202 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:18:25,202 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:18:25,203 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:18:25,206 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:18:25,212 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:18:25,212 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:18:25,212 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:18:25,215 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:18:25,221 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:18:25,492 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:18:25,492 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:18:25,493 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:18:25,493 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:18:25,493 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:18:25,493 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:18:25,493 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:18:25,493 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:18:25,493 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:18:25,494 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:18:25,494 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)> (from D₀=20, N=86)
+2025-10-22 13:18:25,494 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:18:25,497 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:18:25,497 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:18:25,498 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:18:25,498 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:18:25,498 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:25,499 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:18:25,499 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:18:25,567 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:18:25,568 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:18:25,569 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:18:25,570 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:18:25,570 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:18:25,570 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:18:25,570 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:18:25,570 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>
+2025-10-22 13:18:25,570 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:18:25,573 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:18:25,577 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:18:25,577 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>
+2025-10-22 13:18:25,577 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:18:25,580 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:18:25,583 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:19:48,585 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:19:48,586 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:19:48,587 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)> (from D₀=20, N=86)
+2025-10-22 13:19:48,587 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>)...
+2025-10-22 13:19:48,588 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:19:48,588 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:19:48,588 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:19:48,588 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:19:48,588 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:48,588 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:19:48,588 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:19:48,623 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:48,624 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:19:48,624 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:19:48,624 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:19:48,624 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:19:48,625 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>
+2025-10-22 13:19:48,625 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>)...
+2025-10-22 13:19:48,626 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:19:48,627 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:19:48,628 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>
+2025-10-22 13:19:48,628 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=2/0)>)...
+2025-10-22 13:19:48,629 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:19:48,631 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:19:48,943 - experiments.robustness_testing - INFO - ✅ MCMC SAMPLING COMPLETED in 89.0s (1.5 min)
+2025-10-22 13:19:49,194 - experiments.robustness_testing - INFO - 🧹 Cleared JAX caches after MCMC completion
+2025-10-22 13:19:49,197 - experiments.robustness_testing - INFO - Got samples from single chain
+2025-10-22 13:19:49,309 - optimization.profiler - INFO - Performance: seed_123: 89.634s, 2.72GB peak, 106.2% CPU
+2025-10-22 13:19:49,309 - experiments.robustness_testing - INFO - ✅ Seed 123: 89.6s, LL=-73655904.00
+2025-10-22 13:19:49,387 - experiments.robustness_testing - INFO - 🔄 Seed 456: Starting MCMC sampling...
+2025-10-22 13:19:49,404 - experiments.robustness_testing - INFO - Creating NUTS kernel for standard MCMC execution...
+2025-10-22 13:19:49,404 - core.pca_initialization - INFO - 🔧 Creating NumPyro initialization parameters...
+2025-10-22 13:19:49,404 - core.pca_initialization - INFO -   Model type: sparse_gfa_fixed
+2025-10-22 13:19:49,404 - core.pca_initialization - INFO -   K=20, n_views=2
+2025-10-22 13:19:49,404 - core.pca_initialization - INFO - 🔧 Computing PCA initialization...
+2025-10-22 13:19:49,404 - core.pca_initialization - INFO -   Input: 2 views, N=86 samples, K=20 factors
+2025-10-22 13:19:49,404 - core.pca_initialization - INFO -   View shapes: [(86, 991), (86, 14)]
+2025-10-22 13:19:49,405 - core.pca_initialization - INFO -   Concatenated data shape: (86, 1005)
+2025-10-22 13:19:49,405 - core.pca_initialization - INFO - Computing PCA initialization for K=20 factors
+2025-10-22 13:19:49,405 - core.pca_initialization - INFO -   Data shape: (86, 1005) (86 samples, 1005 total features)
+2025-10-22 13:19:49,405 - core.pca_initialization - INFO -   Number of views: 2
+2025-10-22 13:19:49,418 - core.pca_initialization - INFO -   PCA initialization computed:
+2025-10-22 13:19:49,419 - core.pca_initialization - INFO -     Z shape: (86, 20)
+2025-10-22 13:19:49,419 - core.pca_initialization - INFO -     W shape: (1005, 20)
+2025-10-22 13:19:49,419 - core.pca_initialization - INFO -     Variance explained: 94.93%
+2025-10-22 13:19:49,419 - core.pca_initialization - INFO -     Per-component variance: [0.45195201 0.10936659 0.08280499 0.05001599 0.04038534 0.03357224
+ 0.03161561 0.02663857 0.01949984 0.0163586  0.01434641 0.01350569
+ 0.0113147  0.00913254 0.00818723 0.00752347 0.00673965 0.00638635
+ 0.00571244 0.00420389]
+2025-10-22 13:19:49,419 - core.pca_initialization - INFO -   ✓ PCA initialization computed
+2025-10-22 13:19:49,419 - core.pca_initialization - INFO -   Using sparse_gfa_fixed parameterization (non-centered)
+2025-10-22 13:19:49,537 - core.pca_initialization - INFO -   Initializing lmbZ: shape (86, 20)
+2025-10-22 13:19:49,553 - core.pca_initialization - INFO -   Initializing lmbW: shape (1005, 20)
+2025-10-22 13:19:49,569 - core.pca_initialization - INFO -   Initializing cZ_tilde: shape (1, 20)
+2025-10-22 13:19:49,570 - core.pca_initialization - INFO -   Initializing cW_tilde: shape (2, 20)
+2025-10-22 13:19:49,586 - core.pca_initialization - INFO -   Initializing sigma: shape (1, 2)
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO - ✓ Created NumPyro init params for sparse_gfa_fixed
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -   Total parameters initialized: 10
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -   Parameter names: ['tauZ', 'Z_raw', 'W_raw', 'tauW1', 'tauW2', 'lmbZ', 'lmbW', 'cZ_tilde', 'cW_tilde', 'sigma']
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     tauZ: shape=(1, 20), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     Z_raw: shape=(86, 20), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     W_raw: shape=(1005, 20), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     tauW1: shape=(), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     tauW2: shape=(), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     lmbZ: shape=(86, 20), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     lmbW: shape=(1005, 20), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     cZ_tilde: shape=(1, 20), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     cW_tilde: shape=(2, 20), dtype=float32
+2025-10-22 13:19:49,593 - core.pca_initialization - INFO -     sigma: shape=(1, 2), dtype=float32
+2025-10-22 13:19:49,593 - experiments.robustness_testing - INFO -    Using PCA initialization for MCMC (model_type=sparse_gfa_fixed)
+2025-10-22 13:19:49,593 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:19:49,593 - experiments.robustness_testing - INFO - STARTING MCMC SAMPLING
+2025-10-22 13:19:49,593 - experiments.robustness_testing - INFO - ================================================================================
+2025-10-22 13:19:49,593 - experiments.robustness_testing - INFO - This will run 50 warmup + 100 sampling iterations
+2025-10-22 13:19:49,673 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:19:49,679 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:19:49,679 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:19:49,679 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:19:49,679 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:19:49,755 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:19:49,755 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:19:49,755 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:19:49,755 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:19:49,879 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:19:49,880 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:19:49,880 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:19:49,990 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:19:49,990 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:19:49,999 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:19:49,999 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:19:49,999 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:50,008 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:19:50,008 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:19:50,146 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:19:50,147 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:19:50,147 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:19:50,147 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:19:50,147 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:19:50,147 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:19:50,233 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:19:50,233 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:19:50,243 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:19:50,243 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:50,341 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:19:50,341 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:19:50,341 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:19:50,341 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:19:50,342 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:19:50,342 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:19:50,429 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:19:50,556 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:19:50,556 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:19:50,556 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:19:50,557 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:19:50,635 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:19:50,779 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:19:50,780 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:19:50,780 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:19:50,780 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:19:50,780 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:19:50,809 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:19:50,809 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:19:50,809 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:19:50,809 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:19:50,809 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:19:50,809 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:19:50,809 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:19:50,905 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:19:50,905 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:19:50,933 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:19:50,933 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:19:50,933 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:50,944 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:19:50,944 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:19:51,156 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:19:51,156 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:19:51,156 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:19:51,156 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:19:51,156 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:19:51,156 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:19:51,157 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:19:51,157 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:19:51,188 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:19:51,188 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:51,233 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:19:51,234 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:19:51,234 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:19:51,234 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:19:51,235 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:19:51,235 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:19:51,305 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:19:51,415 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:19:51,416 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:19:51,416 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:19:51,419 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:19:51,498 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:19:54,738 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:19:54,739 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:19:54,739 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:19:54,739 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:19:54,739 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:19:54,740 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:19:54,740 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:19:54,740 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:19:54,740 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:19:54,740 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:19:54,740 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = 0.03267659991979599 (from D₀=20, N=86)
+2025-10-22 13:19:54,740 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=0.03267659991979599)...
+2025-10-22 13:19:54,744 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:19:54,744 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:19:54,745 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:19:54,745 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:19:54,745 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:54,747 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:19:54,747 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:19:54,868 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:19:54,868 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:19:54,868 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:19:54,868 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:19:54,868 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:19:54,868 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:19:54,868 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:19:54,869 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:19:54,869 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:19:54,869 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:54,871 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:19:54,871 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:19:54,871 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:19:54,871 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:19:54,872 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = 0.05310439690947533
+2025-10-22 13:19:54,872 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=0.05310439690947533)...
+2025-10-22 13:19:54,875 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:19:54,881 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:19:54,881 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = 0.04313311353325844
+2025-10-22 13:19:54,881 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=0.04313311353325844)...
+2025-10-22 13:19:54,884 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:19:54,890 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:19:55,168 - models.sparse_gfa_fixed - INFO - 🔵 SparseGFAFixedModel.__call__ starting
+2025-10-22 13:19:55,168 - models.sparse_gfa_fixed - INFO -   Model dimensions: N=86, M=2, D=1005, K=20, percW=33.0
+2025-10-22 13:19:55,168 - models.sparse_gfa_fixed - INFO -   View dimensions: [991, 14]
+2025-10-22 13:19:55,168 - models.sparse_gfa_fixed - INFO -   X_list shapes: [(86, 991), (86, 14)]
+2025-10-22 13:19:55,168 - models.sparse_gfa_fixed - INFO -   Sampling sigma (noise parameters)...
+2025-10-22 13:19:55,169 - models.sparse_gfa_fixed - INFO -   ✓ sigma sampled, shape: (1, 2)
+2025-10-22 13:19:55,169 - models.sparse_gfa_fixed - INFO -   Sampling latent factors Z...
+2025-10-22 13:19:55,169 - models.sparse_gfa_fixed - INFO -     🟢 _sample_latent_factors starting
+2025-10-22 13:19:55,169 - models.sparse_gfa_fixed - INFO -       Sampling Z_raw ~ Normal(0,1)...
+2025-10-22 13:19:55,169 - models.sparse_gfa_fixed - INFO -       ✓ Z_raw shape: (86, 20)
+2025-10-22 13:19:55,170 - models.sparse_gfa_fixed - INFO -       Calculated τ₀_Z scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)> (from D₀=20, N=86)
+2025-10-22 13:19:55,170 - models.sparse_gfa_fixed - INFO -       Sampling tauZ ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:19:55,173 - models.sparse_gfa_fixed - INFO -       ✓ tauZ sampled directly, shape: (1, 20)
+2025-10-22 13:19:55,173 - models.sparse_gfa_fixed - INFO -       Sampling lmbZ ~ HalfCauchy(1.0)...
+2025-10-22 13:19:55,174 - models.sparse_gfa_fixed - INFO -       ✓ lmbZ shape: (86, 20)
+2025-10-22 13:19:55,174 - models.sparse_gfa_fixed - INFO -       Applying regularized horseshoe (reghsZ=True)...
+2025-10-22 13:19:55,174 - models.sparse_gfa_fixed - INFO -       Sampling cZ_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:55,175 - models.sparse_gfa_fixed - INFO -       ✓ cZ computed (slab_scale=2), shape: (1, 20)
+2025-10-22 13:19:55,175 - models.sparse_gfa_fixed - INFO -       Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...
+2025-10-22 13:19:55,244 - models.sparse_gfa_fixed - INFO -       ✓ Applied regularization for 20 factors
+2025-10-22 13:19:55,244 - models.sparse_gfa_fixed - INFO -     ✓ _sample_latent_factors complete, Z shape: (86, 20)
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -   ✓ Z sampled, shape: (86, 20)
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -   Sampling loadings W...
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -     🟢 _sample_loadings starting
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -       Sampling W_raw ~ Normal(0,1)...
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -       ✓ W_raw shape: (1005, 20)
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -       Sampling lmbW ~ HalfCauchy(1.0)...
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -       ✓ lmbW shape: (1005, 20)
+2025-10-22 13:19:55,245 - models.sparse_gfa_fixed - INFO -       Sampling cW_tilde ~ InverseGamma(2.0, 2.0)...
+2025-10-22 13:19:55,247 - models.sparse_gfa_fixed - INFO -       ✓ cW computed (slab_scale=2), shape: (2, 20)
+2025-10-22 13:19:55,247 - models.sparse_gfa_fixed - INFO -       Expected sparsity per view (pW_static): [327, 4]
+2025-10-22 13:19:55,247 - models.sparse_gfa_fixed - INFO -       Processing 2 views...
+2025-10-22 13:19:55,247 - models.sparse_gfa_fixed - INFO -         View 1: Dm=991, pW=327, percW=33.0%
+2025-10-22 13:19:55,247 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view1 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>
+2025-10-22 13:19:55,247 - models.sparse_gfa_fixed - INFO -         Sampling tauW1 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:19:55,250 - models.sparse_gfa_fixed - INFO -         ✓ tauW1 sampled directly
+2025-10-22 13:19:55,254 - models.sparse_gfa_fixed - INFO -         View 2: Dm=14, pW=4, percW=33.0%
+2025-10-22 13:19:55,254 - models.sparse_gfa_fixed - INFO -         Calculated τ₀_W_view2 scale = Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>
+2025-10-22 13:19:55,254 - models.sparse_gfa_fixed - INFO -         Sampling tauW2 ~ HalfStudentT(df=2, scale=Traced<ShapedArray(float32[], weak_type=True)>with<DynamicJaxprTrace(level=3/0)>)...
+2025-10-22 13:19:55,257 - models.sparse_gfa_fixed - INFO -         ✓ tauW2 sampled directly
+2025-10-22 13:19:55,261 - models.sparse_gfa_fixed - INFO -   ✓ W sampled, shape: (1005, 20)
+2025-10-22 13:20:26,367 - optimization.profiler - INFO - Performance: seed_456: 36.884s, 2.72GB peak, 110.3% CPU
+2025-10-22 13:20:26,368 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-22 13:20:26,429 - experiments.framework - INFO - Garbage collection freed 0 objects
+2025-10-22 13:20:26,644 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-22 13:20:27,646 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
