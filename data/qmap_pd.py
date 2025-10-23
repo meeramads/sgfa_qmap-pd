@@ -253,7 +253,7 @@ def load_qmap_pd(
     preprocessing_results = {}
 
     if enable_advanced_preprocessing:
-        logging.info("=== Applying Advanced Preprocessing ===")
+        logging.debug("=== Applying Advanced Preprocessing ===")
 
         # Import preprocessing module
         try:
@@ -415,7 +415,7 @@ def load_qmap_pd(
 
     else:
         # Apply basic preprocessing only
-        logging.info("=== Applying Basic Preprocessing ===")
+        logging.debug("=== Applying Basic Preprocessing ===")
 
         # Import basic functions
         try:

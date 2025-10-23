@@ -104,7 +104,7 @@ def _save_filtered_position_lookups(
         # Apply QC outlier mask if available
         if hasattr(preprocessor, 'outlier_masks_') and view_name in preprocessor.outlier_masks_:
             outlier_mask = preprocessor.outlier_masks_[view_name]
-            logger.info(f"  Applying QC outlier mask: {np.sum(outlier_mask)}/{len(outlier_mask)} voxels kept")
+            logger.debug(f"  Applying QC outlier mask: {np.sum(outlier_mask)}/{len(outlier_mask)} voxels kept")
             keep_mask = keep_mask & outlier_mask[:len(keep_mask)]  # Handle size mismatch
 
         # Apply ROI-based selection if available
@@ -115,7 +115,7 @@ def _save_filtered_position_lookups(
             if roi_indices_key in preprocessor.selected_features_:
                 # Indices-based selection
                 selected_indices = preprocessor.selected_features_[roi_indices_key]
-                logger.info(f"  Applying ROI selection (indices): {len(selected_indices)} voxels selected")
+                logger.debug(f"  Applying ROI selection (indices): {len(selected_indices)} voxels selected")
 
                 # Create new mask based on selected indices
                 new_mask = np.zeros(len(keep_mask), dtype=bool)
@@ -129,7 +129,7 @@ def _save_filtered_position_lookups(
             elif roi_mask_key in preprocessor.selected_features_:
                 # Mask-based selection
                 roi_mask = preprocessor.selected_features_[roi_mask_key]
-                logger.info(f"  Applying ROI selection (mask): {np.sum(roi_mask)}/{len(roi_mask)} voxels kept")
+                logger.debug(f"  Applying ROI selection (mask): {np.sum(roi_mask)}/{len(roi_mask)} voxels kept")
                 # ROI mask applies to already-QC-filtered data
                 kept_positions = np.where(keep_mask)[0]
                 new_mask = np.zeros(len(keep_mask), dtype=bool)
@@ -402,7 +402,7 @@ def _apply_advanced_preprocessing(
         )
 
         # Apply advanced preprocessing
-        logger.info("Applying comprehensive neuroimaging preprocessing...")
+        logger.debug("Applying comprehensive neuroimaging preprocessing...")
         if output_dir:
             logger.info(f"Filtered position lookups will be saved to: {output_dir}/position_lookup_filtered")
         X_processed = preprocessor.fit_transform(X_list, view_names, output_dir=output_dir)
@@ -746,13 +746,13 @@ def _apply_differentiated_preprocessing(
         from sklearn.preprocessing import RobustScaler
         from sklearn.impute import SimpleImputer
 
-        logger.info("Applying differentiated preprocessing (imaging vs clinical)...")
+        logger.debug("Applying differentiated preprocessing (imaging vs clinical)...")
 
         X_processed = []
         steps_applied = []
 
         for i, (X, view_name) in enumerate(zip(X_list, view_names)):
-            logger.info(f"Processing view: {view_name} (shape: {X.shape})")
+            logger.debug(f"Processing view: {view_name} (shape: {X.shape})")
 
             # Determine if this is imaging or clinical data
             is_imaging = _is_imaging_view(view_name)

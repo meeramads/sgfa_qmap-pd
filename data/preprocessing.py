@@ -197,7 +197,7 @@ class SpatialProcessingUtils:
                 positions = pd.read_csv(
                     position_file, sep="\t", header=None, names=["x", "y", "z"]
                 )
-                logging.info(f"Loaded {len(positions)} voxel positions for {roi_name}")
+                logging.debug(f"Loaded {len(positions)} voxel positions for {roi_name}")
                 return positions
             else:
                 logging.warning(f"Position lookup file not found: {position_file}")
@@ -434,7 +434,7 @@ class AdvancedPreprocessor(BasePreprocessor):
         """
         Fit and apply imputation strategy to data.
         """
-        logging.info(f"Applying {self.imputation_strategy} imputation to {view_name}")
+        logging.debug(f"Applying {self.imputation_strategy} imputation to {view_name}")
 
         # Check missing data percentage
         missing_pct = np.isnan(X).mean(axis=0)
@@ -629,7 +629,7 @@ class AdvancedPreprocessor(BasePreprocessor):
         X_processed = []
 
         for X, view_name in zip(X_list, view_names):
-            logging.info(f"Processing view: {view_name} (shape: {X.shape})")
+            logging.debug(f"Processing view: {view_name} (shape: {X.shape})")
 
             # Step 1: Handle missing data
             X_imputed = self.fit_transform_imputation(X, view_name)
@@ -642,7 +642,7 @@ class AdvancedPreprocessor(BasePreprocessor):
 
             X_processed.append(X_final)
 
-            logging.info(f"Final shape for {view_name}: {X_final.shape}")
+            logging.debug(f"Final shape for {view_name}: {X_final.shape}")
 
         return X_processed
 
@@ -811,7 +811,7 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         if not self._is_imaging_view(view_name) or not self.spatial_imputation:
             return X
 
-        logging.info(f"Applying spatial imputation to {view_name}")
+        logging.debug(f"Applying spatial imputation to {view_name}")
 
         # Load position information
         if self.data_dir:
@@ -889,7 +889,7 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
             )
             return X
 
-        logging.info(f"Applying scanner harmonization to {view_name}")
+        logging.debug(f"Applying scanner harmonization to {view_name}")
 
         X_harmonized, harmonization_stats = (
             SpatialProcessingUtils.apply_basic_harmonization(X, scanner_info)
@@ -905,7 +905,7 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         if not self._is_imaging_view(view_name) or not self.roi_based_selection:
             return self._variance_based_selection(X, view_name)
 
-        logging.info(f"Applying ROI-based feature selection to {view_name}")
+        logging.debug(f"Applying ROI-based feature selection to {view_name}")
 
         # Load position information to understand ROI structure
         positions = self.position_lookups_.get(view_name)
@@ -1116,7 +1116,7 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
         X_processed = []
 
         for X, view_name in zip(X_list, view_names):
-            logging.info(f"Processing view: {view_name} (shape: {X.shape})")
+            logging.debug(f"Processing view: {view_name} (shape: {X.shape})")
             original_n_features = X.shape[1]
 
             # Initialize feature mask (all True initially)
@@ -1168,8 +1168,8 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
             # Store final feature mask for this view
             self.feature_masks_[view_name] = cumulative_mask
 
-            logging.info(f"Final shape for {view_name}: {X_final.shape}")
-            logging.info(f"Feature retention: {np.sum(cumulative_mask)}/{original_n_features} ({np.sum(cumulative_mask)/original_n_features*100:.1f}%)")
+            logging.debug(f"Final shape for {view_name}: {X_final.shape}")
+            logging.debug(f"Feature retention: {np.sum(cumulative_mask)}/{original_n_features} ({np.sum(cumulative_mask)/original_n_features*100:.1f}%)")
 
             # Filter and save position lookups if this is an imaging view
             if self._is_imaging_view(view_name) and self.data_dir:
