@@ -2468,16 +2468,35 @@ class RobustnessExperiments(ExperimentFramework):
                         "max_rhat_overall": aligned_rhat_W["max_rhat_overall"],
                         "mean_rhat_overall": aligned_rhat_W["mean_rhat_overall"],
                         "convergence_rate": aligned_rhat_W["convergence_rate"],
+                        "factor_match_rate": aligned_rhat_W["factor_match_rate"],
+                        "n_matched_factors": aligned_rhat_W["n_matched_factors"],
                     }
 
+                    # Extract matching metrics
+                    match_rate_W = aligned_rhat_W["factor_match_rate"]
+                    n_matched_W = aligned_rhat_W["n_matched_factors"]
+                    K = W_samples.shape[3]  # Number of factors
+
                     self.logger.info(f"Aligned R-hat for W:")
+                    self.logger.info(f"  Factor match rate:  {match_rate_W:.1%} ({n_matched_W}/{K} factors matched across all chains)")
                     self.logger.info(f"  Max R-hat overall:  {aligned_rhat_W['max_rhat_overall']:.4f}")
                     self.logger.info(f"  Mean R-hat overall: {aligned_rhat_W['mean_rhat_overall']:.4f}")
                     self.logger.info(f"  Convergence rate:   {aligned_rhat_W['convergence_rate']:.1%} (R-hat < 1.1)")
 
-                    if aligned_rhat_W["max_rhat_overall"] < 1.1:
-                        self.logger.info(f"✅ W CONVERGED after alignment (max R-hat < 1.1)")
-                    elif aligned_rhat_W["max_rhat_overall"] < rhat_W_max_overall:
+                    # Updated convergence logic: require BOTH good R-hat AND good matching
+                    good_rhat_W = aligned_rhat_W["max_rhat_overall"] < 1.1
+                    good_matching_W = match_rate_W >= 0.8
+
+                    if good_rhat_W and good_matching_W:
+                        self.logger.info(f"✅ W CONVERGED: Good R-hat ({aligned_rhat_W['max_rhat_overall']:.4f}) + Good matching ({match_rate_W:.1%})")
+                    elif good_rhat_W and not good_matching_W:
+                        self.logger.warning(f"⚠ W: Good R-hat but poor matching ({match_rate_W:.1%} < 80%) - factors unstable across chains")
+                    elif not good_rhat_W and good_matching_W:
+                        self.logger.warning(f"⚠ W: Good matching but poor R-hat ({aligned_rhat_W['max_rhat_overall']:.4f} >= 1.1) - need more samples")
+                    else:
+                        self.logger.warning(f"⚠ W: Poor R-hat ({aligned_rhat_W['max_rhat_overall']:.4f}) + Poor matching ({match_rate_W:.1%}) - serious convergence issues")
+
+                    if aligned_rhat_W["max_rhat_overall"] < rhat_W_max_overall:
                         improvement = rhat_W_max_overall - aligned_rhat_W["max_rhat_overall"]
                         self.logger.info(f"⚡ Alignment improved R-hat by {improvement:.2f}")
                         self.logger.info(f"   Raw: {rhat_W_max_overall:.4f} → Aligned: {aligned_rhat_W['max_rhat_overall']:.4f}")
@@ -2500,16 +2519,35 @@ class RobustnessExperiments(ExperimentFramework):
                         "max_rhat_overall": aligned_rhat_Z["max_rhat_overall"],
                         "mean_rhat_overall": aligned_rhat_Z["mean_rhat_overall"],
                         "convergence_rate": aligned_rhat_Z["convergence_rate"],
+                        "factor_match_rate": aligned_rhat_Z["factor_match_rate"],
+                        "n_matched_factors": aligned_rhat_Z["n_matched_factors"],
                     }
 
+                    # Extract matching metrics
+                    match_rate_Z = aligned_rhat_Z["factor_match_rate"]
+                    n_matched_Z = aligned_rhat_Z["n_matched_factors"]
+                    K_Z = Z_samples.shape[3]  # Number of factors
+
                     self.logger.info(f"Aligned R-hat for Z:")
+                    self.logger.info(f"  Factor match rate:  {match_rate_Z:.1%} ({n_matched_Z}/{K_Z} factors matched across all chains)")
                     self.logger.info(f"  Max R-hat overall:  {aligned_rhat_Z['max_rhat_overall']:.4f}")
                     self.logger.info(f"  Mean R-hat overall: {aligned_rhat_Z['mean_rhat_overall']:.4f}")
                     self.logger.info(f"  Convergence rate:   {aligned_rhat_Z['convergence_rate']:.1%} (R-hat < 1.1)")
 
-                    if aligned_rhat_Z["max_rhat_overall"] < 1.1:
-                        self.logger.info(f"✅ Z CONVERGED after alignment (max R-hat < 1.1)")
-                    elif aligned_rhat_Z["max_rhat_overall"] < rhat_Z_max_overall:
+                    # Updated convergence logic: require BOTH good R-hat AND good matching
+                    good_rhat_Z = aligned_rhat_Z["max_rhat_overall"] < 1.1
+                    good_matching_Z = match_rate_Z >= 0.8
+
+                    if good_rhat_Z and good_matching_Z:
+                        self.logger.info(f"✅ Z CONVERGED: Good R-hat ({aligned_rhat_Z['max_rhat_overall']:.4f}) + Good matching ({match_rate_Z:.1%})")
+                    elif good_rhat_Z and not good_matching_Z:
+                        self.logger.warning(f"⚠ Z: Good R-hat but poor matching ({match_rate_Z:.1%} < 80%) - factors unstable across chains")
+                    elif not good_rhat_Z and good_matching_Z:
+                        self.logger.warning(f"⚠ Z: Good matching but poor R-hat ({aligned_rhat_Z['max_rhat_overall']:.4f} >= 1.1) - need more samples")
+                    else:
+                        self.logger.warning(f"⚠ Z: Poor R-hat ({aligned_rhat_Z['max_rhat_overall']:.4f}) + Poor matching ({match_rate_Z:.1%}) - serious convergence issues")
+
+                    if aligned_rhat_Z["max_rhat_overall"] < rhat_Z_max_overall:
                         improvement = rhat_Z_max_overall - aligned_rhat_Z["max_rhat_overall"]
                         self.logger.info(f"⚡ Alignment improved R-hat by {improvement:.2f}")
                         self.logger.info(f"   Raw: {rhat_Z_max_overall:.4f} → Aligned: {aligned_rhat_Z['max_rhat_overall']:.4f}")

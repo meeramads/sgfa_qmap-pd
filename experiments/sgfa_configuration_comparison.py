@@ -574,14 +574,24 @@ class SGFAConfigurationComparison(ExperimentFramework):
                     perf_metrics.get("aligned_rhat_Z_convergence_rate", 0)
                 ) * 100
 
-                # Convergence requires both good R-hat AND good factor matching
+                # Check ARD parameter convergence
+                ard_rhat_dict = mcmc_diag.get("rhat_ard", {})
+                ard_converged = True
+                ard_max_rhat = 0.0
+                if ard_rhat_dict:
+                    ard_max_rhat = max(v["max_rhat"] for v in ard_rhat_dict.values())
+                    ard_converged = ard_max_rhat < 1.1
+
+                # Convergence requires: good R-hat + good matching + ARD convergence
                 good_rhat = rhat_max < 1.1
                 good_matching = match_rate >= 80.0  # At least 80% of factors should match
-                convergence_status = "✓ CONVERGED" if (good_rhat and good_matching) else "⚠ POOR CONVERGENCE"
+                convergence_status = "✓ CONVERGED" if (good_rhat and good_matching and ard_converged) else "⚠ POOR CONVERGENCE"
 
                 self.logger.info(f"  Convergence: {convergence_status}")
                 self.logger.info(f"  Factor match rate: {match_rate:.1f}% (W: {n_matched_w} factors, Z: {n_matched_z} factors)")
                 self.logger.info(f"  Aligned R-hat (matched factors): W={rhat_w:.4f}, Z={rhat_z:.4f}, max={rhat_max:.4f}")
+                if ard_rhat_dict:
+                    self.logger.info(f"  ARD R-hat (hyperparameters): max={ard_max_rhat:.4f} across {len(ard_rhat_dict)} params")
                 self.logger.info(f"  Parameter convergence: {conv_rate:.1f}% with R-hat < 1.1")
 
                 # Explain convergence status
@@ -589,6 +599,8 @@ class SGFAConfigurationComparison(ExperimentFramework):
                     self.logger.warning(f"  ⚠ Poor factor matching ({match_rate:.1f}% < 80%) indicates chains exploring different solutions")
                 if not good_rhat and good_matching:
                     self.logger.warning(f"  ⚠ Poor R-hat ({rhat_max:.4f} >= 1.1) despite good matching - needs more sampling")
+                if not ard_converged:
+                    self.logger.warning(f"  ⚠ ARD parameters not converged (max R-hat={ard_max_rhat:.4f} >= 1.1)")
             else:
                 self.logger.warning(f"  ⚠ No aligned R-hat computed (need ≥2 chains)")
 
@@ -1340,6 +1352,61 @@ class SGFAConfigurationComparison(ExperimentFramework):
                     aligned_rhat_W = None
                     aligned_rhat_Z = None
 
+            # Compute standard R-hat for ARD hyperparameters (no alignment needed)
+            # These don't have factor indeterminacy, so standard R-hat works
+            rhat_ard = {}
+            if num_chains >= 2:
+                try:
+                    from analysis.mcmc_diagnostics import split_gelman_rubin
+
+                    self.logger.info(f"Computing R-hat for ARD hyperparameters...")
+
+                    # Check which ARD parameters are available
+                    ard_params = []
+                    for param_name in ["tauW1", "tauW2", "tauZ", "sigma"]:
+                        if param_name in samples:
+                            ard_params.append(param_name)
+
+                    for param_name in ard_params:
+                        param_samples = samples[param_name]  # Sequential: (num_chains * num_samples, ...)
+
+                        # Reshape to per-chain format
+                        total_samples = param_samples.shape[0]
+                        samples_per_chain_ard = total_samples // num_chains
+
+                        # Handle different shapes (some params are per-factor, some are not)
+                        if param_samples.ndim == 1:
+                            # Scalar parameter: (num_chains * num_samples,)
+                            reshaped = param_samples[:num_chains * samples_per_chain_ard].reshape(
+                                num_chains, samples_per_chain_ard
+                            )
+                        elif param_samples.ndim == 2:
+                            # Vector parameter: (num_chains * num_samples, K) or (num_chains * num_samples, M)
+                            reshaped = param_samples[:num_chains * samples_per_chain_ard].reshape(
+                                num_chains, samples_per_chain_ard, param_samples.shape[1]
+                            )
+                        else:
+                            # Higher dimensional - flatten last dimensions
+                            reshaped = param_samples[:num_chains * samples_per_chain_ard].reshape(
+                                num_chains, samples_per_chain_ard, -1
+                            )
+
+                        # Compute R-hat
+                        rhat_values = split_gelman_rubin(reshaped)
+                        max_rhat = float(np.max(rhat_values)) if isinstance(rhat_values, np.ndarray) else float(rhat_values)
+                        mean_rhat = float(np.mean(rhat_values)) if isinstance(rhat_values, np.ndarray) else float(rhat_values)
+
+                        rhat_ard[param_name] = {
+                            "max_rhat": max_rhat,
+                            "mean_rhat": mean_rhat,
+                        }
+
+                        self.logger.info(f"  {param_name} R-hat: max={max_rhat:.4f}, mean={mean_rhat:.4f}")
+
+                except Exception as e:
+                    self.logger.warning(f"Could not compute ARD R-hat: {str(e)}")
+                    rhat_ard = {}
+
             W_mean = np.mean(W_samples, axis=0)
             Z_mean = np.mean(Z_samples, axis=0)
 
@@ -1384,8 +1451,12 @@ class SGFAConfigurationComparison(ExperimentFramework):
                     "mean_rhat_per_factor": aligned_rhat_Z["mean_rhat_per_factor"].tolist(),
                 }
 
-            # Determine convergence based on BOTH aligned R-hat AND factor matching
-            # Convergence requires: R-hat < 1.1 AND factor_match_rate >= 0.8 (80%)
+            # Add ARD hyperparameter R-hat if available
+            if rhat_ard:
+                mcmc_diagnostics["rhat_ard"] = rhat_ard
+
+            # Determine convergence based on: aligned R-hat + factor matching + ARD parameters
+            # All must converge: R-hat < 1.1 AND factor_match_rate >= 0.8 AND ARD R-hat < 1.1
             if aligned_rhat_W is not None and aligned_rhat_Z is not None:
                 good_rhat = (
                     aligned_rhat_W["max_rhat_overall"] < 1.1 and
@@ -1395,7 +1466,16 @@ class SGFAConfigurationComparison(ExperimentFramework):
                     aligned_rhat_W["factor_match_rate"] >= 0.8 and
                     aligned_rhat_Z["factor_match_rate"] >= 0.8
                 )
-                converged = good_rhat and good_matching
+
+                # Check ARD parameter convergence
+                good_ard = True
+                if rhat_ard:
+                    for param_name, rhat_dict in rhat_ard.items():
+                        if rhat_dict["max_rhat"] >= 1.1:
+                            good_ard = False
+                            break
+
+                converged = good_rhat and good_matching and good_ard
             else:
                 converged = True  # Fallback if aligned R-hat not available
 
