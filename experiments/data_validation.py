@@ -796,9 +796,16 @@ class DataValidationExperiments(ExperimentFramework):
             interpretation = self._interpret_snr(metrics, N, D)
             metrics["interpretation"] = interpretation
 
+            # Log interpretation summary
+            logger.info(f"   📋 SNR Interpretation for {view_name}:")
+            logger.info(f"      Signal quality: {interpretation['signal_quality']}")
+            logger.info(f"      Recommended K: {interpretation['recommended_K_range']}")
+            logger.info(f"      Prior strength: {interpretation['prior_strength_recommendation']}")
+            logger.info(f"      Convergence: {interpretation['convergence_expectation']}")
+
             snr_metrics[view_name] = metrics
 
-        logger.info("✅ SNR estimation complete")
+        logger.info("✅ SNR estimation complete for all views")
         return snr_metrics
 
     def _interpret_snr(self, metrics: Dict, N: int, D: int) -> Dict[str, str]:
@@ -866,10 +873,13 @@ class DataValidationExperiments(ExperimentFramework):
             output_dir: Directory to save results
         """
         if not snr_analysis:
+            logger.debug("No SNR analysis to save")
             return
 
+        logger.info("📊 Saving SNR analysis results...")
         snr_dir = output_dir / "snr_analysis"
         snr_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"   SNR output directory: {snr_dir}")
 
         # Save per-view metrics to CSV
         view_metrics = []
@@ -892,7 +902,8 @@ class DataValidationExperiments(ExperimentFramework):
             from core.io_utils import save_csv
             df_metrics = pd.DataFrame(view_metrics)
             save_csv(df_metrics, snr_dir / "snr_summary.csv", index=False)
-            logger.info(f"📊 Saved SNR summary to {snr_dir / 'snr_summary.csv'}")
+            logger.info(f"   ✅ Saved SNR summary CSV: {snr_dir / 'snr_summary.csv'}")
+            logger.debug(f"      {len(view_metrics)} views included in summary")
 
         # Generate text report
         report_lines = [
@@ -935,7 +946,8 @@ class DataValidationExperiments(ExperimentFramework):
 
         report_path = snr_dir / "snr_report.txt"
         report_path.write_text("\n".join(report_lines))
-        logger.info(f"📄 Saved SNR report to {report_path}")
+        logger.info(f"   ✅ Saved SNR text report: {report_path}")
+        logger.info(f"✅ SNR results saved successfully")
 
     def _plot_snr_analysis(
         self, X_list: List[np.ndarray], view_names: List[str], snr_analysis: Dict[str, Any]
@@ -951,11 +963,15 @@ class DataValidationExperiments(ExperimentFramework):
         Returns:
             Dictionary of figure names to matplotlib Figure objects
         """
+        logger.info("📊 Creating SNR analysis visualizations...")
         plots = {}
 
         for view_idx, (X, view_name) in enumerate(zip(X_list, view_names)):
             if view_name not in snr_analysis or "pca_snr" not in snr_analysis[view_name]:
+                logger.debug(f"   Skipping {view_name} (no SNR data)")
                 continue
+
+            logger.info(f"   Generating 3-panel SNR plot for {view_name}...")
 
             metrics = snr_analysis[view_name]
             pca_metrics = metrics["pca_snr"]
@@ -1089,8 +1105,9 @@ class DataValidationExperiments(ExperimentFramework):
 
             plots[f"snr_analysis_{view_name}"] = fig
 
-            logger.info(f"  Created SNR plot for {view_name}")
+            logger.info(f"      ✅ Created SNR plot: snr_analysis_{view_name}.png")
 
+        logger.info(f"✅ Generated {len(plots)} SNR visualization(s)")
         return plots
 
     def _analyze_preprocessing_effects(
