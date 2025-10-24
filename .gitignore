@@ -30,6 +30,9 @@ Thumbs.db
 # VSCode settings
 .vscode/
 
+# Claude Code settings
+.claude/
+
 # Data files
 *.csv
 *.tsv

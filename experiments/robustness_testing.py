@@ -39,6 +39,7 @@ class RobustnessExperiments(ExperimentFramework):
     ):
         super().__init__(config, None, logger)
         self.profiler = PerformanceProfiler()
+        self._all_chain_samples = []  # Initialize to prevent cross-contamination between runs
 
         # Robustness settings from config
         from core.config_utils import ConfigHelper
@@ -2208,6 +2209,9 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info(f"MCMC config: samples={multi_chain_args.get('num_samples')}, "
                         f"warmup={multi_chain_args.get('num_warmup')}, chains={n_chains}")
         self.logger.info(f"JAX will automatically split PRNG key for independent chains")
+
+        # Clear any previously stored chain samples from prior experiments
+        self._all_chain_samples = []
 
         # Run all chains in one MCMC call (NumPyro handles parallelization)
         chain_results = []
