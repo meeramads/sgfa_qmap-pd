@@ -84,7 +84,7 @@ class PreprocessingConfig:
         self.enable_preprocessing = kwargs.get("enable_preprocessing", False)
         self.imputation_strategy = kwargs.get("imputation_strategy", "median")
         self.feature_selection_method = kwargs.get(
-            "feature_selection_method", "variance"
+            "feature_selection_method", "none"  # Disabled by default - no feature dropping
         )
         self.n_top_features = kwargs.get("n_top_features", None)
         self.missing_threshold = kwargs.get("missing_threshold", 0.1)
@@ -151,7 +151,7 @@ class NeuroImagingConfig(PreprocessingConfig):
         self.scanner_info_col = kwargs.get("scanner_info_col", None)
         self.spatial_imputation = kwargs.get("spatial_imputation", True)
         self.roi_based_selection = kwargs.get("roi_based_selection", True)
-        self.qc_outlier_threshold = kwargs.get("qc_outlier_threshold", 3.0)  # std devs
+        self.qc_outlier_threshold = kwargs.get("qc_outlier_threshold", None)  # MAD threshold, disabled by default
         self.enable_combat_harmonization = kwargs.get(
             "enable_combat_harmonization", False
         )

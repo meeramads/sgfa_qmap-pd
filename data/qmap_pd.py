@@ -248,6 +248,72 @@ def load_qmap_pd(
         view_names.append("clinical")
         feature_names["clinical"] = []
 
+    # === CONFOUND REGRESSION (BEFORE PREPROCESSING) ===
+    # IMPORTANT: Confound regression must happen BEFORE standardization
+    # to avoid breaking the standardization (variance = 1 assumption)
+    if regress_confounds:
+        logging.info(f"Regressing out confounds (before preprocessing): {regress_confounds}")
+
+        # Extract confound variables from clinical data
+        confounds_to_regress = [c for c in regress_confounds if c in clin_X.columns]
+        if not confounds_to_regress:
+            logging.warning(f"No valid confounds found in clinical data. Requested: {regress_confounds}")
+        else:
+            import numpy as np
+            from sklearn.linear_model import LinearRegression
+
+            # Get confound matrix
+            confound_matrix = clin_X[confounds_to_regress].values
+
+            # Check for missing values in confounds
+            if np.isnan(confound_matrix).any():
+                logging.warning("Confounds contain missing values. Imputing with mean.")
+                from sklearn.impute import SimpleImputer
+                imputer = SimpleImputer(strategy='mean')
+                confound_matrix = imputer.fit_transform(confound_matrix)
+
+            # Add intercept
+            confound_matrix_with_intercept = np.column_stack([np.ones(confound_matrix.shape[0]), confound_matrix])
+
+            # Regress confounds from each view in X_list_raw
+            X_list_deconfounded = []
+
+            for i, (X, view_name) in enumerate(zip(X_list_raw, view_names)):
+                # Special handling for clinical view
+                if view_name == "clinical" and drop_confounds_from_clinical:
+                    # DROP confound features from clinical view instead of residualizing
+                    clinical_feature_list = feature_names.get("clinical", [])
+                    keep_indices = [j for j, fname in enumerate(clinical_feature_list)
+                                   if fname not in confounds_to_regress]
+
+                    if len(keep_indices) < len(clinical_feature_list):
+                        # Drop confound columns
+                        X_deconfounded = X[:, keep_indices]
+                        kept_features = [clinical_feature_list[j] for j in keep_indices]
+                        feature_names["clinical"] = kept_features
+                        dropped_features = [f for f in clinical_feature_list if f in confounds_to_regress]
+                        logging.info(f"  Dropped {len(dropped_features)} confound features from {view_name}: {dropped_features}")
+                        logging.info(f"  Remaining {view_name} features: {len(kept_features)}")
+                    else:
+                        # No confounds to drop
+                        X_deconfounded = X
+                        logging.info(f"  No confounds found in {view_name} to drop")
+                else:
+                    # For non-clinical views OR if drop_confounds_from_clinical=False: regress out confounds
+                    lr = LinearRegression(fit_intercept=False)  # We already added intercept
+                    lr.fit(confound_matrix_with_intercept, X)
+
+                    # Get residuals (data with confounds regressed out)
+                    X_deconfounded = X - lr.predict(confound_matrix_with_intercept)
+
+                    logging.info(f"  Regressed confounds from {view_name}: {confounds_to_regress}")
+
+                X_list_deconfounded.append(X_deconfounded)
+
+            # Replace X_list_raw with deconfounded data
+            X_list_raw = X_list_deconfounded
+            logging.info(f"✅ Confound regression complete (before preprocessing)")
+
     # === APPLY PREPROCESSING ===
     scalers = {}
     preprocessing_results = {}
@@ -501,80 +567,18 @@ def load_qmap_pd(
                 }
             )
 
-    # === CONFOUND REGRESSION ===
+    # === CONFOUND REGRESSION (MOVED TO BEFORE PREPROCESSING) ===
+    # NOTE: Confound regression now happens BEFORE preprocessing (see lines 251-315)
+    # This ensures that standardization is applied to deconfounded data.
+    # Old location was here (after preprocessing), which broke standardization.
+
+    # Store confound regression info in meta if applicable
     if regress_confounds:
-        logging.info(f"Regressing out confounds: {regress_confounds}")
-
-        # Extract confound variables from clinical data
         confounds_to_regress = [c for c in regress_confounds if c in clin_X.columns]
-        if not confounds_to_regress:
-            logging.warning(f"No valid confounds found in clinical data. Requested: {regress_confounds}")
-        else:
-            import numpy as np
-            from sklearn.linear_model import LinearRegression
-
-            # Get confound matrix
-            confound_matrix = clin_X[confounds_to_regress].values
-
-            # Check for missing values in confounds
-            if np.isnan(confound_matrix).any():
-                logging.warning("Confounds contain missing values. Imputing with mean.")
-                from sklearn.impute import SimpleImputer
-                imputer = SimpleImputer(strategy='mean')
-                confound_matrix = imputer.fit_transform(confound_matrix)
-
-            # Add intercept
-            confound_matrix_with_intercept = np.column_stack([np.ones(confound_matrix.shape[0]), confound_matrix])
-
-            # Regress confounds from each view
-            X_list_deconfounded = []
-            # Start with existing feature names to preserve preprocessing updates
-            updated_feature_names = feature_names.copy()
-
-            for i, (X, view_name) in enumerate(zip(X_list, view_names)):
-                # Special handling for clinical view
-                if view_name == "clinical" and drop_confounds_from_clinical:
-                    # DROP confound features from clinical view instead of residualizing
-                    clinical_feature_list = feature_names.get("clinical", [])
-                    keep_indices = [j for j, fname in enumerate(clinical_feature_list)
-                                   if fname not in confounds_to_regress]
-
-                    if len(keep_indices) < len(clinical_feature_list):
-                        # Drop confound columns
-                        X_deconfounded = X[:, keep_indices]
-                        kept_features = [clinical_feature_list[j] for j in keep_indices]
-                        updated_feature_names["clinical"] = kept_features
-                        dropped_features = [f for f in clinical_feature_list if f in confounds_to_regress]
-                        logging.info(f"  Dropped {len(dropped_features)} confound features from {view_name}: {dropped_features}")
-                        logging.info(f"  Remaining {view_name} features: {len(kept_features)}")
-                    else:
-                        # No confounds to drop
-                        X_deconfounded = X
-                        updated_feature_names["clinical"] = clinical_feature_list
-                        logging.info(f"  No confounds found in {view_name} to drop")
-                else:
-                    # For non-clinical views OR if drop_confounds_from_clinical=False: regress out confounds
-                    lr = LinearRegression(fit_intercept=False)  # We already added intercept
-                    lr.fit(confound_matrix_with_intercept, X)
-
-                    # Get residuals (data with confounds regressed out)
-                    X_deconfounded = X - lr.predict(confound_matrix_with_intercept)
-
-                    # Keep original feature names for non-clinical views
-                    if view_name in feature_names:
-                        updated_feature_names[view_name] = feature_names[view_name]
-
-                    logging.info(f"  Regressed confounds from {view_name}: {confounds_to_regress}")
-
-                X_list_deconfounded.append(X_deconfounded)
-
-            X_list = X_list_deconfounded
-            feature_names = updated_feature_names
-
-            # Store confound regression info in meta
+        if confounds_to_regress:
             meta["confound_regression"] = {
                 "confounds_regressed": confounds_to_regress,
-                "confound_matrix_shape": confound_matrix.shape,
+                "applied_before_preprocessing": True,
             }
 
     # === VERIFY FEATURE NAME TRACKING ===
