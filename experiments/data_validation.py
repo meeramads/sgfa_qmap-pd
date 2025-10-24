@@ -798,10 +798,10 @@ class DataValidationExperiments(ExperimentFramework):
 
             # Log interpretation summary
             logger.info(f"   📋 SNR Interpretation for {view_name}:")
-            logger.info(f"      Signal quality: {interpretation['signal_quality']}")
-            logger.info(f"      Recommended K: {interpretation['recommended_K_range']}")
-            logger.info(f"      Prior strength: {interpretation['prior_strength_recommendation']}")
-            logger.info(f"      Convergence: {interpretation['convergence_expectation']}")
+            logger.info(f"      Signal quality: {interpretation.get('signal_quality', 'Unknown')}")
+            logger.info(f"      Recommended K: {interpretation.get('recommended_K_range', 'Unknown')}")
+            logger.info(f"      Prior strength: {interpretation.get('prior_strength_recommendation', 'Unknown')}")
+            logger.info(f"      Convergence: {interpretation.get('convergence_expectation', 'Unknown')}")
 
             snr_metrics[view_name] = metrics
 
@@ -812,8 +812,8 @@ class DataValidationExperiments(ExperimentFramework):
         """Interpret SNR metrics and provide recommendations."""
         interpretation = {
             "signal_quality": "Unknown",
-            "recommended_K": "Unknown",
-            "prior_strength": "Unknown",
+            "recommended_K_range": "Unknown",
+            "prior_strength_recommendation": "Unknown",
             "convergence_expectation": "Unknown",
         }
 
@@ -840,19 +840,19 @@ class DataValidationExperiments(ExperimentFramework):
         K_aggressive = min(n_eff, int(N / 10))  # Rule of thumb: N/K >= 10
 
         if snr > 5:
-            interpretation["recommended_K"] = f"{K_conservative}-{K_aggressive} (signal supports more factors)"
+            interpretation["recommended_K_range"] = f"{K_conservative}-{K_aggressive} (signal supports more factors)"
         elif snr > 2:
-            interpretation["recommended_K"] = f"{max(3, K_conservative-2)}-{K_conservative} (moderate signal)"
+            interpretation["recommended_K_range"] = f"{max(3, K_conservative-2)}-{K_conservative} (moderate signal)"
         else:
-            interpretation["recommended_K"] = f"3-{max(3, K_conservative)} (weak signal, be conservative)"
+            interpretation["recommended_K_range"] = f"3-{max(3, K_conservative)} (weak signal, be conservative)"
 
         # Prior strength recommendation
         if snr < 2:
-            interpretation["prior_strength"] = "STRONG priors needed (SNR < 2): Data has weak signal, increase τ₀ floor"
+            interpretation["prior_strength_recommendation"] = "STRONG priors needed (SNR < 2): Data has weak signal, increase τ₀ floor"
         elif snr < 5:
-            interpretation["prior_strength"] = "MODERATE priors (SNR 2-5): Use τ₀ floor (current: 0.3)"
+            interpretation["prior_strength_recommendation"] = "MODERATE priors (SNR 2-5): Use τ₀ floor (current: 0.3)"
         else:
-            interpretation["prior_strength"] = "WEAK priors ok (SNR > 5): Data-dependent τ₀ may suffice"
+            interpretation["prior_strength_recommendation"] = "WEAK priors ok (SNR > 5): Data-dependent τ₀ may suffice"
 
         # Convergence expectation
         if snr > 5 and n_eff < int(N / 5):
