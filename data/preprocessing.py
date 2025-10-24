@@ -1270,8 +1270,10 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
             logging.debug(f"Final shape for {view_name}: {X_final.shape}")
             logging.debug(f"Feature retention: {np.sum(cumulative_mask)}/{original_n_features} ({np.sum(cumulative_mask)/original_n_features*100:.1f}%)")
 
-            # Filter and save position lookups if this is an imaging view
-            if self._is_imaging_view(view_name) and self.data_dir:
+            # Filter and save position lookups ONLY if features were actually removed
+            # (no need to generate filtered position lookups if all features are retained)
+            features_were_removed = np.sum(cumulative_mask) < original_n_features
+            if self._is_imaging_view(view_name) and self.data_dir and features_were_removed:
                 # Use provided output_dir if available, otherwise fall back to data_dir/position_lookup_filtered
                 if output_dir:
                     position_output_dir = Path(output_dir) / "position_lookup_filtered"
@@ -1283,6 +1285,9 @@ class NeuroImagingPreprocessor(AdvancedPreprocessor):
                     cumulative_mask,
                     output_dir=position_output_dir
                 )
+                logging.info(f"✅ Generated filtered position lookup for {view_name} (features reduced)")
+            elif self._is_imaging_view(view_name) and not features_were_removed:
+                logging.debug(f"Skipping filtered position lookup for {view_name} (no features removed, use original position lookup)")
 
         return X_processed
 
