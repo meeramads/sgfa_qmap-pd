@@ -266,6 +266,10 @@ def _create_model_args_from_config(config: Dict, hypers: Dict) -> argparse.Names
     K_value = config.get("K") or model_config.get("K") or hypers.get("K") or hyperparam_config.get("fallback_K", 10)
     percW_value = config.get("percW") or model_config.get("percW") or hypers.get("percW") or hyperparam_config.get("fallback_percW", 33)
 
+    # CRITICAL: Get num_sources with proper priority
+    # Priority: config["num_sources"] > model_config["num_sources"] > hypers["num_sources"] > default
+    num_sources_value = config.get("num_sources") or model_config.get("num_sources") or hypers.get("num_sources", 3)
+
     args = argparse.Namespace(
         # Model parameters
         model=model_config.get("type", "sparseGFA"),
@@ -276,7 +280,7 @@ def _create_model_args_from_config(config: Dict, hypers: Dict) -> argparse.Names
         use_sparse=model_config.get("use_sparse", True),
         use_group=model_config.get("use_group", True),
         # Source information
-        num_sources=model_config.get("num_sources", 4),
+        num_sources=num_sources_value,
         # Additional model parameters
         slab_scale=hypers.get("slab_scale", 2.0),
         slab_df=hypers.get("slab_df", 4.0),
