@@ -386,3 +386,64 @@ SGFA_RESULT_SCHEMA = {
     "samples": dict,
     "model": object,
 }
+
+
+def warn_cross_method_z_comparison(method1: str, method2: str, logger=None) -> None:
+    """
+    Emit warning when comparing factor scores (Z) across different methods.
+
+    ASPECT 8: Factor Score Estimation Methods
+
+    Factor scores from different methods are NOT directly comparable because:
+    1. Different mathematical objectives (variance, independence, likelihood, posterior)
+    2. Different estimation procedures (SVD, projection, regression, MCMC)
+    3. Different identifiability constraints
+
+    Parameters
+    ----------
+    method1 : str
+        Name of first method (e.g., "PCA", "SGFA")
+    method2 : str
+        Name of second method (e.g., "ICA", "FA")
+    logger : logging.Logger, optional
+        Logger instance to use for warnings
+
+    Examples
+    --------
+    >>> warn_cross_method_z_comparison("PCA", "SGFA")
+    >>> # Logs warning about incompatible Z scores
+
+    References
+    ----------
+    Gorsuch (1983) "Factor Analysis", Chapter 10: Factor Score Estimation
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    logger.warning("=" * 80)
+    logger.warning(f"⚠️  ASPECT 8: Cross-method Z comparison detected!")
+    logger.warning(f"   Comparing factor scores from {method1} and {method2}")
+    logger.warning("=" * 80)
+    logger.warning("")
+    logger.warning("CRITICAL: Factor scores (Z) are NOT comparable across methods!")
+    logger.warning("")
+    logger.warning(f"Why {method1} Z ≠ {method2} Z:")
+    logger.warning("  - Different mathematical objectives")
+    logger.warning(f"    • {method1}: Uses method-specific optimization")
+    logger.warning(f"    • {method2}: Uses different optimization")
+    logger.warning("  - Different estimation procedures")
+    logger.warning("  - Different identifiability constraints")
+    logger.warning("")
+    logger.warning("Implications:")
+    logger.warning("  • Correlation between Z scores may be low")
+    logger.warning("  • Clinical associations may differ")
+    logger.warning("  • Do NOT average or directly compare Z values")
+    logger.warning("")
+    logger.warning("Valid alternatives:")
+    logger.warning("  ✓ Compare loadings (W) to check if methods find similar patterns")
+    logger.warning("  ✓ Compare reconstruction quality (X̂)")
+    logger.warning("  ✓ Compare clinical prediction performance separately")
+    logger.warning("  ✓ Compare factor stability separately")
+    logger.warning("")
+    logger.warning("Reference: Gorsuch (1983) Factor Analysis, Ch. 10")
+    logger.warning("=" * 80)

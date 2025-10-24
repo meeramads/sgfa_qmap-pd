@@ -740,6 +740,27 @@ class ModelArchitectureComparison(ExperimentFramework):
 
         # === Part 2: Test Traditional Baselines ===
         self.logger.info("\n--- Testing Traditional Baseline Methods ---")
+        self.logger.warning("\n" + "=" * 80)
+        self.logger.warning("⚠️  ASPECT 8: CROSS-METHOD FACTOR SCORE COMPARISON WARNING")
+        self.logger.warning("=" * 80)
+        self.logger.warning("About to compare traditional methods (PCA, ICA, FA, etc.) with SGFA.")
+        self.logger.warning("")
+        self.logger.warning("IMPORTANT: Factor scores (Z) are NOT comparable across methods!")
+        self.logger.warning("- Each method estimates Z using different mathematical objectives")
+        self.logger.warning("- Z_pca ≠ Z_ica ≠ Z_fa ≠ Z_sgfa (even for same underlying factors)")
+        self.logger.warning("- Clinical associations with Z may differ across methods")
+        self.logger.warning("")
+        self.logger.warning("Valid comparisons:")
+        self.logger.warning("  ✓ Loading patterns (W)")
+        self.logger.warning("  ✓ Reconstruction quality (X̂ vs X)")
+        self.logger.warning("  ✓ Clinical prediction accuracy")
+        self.logger.warning("  ✓ Factor stability across resampling")
+        self.logger.warning("")
+        self.logger.warning("Invalid comparisons:")
+        self.logger.warning("  ✗ Direct numerical comparison of Z values")
+        self.logger.warning("  ✗ Correlation between Z_method1 and Z_method2")
+        self.logger.warning("  ✗ Averaging Z across methods")
+        self.logger.warning("=" * 80 + "\n")
 
         # Combine views for traditional methods (they don't handle multi-view naturally)
         X_combined = np.hstack(X_list)
@@ -1395,8 +1416,49 @@ class ModelArchitectureComparison(ExperimentFramework):
     def _run_traditional_method(
         self, X: np.ndarray, method_name: str, n_components: int, **kwargs
     ) -> Dict:
-        """Run traditional dimensionality reduction method."""
+        """Run traditional dimensionality reduction method.
+
+        ⚠️  ASPECT 8: FACTOR SCORE ESTIMATION METHODS
+
+        CRITICAL WARNING: Factor scores (Z) from different methods are NOT directly comparable:
+
+        1. **Mathematical differences**:
+           - PCA: Z orthogonal by construction (rotation maximizes variance)
+           - ICA: Z statistically independent (rotation minimizes mutual information)
+           - FA: Z from regression/Bartlett scores (minimizes MSE given W, noise)
+           - Bayesian SGFA: Z from posterior distribution (integrates uncertainty)
+
+        2. **Different objectives**:
+           - PCA: Maximize explained variance
+           - ICA: Maximize statistical independence
+           - FA: Maximum likelihood with noise model
+           - SGFA: Posterior inference with sparsity priors
+
+        3. **Implications**:
+           - Correlation between Z_pca and Z_sgfa may be low even if models are similar
+           - Clinical associations may differ across methods
+           - Do NOT average Z scores across methods
+           - Do NOT directly compare Z[subject, factor] values numerically
+
+        4. **Valid comparisons**:
+           ✓ Compare loadings W (interpretable features)
+           ✓ Compare reconstruction quality
+           ✓ Compare clinical prediction performance
+           ✓ Compare stability across resampling
+           ✗ Do NOT compare raw Z values across methods
+
+        See: Gorsuch (1983) "Factor Analysis", Chapter 10: Factor Score Estimation
+        """
         results = {}
+
+        # Log method-specific warning
+        self.logger.warning("=" * 80)
+        self.logger.warning(f"⚠️  ASPECT 8: Running {method_name.upper()}")
+        self.logger.warning("   Factor scores (Z) from this method are NOT comparable to:")
+        self.logger.warning("   - Z from other traditional methods (PCA/ICA/FA/NMF/CCA)")
+        self.logger.warning("   - Z from Bayesian SGFA")
+        self.logger.warning("   Different methods estimate Z using different objectives!")
+        self.logger.warning("=" * 80)
 
         try:
             start_time = time.time()

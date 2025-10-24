@@ -2186,6 +2186,8 @@ class RobustnessExperiments(ExperimentFramework):
         from analysis.factor_stability import (
             assess_factor_stability_cosine,
             count_effective_factors,
+            count_effective_factors_from_samples,
+            count_effective_factors_from_ard,
             save_stability_results,
         )
 
@@ -2436,7 +2438,7 @@ class RobustnessExperiments(ExperimentFramework):
             self.logger.error(traceback.format_exc())
             raise
 
-        # Count effective factors for each chain
+        # Count effective factors for each chain using MULTIPLE METHODS
         self.logger.info("=" * 80)
         self.logger.info("COUNTING EFFECTIVE FACTORS PER CHAIN")
         self.logger.info("=" * 80)
@@ -2444,21 +2446,136 @@ class RobustnessExperiments(ExperimentFramework):
         # Get ARD thresholds from config (already loaded above as factor_stability_config)
         sparsity_threshold = factor_stability_config.get("sparsity_threshold", 0.001)
         min_nonzero_pct = factor_stability_config.get("min_nonzero_pct", 0.01)
-        self.logger.info(f"ARD thresholds: sparsity={sparsity_threshold}, min_nonzero_pct={min_nonzero_pct}")
+        precision_threshold = factor_stability_config.get("ard_precision_threshold", 100.0)
+        variance_threshold = factor_stability_config.get("ard_variance_threshold", 0.01)
+
+        self.logger.info(f"Thresholds:")
+        self.logger.info(f"  - Sparsity: {sparsity_threshold}, Min nonzero %: {min_nonzero_pct}")
+        self.logger.info(f"  - ARD precision threshold: {precision_threshold}")
+        self.logger.info(f"  - ARD variance threshold: {variance_threshold}")
 
         effective_factors_per_chain = []
+
+        # Check if we have tau_W samples for ARD-based method
+        has_tau_W = False
+        if hasattr(self, '_all_chain_samples') and len(self._all_chain_samples) > 0:
+            # Check if first chain has tau_W
+            first_chain_samples = self._all_chain_samples[0]
+            has_tau_W = any('tau_W' in key for key in first_chain_samples.keys())
+
+        if has_tau_W:
+            self.logger.info("✓ tau_W samples available - will use ARD-based method")
+        else:
+            self.logger.warning("⚠ tau_W samples not available - ARD-based method will be skipped")
+
         for i, chain_result in enumerate(chain_results):
-            W = chain_result["W"]
-            effective = count_effective_factors(
-                W,
+            self.logger.info(f"\n{'='*60}")
+            self.logger.info(f"CHAIN {i} - EFFECTIVE FACTOR ANALYSIS")
+            self.logger.info(f"{'='*60}")
+
+            # Method 1: OLD METHOD (posterior mean) - for comparison
+            W_list = chain_result["W"]  # List of posterior means per view
+            effective_old = count_effective_factors(
+                W_list,
                 sparsity_threshold=sparsity_threshold,
                 min_nonzero_pct=min_nonzero_pct,
             )
-            effective["chain_id"] = i
-            effective_factors_per_chain.append(effective)
+            effective_old["chain_id"] = i
+            effective_old["method"] = "posterior_mean"
+
+            # Method 2: NEW METHOD (posterior samples) - more robust
+            W_samples_chain = chain_result["samples"]["W"]  # (n_samples, D, K)
+            effective_samples = count_effective_factors_from_samples(
+                W_samples_chain,
+                sparsity_threshold=sparsity_threshold,
+                min_nonzero_pct=min_nonzero_pct,
+            )
+            effective_samples["chain_id"] = i
+
+            # Method 3: ARD-based method (if available) - most principled
+            effective_ard = None
+            if has_tau_W and hasattr(self, '_all_chain_samples'):
+                try:
+                    chain_samples = self._all_chain_samples[i]
+                    # Find tau_W key (might be "tau_W" or "tauW_0", "tauW_1", etc.)
+                    tau_W_keys = [k for k in chain_samples.keys() if 'tau_W' in k or 'tauW' in k]
+
+                    if tau_W_keys:
+                        # For multi-view, concatenate tau_W across views
+                        tau_W_list = []
+                        for key in sorted(tau_W_keys):
+                            tau_W_list.append(chain_samples[key])  # (n_samples, K)
+
+                        # All views should have same K, so just use first one
+                        tau_W_samples = tau_W_list[0]  # (n_samples, K)
+
+                        effective_ard = count_effective_factors_from_ard(
+                            tau_W_samples,
+                            precision_threshold=precision_threshold,
+                            variance_threshold=variance_threshold,
+                        )
+                        effective_ard["chain_id"] = i
+                except Exception as e:
+                    self.logger.warning(f"Failed to compute ARD-based effective factors for chain {i}: {e}")
+
+            # Store all methods
+            chain_effective_factors = {
+                "chain_id": i,
+                "posterior_mean": effective_old,
+                "posterior_samples": effective_samples,
+            }
+            if effective_ard:
+                chain_effective_factors["ard_precision"] = effective_ard
+
+            effective_factors_per_chain.append(chain_effective_factors)
+
+            # Log comparison
+            self.logger.info(f"\nChain {i} - Method Comparison:")
+            self.logger.info(f"  Posterior Mean:    {effective_old['n_effective']}/{effective_old['total_factors']} effective")
+            self.logger.info(f"  Posterior Samples: {effective_samples['n_effective']}/{effective_samples['total_factors']} effective")
+            if effective_ard:
+                self.logger.info(f"  ARD Precision:     {effective_ard['n_effective']}/{effective_ard['total_factors']} effective")
+
+                # Check agreement
+                agree_mean_samples = set(effective_old['effective_indices']) == set(effective_samples['effective_indices'])
+                agree_samples_ard = set(effective_samples['effective_indices']) == set(effective_ard['effective_indices'])
+
+                if agree_mean_samples and agree_samples_ard:
+                    self.logger.info(f"  ✓ All methods agree")
+                else:
+                    self.logger.warning(f"  ⚠ Methods disagree:")
+                    if not agree_mean_samples:
+                        only_mean = set(effective_old['effective_indices']) - set(effective_samples['effective_indices'])
+                        only_samples = set(effective_samples['effective_indices']) - set(effective_old['effective_indices'])
+                        if only_mean:
+                            self.logger.warning(f"    Only in mean: {sorted(only_mean)}")
+                        if only_samples:
+                            self.logger.warning(f"    Only in samples: {sorted(only_samples)}")
+                    if not agree_samples_ard:
+                        only_samples = set(effective_samples['effective_indices']) - set(effective_ard['effective_indices'])
+                        only_ard = set(effective_ard['effective_indices']) - set(effective_samples['effective_indices'])
+                        if only_samples:
+                            self.logger.warning(f"    Only in samples: {sorted(only_samples)}")
+                        if only_ard:
+                            self.logger.warning(f"    Only in ARD: {sorted(only_ard)}")
+
+        # Use ARD method as primary if available, otherwise use posterior samples
+        self.logger.info(f"\n{'='*80}")
+        self.logger.info("EFFECTIVE FACTOR SUMMARY (Using preferred method)")
+        self.logger.info(f"{'='*80}")
+
+        for chain_eff in effective_factors_per_chain:
+            i = chain_eff["chain_id"]
+            # Choose primary method: ARD > Samples > Mean
+            if "ard_precision" in chain_eff:
+                primary = chain_eff["ard_precision"]
+                method_name = "ARD Precision"
+            else:
+                primary = chain_eff["posterior_samples"]
+                method_name = "Posterior Samples"
 
             self.logger.info(
-                f"Chain {i}: {effective['n_effective']}/{effective['total_factors']} "
+                f"Chain {i} ({method_name}): {primary['n_effective']}/{primary['total_factors']} "
                 f"effective factors"
             )
 
@@ -2876,13 +2993,23 @@ class RobustnessExperiments(ExperimentFramework):
                 "per_chain": [
                     {
                         "chain_id": ef["chain_id"],
-                        "n_effective": ef["n_effective"],
-                        "shrinkage_rate": ef["shrinkage_rate"],
+                        "posterior_mean": ef["posterior_mean"],
+                        "posterior_samples": ef["posterior_samples"],
+                        "ard_precision": ef.get("ard_precision"),
+                        "primary_method": "ard_precision" if "ard_precision" in ef else "posterior_samples",
+                        "primary_n_effective": ef.get("ard_precision", ef["posterior_samples"])["n_effective"],
+                        "primary_shrinkage_rate": ef.get("ard_precision", ef["posterior_samples"])["shrinkage_rate"],
                     }
                     for ef in effective_factors_per_chain
                 ],
-                "mean_effective": np.mean([ef["n_effective"] for ef in effective_factors_per_chain]),
-                "std_effective": np.std([ef["n_effective"] for ef in effective_factors_per_chain]),
+                "mean_effective": np.mean([
+                    ef.get("ard_precision", ef["posterior_samples"])["n_effective"]
+                    for ef in effective_factors_per_chain
+                ]),
+                "std_effective": np.std([
+                    ef.get("ard_precision", ef["posterior_samples"])["n_effective"]
+                    for ef in effective_factors_per_chain
+                ]),
             },
             "convergence_summary": {
                 "n_converged": sum(
@@ -2927,7 +3054,8 @@ class RobustnessExperiments(ExperimentFramework):
         self.logger.info(f"  - {len(chain_results)} chains completed")
         self.logger.info(f"  - {stability_results.get('n_stable_factors', 0)}/{stability_results.get('total_factors', 0)} stable factors")
         self.logger.info(f"  - Stability rate: {stability_results.get('stability_rate', 0):.1%}")
-        self.logger.info(f"  - Mean effective factors: {np.mean([ef['n_effective'] for ef in effective_factors_per_chain]):.1f}")
+        mean_eff = np.mean([ef.get("ard_precision", ef["posterior_samples"])["n_effective"] for ef in effective_factors_per_chain])
+        self.logger.info(f"  - Mean effective factors: {mean_eff:.1f}")
 
         # Add R-hat summary to final output
         if rhat_diagnostics:
@@ -3039,10 +3167,13 @@ class RobustnessExperiments(ExperimentFramework):
             axes[0, 0].legend()
             axes[0, 0].grid(True, alpha=0.3)
 
-            # Plot 2: Effective factors per chain
+            # Plot 2: Effective factors per chain (using preferred method)
             chain_ids = [ef["chain_id"] for ef in effective_factors_per_chain]
-            n_effective = [ef["n_effective"] for ef in effective_factors_per_chain]
-            total_factors = effective_factors_per_chain[0]["total_factors"]
+            n_effective = [ef.get("ard_precision", ef["posterior_samples"])["n_effective"] for ef in effective_factors_per_chain]
+            total_factors = effective_factors_per_chain[0].get("ard_precision", effective_factors_per_chain[0]["posterior_samples"])["total_factors"]
+
+            # Determine which method was used
+            primary_method = "ARD Precision" if "ard_precision" in effective_factors_per_chain[0] else "Posterior Samples"
 
             axes[0, 1].bar(chain_ids, n_effective, alpha=0.7)
             axes[0, 1].axhline(
@@ -3055,7 +3186,7 @@ class RobustnessExperiments(ExperimentFramework):
             axes[0, 1].set_xlabel("Chain ID")
             axes[0, 1].set_ylabel("Number of Effective Factors")
             axes[0, 1].set_title(
-                f"Effective Factors Per Chain (Mean: {np.mean(n_effective):.1f})"
+                f"Effective Factors Per Chain ({primary_method})\nMean: {np.mean(n_effective):.1f}"
             )
             axes[0, 1].legend()
             axes[0, 1].grid(True, alpha=0.3)
