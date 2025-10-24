@@ -2310,3 +2310,128 @@ INTERPRETATION:
         'mean_variance': factor_variances.mean(),
         'median_variance': np.median(factor_variances),
     }
+
+
+def plot_rank_statistics(
+    samples: np.ndarray,
+    param_name: str = "Parameter",
+    save_path: Optional[str] = None,
+    max_params: int = 4,
+) -> plt.Figure:
+    """Create rank plots for assessing MCMC chain mixing (Vehtari et al. 2021).
+
+    Rank plots show the distribution of ranked samples across chains. Well-mixed
+    chains should have uniform rank distributions. Deviations indicate poor mixing.
+
+    Parameters
+    ----------
+    samples : np.ndarray
+        MCMC samples with shape (n_chains, n_samples, ...)
+    param_name : str, default="Parameter"
+        Name of the parameter being plotted
+    save_path : str, optional
+        Path to save the figure
+    max_params : int, default=4
+        Maximum number of parameters to plot (for high-dimensional samples)
+
+    Returns
+    -------
+    plt.Figure
+        Figure containing rank plots
+
+    Notes
+    -----
+    Interpretation:
+    - Uniform histograms across chains → Good mixing
+    - Skewed/non-uniform histograms → Poor mixing, chains exploring different regions
+    - One chain dominating low/high ranks → Chain not converged
+
+    References
+    ----------
+    Vehtari et al. (2021): "Rank-Normalization, Folding, and Localization:
+    An Improved R̂ for Assessing Convergence of MCMC"
+    """
+    logger.info(f"Creating rank plots for {param_name}...")
+
+    n_chains, n_samples = samples.shape[:2]
+
+    # Flatten to (n_chains, n_samples, n_params)
+    original_shape = samples.shape
+    samples_flat = samples.reshape(n_chains, n_samples, -1)
+    n_params = samples_flat.shape[2]
+
+    # Limit number of parameters to plot
+    n_to_plot = min(n_params, max_params)
+
+    # Create subplots
+    fig, axes = plt.subplots(n_to_plot, 1, figsize=(12, 3 * n_to_plot))
+    if n_to_plot == 1:
+        axes = [axes]
+
+    logger.info(f"  Plotting ranks for {n_to_plot} parameters (out of {n_params} total)")
+
+    for param_idx in range(n_to_plot):
+        ax = axes[param_idx]
+
+        # Extract this parameter from all chains
+        param_samples = samples_flat[:, :, param_idx]  # (n_chains, n_samples)
+
+        # Pool all samples and compute ranks
+        all_samples = param_samples.flatten()
+        ranks = np.argsort(np.argsort(all_samples))  # Double argsort gives ranks
+
+        # Reshape ranks back to (n_chains, n_samples)
+        ranks_by_chain = ranks.reshape(n_chains, n_samples)
+
+        # Plot histogram of ranks for each chain
+        bins = 20
+        colors = plt.cm.tab10(np.linspace(0, 1, n_chains))
+
+        for chain_idx in range(n_chains):
+            ax.hist(
+                ranks_by_chain[chain_idx],
+                bins=bins,
+                alpha=0.6,
+                label=f"Chain {chain_idx}",
+                color=colors[chain_idx],
+                density=True,
+            )
+
+        # Add uniform reference (perfect mixing)
+        ax.axhline(1.0 / bins, color='red', linestyle='--', linewidth=2,
+                  alpha=0.7, label='Uniform (ideal)')
+
+        ax.set_xlabel('Rank', fontsize=10)
+        ax.set_ylabel('Density', fontsize=10)
+        ax.set_title(f'{param_name} - Parameter {param_idx + 1} Rank Distribution',
+                    fontsize=11, fontweight='bold')
+        ax.legend(loc='upper right', fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+        # Add interpretation text
+        # Check if distributions look uniform (simple heuristic)
+        rank_counts = [np.histogram(ranks_by_chain[i], bins=bins)[0] for i in range(n_chains)]
+        rank_vars = [np.var(counts) for counts in rank_counts]
+        mean_var = np.mean(rank_vars)
+
+        if mean_var < (len(all_samples) / bins) * 0.5:  # Low variance → uniform
+            status_text = "✓ Good mixing (uniform ranks)"
+            status_color = 'green'
+        else:
+            status_text = "⚠️ Possible mixing issues (non-uniform ranks)"
+            status_color = 'orange'
+
+        ax.text(0.98, 0.95, status_text,
+               transform=ax.transAxes, ha='right', va='top',
+               bbox=dict(boxstyle='round', facecolor=status_color, alpha=0.3),
+               fontsize=9)
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        logger.info(f"  ✓ Saved rank plots to {save_path}")
+
+    logger.info(f"  ✓ Rank plots created successfully")
+
+    return fig

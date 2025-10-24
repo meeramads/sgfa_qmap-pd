@@ -1171,6 +1171,7 @@ class RobustnessExperiments(ExperimentFramework):
                     "W_samples": W_samples,
                     "Z_samples": Z_samples,
                     "samples": samples,
+                    "potential_energy": potential_energy,  # Store energy for BFMI computation
                     "log_likelihood": float(log_likelihood),
                     "n_iterations": num_samples,
                     "num_chains": num_chains,
@@ -2568,6 +2569,177 @@ class RobustnessExperiments(ExperimentFramework):
             import traceback
             self.logger.warning(traceback.format_exc())
 
+        # Compute Effective Sample Size (ESS) diagnostics
+        self.logger.info("=" * 80)
+        self.logger.info("EFFECTIVE SAMPLE SIZE (ESS) DIAGNOSTICS")
+        self.logger.info("=" * 80)
+
+        ess_diagnostics = {}
+        try:
+            if W_samples is not None and len(W_samples.shape) == 4:
+                # Compute ESS for W (factor loadings)
+                # NumPyro's effective_sample_size expects shape (n_chains * n_samples, ...)
+                # or (n_chains, n_samples, ...) if split_chains=True
+
+                self.logger.info("Computing ESS for W (factor loadings)...")
+
+                # Compute bulk ESS (default, uses rank normalization)
+                ess_W_bulk = effective_sample_size(W_samples, split_chains=True)
+
+                # Summary statistics
+                ess_W_bulk_min = float(np.min(ess_W_bulk))
+                ess_W_bulk_mean = float(np.mean(ess_W_bulk))
+                ess_W_bulk_median = float(np.median(ess_W_bulk))
+
+                # Total number of samples for comparison
+                total_samples = W_samples.shape[0] * W_samples.shape[1]  # n_chains * n_samples
+                ess_efficiency_W = ess_W_bulk_mean / total_samples
+
+                ess_diagnostics["W"] = {
+                    "bulk_ess_min": ess_W_bulk_min,
+                    "bulk_ess_mean": ess_W_bulk_mean,
+                    "bulk_ess_median": ess_W_bulk_median,
+                    "total_samples": total_samples,
+                    "ess_efficiency": float(ess_efficiency_W),
+                }
+
+                self.logger.info(f"ESS for W:")
+                self.logger.info(f"  Bulk ESS: min={ess_W_bulk_min:.0f}, mean={ess_W_bulk_mean:.0f}, median={ess_W_bulk_median:.0f}")
+                self.logger.info(f"  Total samples: {total_samples}")
+                self.logger.info(f"  ESS efficiency: {ess_efficiency_W:.1%} (ESS/total samples)")
+
+                if ess_W_bulk_min < 400:
+                    self.logger.warning(f"⚠️  Low ESS detected (min={ess_W_bulk_min:.0f} < 400) - consider more samples")
+                elif ess_efficiency_W < 0.1:
+                    self.logger.warning(f"⚠️  Low ESS efficiency ({ess_efficiency_W:.1%} < 10%) - high autocorrelation")
+                else:
+                    self.logger.info(f"✓ Good ESS (min={ess_W_bulk_min:.0f} > 400, efficiency={ess_efficiency_W:.1%})")
+
+            if Z_samples is not None and len(Z_samples.shape) == 4:
+                # Compute ESS for Z (factor scores)
+                self.logger.info("Computing ESS for Z (factor scores)...")
+
+                ess_Z_bulk = effective_sample_size(Z_samples, split_chains=True)
+
+                # Summary statistics
+                ess_Z_bulk_min = float(np.min(ess_Z_bulk))
+                ess_Z_bulk_mean = float(np.mean(ess_Z_bulk))
+                ess_Z_bulk_median = float(np.median(ess_Z_bulk))
+
+                total_samples = Z_samples.shape[0] * Z_samples.shape[1]
+                ess_efficiency_Z = ess_Z_bulk_mean / total_samples
+
+                ess_diagnostics["Z"] = {
+                    "bulk_ess_min": ess_Z_bulk_min,
+                    "bulk_ess_mean": ess_Z_bulk_mean,
+                    "bulk_ess_median": ess_Z_bulk_median,
+                    "total_samples": total_samples,
+                    "ess_efficiency": float(ess_efficiency_Z),
+                }
+
+                self.logger.info(f"ESS for Z:")
+                self.logger.info(f"  Bulk ESS: min={ess_Z_bulk_min:.0f}, mean={ess_Z_bulk_mean:.0f}, median={ess_Z_bulk_median:.0f}")
+                self.logger.info(f"  Total samples: {total_samples}")
+                self.logger.info(f"  ESS efficiency: {ess_efficiency_Z:.1%}")
+
+                if ess_Z_bulk_min < 400:
+                    self.logger.warning(f"⚠️  Low ESS detected (min={ess_Z_bulk_min:.0f} < 400) - consider more samples")
+                elif ess_efficiency_Z < 0.1:
+                    self.logger.warning(f"⚠️  Low ESS efficiency ({ess_efficiency_Z:.1%} < 10%) - high autocorrelation")
+                else:
+                    self.logger.info(f"✓ Good ESS (min={ess_Z_bulk_min:.0f} > 400, efficiency={ess_efficiency_Z:.1%})")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to compute ESS diagnostics: {e}")
+            import traceback
+            self.logger.warning(traceback.format_exc())
+
+        # Compute BFMI (Bayesian Fraction of Missing Information)
+        self.logger.info("=" * 80)
+        self.logger.info("BFMI (BAYESIAN FRACTION OF MISSING INFORMATION)")
+        self.logger.info("=" * 80)
+
+        bfmi_diagnostics = {}
+        try:
+            # Extract potential energy if available
+            potential_energy = result.get("potential_energy", None)
+
+            if potential_energy is not None and len(potential_energy) > 0:
+                self.logger.info("Computing BFMI from potential energy...")
+
+                # Reshape energy to (n_chains, n_samples) if needed
+                if len(potential_energy.shape) == 1:
+                    # Single chain or flattened
+                    n_total = len(potential_energy)
+                    n_per_chain = n_total // n_chains
+                    energy_by_chain = potential_energy[:n_per_chain * n_chains].reshape(n_chains, n_per_chain)
+                else:
+                    # Already shaped as (n_chains, n_samples)
+                    energy_by_chain = potential_energy
+
+                # Compute BFMI for each chain
+                # BFMI = Var(energy differences) / Var(energy)
+                # Low BFMI (<0.2) indicates problems with geometry (e.g., funnels)
+                bfmi_per_chain = []
+                for chain_idx in range(energy_by_chain.shape[0]):
+                    energy = energy_by_chain[chain_idx]
+
+                    # Energy differences (consecutive)
+                    energy_diff = np.diff(energy)
+
+                    # BFMI formula
+                    var_diff = np.var(energy_diff, ddof=1)
+                    var_energy = np.var(energy, ddof=1)
+
+                    if var_energy > 0:
+                        bfmi = var_diff / var_energy
+                    else:
+                        bfmi = np.nan
+
+                    bfmi_per_chain.append(bfmi)
+
+                # Summary statistics
+                bfmi_mean = float(np.mean(bfmi_per_chain))
+                bfmi_min = float(np.min(bfmi_per_chain))
+                bfmi_max = float(np.max(bfmi_per_chain))
+
+                bfmi_diagnostics = {
+                    "bfmi_per_chain": [float(b) for b in bfmi_per_chain],
+                    "bfmi_mean": bfmi_mean,
+                    "bfmi_min": bfmi_min,
+                    "bfmi_max": bfmi_max,
+                }
+
+                self.logger.info(f"BFMI results:")
+                self.logger.info(f"  Mean BFMI: {bfmi_mean:.3f}")
+                self.logger.info(f"  Min BFMI:  {bfmi_min:.3f}")
+                self.logger.info(f"  Max BFMI:  {bfmi_max:.3f}")
+
+                # Interpret BFMI
+                if bfmi_min < 0.2:
+                    self.logger.warning(f"⚠️  LOW BFMI detected ({bfmi_min:.3f} < 0.2)")
+                    self.logger.warning(f"     This suggests:")
+                    self.logger.warning(f"     - Funnel geometry in the posterior")
+                    self.logger.warning(f"     - Consider model reparameterization")
+                    self.logger.warning(f"     - May need centered vs non-centered parameterization")
+                elif bfmi_min < 0.3:
+                    self.logger.warning(f"⚠️  MODERATE BFMI ({bfmi_min:.3f} < 0.3) - acceptable but watch for issues")
+                else:
+                    self.logger.info(f"✓ Good BFMI ({bfmi_min:.3f} > 0.3) - no geometry problems detected")
+
+                # Per-chain summary
+                for chain_idx, bfmi in enumerate(bfmi_per_chain):
+                    status = "✓" if bfmi >= 0.3 else "⚠️"
+                    self.logger.info(f"  Chain {chain_idx}: BFMI={bfmi:.3f} {status}")
+
+            else:
+                self.logger.warning("No potential energy available - skipping BFMI computation")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to compute BFMI: {e}")
+            import traceback
+            self.logger.warning(traceback.format_exc())
+
         # Compile diagnostics
         diagnostics = {
             "stability_summary": {
@@ -2596,7 +2768,9 @@ class RobustnessExperiments(ExperimentFramework):
                 "convergence_rate": sum(
                     1 for pm in performance_metrics.values() if pm["convergence"]
                 ) / n_chains,
-                "rhat_diagnostics": rhat_diagnostics,  # Add R-hat diagnostics
+                "rhat_diagnostics": rhat_diagnostics,  # R-hat diagnostics
+                "ess_diagnostics": ess_diagnostics,     # ESS diagnostics
+                "bfmi_diagnostics": bfmi_diagnostics,   # BFMI diagnostics
             },
         }
 
@@ -2663,6 +2837,26 @@ class RobustnessExperiments(ExperimentFramework):
                 rhat_Z_mean = rhat_diagnostics["Z"]["mean_rhat_overall"]
                 Z_converged = "✓" if rhat_Z_max < 1.1 else "⚠️"
                 self.logger.info(f"    - R-hat (Z, raw): max={rhat_Z_max:.4f}, mean={rhat_Z_mean:.4f} {Z_converged}")
+
+        # Add ESS summary to final output
+        if ess_diagnostics:
+            self.logger.info(f"  Effective Sample Size (ESS):")
+            if "W" in ess_diagnostics:
+                ess_W = ess_diagnostics["W"]
+                W_ess_ok = "✓" if ess_W["bulk_ess_min"] >= 400 else "⚠️"
+                self.logger.info(f"    - ESS (W): min={ess_W['bulk_ess_min']:.0f}, mean={ess_W['bulk_ess_mean']:.0f}, efficiency={ess_W['ess_efficiency']:.1%} {W_ess_ok}")
+            if "Z" in ess_diagnostics:
+                ess_Z = ess_diagnostics["Z"]
+                Z_ess_ok = "✓" if ess_Z["bulk_ess_min"] >= 400 else "⚠️"
+                self.logger.info(f"    - ESS (Z): min={ess_Z['bulk_ess_min']:.0f}, mean={ess_Z['bulk_ess_mean']:.0f}, efficiency={ess_Z['ess_efficiency']:.1%} {Z_ess_ok}")
+
+        # Add BFMI summary to final output
+        if bfmi_diagnostics:
+            self.logger.info(f"  BFMI (Bayesian Fraction of Missing Information):")
+            bfmi_mean = bfmi_diagnostics["bfmi_mean"]
+            bfmi_min = bfmi_diagnostics["bfmi_min"]
+            bfmi_ok = "✓" if bfmi_min >= 0.3 else "⚠️"
+            self.logger.info(f"    - BFMI: mean={bfmi_mean:.3f}, min={bfmi_min:.3f} {bfmi_ok}")
 
         self.logger.info(f"  - {len(plots)} plots generated")
 
@@ -3146,6 +3340,47 @@ class RobustnessExperiments(ExperimentFramework):
 
                     except Exception as e:
                         self.logger.warning(f"Failed to create variance profile: {str(e)}")
+                        import traceback
+                        self.logger.warning(f"Traceback: {traceback.format_exc()}")
+
+                    # Create rank plots for chain mixing assessment (Vehtari 2021)
+                    try:
+                        from analysis.mcmc_diagnostics import plot_rank_statistics
+
+                        self.logger.debug("Creating rank plots for chain mixing assessment...")
+
+                        # Create rank plots for a subset of W parameters
+                        # Sample a few factors for rank plots (don't overwhelm with plots)
+                        n_factors_to_plot = min(3, K)  # Plot top 3 factors
+
+                        # Sample some features from W for rank plots
+                        n_features_per_factor = min(10, D)  # Sample 10 features per factor
+                        W_subset = W_samples[:, :, :n_features_per_factor, :n_factors_to_plot]
+
+                        fig_rank_W = plot_rank_statistics(
+                            W_subset,
+                            param_name="W (Factor Loadings)",
+                            save_path=None,
+                            max_params=4
+                        )
+                        plots["rank_plot_W"] = fig_rank_W
+                        self.logger.debug("   ✅ Rank plot for W created")
+
+                        # Create rank plots for Z (sample some subjects)
+                        n_subjects_to_plot = min(10, N)
+                        Z_subset = Z_samples[:, :, :n_subjects_to_plot, :n_factors_to_plot]
+
+                        fig_rank_Z = plot_rank_statistics(
+                            Z_subset,
+                            param_name="Z (Factor Scores)",
+                            save_path=None,
+                            max_params=4
+                        )
+                        plots["rank_plot_Z"] = fig_rank_Z
+                        self.logger.debug("   ✅ Rank plot for Z created")
+
+                    except Exception as e:
+                        self.logger.warning(f"Failed to create rank plots: {str(e)}")
                         import traceback
                         self.logger.warning(f"Traceback: {traceback.format_exc()}")
 
