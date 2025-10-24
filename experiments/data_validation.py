@@ -65,7 +65,7 @@ def _log_preprocessing_summary(preprocessing_info):
     if "feature_reduction" in data_source:
         fr = data_source["feature_reduction"]
         logger.info(
-            f" Features: { fr['total_before']:,} → { fr['total_after']:,} ({ fr['reduction_ratio']:.3f} ratio)"
+            f"   Features: {fr['total_before']:,} → {fr['total_after']:,} ({fr['reduction_ratio']:.3f} ratio)"
         )
 
     # Log steps applied
@@ -351,6 +351,10 @@ class DataValidationExperiments(ExperimentFramework):
             "quality_metrics": self._assess_data_quality(
                 raw_data, preprocessed_data
             ),
+            "snr_analysis": self._estimate_snr(
+                preprocessed_data.get("X_list", []),
+                preprocessed_data.get("view_names", [])
+            ) if preprocessed_data.get("X_list") else {},
             "preprocessing_effects": self._analyze_preprocessing_effects(
                 raw_data, preprocessed_data
             ),
@@ -400,6 +404,16 @@ class DataValidationExperiments(ExperimentFramework):
             X_list, results, "data_quality_assessment"
         )
 
+        # Add SNR analysis plots
+        if results.get("snr_analysis"):
+            logger.info("📊 Creating SNR analysis plots...")
+            snr_plots = self._plot_snr_analysis(
+                X_list,
+                preprocessed_data.get("view_names", [f"view_{i}" for i in range(len(X_list))]),
+                results["snr_analysis"]
+            )
+            advanced_plots.update(snr_plots)
+
         # Log what plots we have before and after merging
         logger.debug(f"Basic plots keys: {list(plots.keys())}")
         logger.debug(f"Advanced plots keys: {list(advanced_plots.keys())}")
@@ -431,6 +445,14 @@ class DataValidationExperiments(ExperimentFramework):
             logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
         except Exception as e:
             logger.warning(f"Failed to save individual plots: {e}")
+
+        # Save SNR analysis results
+        if results.get("snr_analysis"):
+            try:
+                logger.info("📊 Saving SNR analysis results...")
+                self._save_snr_results(results["snr_analysis"], base_dir)
+            except Exception as e:
+                logger.warning(f"Failed to save SNR results: {e}")
 
         return ExperimentResult(
             experiment_id="data_quality_assessment",
@@ -604,6 +626,472 @@ class DataValidationExperiments(ExperimentFramework):
         quality_metrics["improvement_metrics"] = improvement
 
         return quality_metrics
+
+    def _estimate_snr(
+        self, X_list: List[np.ndarray], view_names: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Estimate Signal-to-Noise Ratio for imaging data.
+
+        Critical for understanding:
+        1. Whether data has sufficient signal for K factors
+        2. Why certain priors/regularization strengths are needed
+        3. Expected convergence behavior in MCMC
+
+        Methods:
+        - PCA-based: Signal subspace vs noise subspace eigenvalues
+        - Variance-based: Between-subject var / within-subject var
+        - Effective dimensionality: Number of PCs to explain 95% variance
+
+        Returns
+        -------
+        dict
+            SNR metrics per view with interpretation
+        """
+        from sklearn.decomposition import PCA
+
+        logger.info("📊 Estimating Signal-to-Noise Ratio (SNR)...")
+        snr_metrics = {}
+
+        for view_idx, (X, view_name) in enumerate(zip(X_list, view_names)):
+            logger.info(f"   Analyzing SNR for {view_name} ({X.shape})...")
+
+            # Handle missing data
+            if np.isnan(X).any():
+                # Simple imputation for SNR estimation only
+                X_clean = X.copy()
+                col_means = np.nanmean(X, axis=0)
+                for col in range(X.shape[1]):
+                    X_clean[np.isnan(X[:, col]), col] = col_means[col]
+            else:
+                X_clean = X
+
+            N, D = X_clean.shape
+            metrics = {}
+
+            # === METHOD 1: PCA Eigenvalue Spectrum ===
+            # Signal = top K eigenvalues, Noise = remaining eigenvalues
+            try:
+                if D > N:
+                    # High-dimensional: Use randomized PCA
+                    n_components = min(50, N - 1)
+                    pca = PCA(n_components=n_components, svd_solver='randomized', random_state=42)
+                else:
+                    pca = PCA()
+
+                pca.fit(X_clean)
+                eigenvalues = pca.explained_variance_
+                explained_var_ratio = pca.explained_variance_ratio_
+                cumsum_var = np.cumsum(explained_var_ratio)
+
+                # Effective dimensionality (95% variance threshold)
+                n_effective_95 = int(np.argmax(cumsum_var >= 0.95) + 1)
+                n_effective_90 = int(np.argmax(cumsum_var >= 0.90) + 1)
+                n_effective_80 = int(np.argmax(cumsum_var >= 0.80) + 1)
+
+                # SNR estimate: Signal components vs noise components
+                # Conservative: Assume first sqrt(N) components are signal
+                n_signal_conservative = max(5, int(np.sqrt(N)))
+                n_signal_conservative = min(n_signal_conservative, len(eigenvalues) - 1)
+
+                signal_eigenvalues = eigenvalues[:n_signal_conservative]
+                noise_eigenvalues = eigenvalues[n_signal_conservative:]
+
+                if len(noise_eigenvalues) > 0:
+                    snr_pca = np.sum(signal_eigenvalues) / np.sum(noise_eigenvalues)
+                    mean_signal_eigenvalue = np.mean(signal_eigenvalues)
+                    mean_noise_eigenvalue = np.mean(noise_eigenvalues)
+                    snr_pca_mean = mean_signal_eigenvalue / mean_noise_eigenvalue
+                else:
+                    snr_pca = np.inf
+                    snr_pca_mean = np.inf
+
+                # Scree plot interpretation: Where does eigenvalue spectrum elbow?
+                # Use second derivative to find elbow
+                if len(eigenvalues) > 3:
+                    diff2 = np.diff(np.diff(eigenvalues))
+                    elbow_idx = int(np.argmax(diff2) + 2)  # +2 because of double diff
+                    elbow_idx = min(elbow_idx, len(eigenvalues) - 1)
+                else:
+                    elbow_idx = 1
+
+                metrics["pca_snr"] = {
+                    "snr_estimate": float(snr_pca),
+                    "snr_mean_ratio": float(snr_pca_mean),
+                    "n_effective_95pct": int(n_effective_95),
+                    "n_effective_90pct": int(n_effective_90),
+                    "n_effective_80pct": int(n_effective_80),
+                    "scree_elbow": int(elbow_idx),
+                    "variance_explained_by_top5": float(cumsum_var[min(4, len(cumsum_var) - 1)]),
+                    "variance_explained_by_top10": float(cumsum_var[min(9, len(cumsum_var) - 1)]),
+                    "first_eigenvalue": float(eigenvalues[0]),
+                    "ratio_first_to_second": float(eigenvalues[0] / eigenvalues[1]) if len(eigenvalues) > 1 else np.inf,
+                }
+
+                logger.info(f"      PCA SNR: {snr_pca:.2f} (signal={n_signal_conservative} PCs)")
+                logger.info(f"      Effective dim (95%): {n_effective_95} PCs")
+                logger.info(f"      Scree elbow at PC: {elbow_idx}")
+
+            except Exception as e:
+                logger.warning(f"      PCA SNR estimation failed: {e}")
+                metrics["pca_snr"] = None
+
+            # === METHOD 2: Between-Subject vs Within-Subject Variance ===
+            # For imaging: Between-subject signal vs within-subject noise
+            try:
+                # Between-subject variance (signal)
+                feature_means = np.mean(X_clean, axis=0)
+                between_var = np.var(feature_means)
+
+                # Within-subject variance (noise estimate)
+                # Use residuals from subject means
+                residuals = X_clean - np.mean(X_clean, axis=0, keepdims=True)
+                within_var = np.mean(np.var(residuals, axis=0))
+
+                if within_var > 0:
+                    snr_variance = between_var / within_var
+                else:
+                    snr_variance = np.inf
+
+                metrics["variance_snr"] = {
+                    "snr_estimate": float(snr_variance),
+                    "between_subject_var": float(between_var),
+                    "within_subject_var": float(within_var),
+                }
+
+                logger.info(f"      Variance SNR: {snr_variance:.2f}")
+
+            except Exception as e:
+                logger.warning(f"      Variance SNR estimation failed: {e}")
+                metrics["variance_snr"] = None
+
+            # === METHOD 3: Feature-wise SNR Distribution ===
+            try:
+                # For each feature: SNR = mean / std
+                feature_means = np.mean(X_clean, axis=0)
+                feature_stds = np.std(X_clean, axis=0, ddof=1)
+
+                # Avoid division by zero
+                nonzero_std = feature_stds > 1e-10
+                snr_per_feature = np.zeros_like(feature_means)
+                snr_per_feature[nonzero_std] = np.abs(feature_means[nonzero_std]) / feature_stds[nonzero_std]
+
+                metrics["feature_snr"] = {
+                    "mean_snr": float(np.mean(snr_per_feature)),
+                    "median_snr": float(np.median(snr_per_feature)),
+                    "std_snr": float(np.std(snr_per_feature)),
+                    "min_snr": float(np.min(snr_per_feature)),
+                    "max_snr": float(np.max(snr_per_feature)),
+                    "pct_high_snr": float(np.mean(snr_per_feature > 1.0)),  # SNR > 1
+                    "pct_low_snr": float(np.mean(snr_per_feature < 0.5)),   # SNR < 0.5
+                }
+
+                logger.info(f"      Feature SNR: median={metrics['feature_snr']['median_snr']:.2f}")
+
+            except Exception as e:
+                logger.warning(f"      Feature SNR estimation failed: {e}")
+                metrics["feature_snr"] = None
+
+            # === INTERPRETATION ===
+            interpretation = self._interpret_snr(metrics, N, D)
+            metrics["interpretation"] = interpretation
+
+            snr_metrics[view_name] = metrics
+
+        logger.info("✅ SNR estimation complete")
+        return snr_metrics
+
+    def _interpret_snr(self, metrics: Dict, N: int, D: int) -> Dict[str, str]:
+        """Interpret SNR metrics and provide recommendations."""
+        interpretation = {
+            "signal_quality": "Unknown",
+            "recommended_K": "Unknown",
+            "prior_strength": "Unknown",
+            "convergence_expectation": "Unknown",
+        }
+
+        if metrics.get("pca_snr") is None:
+            return interpretation
+
+        pca_metrics = metrics["pca_snr"]
+        snr = pca_metrics["snr_estimate"]
+        n_eff = pca_metrics["n_effective_95pct"]
+        elbow = pca_metrics["scree_elbow"]
+
+        # Signal quality assessment
+        if snr > 10:
+            interpretation["signal_quality"] = "High (SNR > 10): Strong signal, low noise"
+        elif snr > 3:
+            interpretation["signal_quality"] = "Moderate (SNR 3-10): Adequate signal, moderate noise"
+        elif snr > 1:
+            interpretation["signal_quality"] = "Low (SNR 1-3): Weak signal, high noise"
+        else:
+            interpretation["signal_quality"] = "Very Low (SNR < 1): Dominated by noise"
+
+        # K recommendation based on effective dimensionality
+        K_conservative = min(elbow, n_eff)
+        K_aggressive = min(n_eff, int(N / 10))  # Rule of thumb: N/K >= 10
+
+        if snr > 5:
+            interpretation["recommended_K"] = f"{K_conservative}-{K_aggressive} (signal supports more factors)"
+        elif snr > 2:
+            interpretation["recommended_K"] = f"{max(3, K_conservative-2)}-{K_conservative} (moderate signal)"
+        else:
+            interpretation["recommended_K"] = f"3-{max(3, K_conservative)} (weak signal, be conservative)"
+
+        # Prior strength recommendation
+        if snr < 2:
+            interpretation["prior_strength"] = "STRONG priors needed (SNR < 2): Data has weak signal, increase τ₀ floor"
+        elif snr < 5:
+            interpretation["prior_strength"] = "MODERATE priors (SNR 2-5): Use τ₀ floor (current: 0.3)"
+        else:
+            interpretation["prior_strength"] = "WEAK priors ok (SNR > 5): Data-dependent τ₀ may suffice"
+
+        # Convergence expectation
+        if snr > 5 and n_eff < int(N / 5):
+            interpretation["convergence_expectation"] = "GOOD: High SNR + well-defined subspace"
+        elif snr > 2:
+            interpretation["convergence_expectation"] = "MODERATE: May need longer chains or stronger priors"
+        else:
+            interpretation["convergence_expectation"] = "CHALLENGING: Low SNR → expect slow convergence, need strong priors"
+
+        return interpretation
+
+    def _save_snr_results(self, snr_analysis: Dict[str, Any], output_dir: Path) -> None:
+        """
+        Save SNR analysis results to CSV files and text report.
+
+        Args:
+            snr_analysis: SNR analysis results from _estimate_snr()
+            output_dir: Directory to save results
+        """
+        if not snr_analysis:
+            return
+
+        snr_dir = output_dir / "snr_analysis"
+        snr_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save per-view metrics to CSV
+        view_metrics = []
+        for view_name, metrics in snr_analysis.items():
+            if isinstance(metrics, dict) and "snr_pca" in metrics:
+                view_metrics.append({
+                    "view_name": view_name,
+                    "snr_pca": metrics["snr_pca"],
+                    "snr_variance": metrics["snr_variance"],
+                    "n_effective_95pct": metrics["n_effective_95"],
+                    "n_effective_99pct": metrics["n_effective_99"],
+                    "signal_quality": metrics["interpretation"]["signal_quality"],
+                    "recommended_K_min": metrics["interpretation"]["recommended_K_range"].split("-")[0],
+                    "recommended_K_max": metrics["interpretation"]["recommended_K_range"].split("-")[1],
+                    "prior_strength_recommendation": metrics["interpretation"]["prior_strength_recommendation"],
+                    "convergence_expectation": metrics["interpretation"]["convergence_expectation"],
+                })
+
+        if view_metrics:
+            from core.io_utils import save_csv
+            df_metrics = pd.DataFrame(view_metrics)
+            save_csv(df_metrics, snr_dir / "snr_summary.csv", index=False)
+            logger.info(f"📊 Saved SNR summary to {snr_dir / 'snr_summary.csv'}")
+
+        # Generate text report
+        report_lines = [
+            "=" * 80,
+            "SIGNAL-TO-NOISE RATIO (SNR) ANALYSIS REPORT",
+            "=" * 80,
+            "",
+        ]
+
+        for view_name, metrics in snr_analysis.items():
+            if isinstance(metrics, dict) and "snr_pca" in metrics:
+                report_lines.extend([
+                    f"View: {view_name}",
+                    "-" * 80,
+                    f"  SNR (PCA-based):           {metrics['snr_pca']:.2f}",
+                    f"  SNR (Variance-based):      {metrics['snr_variance']:.2f}",
+                    f"  Effective dimensions (95%): {metrics['n_effective_95']}",
+                    f"  Effective dimensions (99%): {metrics['n_effective_99']}",
+                    "",
+                    "Interpretation:",
+                    f"  Signal Quality:             {metrics['interpretation']['signal_quality']}",
+                    f"  Recommended K range:        {metrics['interpretation']['recommended_K_range']}",
+                    f"  Prior Strength:             {metrics['interpretation']['prior_strength_recommendation']}",
+                    f"  Convergence Expectation:    {metrics['interpretation']['convergence_expectation']}",
+                    "",
+                ])
+
+        report_lines.extend([
+            "=" * 80,
+            "KEY INSIGHTS:",
+            "=" * 80,
+            "- PCA SNR: Ratio of signal subspace variance to noise variance",
+            "- Variance SNR: Between-subject variance / within-subject variance",
+            "- Effective dimensions: Number of PCs explaining 95%/99% of variance",
+            "- High SNR (>10): Strong signal, expect fast convergence",
+            "- Moderate SNR (3-10): Moderate signal, may need longer chains",
+            "- Low SNR (<3): Weak signal, requires strong priors and careful tuning",
+            "=" * 80,
+        ])
+
+        report_path = snr_dir / "snr_report.txt"
+        report_path.write_text("\n".join(report_lines))
+        logger.info(f"📄 Saved SNR report to {report_path}")
+
+    def _plot_snr_analysis(
+        self, X_list: List[np.ndarray], view_names: List[str], snr_analysis: Dict[str, Any]
+    ) -> Dict[str, plt.Figure]:
+        """
+        Create SNR visualization plots: scree plot, cumulative variance, and interpretation.
+
+        Args:
+            X_list: List of data matrices (one per view)
+            view_names: Names of each view
+            snr_analysis: SNR analysis results from _estimate_snr()
+
+        Returns:
+            Dictionary of figure names to matplotlib Figure objects
+        """
+        plots = {}
+
+        for view_idx, (X, view_name) in enumerate(zip(X_list, view_names)):
+            if view_name not in snr_analysis or "pca_snr" not in snr_analysis[view_name]:
+                continue
+
+            metrics = snr_analysis[view_name]
+            pca_metrics = metrics["pca_snr"]
+
+            # Re-compute PCA to get eigenvalues (they're in the metrics but not as array)
+            # We need the full eigenvalue spectrum for plotting
+            N, D = X.shape
+            X_clean = X[~np.isnan(X).any(axis=1)]
+
+            try:
+                if D > N:
+                    pca = PCA(n_components=min(N, 50), svd_solver="randomized")
+                else:
+                    pca = PCA()
+                pca.fit(X_clean)
+                eigenvalues = pca.explained_variance_
+                explained_var_ratio = pca.explained_variance_ratio_
+                cumsum_var = np.cumsum(explained_var_ratio)
+            except Exception as e:
+                logger.warning(f"Failed to recompute PCA for {view_name}: {e}")
+                continue
+
+            # Get key metrics
+            n_effective_95 = pca_metrics["n_effective_95pct"]
+            n_effective_99 = pca_metrics["n_effective_99pct"]
+            scree_elbow = pca_metrics.get("scree_elbow", n_effective_95)
+            snr_pca = metrics["snr_pca"]
+            signal_quality = metrics["interpretation"]["signal_quality"]
+            recommended_K = metrics["interpretation"]["recommended_K_range"]
+
+            # Signal/noise cutoff (conservative: sqrt(N))
+            n_signal = max(5, int(np.sqrt(N)))
+            n_signal = min(n_signal, len(eigenvalues) - 1)
+
+            # Create figure with 3 subplots
+            fig = plt.figure(figsize=(15, 5))
+            gs = fig.add_gridspec(1, 3, hspace=0.3, wspace=0.3)
+
+            # === SUBPLOT 1: Scree Plot (Eigenvalue Spectrum) ===
+            ax1 = fig.add_subplot(gs[0, 0])
+            n_components = len(eigenvalues)
+            component_idx = np.arange(1, n_components + 1)
+
+            ax1.plot(component_idx, eigenvalues, 'o-', linewidth=2, markersize=4, color='steelblue', label='Eigenvalues')
+
+            # Mark signal vs noise cutoff
+            ax1.axvline(n_signal, color='red', linestyle='--', linewidth=2, alpha=0.7, label=f'Signal/Noise cutoff (n={n_signal})')
+
+            # Mark scree elbow
+            if scree_elbow < len(eigenvalues):
+                ax1.axvline(scree_elbow, color='orange', linestyle=':', linewidth=2, alpha=0.7, label=f'Scree elbow (n={scree_elbow})')
+
+            # Mark effective dimensionality
+            ax1.axvline(n_effective_95, color='green', linestyle='-.', linewidth=1.5, alpha=0.7, label=f'95% variance (n={n_effective_95})')
+
+            ax1.set_xlabel('Component Index', fontsize=12)
+            ax1.set_ylabel('Eigenvalue', fontsize=12)
+            ax1.set_title(f'Scree Plot - {_format_view_name(view_name)}', fontsize=13, fontweight='bold')
+            ax1.set_yscale('log')
+            ax1.grid(True, alpha=0.3)
+            ax1.legend(fontsize=9, loc='best')
+
+            # Add SNR annotation
+            ax1.text(0.98, 0.98, f'SNR (PCA): {snr_pca:.2f}', transform=ax1.transAxes,
+                    fontsize=11, verticalalignment='top', horizontalalignment='right',
+                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+
+            # === SUBPLOT 2: Cumulative Variance Explained ===
+            ax2 = fig.add_subplot(gs[0, 1])
+            ax2.plot(component_idx, cumsum_var * 100, 'o-', linewidth=2, markersize=4, color='darkgreen')
+
+            # Mark key thresholds
+            ax2.axhline(95, color='green', linestyle='--', linewidth=1.5, alpha=0.7, label='95% variance')
+            ax2.axhline(99, color='blue', linestyle='--', linewidth=1.5, alpha=0.7, label='99% variance')
+
+            # Mark effective dimensions
+            ax2.axvline(n_effective_95, color='green', linestyle='-.', linewidth=1.5, alpha=0.7)
+            ax2.axvline(n_effective_99, color='blue', linestyle='-.', linewidth=1.5, alpha=0.7)
+
+            # Annotate points
+            if n_effective_95 < len(cumsum_var):
+                ax2.plot(n_effective_95, cumsum_var[n_effective_95 - 1] * 100, 'o', markersize=10, color='green', alpha=0.6)
+            if n_effective_99 < len(cumsum_var):
+                ax2.plot(n_effective_99, cumsum_var[n_effective_99 - 1] * 100, 'o', markersize=10, color='blue', alpha=0.6)
+
+            ax2.set_xlabel('Number of Components', fontsize=12)
+            ax2.set_ylabel('Cumulative Variance Explained (%)', fontsize=12)
+            ax2.set_title(f'Cumulative Variance - {_format_view_name(view_name)}', fontsize=13, fontweight='bold')
+            ax2.set_ylim([0, 105])
+            ax2.grid(True, alpha=0.3)
+            ax2.legend(fontsize=9, loc='lower right')
+
+            # === SUBPLOT 3: SNR Interpretation Summary ===
+            ax3 = fig.add_subplot(gs[0, 2])
+            ax3.axis('off')
+
+            # Create text summary
+            summary_text = [
+                f"SNR Analysis Summary",
+                f"{'=' * 35}",
+                f"",
+                f"Signal Quality:",
+                f"  {signal_quality}",
+                f"",
+                f"SNR Estimates:",
+                f"  PCA-based: {snr_pca:.2f}",
+                f"  Variance-based: {metrics['snr_variance']:.2f}",
+                f"",
+                f"Effective Dimensionality:",
+                f"  95% variance: {n_effective_95} PCs",
+                f"  99% variance: {n_effective_99} PCs",
+                f"  Scree elbow: {scree_elbow}",
+                f"",
+                f"Recommendations:",
+                f"  K range: {recommended_K}",
+                f"  Prior strength:",
+                f"    {metrics['interpretation']['prior_strength_recommendation']}",
+                f"",
+                f"Convergence:",
+                f"  {metrics['interpretation']['convergence_expectation']}",
+            ]
+
+            # Add text to plot
+            ax3.text(0.05, 0.95, '\n'.join(summary_text), transform=ax3.transAxes,
+                    fontsize=10, verticalalignment='top', horizontalalignment='left',
+                    family='monospace',
+                    bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.3))
+
+            plt.suptitle(f'Signal-to-Noise Ratio Analysis - {_format_view_name(view_name)}',
+                        fontsize=14, fontweight='bold', y=1.02)
+
+            plots[f"snr_analysis_{view_name}"] = fig
+
+            logger.info(f"  Created SNR plot for {view_name}")
+
+        return plots
 
     def _analyze_preprocessing_effects(
         self, raw_data: Dict, preprocessed_data: Dict

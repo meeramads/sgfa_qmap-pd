@@ -316,6 +316,91 @@ class BasePreprocessor:
     """Base preprocessing utilities - consolidates scattered functions"""
 
     @staticmethod
+    def verify_standardization(
+        X: np.ndarray,
+        view_name: str = "data",
+        mean_tol: float = 0.1,
+        std_tol: float = 0.2,
+        max_abs_threshold: float = 5.0,
+        logger: Optional[logging.Logger] = None
+    ) -> Dict[str, any]:
+        """
+        Verify that data is properly standardized (mean≈0, std≈1).
+
+        Critical for horseshoe priors which assume standardized inputs.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Data matrix (N, D)
+        view_name : str
+            Name of view for logging
+        mean_tol : float
+            Tolerance for mean (should be close to 0)
+        std_tol : float
+            Tolerance for std (should be close to 1)
+        max_abs_threshold : float
+            Max absolute value threshold (standardized data should have |X| < 5)
+        logger : logging.Logger, optional
+            Logger for output
+
+        Returns
+        -------
+        dict
+            Verification results with 'passed', 'mean_check', 'std_check', 'max_check'
+        """
+        if logger is None:
+            logger = logging.getLogger(__name__)
+
+        # Compute statistics
+        mean_per_feature = np.mean(X, axis=0)
+        std_per_feature = np.std(X, axis=0, ddof=1)
+        max_abs = np.abs(X).max()
+
+        mean_avg = np.mean(mean_per_feature)
+        std_avg = np.mean(std_per_feature)
+
+        # Check conditions
+        mean_ok = abs(mean_avg) < mean_tol
+        std_ok = abs(std_avg - 1.0) < std_tol
+        max_ok = max_abs < max_abs_threshold
+
+        all_passed = mean_ok and std_ok and max_ok
+
+        # Log results
+        if all_passed:
+            logger.info(f"✅ {view_name} standardization verified:")
+            logger.info(f"   Mean: {mean_avg:.6f} (target: 0.0, tol: {mean_tol})")
+            logger.info(f"   Std:  {std_avg:.6f} (target: 1.0, tol: {std_tol})")
+            logger.info(f"   Max:  {max_abs:.2f} (threshold: {max_abs_threshold})")
+        else:
+            logger.warning(f"⚠️  {view_name} standardization verification FAILED:")
+            if not mean_ok:
+                logger.warning(f"   ❌ Mean: {mean_avg:.6f} (expected ≈0.0, tol: {mean_tol})")
+            else:
+                logger.info(f"   ✓ Mean: {mean_avg:.6f}")
+            if not std_ok:
+                logger.warning(f"   ❌ Std:  {std_avg:.6f} (expected ≈1.0, tol: {std_tol})")
+            else:
+                logger.info(f"   ✓ Std:  {std_avg:.6f}")
+            if not max_ok:
+                logger.warning(f"   ❌ Max:  {max_abs:.2f} (threshold: {max_abs_threshold})")
+                logger.warning(f"      This suggests EXTREME outliers or non-standardized data!")
+                logger.warning(f"      SGFA horseshoe priors assume standardized inputs.")
+            else:
+                logger.info(f"   ✓ Max:  {max_abs:.2f}")
+
+        return {
+            "passed": all_passed,
+            "mean_check": mean_ok,
+            "std_check": std_ok,
+            "max_check": max_ok,
+            "mean_value": float(mean_avg),
+            "std_value": float(std_avg),
+            "max_abs_value": float(max_abs),
+        }
+
+    @staticmethod
     def fit_basic_scaler(X: np.ndarray, eps: float = 1e-8) -> Dict[str, np.ndarray]:
         """
         Basic scaling (moved from loader_qmap_pd.py).
@@ -356,6 +441,13 @@ class BasicPreprocessor(BasePreprocessor):
                 scaler_dict = self.fit_basic_scaler(X)
                 X_scaled = self.apply_basic_scaler(X, scaler_dict)
                 self.scalers_[view_name] = scaler_dict
+
+                # CRITICAL: Verify standardization
+                self.verify_standardization(
+                    X_scaled,
+                    view_name=view_name,
+                    logger=logging.getLogger(__name__)
+                )
             else:
                 X_scaled = X
                 self.scalers_[view_name] = {
@@ -602,6 +694,13 @@ class AdvancedPreprocessor(BasePreprocessor):
 
         X_scaled = scaler.fit_transform(X)
         self.scalers_[view_name] = scaler
+
+        # CRITICAL: Verify standardization (catches preprocessing bugs early)
+        self.verify_standardization(
+            X_scaled,
+            view_name=view_name,
+            logger=logging.getLogger(__name__)
+        )
 
         return X_scaled
 
