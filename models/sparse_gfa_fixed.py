@@ -119,8 +119,12 @@ class SparseGFAFixedModel(BaseGFAModel):
         # τ₀ = (D₀/(N-D₀)) × (σ/√N)
         D0_Z = K  # Expected effective dimensionality
         sigma_std = 1.0  # After standardization
-        tau0_Z_scale = (D0_Z / (N - D0_Z)) * (sigma_std / jnp.sqrt(N))
-        logger.debug(f"      Calculated τ₀_Z scale = {tau0_Z_scale} (from D₀={D0_Z}, N={N})")
+        tau0_Z_auto = (D0_Z / (N - D0_Z)) * (sigma_std / jnp.sqrt(N))
+
+        # CRITICAL: Add floor to prevent extreme prior weakness in small-sample regime
+        # Without floor, N<<D can lead to τ₀ → 0, causing multimodal posteriors
+        tau0_Z_scale = jnp.maximum(tau0_Z_auto, 0.05)  # Min scale for N<<D regime
+        logger.debug(f"      Calculated τ₀_Z: auto={tau0_Z_auto:.6f}, used={tau0_Z_scale:.6f} (floor=0.05)")
 
         # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
         # Following Piironen & Vehtari (2017) recommendation
@@ -255,8 +259,13 @@ class SparseGFAFixedModel(BaseGFAModel):
             # τ₀ = (D₀/(D-D₀)) × (σ/√N)
             D0_per_factor = pW_m  # Expected non-zero loadings per factor
             sigma_std = 1.0  # After standardization
-            tau0_W_scale = (D0_per_factor / (Dm_m - D0_per_factor)) * (sigma_std / jnp.sqrt(N))
-            logger.debug(f"        Calculated τ₀_W_view{m+1} scale = {tau0_W_scale}")
+            tau0_W_auto = (D0_per_factor / (Dm_m - D0_per_factor)) * (sigma_std / jnp.sqrt(N))
+
+            # CRITICAL: Add floor to prevent extreme prior weakness in N<<D regime
+            # Without floor, high-dimensional views with small N lead to τ₀ → 0
+            # This causes multimodal posteriors and chain disagreement
+            tau0_W_scale = jnp.maximum(tau0_W_auto, 0.3)  # Min scale for stability
+            logger.debug(f"        View {m+1} τ₀_W: auto={tau0_W_auto:.6f}, used={tau0_W_scale:.6f} (floor=0.3)")
 
             # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
             # Following Piironen & Vehtari (2017) recommendation
