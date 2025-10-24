@@ -1049,6 +1049,111 @@ def main():
             else:
                 logger.info(f"   ✓ Factor loadings (W) and scores (Z) saved for all {len(chain_results_data)} chains")
 
+            # Run comprehensive factor analysis diagnostics (Aspects 2, 4, 11, 16, 17, 18)
+            factor_stability_config = config.get("factor_stability", {})
+            diagnostics_config = factor_stability_config.get("diagnostics", {})
+            run_diagnostics = diagnostics_config.get("run_all", True)  # Default: run all diagnostics
+
+            if run_diagnostics and chain_results_data:
+                logger.info("=" * 80)
+                logger.info("🔬 Running comprehensive factor analysis diagnostics...")
+                logger.info("=" * 80)
+
+                try:
+                    from analysis.factor_stability import (
+                        assess_factor_stability_procrustes,
+                        diagnose_scale_indeterminacy,
+                        diagnose_slab_saturation,
+                        diagnose_prior_posterior_shift,
+                        classify_factor_types,
+                        compute_cross_view_correlation,
+                        save_diagnostic_results,
+                    )
+                    from visualization.diagnostic_plots import create_comprehensive_diagnostic_report
+
+                    diagnostics = {}
+
+                    # Aspect 2: Procrustes Alignment (Rotational Invariance)
+                    logger.info("  📊 Aspect 2: Procrustes alignment...")
+                    disparity_threshold = diagnostics_config.get("procrustes_alignment", {}).get("disparity_threshold", 0.3)
+                    diagnostics['procrustes_alignment'] = assess_factor_stability_procrustes(
+                        chain_results_data,
+                        scale_normalize=True,
+                        disparity_threshold=disparity_threshold
+                    )
+                    logger.info(f"    ✓ Alignment rate: {diagnostics['procrustes_alignment'].get('alignment_rate', 0):.1%}")
+
+                    # Aspect 4: Scale Indeterminacy
+                    logger.info("  📊 Aspect 4: Scale indeterminacy...")
+                    diagnostics['scale_indeterminacy'] = diagnose_scale_indeterminacy(
+                        chain_results_data,
+                        tau_W_key='tauW',
+                        tau_Z_key='tauZ'
+                    )
+                    logger.info(f"    ✓ Verdict: {diagnostics['scale_indeterminacy']['verdict']}")
+
+                    # Aspect 11: Slab Saturation (CRITICAL for detecting preprocessing bugs)
+                    logger.info("  📊 Aspect 11: Slab saturation...")
+                    saturation_threshold = diagnostics_config.get("slab_saturation", {}).get("saturation_threshold", 0.8)
+                    diagnostics['slab_saturation'] = diagnose_slab_saturation(
+                        chain_results_data,
+                        slab_scale=hypers.get('slab_scale', 2.0),
+                        saturation_threshold=saturation_threshold
+                    )
+                    if diagnostics['slab_saturation']['issues']['data_preprocessing_failure']:
+                        logger.error("    ❌ CRITICAL: Data preprocessing failure detected!")
+                    else:
+                        logger.info("    ✓ No preprocessing issues detected")
+
+                    # Aspect 18: Prior-Posterior Shift
+                    logger.info("  📊 Aspect 18: Prior-posterior shift...")
+                    diagnostics['prior_posterior_shift'] = diagnose_prior_posterior_shift(
+                        chain_results_data,
+                        hypers=hypers
+                    )
+                    logger.info(f"    ✓ Overall: {diagnostics['prior_posterior_shift'].get('overall_classification', 'unknown')}")
+
+                    # Aspect 16: Factor Type Classification (requires consensus W)
+                    if stability_results_data.get("consensus_W") is not None:
+                        logger.info("  📊 Aspect 16: Factor type classification...")
+                        activity_threshold = diagnostics_config.get("factor_classification", {}).get("activity_threshold", 0.1)
+                        diagnostics['factor_types'] = classify_factor_types(
+                            stability_results_data["consensus_W"],
+                            view_dims=hypers['Dm'],
+                            activity_threshold=activity_threshold
+                        )
+                        summary = diagnostics['factor_types']['summary']
+                        logger.info(f"    ✓ Shared: {summary['n_shared']}, View-specific: {summary['n_view_specific']}, Background: {summary['n_background']}")
+
+                    # Aspect 17: Cross-View Correlation
+                    logger.info("  📊 Aspect 17: Cross-view correlation...")
+                    diagnostics['cross_view_correlation'] = compute_cross_view_correlation(
+                        X_list,
+                        view_names=view_names
+                    )
+                    logger.info(f"    ✓ Mean correlation: {diagnostics['cross_view_correlation']['summary']['mean_correlation']:.3f}")
+
+                    # Save all diagnostics to CSV/JSON
+                    diagnostics_dir = fs_output_dir / "diagnostics"
+                    save_diagnostic_results(diagnostics, str(diagnostics_dir))
+
+                    # Generate visualization plots
+                    create_comprehensive_diagnostic_report(diagnostics, diagnostics_dir)
+
+                    # Store diagnostics in result
+                    if not hasattr(result, 'diagnostics') or result.diagnostics is None:
+                        result.diagnostics = {}
+                    result.diagnostics['factor_analysis_fundamentals'] = diagnostics
+
+                    logger.info("=" * 80)
+                    logger.info("✅ Factor analysis diagnostics completed successfully")
+                    logger.info("=" * 80)
+
+                except Exception as e:
+                    logger.error(f"❌ Factor analysis diagnostics FAILED: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+
             # Optional: Run PD subtype discovery using consensus factors
             # Check if pd_subtype_discovery is enabled in config
             factor_stability_config = config.get("factor_stability", {})

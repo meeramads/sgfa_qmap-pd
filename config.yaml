@@ -267,6 +267,36 @@ factor_stability:
   # PD Subtype Discovery
   run_pd_subtype_discovery: false       # Run unsupervised PD subtype discovery using consensus factors (enable for clinical interpretation)
 
+  # Comprehensive Factor Analysis Diagnostics (18 Fundamental Aspects)
+  # Automatically runs after factor stability analysis to ensure rigorous validation
+  diagnostics:
+    run_all: true                       # Enable all diagnostic functions (default: true)
+
+    # Aspect 2: Rotational Invariance (Procrustes Alignment)
+    procrustes_alignment:
+      disparity_threshold: 0.3          # Maximum acceptable Procrustes disparity (0.3 = well-aligned)
+
+    # Aspect 4: Scale Indeterminacy
+    scale_indeterminacy:
+      cv_threshold: 0.3                 # Maximum acceptable coefficient of variation (CV < 0.3 = well-constrained)
+
+    # Aspect 11: Slab Saturation Detection (CRITICAL for detecting preprocessing bugs)
+    slab_saturation:
+      saturation_threshold: 0.8         # Fraction of slab scale to trigger saturation warning (0.8 = 80% of c)
+
+    # Aspect 16: Factor Type Classification
+    factor_classification:
+      activity_threshold: 0.1           # Threshold for factor activity in a view (max|W_view| > threshold)
+
+    # Aspect 18: Prior-Posterior Shift
+    # No parameters needed - uses default classification thresholds:
+    #   - healthy: <2x shift
+    #   - moderate: 2-5x shift
+    #   - weak: 5-10x shift
+    #   - severe: >10x shift
+
+    # Note: Aspect 17 (Cross-View Correlation) runs automatically with no parameters
+
 # SGFA Parameter Comparison (Hyperparameter Search)
 sgfa_configuration_comparison:
   # MCMC sampling parameters for parameter comparison

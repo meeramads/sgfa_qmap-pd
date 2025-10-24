@@ -1496,6 +1496,460 @@ def diagnose_prior_posterior_shift(
     return result
 
 
+def classify_factor_types(
+    W_consensus: np.ndarray,
+    view_dims: List[int],
+    activity_threshold: float = 0.1,
+) -> Dict:
+    """
+    Classify each factor as shared, view-specific, or background.
+
+    ASPECT 16: VIEW-SPECIFIC VS SHARED FACTORS
+
+    Multi-view factor analysis can discover three types of factors:
+
+    1. **Shared factors**: Active in multiple views
+       - W_view1[:, k] has large loadings AND
+       - W_view2[:, k] has large loadings
+       - Example: Factor capturing both brain structure and clinical symptoms
+
+    2. **View-specific factors**: Active in only one view
+       - W_view1[:, k] has large loadings BUT
+       - W_view2[:, k] ≈ 0 (shrunk by ARD)
+       - Example: Factor capturing only imaging patterns
+
+    3. **Background factors**: Inactive in all views
+       - All views have W ≈ 0
+       - Successfully shrunk by ARD priors
+       - Should be excluded from interpretation
+
+    Why This Matters
+    ----------------
+    - **Low cross-view correlation does NOT mean failure!**
+      It may just mean mostly view-specific factors, which SGFA handles naturally.
+
+    - **Interpretation differs by type**:
+      - Shared: Look for cross-modal patterns
+      - View-specific: Interpret within-view only
+      - Background: Ignore (model flexibility, not real signal)
+
+    - **Model validation**:
+      - Mostly background → K too large, reduce factors
+      - All view-specific → Low cross-view correlation expected
+      - Mostly shared → High cross-view correlation expected
+
+    Parameters
+    ----------
+    W_consensus : np.ndarray, shape (D_total, K)
+        Consensus loading matrix from all views concatenated
+    view_dims : List[int]
+        Dimensions of each view (e.g., [1794, 14] for imaging + clinical)
+    activity_threshold : float, default=0.1
+        Threshold for considering a view "active" for a factor
+        A view is active if: max|W_view[:, k]| > threshold
+
+    Returns
+    -------
+    Dict containing:
+        - factor_types: List[str], one of ['shared', 'view_specific', 'background'] per factor
+        - active_views_per_factor: List[List[int]], which views are active per factor
+        - n_shared: int, number of shared factors
+        - n_view_specific: int, number of view-specific factors
+        - n_background: int, number of background factors
+        - view_specific_breakdown: Dict[int, int], count per view
+        - per_factor_details: List[Dict], detailed info per factor
+
+    Examples
+    --------
+    >>> W_consensus = np.random.randn(1808, 5)  # 1794 imaging + 14 clinical
+    >>> result = classify_factor_types(W_consensus, view_dims=[1794, 14])
+    >>> print(f"Shared: {result['n_shared']}")
+    >>> print(f"View-specific: {result['n_view_specific']}")
+    >>> print(f"Background: {result['n_background']}")
+    >>>
+    >>> for k, details in enumerate(result['per_factor_details']):
+    ...     print(f"Factor {k}: {details['type']} - {details['active_views']}")
+
+    Notes
+    -----
+    Activity determination:
+        max|W_view[:, k]| > threshold → view is active
+
+    Classification logic:
+        - 0 active views → background
+        - 1 active view → view-specific
+        - 2+ active views → shared
+
+    For standardized data, typical thresholds:
+        - 0.05: Very sensitive (almost everything active)
+        - 0.1: Balanced (recommended)
+        - 0.2: Conservative (only strong loadings)
+    """
+    logger.info("=" * 80)
+    logger.info("CLASSIFY FACTOR TYPES - START")
+    logger.info("=" * 80)
+
+    D_total, K = W_consensus.shape
+    M = len(view_dims)
+
+    if sum(view_dims) != D_total:
+        raise ValueError(f"View dimensions {view_dims} don't sum to {D_total}")
+
+    # Split W into views
+    W_views = []
+    start_idx = 0
+    for view_idx, D_view in enumerate(view_dims):
+        end_idx = start_idx + D_view
+        W_view = W_consensus[start_idx:end_idx, :]
+        W_views.append(W_view)
+        start_idx = end_idx
+
+    # Classify each factor
+    factor_types = []
+    active_views_per_factor = []
+    per_factor_details = []
+
+    for k in range(K):
+        # Check which views are active for this factor
+        active_views = []
+        max_loadings_per_view = []
+
+        for view_idx, W_view in enumerate(W_views):
+            max_loading = np.max(np.abs(W_view[:, k]))
+            max_loadings_per_view.append(max_loading)
+
+            if max_loading > activity_threshold:
+                active_views.append(view_idx)
+
+        # Classify based on number of active views
+        n_active = len(active_views)
+
+        if n_active == 0:
+            factor_type = 'background'
+        elif n_active == 1:
+            factor_type = 'view_specific'
+        else:
+            factor_type = 'shared'
+
+        factor_types.append(factor_type)
+        active_views_per_factor.append(active_views)
+
+        per_factor_details.append({
+            'factor_index': k,
+            'type': factor_type,
+            'active_views': active_views,
+            'n_active_views': n_active,
+            'max_loadings_per_view': max_loadings_per_view,
+        })
+
+    # Count by type
+    n_shared = sum(1 for t in factor_types if t == 'shared')
+    n_view_specific = sum(1 for t in factor_types if t == 'view_specific')
+    n_background = sum(1 for t in factor_types if t == 'background')
+
+    # Breakdown of view-specific by view
+    view_specific_breakdown = {view_idx: 0 for view_idx in range(M)}
+    for k, factor_type in enumerate(factor_types):
+        if factor_type == 'view_specific':
+            view_idx = active_views_per_factor[k][0]  # Only one view
+            view_specific_breakdown[view_idx] += 1
+
+    # Log summary
+    logger.info(f"\n📊 Factor Classification Summary (K={K} factors):")
+    logger.info(f"  Activity threshold: {activity_threshold}")
+    logger.info(f"\nFactor Types:")
+    logger.info(f"  Shared (multi-view): {n_shared} ({n_shared/K:.1%})")
+    logger.info(f"  View-specific: {n_view_specific} ({n_view_specific/K:.1%})")
+    logger.info(f"  Background (inactive): {n_background} ({n_background/K:.1%})")
+
+    if n_view_specific > 0:
+        logger.info(f"\nView-Specific Breakdown:")
+        for view_idx, count in view_specific_breakdown.items():
+            if count > 0:
+                logger.info(f"  View {view_idx}: {count} factors")
+
+    logger.info(f"\nPer-Factor Details:")
+    for details in per_factor_details:
+        k = details['factor_index']
+        factor_type = details['type']
+        active_views = details['active_views']
+        max_loadings = details['max_loadings_per_view']
+
+        if factor_type == 'shared':
+            emoji = "🔗"
+            view_str = f"views {active_views}"
+        elif factor_type == 'view_specific':
+            emoji = "📍"
+            view_str = f"view {active_views[0]} only"
+        else:
+            emoji = "⚫"
+            view_str = "no views"
+
+        logger.info(f"  {emoji} Factor {k}: {factor_type.upper():15s} ({view_str})")
+        for view_idx, max_load in enumerate(max_loadings):
+            active_marker = "✓" if view_idx in active_views else " "
+            logger.info(f"       View {view_idx}: max|W|={max_load:.3f} {active_marker}")
+
+    # Interpretation guidance
+    logger.info(f"\n💡 Interpretation:")
+
+    if n_background > K/2:
+        logger.warning(f"⚠️  >50% background factors → K may be too large")
+        logger.warning("   Consider reducing number of factors")
+    elif n_background > 0:
+        logger.info(f"✓ {n_background} background factors show ARD is working (good!)")
+
+    if n_view_specific > n_shared:
+        logger.info(f"ℹ️  Mostly view-specific factors detected")
+        logger.info("   Low cross-view correlation is EXPECTED")
+        logger.info("   This does NOT invalidate SGFA - model is working correctly!")
+    elif n_shared > 0:
+        logger.info(f"✓ {n_shared} shared factors → views have common structure")
+
+    # Build result
+    result = {
+        'factor_types': factor_types,
+        'active_views_per_factor': active_views_per_factor,
+        'n_shared': n_shared,
+        'n_view_specific': n_view_specific,
+        'n_background': n_background,
+        'view_specific_breakdown': view_specific_breakdown,
+        'per_factor_details': per_factor_details,
+        'activity_threshold': activity_threshold,
+        'n_factors': K,
+        'n_views': M,
+    }
+
+    logger.info("=" * 80)
+    logger.info("CLASSIFY FACTOR TYPES - COMPLETED")
+    logger.info("=" * 80)
+
+    return result
+
+
+def compute_cross_view_correlation(
+    X_list: List[np.ndarray],
+    view_names: List[str] = None,
+) -> Dict:
+    """
+    Compute cross-view correlation to understand multi-view structure.
+
+    ASPECT 17: CROSS-VIEW CORRELATION
+
+    Key Insight for SGFA
+    ---------------------
+    **Low cross-view correlation does NOT invalidate multi-view SGFA!**
+
+    It simply indicates the type of factor structure:
+    - **High correlation (r > 0.3)**: Mostly shared factors expected
+    - **Low correlation (r < 0.2)**: Mostly view-specific factors expected
+    - **Medium correlation (0.2-0.3)**: Mix of shared and view-specific
+
+    SGFA can discover ALL three types through ARD priors on W. Low correlation
+    just tells you to expect mostly view-specific factors, which is a valid
+    and interpretable result!
+
+    Mathematical Background
+    -----------------------
+    Computes canonical correlation (first canonical correlation coefficient)
+    between each pair of views.
+
+    For two views X1 (N×D1) and X2 (N×D2):
+        r_canonical = max corr(X1 @ a, X2 @ b)
+                      s.t. ||a|| = ||b|| = 1
+
+    This measures the maximum correlation achievable between linear combinations
+    of the two views. If r_canonical is low, the views capture largely independent
+    information.
+
+    Parameters
+    ----------
+    X_list : List[np.ndarray]
+        List of data matrices, one per view
+        Each X_view has shape (N, D_view)
+    view_names : List[str], optional
+        Names for each view (e.g., ["imaging", "clinical"])
+        If None, uses ["View 0", "View 1", ...]
+
+    Returns
+    -------
+    Dict containing:
+        - pairwise_correlations: Dict[(i,j), float], correlation for each view pair
+        - mean_correlation: float, average across all view pairs
+        - max_correlation: float, maximum across all view pairs
+        - min_correlation: float, minimum across all view pairs
+        - correlation_matrix: np.ndarray, symmetric matrix of correlations
+        - interpretation: str, one of ['high', 'medium', 'low']
+        - expected_factor_structure: str, interpretation based on correlation
+
+    Notes
+    -----
+    Interpretation:
+        - r > 0.5: High correlation → expect mostly shared factors
+        - r 0.3-0.5: Medium → expect mix of shared and view-specific
+        - r 0.2-0.3: Low-medium → expect mostly view-specific
+        - r < 0.2: Low → expect almost all view-specific
+
+    For SGFA:
+        ALL of these are valid! SGFA adapts to whatever structure exists.
+        Low correlation is NOT a problem - it's just information about
+        what type of factors the model will discover.
+
+    Examples
+    --------
+    >>> X_imaging = np.random.randn(100, 1794)
+    >>> X_clinical = np.random.randn(100, 14)
+    >>> result = compute_cross_view_correlation(
+    ...     [X_imaging, X_clinical],
+    ...     view_names=["imaging", "clinical"]
+    ... )
+    >>> print(f"Mean correlation: {result['mean_correlation']:.3f}")
+    >>> print(f"Expected structure: {result['expected_factor_structure']}")
+    """
+    logger.info("=" * 80)
+    logger.info("COMPUTE CROSS-VIEW CORRELATION - START")
+    logger.info("=" * 80)
+
+    M = len(X_list)
+
+    if M < 2:
+        logger.error("❌ Need at least 2 views for cross-view correlation")
+        return {'error': 'Need at least 2 views'}
+
+    if view_names is None:
+        view_names = [f"View {i}" for i in range(M)]
+
+    N_samples = [X.shape[0] for X in X_list]
+    if len(set(N_samples)) > 1:
+        raise ValueError(f"All views must have same N, got {N_samples}")
+
+    N = N_samples[0]
+
+    # Compute pairwise canonical correlations
+    pairwise_correlations = {}
+    correlation_matrix = np.eye(M)  # Diagonal is 1.0
+
+    logger.info(f"\n📊 Computing pairwise correlations ({M} views):")
+    logger.info(f"  Sample size: N = {N}")
+
+    for i in range(M):
+        for j in range(i+1, M):
+            X1 = X_list[i]
+            X2 = X_list[j]
+
+            # Compute canonical correlation using SVD
+            # This is equivalent to CCA for first canonical component
+            # r_canonical = largest singular value of (X1.T @ X2) / sqrt(N-1)
+
+            # Center the data
+            X1_centered = X1 - np.mean(X1, axis=0)
+            X2_centered = X2 - np.mean(X2, axis=0)
+
+            # Normalize by sqrt(N-1) for correlation
+            X1_norm = X1_centered / np.sqrt(N - 1)
+            X2_norm = X2_centered / np.sqrt(N - 1)
+
+            # SVD of cross-covariance
+            try:
+                U, s, Vt = np.linalg.svd(X1_norm.T @ X2_norm, full_matrices=False)
+                r_canonical = s[0]  # Largest singular value = canonical correlation
+            except np.linalg.LinAlgError:
+                logger.warning(f"⚠️  SVD failed for views {i},{j}, using fallback")
+                # Fallback: mean absolute correlation
+                corr_matrix = np.corrcoef(X1.T, X2.T)
+                D1 = X1.shape[1]
+                D2 = X2.shape[1]
+                cross_corr = corr_matrix[:D1, D1:]
+                r_canonical = np.mean(np.abs(cross_corr))
+
+            pairwise_correlations[(i, j)] = r_canonical
+            correlation_matrix[i, j] = r_canonical
+            correlation_matrix[j, i] = r_canonical
+
+            logger.info(f"  {view_names[i]} ↔ {view_names[j]}: r = {r_canonical:.3f}")
+
+    # Summary statistics
+    corr_values = list(pairwise_correlations.values())
+    mean_correlation = np.mean(corr_values)
+    max_correlation = np.max(corr_values)
+    min_correlation = np.min(corr_values)
+
+    logger.info(f"\n📈 Summary Statistics:")
+    logger.info(f"  Mean correlation: {mean_correlation:.3f}")
+    logger.info(f"  Max correlation: {max_correlation:.3f}")
+    logger.info(f"  Min correlation: {min_correlation:.3f}")
+
+    # Interpret correlation level
+    if mean_correlation > 0.5:
+        interpretation = 'high'
+        expected_structure = 'mostly shared factors'
+        emoji = "🔗"
+    elif mean_correlation > 0.3:
+        interpretation = 'medium-high'
+        expected_structure = 'mix of shared and view-specific factors'
+        emoji = "🔗📍"
+    elif mean_correlation > 0.2:
+        interpretation = 'medium-low'
+        expected_structure = 'mostly view-specific with some shared'
+        emoji = "📍🔗"
+    else:
+        interpretation = 'low'
+        expected_structure = 'mostly view-specific factors'
+        emoji = "📍"
+
+    logger.info(f"\n{emoji} Interpretation:")
+    logger.info(f"  Correlation level: {interpretation.upper()}")
+    logger.info(f"  Expected factor structure: {expected_structure}")
+    logger.info("")
+
+    if interpretation == 'low':
+        logger.info("💡 Low cross-view correlation detected:")
+        logger.info("   This is PERFECTLY VALID for SGFA!")
+        logger.info("   - SGFA will discover mostly view-specific factors")
+        logger.info("   - ARD priors will shrink cross-view loadings")
+        logger.info("   - Interpret factors within their active view")
+        logger.info("")
+        logger.info("   This does NOT mean:")
+        logger.info("   ✗ SGFA is inappropriate")
+        logger.info("   ✗ Model has failed")
+        logger.info("   ✗ Should use separate models")
+        logger.info("")
+        logger.info("   It DOES mean:")
+        logger.info("   ✓ Views capture different aspects of the data")
+        logger.info("   ✓ Factors will be mostly view-specific")
+        logger.info("   ✓ SGFA will adapt and discover this structure")
+    elif interpretation == 'high':
+        logger.info("💡 High cross-view correlation detected:")
+        logger.info("   - SGFA will likely discover shared factors")
+        logger.info("   - Loadings will be active in multiple views")
+        logger.info("   - Look for cross-modal patterns in interpretation")
+    else:
+        logger.info("💡 Medium cross-view correlation detected:")
+        logger.info("   - SGFA will discover a MIX of factor types")
+        logger.info("   - Some factors shared, some view-specific")
+        logger.info("   - Use classify_factor_types() to identify which is which")
+
+    # Build result
+    result = {
+        'pairwise_correlations': pairwise_correlations,
+        'mean_correlation': float(mean_correlation),
+        'max_correlation': float(max_correlation),
+        'min_correlation': float(min_correlation),
+        'correlation_matrix': correlation_matrix,
+        'interpretation': interpretation,
+        'expected_factor_structure': expected_structure,
+        'n_views': M,
+        'n_samples': N,
+        'view_names': view_names,
+    }
+
+    logger.info("=" * 80)
+    logger.info("COMPUTE CROSS-VIEW CORRELATION - COMPLETED")
+    logger.info("=" * 80)
+
+    return result
+
+
 def _compute_consensus_loadings(
     W_chain_avg: List[np.ndarray],
     per_factor_matches: List[Dict],
@@ -2956,3 +3410,190 @@ def save_stability_results(
         logger.info(f"  ✅ Saved similarity matrix: .npy and .csv formats")
 
     logger.info("Factor stability results saved successfully")
+
+
+def save_diagnostic_results(
+    diagnostics: Dict[str, Dict],
+    output_dir: str,
+) -> None:
+    """Save all factor analysis diagnostic results to CSV/JSON files.
+
+    This function saves results from all diagnostic functions introduced in
+    Aspects 2, 4, 11, 16, 17, and 18.
+
+    Parameters
+    ----------
+    diagnostics : Dict[str, Dict]
+        Dictionary mapping diagnostic names to their results:
+        - 'scale_indeterminacy': from diagnose_scale_indeterminacy()
+        - 'slab_saturation': from diagnose_slab_saturation()
+        - 'prior_posterior_shift': from diagnose_prior_posterior_shift()
+        - 'factor_types': from classify_factor_types()
+        - 'cross_view_correlation': from compute_cross_view_correlation()
+        - 'procrustes_alignment': from assess_factor_stability_procrustes()
+    output_dir : str
+        Directory to save diagnostic results
+    """
+    from pathlib import Path
+    from core.io_utils import save_csv, save_json
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    logger.info("=" * 80)
+    logger.info("Saving factor analysis diagnostic results...")
+    logger.info("=" * 80)
+
+    # Save each diagnostic
+    saved_count = 0
+
+    # Aspect 4: Scale Indeterminacy
+    if 'scale_indeterminacy' in diagnostics:
+        logger.info("  Saving scale indeterminacy diagnostics (Aspect 4)...")
+        diag = diagnostics['scale_indeterminacy']
+
+        # Save summary JSON
+        save_json(diag, output_path / 'aspect_04_scale_indeterminacy.json', indent=2)
+
+        # Save per-chain table
+        per_chain_data = []
+        for chain in diag['per_chain']:
+            per_chain_data.append({
+                'chain_id': chain['chain_id'],
+                'W_norm': chain['W_norm'],
+                'Z_norm': chain['Z_norm'],
+                'tau_W': chain['tau_W'],
+                'tau_Z': chain['tau_Z'],
+            })
+        df = pd.DataFrame(per_chain_data)
+        save_csv(df, output_path / 'aspect_04_scale_indeterminacy_per_chain.csv', index=False)
+        logger.info(f"    ✅ Saved (verdict: {diag['verdict']})")
+        saved_count += 1
+
+    # Aspect 11: Slab Saturation
+    if 'slab_saturation' in diagnostics:
+        logger.info("  Saving slab saturation diagnostics (Aspect 11)...")
+        diag = diagnostics['slab_saturation']
+
+        # Save summary JSON
+        save_json(diag, output_path / 'aspect_11_slab_saturation.json', indent=2)
+
+        # Save per-chain table
+        per_chain_data = []
+        for chain in diag['per_chain']:
+            per_chain_data.append({
+                'chain_id': chain['chain_id'],
+                'max_loading': chain['max_loading'],
+                'saturation_pct': chain['saturation_pct'],
+                'n_saturated': chain['n_saturated'],
+                'total_loadings': chain['total_loadings'],
+            })
+        df = pd.DataFrame(per_chain_data)
+        save_csv(df, output_path / 'aspect_11_slab_saturation_per_chain.csv', index=False)
+
+        # Save issues summary
+        issues_df = pd.DataFrame([diag['issues']])
+        save_csv(issues_df, output_path / 'aspect_11_slab_saturation_issues.csv', index=False)
+        logger.info(f"    ✅ Saved (preprocessing_failure: {diag['issues']['data_preprocessing_failure']})")
+        saved_count += 1
+
+    # Aspect 18: Prior-Posterior Shift
+    if 'prior_posterior_shift' in diagnostics:
+        logger.info("  Saving prior-posterior shift diagnostics (Aspect 18)...")
+        diag = diagnostics['prior_posterior_shift']
+
+        # Save summary JSON
+        save_json(diag, output_path / 'aspect_18_prior_posterior_shift.json', indent=2)
+
+        # Save per-parameter table
+        param_data = []
+        for param in ['tau_W', 'tau_Z', 'cW', 'cZ']:
+            if param in diag:
+                param_data.append({
+                    'parameter': param,
+                    'prior_scale': diag[param]['prior_scale'],
+                    'posterior_mean': diag[param]['posterior_mean'],
+                    'shift_factor': diag[param]['shift_factor'],
+                    'classification': diag[param]['classification'],
+                })
+        df = pd.DataFrame(param_data)
+        save_csv(df, output_path / 'aspect_18_prior_posterior_shift_summary.csv', index=False)
+        logger.info(f"    ✅ Saved (overall: {diag.get('overall_classification', 'unknown')})")
+        saved_count += 1
+
+    # Aspect 16: Factor Type Classification
+    if 'factor_types' in diagnostics:
+        logger.info("  Saving factor type classification (Aspect 16)...")
+        diag = diagnostics['factor_types']
+
+        # Save summary JSON
+        save_json(diag, output_path / 'aspect_16_factor_types.json', indent=2)
+
+        # Save per-factor table
+        factor_data = []
+        for factor in diag['per_factor']:
+            factor_data.append({
+                'factor_id': factor['factor_id'],
+                'type': factor['type'],
+                'n_active_views': factor['n_active_views'],
+                'active_views': ','.join(map(str, factor['active_views'])),
+                'activity_per_view': ','.join([f"{v:.3f}" for v in factor['activity_per_view']]),
+            })
+        df = pd.DataFrame(factor_data)
+        save_csv(df, output_path / 'aspect_16_factor_types_per_factor.csv', index=False)
+
+        # Save summary table
+        summary_df = pd.DataFrame([diag['summary']])
+        save_csv(summary_df, output_path / 'aspect_16_factor_types_summary.csv', index=False)
+        logger.info(f"    ✅ Saved (shared: {diag['summary']['n_shared']}, view-specific: {diag['summary']['n_view_specific']})")
+        saved_count += 1
+
+    # Aspect 17: Cross-View Correlation
+    if 'cross_view_correlation' in diagnostics:
+        logger.info("  Saving cross-view correlation (Aspect 17)...")
+        diag = diagnostics['cross_view_correlation']
+
+        # Save summary JSON
+        save_json(diag, output_path / 'aspect_17_cross_view_correlation.json', indent=2)
+
+        # Save pairwise correlation table
+        pairwise_data = []
+        for pair_name, pair_data in diag['pairwise'].items():
+            pairwise_data.append({
+                'view_pair': pair_name,
+                'correlation': pair_data['correlation'],
+                'view1_name': pair_data['view1_name'],
+                'view2_name': pair_data['view2_name'],
+                'n_samples': pair_data['n_samples'],
+            })
+        df = pd.DataFrame(pairwise_data)
+        save_csv(df, output_path / 'aspect_17_cross_view_correlation_pairwise.csv', index=False)
+        logger.info(f"    ✅ Saved (mean correlation: {diag['summary']['mean_correlation']:.3f})")
+        saved_count += 1
+
+    # Aspect 2: Procrustes Alignment
+    if 'procrustes_alignment' in diagnostics:
+        logger.info("  Saving Procrustes alignment diagnostics (Aspect 2)...")
+        diag = diagnostics['procrustes_alignment']
+
+        # Save summary JSON
+        save_json(diag, output_path / 'aspect_02_procrustes_alignment.json', indent=2)
+
+        # Save per-chain table
+        per_chain_data = []
+        for chain in diag['per_chain']:
+            per_chain_data.append({
+                'chain_id': chain['chain_id'],
+                'disparity': chain['disparity'],
+                'max_rotation_angle_deg': chain['max_rotation_angle_deg'],
+                'mean_rotation_angle_deg': chain['mean_rotation_angle_deg'],
+                'scale_ratio': chain.get('scale_ratio', 1.0),
+            })
+        df = pd.DataFrame(per_chain_data)
+        save_csv(df, output_path / 'aspect_02_procrustes_alignment_per_chain.csv', index=False)
+        logger.info(f"    ✅ Saved (alignment rate: {diag.get('alignment_rate', 0):.1%})")
+        saved_count += 1
+
+    logger.info(f"  Saved {saved_count} diagnostic result sets")
+    logger.info(f"  Output directory: {output_path}")
+    logger.info("=" * 80)
