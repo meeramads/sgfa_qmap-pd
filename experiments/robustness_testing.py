@@ -725,6 +725,11 @@ class RobustnessExperiments(ExperimentFramework):
                 if verbose:
                     self.logger.debug(f"🔧 Setting K={args['K']} from args into config_dict")
 
+            # CRITICAL: Ensure num_sources matches actual data
+            config_dict["num_sources"] = len(X_list)
+            if verbose:
+                self.logger.debug(f"🔧 Setting num_sources={len(X_list)} from X_list into config_dict")
+
             # Debug: Log what model_type is in the config
             if verbose:
                 model_type_in_config = config_dict.get("model", {}).get("model_type", "NOT SET")
