@@ -971,9 +971,22 @@ def main():
             # Save stability analysis results
             if stability_results_data and effective_factors_data:
                 stability_dir = fs_output_dir / "stability_analysis"
+                # Extract the effective factors dict (handle nested structure)
+                if effective_factors_data:
+                    first_chain = effective_factors_data[0]
+                    # Check for nested structure (ard_precision or posterior_samples)
+                    if "ard_precision" in first_chain:
+                        effective_dict = first_chain["ard_precision"]
+                    elif "posterior_samples" in first_chain:
+                        effective_dict = first_chain["posterior_samples"]
+                    else:
+                        effective_dict = first_chain
+                else:
+                    effective_dict = {}
+
                 save_stability_results(
                     stability_results_data,
-                    effective_factors_data[0] if effective_factors_data else {},
+                    effective_dict,
                     str(stability_dir),
                     subject_ids=subject_ids,  # Pass subject IDs for Z score indexing
                     view_names=view_names,  # Pass view names for W indexing

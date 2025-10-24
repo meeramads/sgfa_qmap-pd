@@ -231,12 +231,12 @@ reproducibility:
     parameter_relative_error: 0.1         # Relaxed error tolerance
     reconstruction_error_ratio: 0.05      # Relaxed reconstruction tolerance
 
-# Factor Stability Analysis - DEBUG VERSION (minimal chains/samples)
+# Factor Stability Analysis - DEBUG VERSION (UPDATED for convergence)
 factor_stability:
   K: 3                                    # Match debug model K
-  num_chains: 2                           # Minimal chains for testing
-  num_samples: 50                         # Minimal samples (matches model)
-  num_warmup: 25                          # Minimal warmup (matches model)
+  num_chains: 3                           # 3 chains (minimum for stability assessment)
+  num_samples: 200                        # More samples for convergence (was 50)
+  num_warmup: 200                         # More warmup for convergence (was 25)
   chain_method: 'sequential'              # Sequential for easier debugging
   cosine_threshold: 0.8
   min_match_rate: 0.5
