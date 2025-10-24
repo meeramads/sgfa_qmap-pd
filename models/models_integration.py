@@ -409,7 +409,7 @@ def _create_default_hyperparameters(
         "b_sigma": 1.0,
         "nu_local": 1.0,
         "nu_global": 1.0,
-        "slab_scale": 2.0,
+        "slab_scale": 5.0,  # Increased from 2.0 to allow larger loadings and reduce saturation
         "slab_df": 4.0,
         "percW": config.get("hyperparameter_optimization", {}).get(
             "fallback_percW", 33
