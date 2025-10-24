@@ -655,6 +655,12 @@ class RobustnessExperiments(ExperimentFramework):
             self.logger.debug(f"Input data: {len(X_list)} views")
             for i, X in enumerate(X_list):
                 self.logger.debug(f"  View {i}: shape {X.shape}, dtype {X.dtype}, has_nan {np.isnan(X).any()}")
+
+            # CRITICAL: Ensure num_sources matches actual data
+            if "num_sources" not in hypers or hypers["num_sources"] != len(X_list):
+                self.logger.warning(f"⚠️  Correcting num_sources: config had {hypers.get('num_sources', 'MISSING')}, data has {len(X_list)} views")
+                hypers["num_sources"] = len(X_list)
+
             self.logger.debug(f"Hyperparameters: {hypers}")
             self.logger.debug(f"MCMC args: {args}")
             self.logger.debug(f"Additional kwargs keys: {list(kwargs.keys())}")
