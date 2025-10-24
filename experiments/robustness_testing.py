@@ -126,7 +126,6 @@ class RobustnessExperiments(ExperimentFramework):
                     "execution_time": metrics.execution_time,
                     "peak_memory_gb": metrics.peak_memory_gb,
                     "convergence": result.get("convergence", False),
-                    "log_likelihood": result.get("log_likelihood", np.nan),
                 }
 
             # Cleanup memory after each seed run to prevent accumulation
@@ -239,7 +238,6 @@ class RobustnessExperiments(ExperimentFramework):
                             {
                                 "trial": trial,
                                 "result": result,
-                                "log_likelihood": result.get("log_likelihood", np.nan),
                                 "convergence": result.get("convergence", False),
                             }
                         )
@@ -250,7 +248,6 @@ class RobustnessExperiments(ExperimentFramework):
                             {
                                 "trial": trial,
                                 "result": {"error": str(e)},
-                                "log_likelihood": np.nan,
                                 "convergence": False,
                             }
                         )
@@ -330,7 +327,6 @@ class RobustnessExperiments(ExperimentFramework):
                             {
                                 "initialization": init_idx,
                                 "result": result,
-                                "log_likelihood": result.get("log_likelihood", np.nan),
                                 "convergence": result.get("convergence", False),
                                 "n_iterations": result.get("n_iterations", np.nan),
                             }
@@ -354,7 +350,6 @@ class RobustnessExperiments(ExperimentFramework):
                             {
                                 "initialization": init_idx,
                                 "result": {"error": str(e)},
-                                "log_likelihood": np.nan,
                                 "convergence": False,
                                 "n_iterations": np.nan,
                             }
@@ -787,6 +782,11 @@ class RobustnessExperiments(ExperimentFramework):
             if verbose:
                 self.logger.info(f"Creating MCMC sampler with chain_method={chain_method}...")
 
+            # Initialize variables that may be used in exception handlers
+            elapsed = 0.0
+            samples = {}
+            # Note: log_likelihood removed - not a meaningful metric for factor analysis
+
             # For multiple chains with memory constraints, run chains individually with cache clearing
             # NOTE: Even with chain_method='sequential', NumPyro may not clear JAX caches between chains,
             # leading to OOM errors. We explicitly run chains one-by-one with cache clearing.
@@ -899,8 +899,7 @@ class RobustnessExperiments(ExperimentFramework):
                         # Hypers are already stored in model_instance.hypers from initialization
                         mcmc_single.run(
                             chain_rng_key, X_list,
-                            init_params=init_params,
-                            extra_fields=("potential_energy",)
+                            init_params=init_params
                         )
                         elapsed = time.time() - start_time
                         total_elapsed += elapsed
@@ -1078,7 +1077,6 @@ class RobustnessExperiments(ExperimentFramework):
 
                 # Store the full chain samples for MCMC diagnostics (accessible via self._all_chain_samples)
                 elapsed = total_elapsed
-                log_likelihood = 0.0  # Approximate, can compute if needed
 
                 self.logger.debug(f"✅ ALL {num_chains} CHAINS COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
                 self.logger.info(f"Got samples grouped by chain: {num_chains} chains")
@@ -1129,7 +1127,7 @@ class RobustnessExperiments(ExperimentFramework):
                     # CRITICAL: model_instance only takes X_list as argument
                     # Hypers are already stored in model_instance.hypers from initialization
                     mcmc.run(
-                        rng_key, X_list, init_params=init_params, extra_fields=("potential_energy",)
+                        rng_key, X_list, init_params=init_params
                     )
                     elapsed = time.time() - start_time
                     self.logger.debug(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
@@ -1160,13 +1158,6 @@ class RobustnessExperiments(ExperimentFramework):
                     samples = mcmc.get_samples()
                     self.logger.debug(f"Got samples from single chain")
 
-                # Calculate log likelihood
-                extra_fields = mcmc.get_extra_fields()
-                potential_energy = extra_fields.get("potential_energy", np.array([]))
-                log_likelihood = (
-                    -np.mean(potential_energy) if len(potential_energy) > 0 else np.nan
-                )
-
             # Extract mean parameters
             W_samples = samples["W"]  # Shape: (num_chains, num_samples, D, K) or (num_samples, D, K)
             Z_samples = samples["Z"]  # Shape: (num_chains, num_samples, N, K) or (num_samples, N, K)
@@ -1182,8 +1173,6 @@ class RobustnessExperiments(ExperimentFramework):
                     "W_samples": W_samples,
                     "Z_samples": Z_samples,
                     "samples": samples,
-                    "potential_energy": potential_energy,  # Store energy for BFMI computation
-                    "log_likelihood": float(log_likelihood),
                     "n_iterations": num_samples,
                     "num_chains": num_chains,
                     "convergence": True,
@@ -1217,7 +1206,6 @@ class RobustnessExperiments(ExperimentFramework):
                     "W_samples": W_samples,
                     "Z_samples": Z_samples,
                     "samples": samples,
-                    "log_likelihood": float(log_likelihood),
                     "n_iterations": num_samples,
                     "convergence": True,
                     "execution_time": elapsed,
@@ -1243,7 +1231,6 @@ class RobustnessExperiments(ExperimentFramework):
                 "error": str(e),
                 "convergence": False,
                 "execution_time": float("inf"),
-                "log_likelihood": float("-inf"),
             }
 
     def _analyze_seed_robustness(
@@ -1253,36 +1240,15 @@ class RobustnessExperiments(ExperimentFramework):
         analysis = {
             "robustness_metrics": {},
             "convergence_consistency": {},
-            "likelihood_variation": {},
             "performance_variation": {},
         }
 
-        # Extract log likelihoods and convergence status
+        # Extract convergence status and execution times
         seeds = list(results.keys())
-        log_likelihoods = [
-            performance_metrics[seed]["log_likelihood"]
-            for seed in seeds
-            if not np.isnan(performance_metrics[seed]["log_likelihood"])
-        ]
         convergences = [performance_metrics[seed]["convergence"] for seed in seeds]
         execution_times = [
             performance_metrics[seed]["execution_time"] for seed in seeds
         ]
-
-        # Likelihood variation analysis
-        if log_likelihoods:
-            ll_mean = np.mean(log_likelihoods)
-            ll_std = np.std(log_likelihoods)
-            ll_range = max(log_likelihoods) - min(log_likelihoods)
-
-            analysis["likelihood_variation"] = {
-                "mean": ll_mean,
-                "std": ll_std,
-                "coefficient_of_variation": ll_std / abs(ll_mean),
-                "range": ll_range,
-                "robustness_score": 1.0
-                / (1.0 + ll_std),  # Higher is more reproducible
-            }
 
         # Convergence consistency
         convergence_rate = np.mean(convergences)
@@ -1304,14 +1270,12 @@ class RobustnessExperiments(ExperimentFramework):
     def _analyze_data_perturbation_robustness(
         self, results: Dict, baseline_result: Dict
     ) -> Dict:
-        """Analyze data perturbation robustness results."""
+        """Analyze data perturbation robustness results based on convergence."""
         analysis = {
             "robustness_by_perturbation_type": {},
             "robustness_by_level": {},
             "overall_robustness": {},
         }
-
-        baseline_likelihood = baseline_result.get("log_likelihood", np.nan)
 
         # Analyze by perturbation type
         for perturbation_type, type_results in results.items():
@@ -1321,30 +1285,14 @@ class RobustnessExperiments(ExperimentFramework):
             type_analysis = {}
 
             for level, level_results in type_results.items():
-                level_likelihoods = [
-                    r["log_likelihood"]
-                    for r in level_results
-                    if not np.isnan(r["log_likelihood"])
-                ]
                 level_convergences = [r["convergence"] for r in level_results]
 
-                if level_likelihoods:
-                    mean_likelihood = np.mean(level_likelihoods)
-                    likelihood_drop = (
-                        baseline_likelihood - mean_likelihood
-                        if not np.isnan(baseline_likelihood)
-                        else np.nan
-                    )
-
+                if level_convergences:
                     type_analysis[level] = {
-                        "mean_likelihood": mean_likelihood,
-                        "likelihood_drop": likelihood_drop,
                         "convergence_rate": np.mean(level_convergences),
-                        "robustness_score": (
-                            1.0 / (1.0 + abs(likelihood_drop))
-                            if not np.isnan(likelihood_drop)
-                            else 0.0
-                        ),
+                        "n_converged": sum(level_convergences),
+                        "n_total": len(level_convergences),
+                        "robustness_score": np.mean(level_convergences),  # Based on convergence rate
                     }
 
             analysis["robustness_by_perturbation_type"][
@@ -1356,20 +1304,14 @@ class RobustnessExperiments(ExperimentFramework):
     def _analyze_initialization_robustness(
         self, results: Dict, performance_metrics: Dict
     ) -> Dict:
-        """Analyze initialization robustness results."""
+        """Analyze initialization robustness results based on convergence."""
         analysis = {
             "strategy_comparison": {},
             "convergence_analysis": {},
-            "likelihood_consistency": {},
         }
 
         # Analyze each strategy
         for strategy, strategy_results in results.items():
-            strategy_likelihoods = [
-                r["log_likelihood"]
-                for r in strategy_results
-                if not np.isnan(r["log_likelihood"])
-            ]
             strategy_convergences = [r["convergence"] for r in strategy_results]
             strategy_iterations = [
                 r["n_iterations"]
@@ -1377,24 +1319,23 @@ class RobustnessExperiments(ExperimentFramework):
                 if not np.isnan(r["n_iterations"])
             ]
 
-            if strategy_likelihoods:
+            if strategy_convergences:
+                convergence_rate = np.mean(strategy_convergences)
                 analysis["strategy_comparison"][strategy] = {
-                    "mean_likelihood": np.mean(strategy_likelihoods),
-                    "std_likelihood": np.std(strategy_likelihoods),
-                    "best_likelihood": max(strategy_likelihoods),
-                    "worst_likelihood": min(strategy_likelihoods),
-                    "convergence_rate": np.mean(strategy_convergences),
+                    "convergence_rate": convergence_rate,
+                    "n_converged": sum(strategy_convergences),
+                    "n_total": len(strategy_convergences),
                     "mean_iterations": (
                         np.mean(strategy_iterations) if strategy_iterations else np.nan
                     ),
-                    "consistency_score": 1.0 / (1.0 + np.std(strategy_likelihoods)),
+                    "robustness_score": convergence_rate,  # Based on convergence rate
                 }
 
-        # Find best strategy
+        # Find best strategy based on convergence rate
         if analysis["strategy_comparison"]:
             best_strategy = max(
                 analysis["strategy_comparison"].keys(),
-                key=lambda s: analysis["strategy_comparison"][s]["mean_likelihood"],
+                key=lambda s: analysis["strategy_comparison"][s]["convergence_rate"],
             )
             analysis["best_strategy"] = best_strategy
 
@@ -1409,19 +1350,16 @@ class RobustnessExperiments(ExperimentFramework):
             "checksum_verification": {},
         }
 
-        # Exact robustness analysis
+        # Exact robustness analysis based on convergence
         exact_results = results.get("exact_robustness", [])
         if len(exact_results) > 1:
-            likelihoods = [r.get("log_likelihood", np.nan) for r in exact_results]
-            valid_likelihoods = [ll for ll in likelihoods if not np.isnan(ll)]
-
-            if len(valid_likelihoods) > 1:
-                ll_std = np.std(valid_likelihoods)
-                analysis["exact_robustness"] = {
-                    "is_exactly_reproducible": ll_std < 1e-10,
-                    "likelihood_std": ll_std,
-                    "max_difference": max(valid_likelihoods) - min(valid_likelihoods),
-                }
+            convergences = [r.get("convergence", False) for r in exact_results]
+            analysis["exact_robustness"] = {
+                "all_converged": all(convergences),
+                "convergence_rate": np.mean(convergences) if convergences else 0.0,
+                "n_converged": sum(convergences),
+                "n_total": len(convergences),
+            }
 
         # Numerical stability analysis
         stability_results = results.get("numerical_stability", {})
@@ -1460,69 +1398,46 @@ class RobustnessExperiments(ExperimentFramework):
     def _plot_seed_robustness(
         self, results: Dict, performance_metrics: Dict
     ) -> Dict:
-        """Generate plots for seed robustness analysis."""
+        """Generate plots for seed robustness analysis (convergence-focused)."""
         plots = {}
 
         try:
             seeds = list(results.keys())
-            log_likelihoods = [
-                performance_metrics[seed]["log_likelihood"] for seed in seeds
-            ]
             execution_times = [
                 performance_metrics[seed]["execution_time"] for seed in seeds
             ]
             convergences = [performance_metrics[seed]["convergence"] for seed in seeds]
 
             # Create plots
-            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
             fig.suptitle("Seed Robustness Analysis", fontsize=16)
 
-            # Plot 1: Log likelihood by seed
-            axes[0, 0].scatter(seeds, log_likelihoods)
-            axes[0, 0].set_xlabel("Random Seed")
-            axes[0, 0].set_ylabel("Log Likelihood")
-            axes[0, 0].set_title("Log Likelihood by Seed")
-            axes[0, 0].grid(True, alpha=0.3)
+            # Plot 1: Execution time by seed
+            axes[0].scatter(seeds, execution_times)
+            axes[0].set_xlabel("Random Seed")
+            axes[0].set_ylabel("Execution Time (seconds)")
+            axes[0].set_title("Execution Time by Seed")
+            axes[0].grid(True, alpha=0.3)
 
             # Add mean line
-            if log_likelihoods:
-                valid_ll = [ll for ll in log_likelihoods if not np.isnan(ll)]
-                if valid_ll:
-                    axes[0, 0].axhline(
-                        np.mean(valid_ll), color="red", linestyle="--", label="Mean"
-                    )
-                    axes[0, 0].legend()
+            if execution_times:
+                axes[0].axhline(
+                    np.mean(execution_times), color="red", linestyle="--", label="Mean"
+                )
+                axes[0].legend()
 
-            # Plot 2: Execution time by seed
-            axes[0, 1].scatter(seeds, execution_times)
-            axes[0, 1].set_xlabel("Random Seed")
-            axes[0, 1].set_ylabel("Execution Time (seconds)")
-            axes[0, 1].set_title("Execution Time by Seed")
-            axes[0, 1].grid(True, alpha=0.3)
-
-            # Plot 3: Convergence by seed
+            # Plot 2: Convergence by seed
             convergence_colors = [
                 "red" if not conv else "green" for conv in convergences
             ]
-            axes[1, 0].scatter(
+            axes[1].scatter(
                 seeds, [1 if conv else 0 for conv in convergences], c=convergence_colors
             )
-            axes[1, 0].set_xlabel("Random Seed")
-            axes[1, 0].set_ylabel("Converged")
-            axes[1, 0].set_title("Convergence by Seed")
-            axes[1, 0].set_ylim([-0.1, 1.1])
-            axes[1, 0].grid(True, alpha=0.3)
-
-            # Plot 4: Log likelihood distribution
-            valid_likelihoods = [ll for ll in log_likelihoods if not np.isnan(ll)]
-            if valid_likelihoods:
-                axes[1, 1].hist(
-                    valid_likelihoods, bins=min(10, len(valid_likelihoods)), alpha=0.7
-                )
-                axes[1, 1].set_xlabel("Log Likelihood")
-                axes[1, 1].set_ylabel("Frequency")
-                axes[1, 1].set_title("Log Likelihood Distribution")
-                axes[1, 1].grid(True, alpha=0.3)
+            axes[1].set_xlabel("Random Seed")
+            axes[1].set_ylabel("Converged")
+            axes[1].set_title("Convergence by Seed")
+            axes[1].set_ylim([-0.1, 1.1])
+            axes[1].grid(True, alpha=0.3)
 
             plt.tight_layout()
             plots["seed_robustness"] = fig
@@ -3875,14 +3790,11 @@ def run_robustness_testing(config):
                                 "execution_time": metrics.execution_time,
                                 "peak_memory_gb": metrics.peak_memory_gb,
                                 "convergence": result.get("convergence", False),
-                                "log_likelihood": result.get(
-                                    "log_likelihood", float("-inf")
-                                ),
                             },
                         }
                         successful_tests += 1
                         logger.info(
-                            f"✅ Seed {seed}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
+                            f"✅ Seed {seed}: {metrics.execution_time:.1f}s"
                         )
 
                     except Exception as e:
@@ -3927,14 +3839,11 @@ def run_robustness_testing(config):
                                 "execution_time": metrics.execution_time,
                                 "peak_memory_gb": metrics.peak_memory_gb,
                                 "convergence": result.get("convergence", False),
-                                "log_likelihood": result.get(
-                                    "log_likelihood", float("-inf")
-                                ),
                             },
                         }
                         successful_tests += 1
                         logger.info(
-                            f"✅ Noise {noise_level}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
+                            f"✅ Noise {noise_level}: {metrics.execution_time:.1f}s"
                         )
 
                     except Exception as e:
@@ -3971,14 +3880,11 @@ def run_robustness_testing(config):
                                 "execution_time": metrics.execution_time,
                                 "peak_memory_gb": metrics.peak_memory_gb,
                                 "convergence": result.get("convergence", False),
-                                "log_likelihood": result.get(
-                                    "log_likelihood", float("-inf")
-                                ),
                             },
                         }
                         successful_tests += 1
                         logger.info(
-                            f"✅ Init {init_id}: { metrics.execution_time:.1f}s, LL={ result.get( 'log_likelihood', 0):.2f}"
+                            f"✅ Init {init_id}: {metrics.execution_time:.1f}s"
                         )
 
                     except Exception as e:
@@ -4025,10 +3931,10 @@ def run_robustness_testing(config):
                 if has_seed:
                     seed_data = results["seed_robustness"]
                     seeds = [seed_data[k]["seed"] for k in sorted(seed_data.keys()) if "error" not in seed_data[k]]
-                    lls = [seed_data[k]["performance"]["log_likelihood"] for k in sorted(seed_data.keys()) if "error" not in seed_data[k]]
-                    axes[plot_idx].plot(seeds, lls, 'o-', linewidth=2, markersize=8)
+                    times = [seed_data[k]["performance"]["execution_time"] for k in sorted(seed_data.keys()) if "error" not in seed_data[k]]
+                    axes[plot_idx].plot(seeds, times, 'o-', linewidth=2, markersize=8)
                     axes[plot_idx].set_xlabel("Random Seed")
-                    axes[plot_idx].set_ylabel("Log Likelihood")
+                    axes[plot_idx].set_ylabel("Execution Time (s)")
                     axes[plot_idx].set_title("Seed Robustness")
                     axes[plot_idx].grid(True, alpha=0.3)
                     plot_idx += 1
@@ -4037,10 +3943,10 @@ def run_robustness_testing(config):
                 if has_perturbation:
                     perturb_data = results["data_perturbation"]
                     noise_levels = [perturb_data[k]["noise_level"] for k in sorted(perturb_data.keys()) if "error" not in perturb_data[k]]
-                    lls = [perturb_data[k]["performance"]["log_likelihood"] for k in sorted(perturb_data.keys()) if "error" not in perturb_data[k]]
-                    axes[plot_idx].plot(noise_levels, lls, 's-', linewidth=2, markersize=8)
+                    times = [perturb_data[k]["performance"]["execution_time"] for k in sorted(perturb_data.keys()) if "error" not in perturb_data[k]]
+                    axes[plot_idx].plot(noise_levels, times, 's-', linewidth=2, markersize=8)
                     axes[plot_idx].set_xlabel("Noise Level")
-                    axes[plot_idx].set_ylabel("Log Likelihood")
+                    axes[plot_idx].set_ylabel("Execution Time (s)")
                     axes[plot_idx].set_title("Data Perturbation Robustness")
                     axes[plot_idx].grid(True, alpha=0.3)
                     plot_idx += 1
@@ -4049,10 +3955,10 @@ def run_robustness_testing(config):
                 if has_init:
                     init_data = results["initialization_robustness"]
                     init_ids = list(range(len([k for k in init_data.keys() if "error" not in init_data[k]])))
-                    lls = [init_data[k]["performance"]["log_likelihood"] for k in sorted(init_data.keys()) if "error" not in init_data[k]]
-                    axes[plot_idx].plot(init_ids, lls, '^-', linewidth=2, markersize=8)
+                    times = [init_data[k]["performance"]["execution_time"] for k in sorted(init_data.keys()) if "error" not in init_data[k]]
+                    axes[plot_idx].plot(init_ids, times, '^-', linewidth=2, markersize=8)
                     axes[plot_idx].set_xlabel("Initialization ID")
-                    axes[plot_idx].set_ylabel("Log Likelihood")
+                    axes[plot_idx].set_ylabel("Execution Time (s)")
                     axes[plot_idx].set_title("Initialization Robustness")
                     axes[plot_idx].grid(True, alpha=0.3)
                     plot_idx += 1
