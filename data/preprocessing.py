@@ -672,16 +672,25 @@ class AdvancedPreprocessor(BasePreprocessor):
         return X_selected
 
     def fit_transform_scaling(
-        self, X: np.ndarray, view_name: str, robust: bool = True
+        self, X: np.ndarray, view_name: str, robust: bool = False
     ) -> np.ndarray:
         """
         Apply standardization.
+
+        IMPORTANT: SGFA horseshoe priors assume standardized inputs (mean=0, std=1).
+        StandardScaler is used by default to ensure proper standardization.
+        RobustScaler (median/IQR-based) does NOT guarantee mean=0, std=1.
         """
         logging.info(
             f"Applying {'robust' if robust else 'standard'} scaling to {view_name}"
         )
 
         if robust:
+            logging.warning(
+                f"⚠️  RobustScaler does NOT guarantee mean=0, std=1. "
+                f"SGFA horseshoe priors expect standardized data. "
+                f"Consider using StandardScaler (robust=False) instead."
+            )
             try:
                 from sklearn.preprocessing import RobustScaler
 
