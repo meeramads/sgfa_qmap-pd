@@ -3207,6 +3207,7 @@ def run_clinical_validation(config):
         # Setup base hyperparameters
         base_hypers = {
             "Dm": [X.shape[1] for X in X_list],
+            "num_sources": len(X_list),  # Automatically infer from number of views
             "a_sigma": 1.0,
             "b_sigma": 1.0,
             "slab_df": 4.0,

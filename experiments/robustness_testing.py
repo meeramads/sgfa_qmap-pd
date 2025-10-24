@@ -3250,7 +3250,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                 # Use consensus W from the first chain (or average if available)
                 consensus_W = stability_results.get("consensus_W")
-                if consensus_W is None:
+                if consensus_W is None and len(chain_results) > 0:
                     # Fall back to first chain's W
                     consensus_W = chain_results[0].get("W")
 
@@ -3282,7 +3282,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                 # Use consensus W from stability results
                 consensus_W = stability_results.get("consensus_W")
-                consensus_Z = chain_results[0].get("Z")  # Use first chain's Z
+                consensus_Z = chain_results[0].get("Z") if len(chain_results) > 0 else None  # Use first chain's Z
 
                 if consensus_W is not None and consensus_Z is not None:
                     # Check if data has brain regions
@@ -3790,6 +3790,7 @@ def run_robustness_testing(config):
         # Setup base hyperparameters
         base_hypers = {
             "Dm": [X.shape[1] for X in X_list],
+            "num_sources": len(X_list),  # Automatically infer from number of views
             "a_sigma": 1.0,
             "b_sigma": 1.0,
             "slab_df": slab_df_value,

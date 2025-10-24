@@ -62,6 +62,7 @@ preprocessing:
   feature_selection_method: "none"       # Skip feature selection for speed
   variance_threshold: 0.0                # Don't filter low-variance features
   missing_threshold: 1.0                 # Don't drop any features (keep all data)
+  qc_outlier_threshold: null             # MAD filtering DISABLED (use --qc-outlier-threshold to enable)
 
 # Cross-Validation Configuration - minimal CV
 cross_validation:
@@ -229,6 +230,34 @@ reproducibility:
     correlation_threshold: 0.8            # Relaxed threshold
     parameter_relative_error: 0.1         # Relaxed error tolerance
     reconstruction_error_ratio: 0.05      # Relaxed reconstruction tolerance
+
+# Factor Stability Analysis - DEBUG VERSION (minimal chains/samples)
+factor_stability:
+  K: 3                                    # Match debug model K
+  num_chains: 2                           # Minimal chains for testing
+  num_samples: 50                         # Minimal samples (matches model)
+  num_warmup: 25                          # Minimal warmup (matches model)
+  chain_method: 'sequential'              # Sequential for easier debugging
+  cosine_threshold: 0.8
+  min_match_rate: 0.5
+  sparsity_threshold: 0.01
+  min_nonzero_pct: 0.05
+  target_accept_prob: 0.8
+  max_tree_depth: 10
+  dense_mass: false
+  run_pd_subtype_discovery: false         # Skip for fast debugging
+
+  # Comprehensive Factor Analysis Diagnostics
+  diagnostics:
+    run_all: true                         # Run all diagnostics even in debug mode
+    procrustes_alignment:
+      disparity_threshold: 0.3
+    scale_indeterminacy:
+      cv_threshold: 0.3
+    slab_saturation:
+      saturation_threshold: 0.8
+    factor_classification:
+      activity_threshold: 0.1
 
 # =============================================================================
 # ALTERNATIVE TEST CONFIGURATIONS

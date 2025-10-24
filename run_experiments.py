@@ -773,6 +773,7 @@ def main():
         hypers = {
             "Dm": [X.shape[1] for X in X_list],
             "K": K,
+            "num_sources": len(X_list),  # Automatically infer from number of views
             "a_sigma": 1.0,
             "b_sigma": 1.0,
             "slab_df": model_config.get("slab_df", 4),
@@ -780,6 +781,7 @@ def main():
             "percW": model_config.get("percW", 33),
         }
         logger.info(f"   Using global model hyperparameters: percW={hypers['percW']}, slab_df={hypers['slab_df']}, slab_scale={hypers['slab_scale']}")
+        logger.info(f"   Detected {hypers['num_sources']} data views/sources from X_list")
 
         # Prepare MCMC args (read from config.yaml)
         # Check both mcmc and factor_stability sections (mcmc takes precedence for command-line overrides)
