@@ -1164,6 +1164,338 @@ def diagnose_slab_saturation(
     return result
 
 
+def diagnose_prior_posterior_shift(
+    chain_results: List[Dict],
+    hypers: Dict = None,
+) -> Dict:
+    """
+    Diagnose prior-posterior shift to detect weak identification or prior misspecification.
+
+    ASPECT 18: PRIOR-POSTERIOR SHIFT DIAGNOSTICS
+
+    Mathematical Background
+    -----------------------
+    In a well-identified Bayesian model:
+        - Posterior should be MORE concentrated than prior
+        - Posterior mean should be NEAR prior mean (if prior is good)
+        - Shift factor = E[θ|data] / E[θ] should be ≈ 1
+
+    Three Scenarios:
+
+    1. **Healthy** (shift factor ≈ 0.5-2.0):
+        Prior: τ ~ HalfCauchy(0, 0.05)
+        Posterior: τ ~ concentrated around 0.04-0.06
+        → Data refines prior beliefs ✓
+
+    2. **Prior Misspecification** (shift factor 2-10):
+        Prior: assumes 33% sparsity (τ₀ = 0.05)
+        True: 5% or 80% sparsity
+        → Data overwhelms wrong prior ⚠️
+
+    3. **Weak Identification** (shift factor > 10):
+        Likelihood provides NO information about τ
+        Posterior ≈ prior + MCMC noise
+        Chains wander randomly in parameter space ❌
+
+    Example from Project Notes:
+        τ_Z increases 11-fold   → Weak identification!
+        τ_W decreases 130-fold  → Severe prior-data conflict!
+
+    Why This Matters
+    ----------------
+    1. **Convergence diagnostics misleading**: R̂(τ) may be high even if model is fine
+       - Chains can disagree on τ but agree on W
+       - Monitor W, not hyperparameters!
+
+    2. **Prior sensitivity**: Results change drastically with different priors
+       - If shift > 10x, results are prior-dominated
+       - Clinical conclusions may be artifacts of prior choice
+
+    3. **Identification failure**: Model is fundamentally under-constrained
+       - N too small relative to K (need N/K ≥ 10-20)
+       - Data cannot distinguish between (τ, λ) combinations
+
+    Parameters
+    ----------
+    chain_results : List[Dict]
+        MCMC chain results containing 'samples' dict with hyperparameters
+    hypers : Dict, optional
+        Hyperparameter configuration containing prior specifications
+        Expected keys: 'tau_scale_W', 'tau_scale_Z', 'slab_scale', etc.
+
+    Returns
+    -------
+    Dict containing:
+        - tau_W_shift: Dict with shift factors per view
+        - tau_Z_shift: float, shift factor for Z scale
+        - c_W_shift: float, shift factor for W slab
+        - c_Z_shift: float, shift factor for Z slab
+        - max_shift: float, maximum shift across all parameters
+        - identification_status: str, one of ['healthy', 'moderate', 'weak', 'severe']
+        - recommendations: List[str], actionable diagnostics
+
+    Notes
+    -----
+    Shift Factor Interpretation:
+    - 0.5-2.0: ✅ Healthy (data refines prior)
+    - 2.0-5.0: ⚠️ Moderate (check prior specification)
+    - 5.0-10.0: ⚠️ Strong (weak identification likely)
+    - > 10.0: ❌ Severe (prior misspecification OR weak identification)
+
+    For weak identification:
+    - Reduce K (fewer factors)
+    - Increase N (more samples)
+    - Use informative priors
+    - Check if multi-view GFA is appropriate (need cross-view correlation)
+
+    Examples
+    --------
+    >>> result = diagnose_prior_posterior_shift(chain_results, hypers)
+    >>> if result['identification_status'] == 'severe':
+    ...     print(f"Severe shift detected: {result['max_shift']:.1f}x")
+    ...     print("Model is weakly identified - consider reducing K")
+    """
+    logger.info("=" * 80)
+    logger.info("DIAGNOSE PRIOR-POSTERIOR SHIFT - START")
+    logger.info("=" * 80)
+
+    n_chains = len(chain_results)
+    has_samples = all('samples' in result for result in chain_results)
+
+    if not has_samples:
+        logger.error("❌ Cannot diagnose: No MCMC samples found in chain results")
+        return {
+            'identification_status': 'unknown',
+            'recommendations': ['No MCMC samples available for diagnosis'],
+        }
+
+    # Extract prior specifications from hypers
+    if hypers is None:
+        logger.warning("⚠️  No hypers provided, using defaults for prior specification")
+        hypers = {
+            'tau_scale_W': 0.05,  # Typical default
+            'tau_scale_Z': 0.05,
+            'slab_scale': 5.5,
+        }
+
+    # Collect posterior samples across all chains
+    tau_W_posteriors = []  # Per view
+    tau_Z_posteriors = []
+    cW_posteriors = []
+    cZ_posteriors = []
+
+    for result in chain_results:
+        samples = result['samples']
+
+        # tauW (may be tauW1, tauW2, etc. for multi-view)
+        for key in samples.keys():
+            if key.startswith('tauW'):
+                tau_W_posteriors.append(samples[key].flatten())
+
+        # tauZ
+        if 'tauZ' in samples:
+            tau_Z_posteriors.append(samples['tauZ'].flatten())
+
+        # cW
+        if 'cW' in samples:
+            cW_posteriors.append(samples['cW'].flatten())
+
+        # cZ
+        if 'cZ' in samples:
+            cZ_posteriors.append(samples['cZ'].flatten())
+
+    # Compute shift factors
+    shift_results = {}
+    max_shift = 0.0
+
+    # τ_W shift
+    if tau_W_posteriors:
+        tau_W_posterior_all = np.concatenate(tau_W_posteriors)
+        tau_W_post_mean = np.mean(tau_W_posterior_all)
+        tau_W_prior_mean = hypers.get('tau_scale_W', 0.05)  # HalfCauchy doesn't have finite mean, use scale
+
+        # For HalfCauchy, use median or mode as reference
+        # Approximate: median ≈ scale, mean is infinite
+        # Use scale as reference point
+        shift_tau_W = tau_W_post_mean / tau_W_prior_mean
+
+        shift_results['tau_W'] = {
+            'prior_scale': float(tau_W_prior_mean),
+            'posterior_mean': float(tau_W_post_mean),
+            'shift_factor': float(shift_tau_W),
+        }
+        max_shift = max(max_shift, abs(np.log10(shift_tau_W)))
+
+        logger.info(f"\nτ_W (Loading Scale):")
+        logger.info(f"  Prior scale: {tau_W_prior_mean:.4f}")
+        logger.info(f"  Posterior mean: {tau_W_post_mean:.4f}")
+        logger.info(f"  Shift factor: {shift_tau_W:.2f}x")
+
+    # τ_Z shift
+    if tau_Z_posteriors:
+        tau_Z_posterior_all = np.concatenate(tau_Z_posteriors)
+        tau_Z_post_mean = np.mean(tau_Z_posterior_all)
+        tau_Z_prior_mean = hypers.get('tau_scale_Z', 0.05)
+
+        shift_tau_Z = tau_Z_post_mean / tau_Z_prior_mean
+
+        shift_results['tau_Z'] = {
+            'prior_scale': float(tau_Z_prior_mean),
+            'posterior_mean': float(tau_Z_post_mean),
+            'shift_factor': float(shift_tau_Z),
+        }
+        max_shift = max(max_shift, abs(np.log10(shift_tau_Z)))
+
+        logger.info(f"\nτ_Z (Score Scale):")
+        logger.info(f"  Prior scale: {tau_Z_prior_mean:.4f}")
+        logger.info(f"  Posterior mean: {tau_Z_post_mean:.4f}")
+        logger.info(f"  Shift factor: {shift_tau_Z:.2f}x")
+
+    # c_W shift (slab scale)
+    if cW_posteriors:
+        cW_posterior_all = np.concatenate(cW_posteriors)
+        cW_post_mean = np.mean(cW_posterior_all)
+        cW_prior_mean = hypers.get('slab_scale', 5.5)
+
+        shift_cW = cW_post_mean / cW_prior_mean
+
+        shift_results['c_W'] = {
+            'prior_mean': float(cW_prior_mean),
+            'posterior_mean': float(cW_post_mean),
+            'shift_factor': float(shift_cW),
+        }
+        max_shift = max(max_shift, abs(np.log10(shift_cW)))
+
+        logger.info(f"\nc_W (Slab Scale - Loadings):")
+        logger.info(f"  Prior (slab_scale): {cW_prior_mean:.2f}")
+        logger.info(f"  Posterior mean: {cW_post_mean:.2f}")
+        logger.info(f"  Shift factor: {shift_cW:.2f}x")
+
+    # c_Z shift
+    if cZ_posteriors:
+        cZ_posterior_all = np.concatenate(cZ_posteriors)
+        cZ_post_mean = np.mean(cZ_posterior_all)
+        cZ_prior_mean = hypers.get('slab_scale', 5.5)
+
+        shift_cZ = cZ_post_mean / cZ_prior_mean
+
+        shift_results['c_Z'] = {
+            'prior_mean': float(cZ_prior_mean),
+            'posterior_mean': float(cZ_post_mean),
+            'shift_factor': float(shift_cZ),
+        }
+        max_shift = max(max_shift, abs(np.log10(shift_cZ)))
+
+        logger.info(f"\nc_Z (Slab Scale - Scores):")
+        logger.info(f"  Prior (slab_scale): {cZ_prior_mean:.2f}")
+        logger.info(f"  Posterior mean: {cZ_post_mean:.2f}")
+        logger.info(f"  Shift factor: {shift_cZ:.2f}x")
+
+    # Determine identification status
+    # Use log10 scale: log10(shift) measures orders of magnitude
+    if max_shift < np.log10(2.0):
+        identification_status = 'healthy'
+        status_emoji = '✅'
+    elif max_shift < np.log10(5.0):
+        identification_status = 'moderate'
+        status_emoji = '⚠️'
+    elif max_shift < np.log10(10.0):
+        identification_status = 'weak'
+        status_emoji = '⚠️'
+    else:
+        identification_status = 'severe'
+        status_emoji = '❌'
+
+    # Generate recommendations
+    recommendations = []
+
+    logger.info("\n" + "=" * 80)
+    logger.info(f"{status_emoji} IDENTIFICATION STATUS: {identification_status.upper()}")
+    logger.info("=" * 80)
+
+    if identification_status == 'healthy':
+        logger.info("✅ All shift factors within 0.5-2.0x range")
+        logger.info("   Posterior refines prior beliefs appropriately")
+        logger.info("   Model is well-identified")
+        recommendations.append("Model is well-identified - no action needed")
+
+    elif identification_status == 'moderate':
+        logger.warning("⚠️  MODERATE shift detected (2-5x)")
+        logger.warning("   Possible causes:")
+        logger.warning("   1. Prior specification could be improved")
+        logger.warning("   2. Data provides weak information")
+        logger.warning("")
+        logger.warning("Recommendations:")
+        logger.warning("   • Review prior choices (check literature)")
+        logger.warning("   • Run sensitivity analysis with different priors")
+        logger.warning("   • Check if results are robust to prior changes")
+        recommendations.append("Moderate shift - review prior specification")
+        recommendations.append("Run sensitivity analysis with different priors")
+
+    elif identification_status == 'weak':
+        logger.warning("⚠️  WEAK IDENTIFICATION (5-10x shift)")
+        logger.warning("   Model struggles to learn from data")
+        logger.warning("")
+        logger.warning("Likely causes:")
+        logger.warning("   1. Too many factors (K too large for N samples)")
+        logger.warning("   2. Weak cross-view correlation (multi-view GFA inappropriate)")
+        logger.warning("   3. Prior-data mismatch")
+        logger.warning("")
+        logger.warning("Recommendations:")
+        logger.warning("   • REDUCE K (try K/2)")
+        logger.warning("   • Check cross-view correlation (need r > 0.3)")
+        logger.warning("   • Consider separate per-view models")
+        logger.warning("   • Increase sample size if possible")
+        recommendations.append("Weak identification - REDUCE K (fewer factors)")
+        recommendations.append("Check cross-view correlation (multi-view may be inappropriate)")
+        recommendations.append("Consider stronger informative priors")
+
+    else:  # severe
+        logger.error("=" * 80)
+        logger.error("❌ SEVERE IDENTIFICATION FAILURE (>10x shift)")
+        logger.error("=" * 80)
+        logger.error("  Posterior is dominated by prior, not data!")
+        logger.error("")
+        logger.error("This indicates:")
+        logger.error("  1. Model is FUNDAMENTALLY under-identified")
+        logger.error("  2. N/K ratio too small (need N/K ≥ 10-20)")
+        logger.error("  3. Multi-view structure may not exist in data")
+        logger.error("")
+        logger.error("CRITICAL: Clinical conclusions may be artifacts of prior choice!")
+        logger.error("")
+        logger.error("ACTIONS REQUIRED:")
+        logger.error("  1. STOP using current K - reduce to K ≤ N/20")
+        logger.error("  2. Check cross-view correlation r (if r < 0.2, use separate models)")
+        logger.error("  3. Run sensitivity analysis with multiple priors")
+        logger.error("  4. Consider supervised methods if clinical prediction is goal")
+        logger.error("=" * 80)
+
+        recommendations.append("CRITICAL: Severe identification failure")
+        recommendations.append("STOP using current K - reduce to K ≤ N/20")
+        recommendations.append("Check cross-view correlation (r must be > 0.2)")
+        recommendations.append("Results are likely dominated by prior, not data")
+
+    # Build result
+    result = {
+        'shift_results': shift_results,
+        'max_shift_log10': float(max_shift),
+        'max_shift_factor': float(10**max_shift),
+        'identification_status': identification_status,
+        'n_chains': n_chains,
+        'recommendations': recommendations,
+    }
+
+    logger.info("\n💡 Recommendations:")
+    for rec in recommendations:
+        logger.info(f"  - {rec}")
+
+    logger.info("\n" + "=" * 80)
+    logger.info("DIAGNOSE PRIOR-POSTERIOR SHIFT - COMPLETED")
+    logger.info("=" * 80)
+
+    return result
+
+
 def _compute_consensus_loadings(
     W_chain_avg: List[np.ndarray],
     per_factor_matches: List[Dict],
