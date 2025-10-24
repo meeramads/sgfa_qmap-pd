@@ -159,12 +159,19 @@ def assess_factor_stability_cosine(
 
     # Step 2: Match factors across chains using cosine similarity
     logger.info(f"Step 2: Matching {K} factors across {n_chains} chains")
+    logger.info(f"  Using sign-invariant cosine similarity (handles factor sign flips)")
+    logger.info(f"  Zero-vector detection enabled (threshold: 1e-10)")
     stable_factors = []
     per_factor_matches = []
 
     # Store similarity matrix for all factor pairs across chains
     # Shape: (n_chains, n_chains, K) - similarity of factor k in chain i to best match in chain j
     similarity_matrix = np.zeros((n_chains, n_chains, K))
+
+    # Track edge cases
+    n_zero_ref = 0
+    n_zero_factor = 0
+    n_sign_flips = 0
 
     for k in range(K):
         if k % 5 == 0:  # Log every 5th factor to avoid log spam
@@ -180,8 +187,35 @@ def assess_factor_stability_cosine(
             similarities = []
             for k2 in range(K):
                 factor = W_chain_avg[chain_idx][:, k2]
-                # Cosine similarity = 1 - cosine distance
-                sim = 1 - cosine(ref_factor, factor)
+
+                # Compute norms for numerical stability check
+                ref_norm = np.linalg.norm(ref_factor)
+                factor_norm = np.linalg.norm(factor)
+
+                # Handle zero/near-zero vectors (shrunk factors from ARD)
+                if ref_norm < 1e-10 and factor_norm < 1e-10:
+                    # Both factors shrunk to zero - consider them matched
+                    sim = 1.0
+                    n_zero_ref += 1
+                    n_zero_factor += 1
+                elif ref_norm < 1e-10:
+                    # Reference shrunk, factor active - not a match
+                    sim = 0.0
+                    n_zero_ref += 1
+                elif factor_norm < 1e-10:
+                    # Factor shrunk, reference active - not a match
+                    sim = 0.0
+                    n_zero_factor += 1
+                else:
+                    # Normal case: compute cosine similarity
+                    # Use absolute value for sign invariance (factors can flip signs)
+                    sim_raw = 1 - cosine(ref_factor, factor)
+                    sim = abs(sim_raw)  # Sign-invariant: [1,2,3] matches [-1,-2,-3]
+
+                    # Track sign flips (when raw similarity is negative)
+                    if sim_raw < -0.5:  # Strong negative correlation = sign flip
+                        n_sign_flips += 1
+
                 similarities.append(sim)
 
             best_sim = max(similarities)
@@ -223,6 +257,16 @@ def assess_factor_stability_cosine(
                 f"Factor {k}: unstable (matched in {matches}/{n_chains} chains, "
                 f"rate={match_rate:.2%})"
             )
+
+    # Log edge case summary
+    logger.info(f"\n📊 Cosine Similarity Edge Case Summary:")
+    logger.info(f"  Zero reference vectors encountered: {n_zero_ref}")
+    logger.info(f"  Zero comparison vectors encountered: {n_zero_factor}")
+    logger.info(f"  Sign flips detected (|sim_raw| < -0.5): {n_sign_flips}")
+    total_comparisons = K * (n_chains - 1) * K  # For each ref factor, compare to all factors in other chains
+    logger.info(f"  Total factor comparisons: {total_comparisons}")
+    if n_sign_flips > 0:
+        logger.info(f"  ⚠️  Sign flips are normal - factors can flip signs and still be valid")
 
     # Step 3: Compute consensus factor loadings and scores
     # IMPORTANT: Always compute consensus for ALL factors, not just stable ones
@@ -288,6 +332,11 @@ def _compute_consensus_loadings(
 ) -> np.ndarray:
     """Compute consensus factor loadings by averaging matched factors across chains.
 
+    CRITICAL: Aligns factor signs before averaging to prevent attenuation.
+    Factors can flip signs (W → -W) and still represent the same model.
+    Without sign alignment, averaging [+0.5, -0.5, +0.5, +0.5] gives +0.25 (WRONG!)
+    With sign alignment, averaging [+0.5, +0.5, +0.5, +0.5] gives +0.5 (CORRECT!)
+
     Parameters
     ----------
     W_chain_avg : List[np.ndarray]
@@ -310,14 +359,29 @@ def _compute_consensus_loadings(
         factor_match_info = per_factor_matches[factor_idx]
         matched_indices = factor_match_info["matched_in_chains"]
 
-        # Average loadings from all chains where this factor matched
+        # Collect loadings from all chains where this factor matched
         matched_loadings = []
         for chain_idx, matched_k in enumerate(matched_indices):
             if matched_k is not None:
                 matched_loadings.append(W_chain_avg[chain_idx][:, matched_k])
 
         if matched_loadings:
-            consensus_W[:, i] = np.mean(matched_loadings, axis=0)
+            # CRITICAL FIX: Align signs before averaging
+            # Use first chain as reference, flip others if needed
+            reference = matched_loadings[0]
+            aligned_loadings = [reference]  # Reference doesn't need alignment
+
+            for loading in matched_loadings[1:]:
+                # Check if this loading has opposite sign from reference
+                correlation = np.dot(reference, loading)
+                if correlation < 0:
+                    # Flip sign to match reference
+                    aligned_loadings.append(-loading)
+                else:
+                    aligned_loadings.append(loading)
+
+            # Now average the sign-aligned loadings
+            consensus_W[:, i] = np.mean(aligned_loadings, axis=0)
 
     return consensus_W
 
@@ -328,6 +392,12 @@ def _compute_consensus_scores(
     stable_factors: List[int],
 ) -> np.ndarray:
     """Compute consensus factor scores by averaging across chains.
+
+    CRITICAL: Aligns factor signs before averaging to prevent attenuation.
+    Factors can flip signs (Z → -Z) and still represent the same model.
+    Without sign alignment, patient scores can be severely attenuated or wrong.
+    Example: averaging [+2.5, -2.5, +2.5, +2.5] gives +1.25 (WRONG!)
+             should be [+2.5, +2.5, +2.5, +2.5] → +2.5 (CORRECT!)
 
     Parameters
     ----------
@@ -351,14 +421,29 @@ def _compute_consensus_scores(
         factor_match_info = per_factor_matches[factor_idx]
         matched_indices = factor_match_info["matched_in_chains"]
 
-        # Average scores from all chains where this factor matched
+        # Collect scores from all chains where this factor matched
         matched_scores = []
         for chain_idx, matched_k in enumerate(matched_indices):
             if matched_k is not None:
                 matched_scores.append(Z_chain_avg[chain_idx][:, matched_k])
 
         if matched_scores:
-            consensus_Z[:, i] = np.mean(matched_scores, axis=0)
+            # CRITICAL FIX: Align signs before averaging
+            # Use first chain as reference, flip others if needed
+            reference = matched_scores[0]
+            aligned_scores = [reference]  # Reference doesn't need alignment
+
+            for scores in matched_scores[1:]:
+                # Check if these scores have opposite sign from reference
+                correlation = np.dot(reference, scores)
+                if correlation < 0:
+                    # Flip sign to match reference
+                    aligned_scores.append(-scores)
+                else:
+                    aligned_scores.append(scores)
+
+            # Now average the sign-aligned scores
+            consensus_Z[:, i] = np.mean(aligned_scores, axis=0)
 
     return consensus_Z
 
