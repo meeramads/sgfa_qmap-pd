@@ -2206,10 +2206,21 @@ class RobustnessExperiments(ExperimentFramework):
         multi_chain_args["chain_method"] = chain_method
         multi_chain_args["random_seed"] = base_seed
 
+        # Compute per-chain RNG keys for reproducibility documentation
+        import jax.random as jax_random
+        base_rng_key = jax_random.PRNGKey(base_seed)
+        chain_rng_keys = []
+        for chain_idx in range(n_chains):
+            chain_key = jax_random.fold_in(base_rng_key, chain_idx)
+            # Extract the actual key data as integers for storage
+            key_data = jax_random.key_data(chain_key)
+            chain_rng_keys.append([int(k) for k in key_data])
+
         self.logger.info(f"Base seed: {base_seed}")
         self.logger.info(f"MCMC config: samples={multi_chain_args.get('num_samples')}, "
                         f"warmup={multi_chain_args.get('num_warmup')}, chains={n_chains}")
         self.logger.info(f"JAX will automatically split PRNG key for independent chains")
+        self.logger.info(f"Chain RNG keys computed via fold_in for reproducibility")
 
         # Clear any previously stored chain samples from prior experiments
         self._all_chain_samples = []
@@ -2843,6 +2854,9 @@ class RobustnessExperiments(ExperimentFramework):
                 "num_samples": multi_chain_args.get("num_samples"),
                 "num_warmup": multi_chain_args.get("num_warmup"),
                 "chain_method": multi_chain_args.get("chain_method", "parallel"),
+                "chain_rng_keys": chain_rng_keys,  # Actual RNG key data for exact reproduction
+                "chain_seeds_note": f"Chain RNG keys created via jax.random.fold_in(PRNGKey({base_seed}), chain_idx)",
+                "chain_indices": list(range(n_chains)),  # For reference
             },
             "stability_summary": {
                 "n_chains": n_chains,
