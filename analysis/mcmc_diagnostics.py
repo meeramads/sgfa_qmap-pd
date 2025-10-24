@@ -733,7 +733,7 @@ def plot_parameter_distributions(
         axes = axes.reshape(-1, 1)
 
     fig.suptitle(
-        "Posterior Distributions by Chain",
+        "Aligned Posterior Distributions by Chain",
         fontsize=16,
         fontweight='bold'
     )
@@ -799,8 +799,9 @@ def plot_parameter_distributions(
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"  Saving individual W and Z distribution plots to: {output_dir}")
 
-        # Save W distributions for each factor
-        for k in range(K):
+        # Save W distributions for each factor (respecting max_factors limit)
+        n_factors_to_save = min(K, max_factors) if max_factors > 0 else K
+        for k in range(n_factors_to_save):
             fig_w, ax_w = plt.subplots(figsize=(6, 4))
 
             for chain_idx in range(n_chains):
@@ -816,15 +817,15 @@ def plot_parameter_distributions(
 
             ax_w.set_xlabel('Loading Value', fontsize=12)
             ax_w.set_ylabel('Density', fontsize=12)
-            ax_w.set_title(f'W Posterior Distribution: Factor {k}', fontsize=14, fontweight='bold')
+            ax_w.set_title(f'Aligned W Posterior Distribution: Factor {k}', fontsize=14, fontweight='bold')
             ax_w.legend(fontsize=10)
             ax_w.grid(True, alpha=0.3)
             fig_w.tight_layout()
 
             _save_individual_plot(fig_w, f"posterior_W_factor{k}", output_dir)
 
-        # Save Z distributions for each factor
-        for k in range(K):
+        # Save Z distributions for each factor (respecting max_factors limit)
+        for k in range(n_factors_to_save):
             fig_z, ax_z = plt.subplots(figsize=(6, 4))
 
             for chain_idx in range(n_chains):
@@ -840,15 +841,15 @@ def plot_parameter_distributions(
 
             ax_z.set_xlabel('Score Value', fontsize=12)
             ax_z.set_ylabel('Density', fontsize=12)
-            ax_z.set_title(f'Z Posterior Distribution: Factor {k}', fontsize=14, fontweight='bold')
+            ax_z.set_title(f'Aligned Z Posterior Distribution: Factor {k}', fontsize=14, fontweight='bold')
             ax_z.legend(fontsize=10)
             ax_z.grid(True, alpha=0.3)
             fig_z.tight_layout()
 
             _save_individual_plot(fig_z, f"posterior_Z_factor{k}", output_dir)
 
-        logger.info(f"  ✅ Saved {K} individual W distribution plots")
-        logger.info(f"  ✅ Saved {K} individual Z distribution plots")
+        logger.info(f"  ✅ Saved {n_factors_to_save} individual W distribution plots")
+        logger.info(f"  ✅ Saved {n_factors_to_save} individual Z distribution plots")
 
     return fig
 

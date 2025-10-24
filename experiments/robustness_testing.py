@@ -2377,7 +2377,6 @@ class RobustnessExperiments(ExperimentFramework):
                 "seed": base_seed + chain_id * 1000,  # Report equivalent seed
                 "W": W_list,
                 "Z": Z_mean,
-                "log_likelihood": result.get("log_likelihood", np.nan),
                 "convergence": result.get("convergence", False),
                 "execution_time": result.get("execution_time", 0) / n_chains,  # Approximate per-chain time
                 "samples": {
@@ -2401,7 +2400,6 @@ class RobustnessExperiments(ExperimentFramework):
                 "total_execution_time": metrics.execution_time,
                 "peak_memory_gb": metrics.peak_memory_gb,
                 "convergence": result.get("convergence", False),
-                "log_likelihood": result.get("log_likelihood", np.nan),
                 "num_chains": n_chains,
                 "chain_method": chain_method,
             }
@@ -2411,7 +2409,6 @@ class RobustnessExperiments(ExperimentFramework):
                     "execution_time": metrics.execution_time / n_chains,
                     "peak_memory_gb": metrics.peak_memory_gb,
                     "convergence": result.get("convergence", False),
-                    "log_likelihood": result.get("log_likelihood", np.nan),
                 }
 
         self.logger.info(f"✅ All chains completed in {metrics.execution_time:.1f}s ({metrics.execution_time/60:.1f} min)")
@@ -3063,26 +3060,29 @@ class RobustnessExperiments(ExperimentFramework):
             axes[0, 1].legend()
             axes[0, 1].grid(True, alpha=0.3)
 
-            # Plot 3: Log likelihood by chain
-            lls = [
-                pm["log_likelihood"]
+            # Plot 3: Execution time by chain
+            times = [
+                pm["execution_time"]
                 for pm in performance_metrics.values()
-                if not np.isnan(pm["log_likelihood"])
+                if "execution_time" in pm and pm["execution_time"] > 0
             ]
-            chain_labels = [f"Chain {i}" for i in range(len(lls))]
+            chain_labels = [f"Chain {i}" for i in range(len(times))]
 
-            axes[1, 0].plot(range(len(lls)), lls, 'o-', markersize=8, linewidth=2)
-            axes[1, 0].set_xlabel("Chain ID")
-            axes[1, 0].set_ylabel("Log Likelihood")
-            axes[1, 0].set_title("Log Likelihood Across Chains")
-            axes[1, 0].grid(True, alpha=0.3)
+            if times:
+                axes[1, 0].bar(range(len(times)), times, alpha=0.7, color='steelblue')
+                axes[1, 0].set_xlabel("Chain ID")
+                axes[1, 0].set_ylabel("Execution Time (seconds)")
+                axes[1, 0].set_title("Computation Time Across Chains")
+                axes[1, 0].grid(True, alpha=0.3, axis='y')
 
-            # Add mean line
-            if lls:
+                # Add mean line
                 axes[1, 0].axhline(
-                    np.mean(lls), color='red', linestyle='--', label='Mean', alpha=0.7
+                    np.mean(times), color='red', linestyle='--', label=f'Mean: {np.mean(times):.1f}s', alpha=0.7
                 )
                 axes[1, 0].legend()
+            else:
+                axes[1, 0].text(0.5, 0.5, 'No timing data available',
+                              ha='center', va='center', transform=axes[1, 0].transAxes)
 
             # Plot 4: Stability summary
             summary_data = [
@@ -3365,7 +3365,7 @@ class RobustnessExperiments(ExperimentFramework):
                         W_samples=W_samples_for_plots,
                         Z_samples=Z_samples_for_plots,
                         save_path=None,
-                        max_factors=min(4, W_samples_for_plots.shape[3]),
+                        max_factors=min(10, W_samples_for_plots.shape[3]),
                         thin=max(1, W_samples_for_plots.shape[1] // 1000),  # Thin for readability
                         save_individual=True,
                         output_dir=str(trace_plots_dir),
@@ -3383,7 +3383,7 @@ class RobustnessExperiments(ExperimentFramework):
                         W_samples=W_samples_for_plots,
                         Z_samples=Z_samples_for_plots,
                         save_path=None,
-                        max_factors=min(4, W_samples_for_plots.shape[3]),
+                        max_factors=min(10, W_samples_for_plots.shape[3]),
                         save_individual=True,
                         output_dir=str(wz_plots_dir),
                         view_names=view_names,
