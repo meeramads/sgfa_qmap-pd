@@ -65,7 +65,8 @@ class ExternalValidator:
             t_stat, t_p = stats.ttest_ind(Z_train[:, k], Z_test[:, k])
 
             # Effect size (Cohen's d)
-            pooled_std = np.sqrt((np.var(Z_train[:, k]) + np.var(Z_test[:, k])) / 2)
+            # Use sample variance (ddof=1) for proper effect size calculation
+            pooled_std = np.sqrt((np.var(Z_train[:, k], ddof=1) + np.var(Z_test[:, k], ddof=1)) / 2)
             cohens_d = (np.mean(Z_test[:, k]) - np.mean(Z_train[:, k])) / pooled_std
 
             distribution_comparisons.append(

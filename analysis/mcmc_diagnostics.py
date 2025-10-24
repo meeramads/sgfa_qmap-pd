@@ -2021,7 +2021,10 @@ def analyze_factor_variance_profile(
     -------
     dict
         Dictionary containing:
-        - 'factor_variances': np.ndarray, variance of each factor (length K)
+        - 'factor_variances': np.ndarray, posterior mean variance of each factor (length K)
+        - 'factor_variance_std': np.ndarray, posterior std of variance estimates (length K)
+        - 'factor_variance_lower': np.ndarray, 95% CI lower bound (length K)
+        - 'factor_variance_upper': np.ndarray, 95% CI upper bound (length K)
         - 'sorted_variances': np.ndarray, variances in descending order
         - 'sorted_indices': np.ndarray, factor indices in variance order
         - 'n_active_factors': int, count of factors above threshold
@@ -2058,6 +2061,10 @@ def analyze_factor_variance_profile(
     # For each chain and sample, compute variance across subjects, then average
     # This preserves the scale of variance while accounting for MCMC uncertainty
     factor_variances = np.zeros(K)
+    factor_variance_std = np.zeros(K)  # Uncertainty in variance estimates
+    factor_variance_lower = np.zeros(K)  # 95% credible interval lower bound
+    factor_variance_upper = np.zeros(K)  # 95% credible interval upper bound
+
     for k in range(K):
         # Extract this factor across all chains, samples, subjects
         # Shape: (n_chains, n_samples, n_subjects)
@@ -2065,10 +2072,18 @@ def analyze_factor_variance_profile(
 
         # Compute variance across subjects for each (chain, sample) combination
         # Shape: (n_chains, n_samples)
-        variances_per_sample = factor_k.var(axis=2)
+        # Use ddof=1 for sample variance (consistent with Gelman-Rubin calculation)
+        variances_per_sample = factor_k.var(axis=2, ddof=1)
 
-        # Average across chains and samples
+        # Average across chains and samples (posterior mean)
         factor_variances[k] = variances_per_sample.mean()
+
+        # Compute uncertainty (posterior standard deviation)
+        factor_variance_std[k] = variances_per_sample.std()
+
+        # Compute 95% credible interval (2.5th and 97.5th percentiles)
+        factor_variance_lower[k] = np.percentile(variances_per_sample, 2.5)
+        factor_variance_upper[k] = np.percentile(variances_per_sample, 97.5)
 
     # Sort variances in descending order
     sorted_indices = np.argsort(factor_variances)[::-1]
@@ -2089,12 +2104,16 @@ def analyze_factor_variance_profile(
     # Effective dimensionality (factors needed to explain 90% variance)
     effective_dim = np.searchsorted(cumulative_variance, 0.90) + 1
 
-    # Log summary
+    # Log summary with uncertainty quantification
     logger.info(f"   Total factors (K): {K}")
     logger.info(f"   Active factors (var > {variance_threshold}): {n_active_factors}")
     logger.info(f"   Effective dimensionality (90% variance): {effective_dim}")
     logger.info(f"   Max factor variance: {max_variance:.4f}")
-    logger.info(f"   Top 5 factor variances: {sorted_variances[:5]}")
+    logger.info(f"   Top 5 factor variances (mean ± std):")
+    for i in range(min(5, K)):
+        idx = sorted_indices[i]
+        logger.info(f"      Factor #{idx+1}: {sorted_variances[i]:.4f} ± {factor_variance_std[idx]:.4f} "
+                   f"[95% CI: {factor_variance_lower[idx]:.4f}, {factor_variance_upper[idx]:.4f}]")
 
     # Check for healthy vs poor shrinkage
     if K >= 10:
@@ -2115,15 +2134,26 @@ def analyze_factor_variance_profile(
         fig = plt.figure(figsize=(16, 10))
         gs = GridSpec(3, 3, figure=fig, hspace=0.3, wspace=0.3)
 
-        # 1. Variance profile (bar plot, sorted)
+        # 1. Variance profile (bar plot, sorted) with error bars
         ax1 = fig.add_subplot(gs[0, :2])
         colors = ['#2ecc71' if v >= variance_threshold else '#e74c3c' for v in sorted_variances]
-        ax1.bar(range(K), sorted_variances, color=colors, alpha=0.7, edgecolor='black', linewidth=0.5)
+
+        # Get sorted uncertainty bounds for error bars
+        sorted_std = factor_variance_std[sorted_indices]
+        sorted_lower = factor_variance_lower[sorted_indices]
+        sorted_upper = factor_variance_upper[sorted_indices]
+
+        # Compute error bar sizes (distance from mean to CI bounds)
+        yerr_lower = sorted_variances - sorted_lower
+        yerr_upper = sorted_upper - sorted_variances
+
+        ax1.bar(range(K), sorted_variances, color=colors, alpha=0.7, edgecolor='black', linewidth=0.5,
+               yerr=[yerr_lower, yerr_upper], capsize=2, error_kw={'elinewidth': 1, 'alpha': 0.5})
         ax1.axhline(variance_threshold, color='#e74c3c', linestyle='--', linewidth=2,
                    label=f'Threshold ({variance_threshold})')
         ax1.set_xlabel('Factor Rank (sorted by variance)', fontsize=11)
         ax1.set_ylabel('Variance Across Subjects', fontsize=11)
-        ax1.set_title(f'Factor Variance Profile (K={K}): {n_active_factors} Active Factors',
+        ax1.set_title(f'Factor Variance Profile (K={K}): {n_active_factors} Active Factors\n(Error bars: 95% credible intervals)',
                      fontsize=12, fontweight='bold')
         ax1.legend(loc='upper right')
         ax1.grid(True, alpha=0.3, axis='y')
@@ -2266,6 +2296,9 @@ INTERPRETATION:
 
     return {
         'factor_variances': factor_variances,
+        'factor_variance_std': factor_variance_std,
+        'factor_variance_lower': factor_variance_lower,
+        'factor_variance_upper': factor_variance_upper,
         'sorted_variances': sorted_variances,
         'sorted_indices': sorted_indices,
         'n_active_factors': n_active_factors,
