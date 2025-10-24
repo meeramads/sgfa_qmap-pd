@@ -92,18 +92,23 @@ def compute_ess(samples: np.ndarray, axis: int = 0) -> float:
         autocorr = autocorr / autocorr[0]
 
         # Find cutoff where autocorrelation becomes negligible
-        # Use first negative autocorrelation as cutoff
-        cutoff = np.where(autocorr < 0)[0]
-        if len(cutoff) > 0:
-            cutoff = cutoff[0]
-        else:
-            cutoff = len(autocorr)
+        # Use initial positive sequence (Geyer 1992, Stan's approach)
+        # Stop at first negative lag to avoid overestimating ESS from oscillations
+        cutoff = 1  # Start at lag 1 (lag 0 is always 1.0)
+        while cutoff < len(autocorr) and autocorr[cutoff] > 0:
+            cutoff += 1
 
-        # Compute ESS
+        # If no positive lags, set cutoff to 1 (only lag 0)
+        if cutoff == 1:
+            cutoff = 1
+
+        # Compute ESS using initial positive sequence
+        # ESS = n / (1 + 2 * sum of positive autocorrelations)
         if cutoff > 1:
             rho_sum = 1 + 2 * np.sum(autocorr[1:cutoff])
             ess = n_samples / rho_sum if rho_sum > 0 else n_samples
         else:
+            # No autocorrelation - perfect mixing
             ess = n_samples
 
         ess_values.append(ess)
@@ -386,7 +391,7 @@ def plot_trace_diagnostics(
     ax_w.axhline(1.1, color='orange', linestyle='--', label='Threshold (1.1)', linewidth=2, zorder=10)
     ax_w.axhline(1.01, color='green', linestyle='--', label='Excellent (1.01)', linewidth=2, zorder=10)
     ax_w.set_ylabel('R-hat', fontsize=11)
-    ax_w.set_title(f'R-hat Distribution: W\n({rhat_W_flat.size:,} parameters)', fontsize=11, fontweight='bold')
+    ax_w.set_title(f'Aligned R-hat Distribution: W\n({rhat_W_flat.size:,} parameters)', fontsize=11, fontweight='bold')
     ax_w.set_xticks([])
     ax_w.grid(True, alpha=0.3, axis='y')
     ax_w.set_yscale('log')
@@ -413,7 +418,7 @@ def plot_trace_diagnostics(
     ax_z.axhline(1.1, color='orange', linestyle='--', label='Threshold (1.1)', linewidth=2, zorder=10)
     ax_z.axhline(1.01, color='green', linestyle='--', label='Excellent (1.01)', linewidth=2, zorder=10)
     ax_z.set_ylabel('R-hat', fontsize=11)
-    ax_z.set_title(f'R-hat Distribution: Z\n({rhat_Z_flat.size:,} parameters)', fontsize=11, fontweight='bold')
+    ax_z.set_title(f'Aligned R-hat Distribution: Z\n({rhat_Z_flat.size:,} parameters)', fontsize=11, fontweight='bold')
     ax_z.set_xticks([])
     ax_z.grid(True, alpha=0.3, axis='y')
     ax_z.set_yscale('log')
@@ -445,7 +450,7 @@ def plot_trace_diagnostics(
     ax_summary.axhline(1.01, color='green', linestyle='--', linewidth=2, label='Excellent')
     ax_summary.set_xlabel('Factor Index', fontsize=11)
     ax_summary.set_ylabel('Max R-hat', fontsize=11)
-    ax_summary.set_title('Max R-hat per Factor', fontsize=11, fontweight='bold')
+    ax_summary.set_title('Max Aligned R-hat per Factor', fontsize=11, fontweight='bold')
     ax_summary.set_xticks(x_pos)
     ax_summary.legend(fontsize=8, loc='upper right')
     ax_summary.grid(True, alpha=0.3, axis='y')
@@ -466,27 +471,61 @@ def plot_trace_diagnostics(
     # Autocorrelation for W (first factor, first chain)
     ax_acf_w = fig.add_subplot(gs[3, 0])
 
-    w_flat = np.mean(W_samples[0, :, :, 0], axis=1)  # Average across features
-    acf_w = compute_autocorrelation(w_flat, max_lag=max_lag)
+    # Compute autocorrelation per feature, then show distribution
+    # Sample up to 100 features to avoid memory issues
+    n_features = W_samples.shape[2]
+    n_sample_features = min(100, n_features)
+    feature_indices = np.linspace(0, n_features-1, n_sample_features, dtype=int)
 
-    ax_acf_w.bar(range(len(acf_w)), acf_w, alpha=0.7)
+    acf_per_feature = []
+    for feat_idx in feature_indices:
+        w_feature = W_samples[0, :, feat_idx, 0]  # Chain 0, Factor 0, this feature
+        acf = compute_autocorrelation(w_feature, max_lag=max_lag)
+        acf_per_feature.append(acf)
+
+    acf_per_feature = np.array(acf_per_feature)
+    acf_median = np.median(acf_per_feature, axis=0)
+    acf_q25 = np.percentile(acf_per_feature, 25, axis=0)
+    acf_q75 = np.percentile(acf_per_feature, 75, axis=0)
+
+    # Plot median as bars with IQR shading
+    ax_acf_w.bar(range(len(acf_median)), acf_median, alpha=0.7, label='Median')
+    ax_acf_w.fill_between(range(len(acf_median)), acf_q25, acf_q75, alpha=0.3, label='IQR (25-75%)')
     ax_acf_w.axhline(0, color='black', linewidth=0.8)
     ax_acf_w.set_xlabel('Lag')
     ax_acf_w.set_ylabel('Autocorrelation')
-    ax_acf_w.set_title('Autocorrelation: W (Chain 0, Factor 0)')
+    ax_acf_w.set_title(f'Autocorr: W (Chain 0, Factor 0, n={n_sample_features} features)')
+    ax_acf_w.legend(fontsize=8)
     ax_acf_w.grid(True, alpha=0.3)
 
     # Autocorrelation for Z (first factor, first chain)
     ax_acf_z = fig.add_subplot(gs[3, 1])
 
-    z_flat = np.mean(Z_samples[0, :, :, 0], axis=1)  # Average across subjects
-    acf_z = compute_autocorrelation(z_flat, max_lag=max_lag)
+    # Compute autocorrelation per subject, then show distribution
+    # Sample up to 50 subjects to avoid memory issues
+    n_subjects = Z_samples.shape[2]
+    n_sample_subjects = min(50, n_subjects)
+    subject_indices = np.linspace(0, n_subjects-1, n_sample_subjects, dtype=int)
 
-    ax_acf_z.bar(range(len(acf_z)), acf_z, alpha=0.7)
+    acf_per_subject = []
+    for subj_idx in subject_indices:
+        z_subject = Z_samples[0, :, subj_idx, 0]  # Chain 0, Factor 0, this subject
+        acf = compute_autocorrelation(z_subject, max_lag=max_lag)
+        acf_per_subject.append(acf)
+
+    acf_per_subject = np.array(acf_per_subject)
+    acf_median = np.median(acf_per_subject, axis=0)
+    acf_q25 = np.percentile(acf_per_subject, 25, axis=0)
+    acf_q75 = np.percentile(acf_per_subject, 75, axis=0)
+
+    # Plot median as bars with IQR shading
+    ax_acf_z.bar(range(len(acf_median)), acf_median, alpha=0.7, label='Median')
+    ax_acf_z.fill_between(range(len(acf_median)), acf_q25, acf_q75, alpha=0.3, label='IQR (25-75%)')
     ax_acf_z.axhline(0, color='black', linewidth=0.8)
     ax_acf_z.set_xlabel('Lag')
     ax_acf_z.set_ylabel('Autocorrelation')
-    ax_acf_z.set_title('Autocorrelation: Z (Chain 0, Factor 0)')
+    ax_acf_z.set_title(f'Autocorr: Z (Chain 0, Factor 0, n={n_sample_subjects} subjects)')
+    ax_acf_z.legend(fontsize=8)
     ax_acf_z.grid(True, alpha=0.3)
 
     # ESS summary
@@ -541,7 +580,7 @@ def plot_trace_diagnostics(
             ax_rhat_w.axhline(1.01, color='green', linestyle='--', label='R-hat = 1.01 (excellent)', linewidth=2)
             ax_rhat_w.set_xlabel('Number of Samples', fontsize=12)
             ax_rhat_w.set_ylabel('R-hat', fontsize=12)
-            ax_rhat_w.set_title(f'R-hat Evolution: W (Factor {k})', fontsize=14, fontweight='bold')
+            ax_rhat_w.set_title(f'Aligned R-hat Evolution: W (Factor {k})', fontsize=14, fontweight='bold')
             ax_rhat_w.grid(True, alpha=0.3)
             ax_rhat_w.legend(fontsize=10)
             ax_rhat_w.set_yscale('log')
@@ -562,7 +601,7 @@ def plot_trace_diagnostics(
             ax_rhat_z.axhline(1.01, color='green', linestyle='--', label='R-hat = 1.01 (excellent)', linewidth=2)
             ax_rhat_z.set_xlabel('Number of Samples', fontsize=12)
             ax_rhat_z.set_ylabel('R-hat', fontsize=12)
-            ax_rhat_z.set_title(f'R-hat Evolution: Z (Factor {k})', fontsize=14, fontweight='bold')
+            ax_rhat_z.set_title(f'Aligned R-hat Evolution: Z (Factor {k})', fontsize=14, fontweight='bold')
             ax_rhat_z.grid(True, alpha=0.3)
             ax_rhat_z.legend(fontsize=10)
             ax_rhat_z.set_yscale('log')
@@ -581,16 +620,31 @@ def plot_trace_diagnostics(
             for chain_idx in range(n_chains):
                 fig_acf_w, ax_acf_w = plt.subplots(figsize=(8, 5))
 
-                w_flat = np.mean(W_samples[chain_idx, :, :, k], axis=1)  # Average across features
-                acf_w = compute_autocorrelation(w_flat, max_lag=max_lag)
+                # Compute autocorrelation per feature, then show distribution
+                n_features = W_samples.shape[2]
+                n_sample_features = min(100, n_features)
+                feature_indices = np.linspace(0, n_features-1, n_sample_features, dtype=int)
 
-                ax_acf_w.bar(range(len(acf_w)), acf_w, alpha=0.7, color='#2E86AB')
+                acf_per_feature = []
+                for feat_idx in feature_indices:
+                    w_feature = W_samples[chain_idx, :, feat_idx, k]
+                    acf = compute_autocorrelation(w_feature, max_lag=max_lag)
+                    acf_per_feature.append(acf)
+
+                acf_per_feature = np.array(acf_per_feature)
+                acf_median = np.median(acf_per_feature, axis=0)
+                acf_q25 = np.percentile(acf_per_feature, 25, axis=0)
+                acf_q75 = np.percentile(acf_per_feature, 75, axis=0)
+
+                # Plot median with IQR
+                ax_acf_w.bar(range(len(acf_median)), acf_median, alpha=0.7, color='#2E86AB', label='Median')
+                ax_acf_w.fill_between(range(len(acf_median)), acf_q25, acf_q75, alpha=0.3, color='#2E86AB', label='IQR')
                 ax_acf_w.axhline(0, color='black', linewidth=0.8)
                 ax_acf_w.axhline(0.1, color='green', linestyle='--', alpha=0.5, label='Low autocorr (0.1)')
                 ax_acf_w.axhline(-0.1, color='green', linestyle='--', alpha=0.5)
                 ax_acf_w.set_xlabel('Lag', fontsize=12)
                 ax_acf_w.set_ylabel('Autocorrelation', fontsize=12)
-                ax_acf_w.set_title(f'Autocorrelation: W (Chain {chain_idx}, Factor {k})', fontsize=14, fontweight='bold')
+                ax_acf_w.set_title(f'Autocorr: W (Chain {chain_idx}, Factor {k}, n={n_sample_features})', fontsize=14, fontweight='bold')
                 ax_acf_w.grid(True, alpha=0.3)
                 ax_acf_w.legend(fontsize=10)
                 fig_acf_w.tight_layout()
@@ -602,16 +656,31 @@ def plot_trace_diagnostics(
             for chain_idx in range(n_chains):
                 fig_acf_z, ax_acf_z = plt.subplots(figsize=(8, 5))
 
-                z_flat = np.mean(Z_samples[chain_idx, :, :, k], axis=1)  # Average across subjects
-                acf_z = compute_autocorrelation(z_flat, max_lag=max_lag)
+                # Compute autocorrelation per subject, then show distribution
+                n_subjects = Z_samples.shape[2]
+                n_sample_subjects = min(50, n_subjects)
+                subject_indices = np.linspace(0, n_subjects-1, n_sample_subjects, dtype=int)
 
-                ax_acf_z.bar(range(len(acf_z)), acf_z, alpha=0.7, color='#A23B72')
+                acf_per_subject = []
+                for subj_idx in subject_indices:
+                    z_subject = Z_samples[chain_idx, :, subj_idx, k]
+                    acf = compute_autocorrelation(z_subject, max_lag=max_lag)
+                    acf_per_subject.append(acf)
+
+                acf_per_subject = np.array(acf_per_subject)
+                acf_median = np.median(acf_per_subject, axis=0)
+                acf_q25 = np.percentile(acf_per_subject, 25, axis=0)
+                acf_q75 = np.percentile(acf_per_subject, 75, axis=0)
+
+                # Plot median with IQR
+                ax_acf_z.bar(range(len(acf_median)), acf_median, alpha=0.7, color='#A23B72', label='Median')
+                ax_acf_z.fill_between(range(len(acf_median)), acf_q25, acf_q75, alpha=0.3, color='#A23B72', label='IQR')
                 ax_acf_z.axhline(0, color='black', linewidth=0.8)
                 ax_acf_z.axhline(0.1, color='green', linestyle='--', alpha=0.5, label='Low autocorr (0.1)')
                 ax_acf_z.axhline(-0.1, color='green', linestyle='--', alpha=0.5)
                 ax_acf_z.set_xlabel('Lag', fontsize=12)
                 ax_acf_z.set_ylabel('Autocorrelation', fontsize=12)
-                ax_acf_z.set_title(f'Autocorrelation: Z (Chain {chain_idx}, Factor {k})', fontsize=14, fontweight='bold')
+                ax_acf_z.set_title(f'Autocorr: Z (Chain {chain_idx}, Factor {k}, n={n_sample_subjects})', fontsize=14, fontweight='bold')
                 ax_acf_z.grid(True, alpha=0.3)
                 ax_acf_z.legend(fontsize=10)
                 fig_acf_z.tight_layout()

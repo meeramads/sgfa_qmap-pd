@@ -2561,6 +2561,10 @@ class RobustnessExperiments(ExperimentFramework):
 
             aligned_rhat_diagnostics = {}
 
+            # Initialize aligned samples (use raw samples as fallback)
+            W_samples_aligned = W_samples
+            Z_samples_aligned = Z_samples
+
             # Get per-factor matching information from stability analysis
             per_factor_matches = stability_results.get("per_factor_details", [])
 
@@ -2582,6 +2586,9 @@ class RobustnessExperiments(ExperimentFramework):
                         "factor_match_rate": aligned_rhat_W["factor_match_rate"],
                         "n_matched_factors": aligned_rhat_W["n_matched_factors"],
                     }
+
+                    # Store aligned samples for use in R-hat evolution plots
+                    W_samples_aligned = aligned_rhat_W["aligned_samples"]
 
                     # Extract matching metrics
                     match_rate_W = aligned_rhat_W["factor_match_rate"]
@@ -2633,6 +2640,9 @@ class RobustnessExperiments(ExperimentFramework):
                         "factor_match_rate": aligned_rhat_Z["factor_match_rate"],
                         "n_matched_factors": aligned_rhat_Z["n_matched_factors"],
                     }
+
+                    # Store aligned samples for use in R-hat evolution plots
+                    Z_samples_aligned = aligned_rhat_Z["aligned_samples"]
 
                     # Extract matching metrics
                     match_rate_Z = aligned_rhat_Z["factor_match_rate"]
@@ -3309,11 +3319,27 @@ class RobustnessExperiments(ExperimentFramework):
                     # Stack samples from different chains
                     # W_samples: (n_chains, n_samples, D, K)
                     # Z_samples: (n_chains, n_samples, N, K)
-                    W_samples = np.stack(W_samples_list, axis=0)
-                    Z_samples = np.stack(Z_samples_list, axis=0)
+                    W_samples_raw = np.stack(W_samples_list, axis=0)
+                    Z_samples_raw = np.stack(Z_samples_list, axis=0)
 
-                    self.logger.info(f"  W_samples shape: {W_samples.shape}")
-                    self.logger.info(f"  Z_samples shape: {Z_samples.shape}")
+                    # Use aligned samples if available (preferred for R-hat evolution plots)
+                    # Otherwise fall back to raw samples
+                    if 'W_samples_aligned' in locals() and W_samples_aligned is not None:
+                        W_samples_for_plots = W_samples_aligned
+                        self.logger.info(f"  Using ALIGNED W_samples for plots (accounts for sign/rotation)")
+                    else:
+                        W_samples_for_plots = W_samples_raw
+                        self.logger.warning(f"  Using RAW W_samples for plots (alignment not available)")
+
+                    if 'Z_samples_aligned' in locals() and Z_samples_aligned is not None:
+                        Z_samples_for_plots = Z_samples_aligned
+                        self.logger.info(f"  Using ALIGNED Z_samples for plots (accounts for sign/rotation)")
+                    else:
+                        Z_samples_for_plots = Z_samples_raw
+                        self.logger.warning(f"  Using RAW Z_samples for plots (alignment not available)")
+
+                    self.logger.info(f"  W_samples shape: {W_samples_for_plots.shape}")
+                    self.logger.info(f"  Z_samples shape: {Z_samples_for_plots.shape}")
 
                     # Create trace diagnostic plots
                     # Set up individual plots directory
@@ -3336,11 +3362,11 @@ class RobustnessExperiments(ExperimentFramework):
                     self.logger.info(f"   Created trace diagnostics directory: {trace_plots_dir}")
 
                     fig_trace = plot_trace_diagnostics(
-                        W_samples=W_samples,
-                        Z_samples=Z_samples,
+                        W_samples=W_samples_for_plots,
+                        Z_samples=Z_samples_for_plots,
                         save_path=None,
-                        max_factors=min(4, W_samples.shape[3]),
-                        thin=max(1, W_samples.shape[1] // 1000),  # Thin for readability
+                        max_factors=min(4, W_samples_for_plots.shape[3]),
+                        thin=max(1, W_samples_for_plots.shape[1] // 1000),  # Thin for readability
                         save_individual=True,
                         output_dir=str(trace_plots_dir),
                         view_names=view_names,
@@ -3354,10 +3380,10 @@ class RobustnessExperiments(ExperimentFramework):
                     wz_plots_dir.mkdir(parents=True, exist_ok=True)
 
                     fig_dist = plot_parameter_distributions(
-                        W_samples=W_samples,
-                        Z_samples=Z_samples,
+                        W_samples=W_samples_for_plots,
+                        Z_samples=Z_samples_for_plots,
                         save_path=None,
-                        max_factors=min(4, W_samples.shape[3]),
+                        max_factors=min(4, W_samples_for_plots.shape[3]),
                         save_individual=True,
                         output_dir=str(wz_plots_dir),
                         view_names=view_names,

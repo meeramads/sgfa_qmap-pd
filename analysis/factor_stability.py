@@ -586,6 +586,7 @@ def compute_aligned_rhat(
         - max_rhat_overall: float, maximum R-hat across all parameters
         - mean_rhat_overall: float, mean R-hat across all parameters
         - n_aligned: int, number of chains successfully aligned
+        - aligned_samples: np.ndarray of shape (n_chains, n_samples, dim1, K) with aligned samples
 
     Examples
     --------
@@ -777,6 +778,7 @@ def compute_aligned_rhat(
         "factor_match_rate": factor_match_rate,  # NEW: Fraction of factors matched across all chains
         "n_matched_factors": len(matched_factors),  # NEW: Number of factors matched
         "matched_factor_indices": matched_factors,  # NEW: Which factors matched
+        "aligned_samples": aligned_samples,  # NEW: Aligned samples for R-hat evolution plots
     }
 
 
