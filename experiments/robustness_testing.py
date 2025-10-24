@@ -2246,6 +2246,101 @@ class RobustnessExperiments(ExperimentFramework):
         if Z_samples is not None:
             self.logger.info(f"Z_samples shape: {Z_samples.shape}")
 
+        # Validate samples for NaN/Inf before proceeding with diagnostics
+        self.logger.info("=" * 80)
+        self.logger.info("VALIDATING MCMC SAMPLES (NaN/Inf CHECK)")
+        self.logger.info("=" * 80)
+
+        validation_passed = True
+
+        if W_samples is not None:
+            n_nan_W = np.sum(np.isnan(W_samples))
+            n_inf_W = np.sum(np.isinf(W_samples))
+            n_total_W = W_samples.size
+
+            self.logger.info(f"W (factor loadings) validation:")
+            self.logger.info(f"  Total elements: {n_total_W:,}")
+            self.logger.info(f"  NaN values: {n_nan_W:,} ({100*n_nan_W/n_total_W:.4f}%)")
+            self.logger.info(f"  Inf values: {n_inf_W:,} ({100*n_inf_W/n_total_W:.4f}%)")
+
+            if n_nan_W > 0 or n_inf_W > 0:
+                validation_passed = False
+                self.logger.error(f"❌ INVALID SAMPLES IN W!")
+                self.logger.error(f"   Found {n_nan_W} NaN and {n_inf_W} Inf values")
+
+                # Detailed breakdown by chain
+                for chain_idx in range(W_samples.shape[0]):
+                    chain_nan = np.sum(np.isnan(W_samples[chain_idx]))
+                    chain_inf = np.sum(np.isinf(W_samples[chain_idx]))
+                    if chain_nan > 0 or chain_inf > 0:
+                        self.logger.error(f"   Chain {chain_idx}: {chain_nan} NaN, {chain_inf} Inf")
+            else:
+                self.logger.info(f"  ✓ All W samples are valid (finite)")
+
+        if Z_samples is not None:
+            n_nan_Z = np.sum(np.isnan(Z_samples))
+            n_inf_Z = np.sum(np.isinf(Z_samples))
+            n_total_Z = Z_samples.size
+
+            self.logger.info(f"Z (factor scores) validation:")
+            self.logger.info(f"  Total elements: {n_total_Z:,}")
+            self.logger.info(f"  NaN values: {n_nan_Z:,} ({100*n_nan_Z/n_total_Z:.4f}%)")
+            self.logger.info(f"  Inf values: {n_inf_Z:,} ({100*n_inf_Z/n_total_Z:.4f}%)")
+
+            if n_nan_Z > 0 or n_inf_Z > 0:
+                validation_passed = False
+                self.logger.error(f"❌ INVALID SAMPLES IN Z!")
+                self.logger.error(f"   Found {n_nan_Z} NaN and {n_inf_Z} Inf values")
+
+                # Detailed breakdown by chain
+                for chain_idx in range(Z_samples.shape[0]):
+                    chain_nan = np.sum(np.isnan(Z_samples[chain_idx]))
+                    chain_inf = np.sum(np.isinf(Z_samples[chain_idx]))
+                    if chain_nan > 0 or chain_inf > 0:
+                        self.logger.error(f"   Chain {chain_idx}: {chain_nan} NaN, {chain_inf} Inf")
+            else:
+                self.logger.info(f"  ✓ All Z samples are valid (finite)")
+
+        # Check potential energy if available
+        potential_energy = result.get("potential_energy", None)
+        if potential_energy is not None and len(potential_energy) > 0:
+            n_nan_energy = np.sum(np.isnan(potential_energy))
+            n_inf_energy = np.sum(np.isinf(potential_energy))
+            n_total_energy = potential_energy.size
+
+            self.logger.info(f"Potential energy validation:")
+            self.logger.info(f"  Total elements: {n_total_energy:,}")
+            self.logger.info(f"  NaN values: {n_nan_energy:,}")
+            self.logger.info(f"  Inf values: {n_inf_energy:,}")
+
+            if n_nan_energy > 0 or n_inf_energy > 0:
+                self.logger.warning(f"⚠️  Invalid energy values detected (may affect BFMI)")
+            else:
+                self.logger.info(f"  ✓ All energy values are valid")
+
+        if not validation_passed:
+            self.logger.error("=" * 80)
+            self.logger.error("❌ SAMPLE VALIDATION FAILED")
+            self.logger.error("=" * 80)
+            self.logger.error("MCMC sampling produced invalid (NaN/Inf) values.")
+            self.logger.error("This indicates a serious problem:")
+            self.logger.error("  - Numerical instability in the model")
+            self.logger.error("  - Step size too large (divergent transitions)")
+            self.logger.error("  - Model misspecification")
+            self.logger.error("  - Data preprocessing issues")
+            self.logger.error("")
+            self.logger.error("Diagnostics computed on these samples will be INVALID.")
+            self.logger.error("Recommend:")
+            self.logger.error("  1. Check divergence rate (should be < 1%)")
+            self.logger.error("  2. Reduce step size (increase target_accept_prob)")
+            self.logger.error("  3. Check data for extreme values")
+            self.logger.error("  4. Verify model priors are appropriate")
+            raise ValueError("Invalid MCMC samples detected (NaN/Inf). Cannot proceed with diagnostics.")
+        else:
+            self.logger.info("=" * 80)
+            self.logger.info("✓ SAMPLE VALIDATION PASSED - All samples are valid")
+            self.logger.info("=" * 80)
+
         # Process each chain's results
         for chain_id in range(n_chains):
             self.logger.info(f"Processing chain {chain_id + 1}/{n_chains}...")
@@ -2742,6 +2837,13 @@ class RobustnessExperiments(ExperimentFramework):
 
         # Compile diagnostics
         diagnostics = {
+            "reproducibility": {
+                "base_seed": base_seed,  # Random seed for reproducibility
+                "num_chains": n_chains,
+                "num_samples": multi_chain_args.get("num_samples"),
+                "num_warmup": multi_chain_args.get("num_warmup"),
+                "chain_method": multi_chain_args.get("chain_method", "parallel"),
+            },
             "stability_summary": {
                 "n_chains": n_chains,
                 "n_stable_factors": stability_results["n_stable_factors"],
