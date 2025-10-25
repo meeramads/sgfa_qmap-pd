@@ -168,8 +168,9 @@ class SparseGFAFixedModel(BaseGFAModel):
             # Store cZ for trace plots
             numpyro.deterministic("cZ", cZ)
 
-            # Apply regularization and non-centered transformation
+            # Apply regularization and PARTIAL CENTERING transformation
             logger.debug("      Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...")
+            logger.debug("      Using PARTIAL CENTERING to handle funnel geometry...")
             lmbZ_sqr = jnp.square(lmbZ)
             Z = jnp.zeros((N, K))
             for k in range(K):
@@ -178,14 +179,46 @@ class SparseGFAFixedModel(BaseGFAModel):
                     * cZ[0, k] ** 2
                     / (cZ[0, k] ** 2 + tauZ[0, k] ** 2 * lmbZ_sqr[:, k])
                 )
-                # FIX #3: NON-CENTERED TRANSFORMATION
-                Z = Z.at[:, k].set(Z_raw[:, k] * lmbZ_tilde * tauZ[0, k])
-            logger.debug(f"      ✓ Applied regularization for {K} factors")
+
+                # PARTIAL CENTERING: Blend centered and non-centered based on τ
+                # When τ is large (data informative): use more centered parameterization
+                # When τ is small (weak prior): use more non-centered parameterization
+                # phi in [0, 1]: 0 = fully non-centered, 1 = fully centered
+                tau_k = tauZ[0, k]
+                phi = jnp.sqrt(1.0 - jnp.exp(-tau_k))  # Smooth transition based on τ magnitude
+
+                # Centered component (no raw): just the scale
+                Z_centered_k = lmbZ_tilde * tau_k
+
+                # Non-centered component: scaled by raw parameter
+                Z_noncentered_k = Z_raw[:, k] * lmbZ_tilde * tau_k
+
+                # Blend: when tau small (phi→0), use non-centered; when tau large (phi→1), use centered
+                Z_k = phi * Z_centered_k + (1.0 - phi) * Z_noncentered_k
+
+                Z = Z.at[:, k].set(Z_k)
+            logger.debug(f"      ✓ Applied partial centering with regularization for {K} factors")
         else:
-            # Non-regularized but still non-centered
-            logger.debug("      Using non-regularized horseshoe (reghsZ=False)...")
-            Z = Z_raw * lmbZ * tauZ
-            logger.debug("      ✓ Z = Z_raw * lmbZ * tauZ")
+            # Non-regularized with PARTIAL CENTERING
+            logger.debug("      Using non-regularized horseshoe with PARTIAL CENTERING...")
+
+            # Compute mixing parameter phi for each factor based on τ magnitude
+            # phi in [0, 1]: 0 = fully non-centered, 1 = fully centered
+            phi = jnp.sqrt(1.0 - jnp.exp(-tauZ))  # Shape: (1, K)
+
+            # Centered component (no raw parameter)
+            Z_centered = lmbZ * tauZ  # Shape: (N, K)
+
+            # Non-centered component (with raw parameter)
+            Z_noncentered = Z_raw * lmbZ * tauZ  # Shape: (N, K)
+
+            # Blend adaptively per factor
+            Z = phi * Z_centered + (1.0 - phi) * Z_noncentered
+
+            logger.debug("      ✓ Z computed with partial centering (adaptive blending)")
+
+            # Log phi values for diagnostics (how much centering is being used)
+            numpyro.deterministic("phi_Z", phi)
 
         # Mark Z as deterministic
         Z = numpyro.deterministic("Z", Z)
@@ -291,15 +324,27 @@ class SparseGFAFixedModel(BaseGFAModel):
             lmbW_chunk = lax.dynamic_slice(lmbW, (d, 0), (width, K))
             z_raw_chunk = lax.dynamic_slice(z_raw, (d, 0), (width, K))
 
-            # Apply regularized horseshoe (same formula, but now applied to transform)
+            # Apply regularized horseshoe with PARTIAL CENTERING
             lmbW_sqr = jnp.square(lmbW_chunk)
             lmbW_tilde = jnp.sqrt(
                 cW[m, :] ** 2 * lmbW_sqr / (cW[m, :] ** 2 + tauW**2 * lmbW_sqr)
             )
 
-            # FIX #3: NON-CENTERED TRANSFORMATION
-            # W = τ × λ̃ × z_raw (deterministic transformation)
-            W_chunk = z_raw_chunk * lmbW_tilde * tauW
+            # PARTIAL CENTERING for W: Blend centered and non-centered based on τ
+            # When τ is large (data informative): use more centered parameterization
+            # When τ is small (weak prior): use more non-centered parameterization
+            # phi in [0, 1]: 0 = fully non-centered, 1 = fully centered
+            phi_W = jnp.sqrt(1.0 - jnp.exp(-tauW))  # Smooth transition based on τ magnitude
+
+            # Centered component (no raw parameter)
+            W_centered_chunk = lmbW_tilde * tauW  # Shape: (width, K)
+
+            # Non-centered component (with raw parameter)
+            W_noncentered_chunk = z_raw_chunk * lmbW_tilde * tauW  # Shape: (width, K)
+
+            # Blend adaptively: when tau small (phi→0), use non-centered; when tau large (phi→1), use centered
+            W_chunk = phi_W * W_centered_chunk + (1.0 - phi_W) * W_noncentered_chunk
+
             W = lax.dynamic_update_slice(W, W_chunk, (d, 0))
 
             d += width
