@@ -485,18 +485,23 @@ def _apply_advanced_preprocessing(
 
         # Log key preprocessing parameters
         if preprocessing_config.enable_spatial_processing:
-            logger.info(
-                f"   MAD outlier threshold: {preprocessing_config.qc_outlier_threshold:.1f}"
+            threshold_str = (
+                f"{preprocessing_config.qc_outlier_threshold:.1f}"
+                if preprocessing_config.qc_outlier_threshold is not None
+                else "disabled"
             )
+            logger.info(f"   MAD outlier threshold: {threshold_str}")
         if preprocessing_config.enable_pca:
             if preprocessing_config.pca_n_components:
                 logger.info(
                     f"   PCA: fixed {preprocessing_config.pca_n_components} components"
                 )
-            else:
+            elif preprocessing_config.pca_variance_threshold is not None:
                 logger.info(
                     f"   PCA: {preprocessing_config.pca_variance_threshold*100:.0f}% variance threshold"
                 )
+            else:
+                logger.info("   PCA: enabled (no threshold specified)")
 
         return X_processed, preprocessing_info
 
