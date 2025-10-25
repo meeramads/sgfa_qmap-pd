@@ -1,0 +1,7 @@
+ROI,Threshold,Voxels_Retained,Retention_Pct,Voxels_Removed,Variance_Ratio,Correlation_Preservation,Is_Elbow
+volume_sn_voxels,2.0,35,1.9509476031215163,1759,1.0,1.0,True
+volume_sn_voxels,2.5,329,18.338907469342253,1465,1.0,1.0,True
+volume_sn_voxels,3.0,850,47.38015607580825,944,1.0,1.0,False
+volume_sn_voxels,3.5,1249,69.62095875139353,545,0.9999999999999999,1.0,False
+volume_sn_voxels,4.0,1484,82.72017837235228,310,0.9999999999999999,1.0,False
+volume_sn_voxels,5.0,1645,91.69453734671126,149,1.0,1.0,False
