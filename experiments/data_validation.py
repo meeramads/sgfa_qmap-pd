@@ -844,11 +844,17 @@ class DataValidationExperiments(ExperimentFramework):
         K_aggressive = min(n_eff, int(N / 10))  # Rule of thumb: N/K >= 10
 
         if snr > 5:
-            interpretation["recommended_K_range"] = f"{K_conservative}-{K_aggressive} (signal supports more factors)"
+            K_min = min(K_conservative, K_aggressive)
+            K_max = max(K_conservative, K_aggressive)
+            interpretation["recommended_K_range"] = f"{K_min}-{K_max} (signal supports more factors)"
         elif snr > 2:
-            interpretation["recommended_K_range"] = f"{max(3, K_conservative-2)}-{K_conservative} (moderate signal)"
+            K_min = max(2, K_conservative - 2)
+            K_max = max(K_min, K_conservative)  # Ensure max >= min
+            interpretation["recommended_K_range"] = f"{K_min}-{K_max} (moderate signal)"
         else:
-            interpretation["recommended_K_range"] = f"3-{max(3, K_conservative)} (weak signal, be conservative)"
+            K_min = 2
+            K_max = max(2, K_conservative)
+            interpretation["recommended_K_range"] = f"{K_min}-{K_max} (weak signal, be conservative)"
 
         # Prior strength recommendation
         if snr < 2:
