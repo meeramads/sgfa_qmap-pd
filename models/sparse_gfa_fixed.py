@@ -124,7 +124,7 @@ class SparseGFAFixedModel(BaseGFAModel):
         # CRITICAL: Add floor to prevent extreme prior weakness in small-sample regime
         # Without floor, N<<D can lead to τ₀ → 0, causing multimodal posteriors
         tau0_Z_scale = jnp.maximum(tau0_Z_auto, 0.05)  # Min scale for N<<D regime
-        logger.debug(f"      Calculated τ₀_Z: auto={tau0_Z_auto:.6f}, used={tau0_Z_scale:.6f} (floor=0.05)")
+        logger.debug(f"      Calculated τ₀_Z: auto={tau0_Z_auto}, used={tau0_Z_scale} (floor=0.05)")
 
         # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
         # Following Piironen & Vehtari (2017) recommendation
@@ -265,7 +265,7 @@ class SparseGFAFixedModel(BaseGFAModel):
             # Without floor, high-dimensional views with small N lead to τ₀ → 0
             # This causes multimodal posteriors and chain disagreement
             tau0_W_scale = jnp.maximum(tau0_W_auto, 0.3)  # Min scale for stability
-            logger.debug(f"        View {m+1} τ₀_W: auto={tau0_W_auto:.6f}, used={tau0_W_scale:.6f} (floor=0.3)")
+            logger.debug(f"        View {m+1} τ₀_W: auto={tau0_W_auto}, used={tau0_W_scale} (floor=0.3)")
 
             # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
             # Following Piironen & Vehtari (2017) recommendation
