@@ -918,6 +918,14 @@ def _save_individual_posteriors(
                     else:
                         tau_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
 
+                    # Log sample statistics for debugging empty plots
+                    logger.debug(f"    Chain {chain_idx} {param_name} factor {k}: "
+                                f"shape={tau_samples.shape}, "
+                                f"min={np.min(tau_samples):.4f}, "
+                                f"max={np.max(tau_samples):.4f}, "
+                                f"mean={np.mean(tau_samples):.4f}, "
+                                f"std={np.std(tau_samples):.4f}")
+
                     ax.hist(tau_samples, bins=50, alpha=0.4, color=colors[chain_idx],
                            label=f'Chain {chain_idx}', density=True)
 
@@ -943,6 +951,14 @@ def _save_individual_posteriors(
                     tau_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
                 else:
                     tau_samples = samples
+
+                # Log sample statistics for debugging empty plots
+                logger.debug(f"    Chain {chain_idx} tauZ factor {k}: "
+                            f"shape={tau_samples.shape}, "
+                            f"min={np.min(tau_samples):.4f}, "
+                            f"max={np.max(tau_samples):.4f}, "
+                            f"mean={np.mean(tau_samples):.4f}, "
+                            f"std={np.std(tau_samples):.4f}")
 
                 ax.hist(tau_samples, bins=50, alpha=0.4, color=colors[chain_idx],
                        label=f'Chain {chain_idx}', density=True)
