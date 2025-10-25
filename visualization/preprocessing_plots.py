@@ -53,17 +53,35 @@ class PreprocessingVisualizer:
         save_dir = plot_dir / "preprocessing"
         save_dir.mkdir(exist_ok=True)
 
-        # Feature reduction plot
+        # Feature reduction plot - only if features were actually reduced
         if "feature_reduction" in preprocessing_results:
-            self._plot_feature_reduction(
-                preprocessing_results["feature_reduction"], save_dir
+            feature_reduction = preprocessing_results["feature_reduction"]
+            # Check if any features were actually removed
+            features_were_reduced = any(
+                v["reduction_ratio"] < 1.0 for v in feature_reduction.values()
             )
+            if features_were_reduced:
+                self._plot_feature_reduction(feature_reduction, save_dir)
+            else:
+                logger.debug("Skipping feature reduction plot (no features were removed)")
 
         # Variance distribution plot (shows why features were retained/removed)
+        # Only generate if features were actually reduced
         if "variance_analysis" in preprocessing_results:
-            self._plot_variance_distribution(
-                preprocessing_results["variance_analysis"], save_dir
-            )
+            # Check if there's meaningful variance filtering to show
+            variance_analysis = preprocessing_results["variance_analysis"]
+            if "feature_reduction" in preprocessing_results:
+                features_were_reduced = any(
+                    v["reduction_ratio"] < 1.0
+                    for v in preprocessing_results["feature_reduction"].values()
+                )
+                if features_were_reduced:
+                    self._plot_variance_distribution(variance_analysis, save_dir)
+                else:
+                    logger.debug("Skipping variance distribution plot (no features were removed)")
+            else:
+                # No feature_reduction info, generate plot anyway
+                self._plot_variance_distribution(variance_analysis, save_dir)
 
         # Source validation plot
         if "source_validation" in preprocessing_results:
