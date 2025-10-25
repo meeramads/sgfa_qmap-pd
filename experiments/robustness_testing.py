@@ -50,6 +50,48 @@ class RobustnessExperiments(ExperimentFramework):
         perturbation_config = repro_config.get("perturbation", {})
         self.perturbation_types = perturbation_config.get("types", ["gaussian", "uniform", "dropout", "permutation"])
 
+        # Track experiment-specific log handlers for cleanup
+        self._experiment_log_handler = None
+
+    def _setup_experiment_logging(self, experiment_dir: Path):
+        """Set up logging to write to the experiment-specific directory."""
+        # Create experiments.log in the experiment directory
+        log_file = experiment_dir / "experiments.log"
+
+        # Ensure directory exists
+        experiment_dir.mkdir(parents=True, exist_ok=True)
+
+        # Import ResilientFileHandler from framework
+        from experiments.framework import ResilientFileHandler
+
+        # Create file handler for this experiment
+        file_handler = ResilientFileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)  # Capture debug logs for experiment analysis
+
+        # Create formatter
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        file_handler.setFormatter(formatter)
+
+        # Add handler to root logger so all child loggers inherit it
+        root_logger = logging.getLogger()
+        root_logger.addHandler(file_handler)
+
+        # Store handler reference for cleanup
+        self._experiment_log_handler = file_handler
+
+        self.logger.info(f"✅ Experiment logging configured: {log_file}")
+
+    def _cleanup_experiment_logging(self):
+        """Remove the experiment-specific file handler from root logger."""
+        if self._experiment_log_handler is not None:
+            root_logger = logging.getLogger()
+            root_logger.removeHandler(self._experiment_log_handler)
+            self._experiment_log_handler.close()
+            self._experiment_log_handler = None
+            self.logger.debug("Experiment-specific log handler removed")
+
     @experiment_handler("seed_robustness_test")
     @validate_data_types(X_list=list, hypers=dict, args=dict)
     @validate_parameters(
@@ -2073,6 +2115,13 @@ class RobustnessExperiments(ExperimentFramework):
         if output_dir:
             self._experiment_output_dir = Path(output_dir)
             self.logger.info(f"📁 Experiment output directory set to: {self._experiment_output_dir}")
+
+            # Set up experiment-specific logging to write to this directory's experiments.log
+            try:
+                self._setup_experiment_logging(self._experiment_output_dir)
+            except Exception as e:
+                self.logger.warning(f"Failed to set up experiment-specific logging: {e}")
+                # Continue anyway - logs will go to base directory
         else:
             self._experiment_output_dir = None
             self.logger.warning("⚠️  No experiment output_dir provided - will use base_output_dir")
@@ -3098,6 +3147,10 @@ class RobustnessExperiments(ExperimentFramework):
         )
 
         self.logger.info("Returning ExperimentResult object")
+
+        # Clean up experiment-specific logging handler
+        self._cleanup_experiment_logging()
+
         return result
 
     def _plot_factor_stability(
