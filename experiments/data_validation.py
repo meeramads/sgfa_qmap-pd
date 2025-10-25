@@ -2726,24 +2726,67 @@ class DataValidationExperiments(ExperimentFramework):
                     position_file = Path(data_dir) / "volume_matrices" / f"{roi_name}_position_lookup.tsv"
 
                 if position_file.exists():
-                    # Position lookup files have NO header row - single column of position indices
-                    positions = pd.read_csv(position_file, sep='\t', header=None, names=['position_idx'])
-                    logger.info(f"   Loaded position lookup for {view_name}: {len(positions)} voxels")
+                    # Position lookup files have NO header row - single column of linearized 3D indices
+                    positions_linear = pd.read_csv(position_file, sep='\t', header=None, names=['position_idx'])
+                    logger.info(f"   Loaded position lookup for {view_name}: {len(positions_linear)} voxels")
 
                     # Analyze at threshold 3.0 (current default)
                     mad_values = mad_distributions[view_name]["mad_values"]
                     removed_mask = mad_values > 3.0
 
                     # Check if dimensions match
-                    if len(removed_mask) != len(positions):
-                        logger.warning(f"   Dimension mismatch for {view_name}: {len(removed_mask)} MAD values vs {len(positions)} positions. Skipping spatial analysis.")
+                    if len(removed_mask) != len(positions_linear):
+                        logger.warning(f"   Dimension mismatch for {view_name}: {len(removed_mask)} MAD values vs {len(positions_linear)} positions. Skipping spatial analysis.")
                         spatial_results[view_name] = {
                             "position_file_found": True,
                             "dimension_mismatch": True,
                             "n_mad_values": len(removed_mask),
-                            "n_positions": len(positions),
+                            "n_positions": len(positions_linear),
                         }
                         continue
+
+                    # Convert linearized indices to 3D coordinates
+                    # Standard MRI dimensions (adjust if needed for your specific data)
+                    # Typical T1w dimensions: 182 x 218 x 182 (MNI152 space)
+                    logger.debug(f"   Converting linearized indices to 3D coordinates...")
+
+                    # Get 3D shape from nibabel template (if available) or use standard MNI dimensions
+                    try:
+                        import nibabel as nib
+                        # Try to load a reference NIfTI to get dimensions
+                        # This is a placeholder - adjust path to your reference image
+                        ref_nifti_path = Path(data_dir) / "reference" / "mni_template.nii.gz"
+                        if ref_nifti_path.exists():
+                            ref_img = nib.load(ref_nifti_path)
+                            brain_shape = ref_img.shape[:3]
+                            logger.debug(f"   Using brain shape from reference: {brain_shape}")
+                        else:
+                            # Default MNI152 2mm dimensions
+                            brain_shape = (91, 109, 91)
+                            logger.debug(f"   Using default MNI152 2mm dimensions: {brain_shape}")
+                    except Exception as e:
+                        logger.debug(f"   Could not load reference NIfTI, using default MNI152 2mm: {e}")
+                        brain_shape = (91, 109, 91)
+
+                    # Convert linearized indices to 3D coordinates
+                    # Formula: index = z * (dim_x * dim_y) + y * dim_x + x
+                    linear_indices = positions_linear['position_idx'].values
+                    dim_x, dim_y, dim_z = brain_shape
+
+                    z_coords = linear_indices // (dim_x * dim_y)
+                    remainder = linear_indices % (dim_x * dim_y)
+                    y_coords = remainder // dim_x
+                    x_coords = remainder % dim_x
+
+                    # Create 3D positions dataframe
+                    positions = pd.DataFrame({
+                        'x': x_coords,
+                        'y': y_coords,
+                        'z': z_coords
+                    })
+
+                    logger.debug(f"   Converted {len(positions)} linearized indices to 3D coordinates")
+                    logger.debug(f"   X range: [{x_coords.min()}, {x_coords.max()}], Y range: [{y_coords.min()}, {y_coords.max()}], Z range: [{z_coords.min()}, {z_coords.max()}]")
 
                     if np.any(removed_mask):
                         removed_positions = positions[removed_mask][['x', 'y', 'z']].values
@@ -2766,6 +2809,11 @@ class DataValidationExperiments(ExperimentFramework):
                             removed_positions, retained_positions,
                             view_name, output_path
                         )
+
+                        # Clean up 3D coordinate arrays to free memory
+                        del positions, removed_positions, retained_positions, x_coords, y_coords, z_coords
+                        logger.debug(f"   Cleaned up 3D coordinate arrays for {view_name}")
+
                     else:
                         spatial_results[view_name] = {
                             "position_file_found": True,
@@ -2785,6 +2833,12 @@ class DataValidationExperiments(ExperimentFramework):
                     "position_file_found": False,
                     "error": str(e)
                 }
+            finally:
+                # Ensure cleanup happens even if there's an error
+                if 'positions' in locals():
+                    del positions
+                if 'positions_linear' in locals():
+                    del positions_linear
 
         logger.info(f"   ✅ Spatial analysis completed for {len(spatial_results)} views")
         return spatial_results
