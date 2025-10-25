@@ -354,7 +354,9 @@ class DataValidationExperiments(ExperimentFramework):
             "snr_analysis": self._estimate_snr(
                 preprocessed_data.get("X_list", []),
                 preprocessed_data.get("view_names", [])
-            ) if preprocessed_data.get("X_list") else {},
+            ) if preprocessed_data.get("X_list") else (
+                logger.warning("⚠️ Skipping SNR analysis - preprocessed_data['X_list'] is empty or None") or {}
+            ),
             "preprocessing_effects": self._analyze_preprocessing_effects(
                 raw_data, preprocessed_data
             ),
