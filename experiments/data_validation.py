@@ -685,6 +685,7 @@ class DataValidationExperiments(ExperimentFramework):
                 cumsum_var = np.cumsum(explained_var_ratio)
 
                 # Effective dimensionality (95% variance threshold)
+                n_effective_99 = int(np.argmax(cumsum_var >= 0.99) + 1)
                 n_effective_95 = int(np.argmax(cumsum_var >= 0.95) + 1)
                 n_effective_90 = int(np.argmax(cumsum_var >= 0.90) + 1)
                 n_effective_80 = int(np.argmax(cumsum_var >= 0.80) + 1)
@@ -718,6 +719,7 @@ class DataValidationExperiments(ExperimentFramework):
                 metrics["pca_snr"] = {
                     "snr_estimate": float(snr_pca),
                     "snr_mean_ratio": float(snr_pca_mean),
+                    "n_effective_99pct": int(n_effective_99),
                     "n_effective_95pct": int(n_effective_95),
                     "n_effective_90pct": int(n_effective_90),
                     "n_effective_80pct": int(n_effective_80),
