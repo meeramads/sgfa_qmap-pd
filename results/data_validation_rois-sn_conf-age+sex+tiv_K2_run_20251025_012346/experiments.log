@@ -1,0 +1,201 @@
+2025-10-25 01:23:46,865 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346
+2025-10-25 01:23:46,875 - experiments.framework - INFO - Starting experiment: data_validation_20251025_012346
+2025-10-25 01:23:46,875 - experiments.data_validation - INFO - Running comprehensive data validation...
+2025-10-25 01:23:46,877 - experiments.data_validation - INFO - Auto-configured system: 23.2GB memory limit
+2025-10-25 01:23:46,878 - experiments.data_validation - INFO - ExperimentFramework initialized with output dir: results
+2025-10-25 01:23:46,878 - experiments.data_validation - INFO - Auto-configured system: 23.2GB memory limit
+2025-10-25 01:23:46,879 - experiments.data_validation - INFO - Memory optimizer initialized with 23.2GB limit
+2025-10-25 01:23:46,879 - experiments.data_validation - INFO - Data streaming components initialized
+2025-10-25 01:23:46,879 - experiments.data_validation - INFO - MCMC memory optimizer initialized
+2025-10-25 01:23:46,879 - experiments.data_validation - INFO - Running data quality assessment
+2025-10-25 01:23:46,879 - experiments.data_validation - INFO - Loading qMAP-PD data for quality assessment...
+2025-10-25 01:23:46,880 - experiments.data_validation - INFO -    ROI selection: ['volume_sn_voxels.tsv']
+2025-10-25 01:23:46,880 - experiments.data_validation - INFO -    Confound regression: ['age', 'sex', 'tiv']
+2025-10-25 01:23:46,880 - experiments.data_validation - INFO -    Feature selection: none
+2025-10-25 01:23:46,889 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-25 01:23:47,024 - root - INFO - Regressing out confounds (before preprocessing): ['age', 'sex', 'tiv']
+2025-10-25 01:23:47,032 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-25 01:23:47,032 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-25 01:23:47,032 - root - INFO -   Remaining clinical features: 14
+2025-10-25 01:23:47,032 - root - INFO - ✅ Confound regression complete (before preprocessing)
+2025-10-25 01:23:47,040 - root - INFO - Preprocessing module imported successfully
+2025-10-25 01:23:47,046 - experiments.data_validation - INFO -    PCA enabled in preprocessing_config: False
+2025-10-25 01:23:47,057 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-25 01:23:47,278 - root - INFO - Regressing out confounds (before preprocessing): ['age', 'sex', 'tiv']
+2025-10-25 01:23:47,284 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-25 01:23:47,284 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-25 01:23:47,284 - root - INFO -   Remaining clinical features: 14
+2025-10-25 01:23:47,284 - root - INFO - ✅ Confound regression complete (before preprocessing)
+2025-10-25 01:23:47,284 - root - INFO - Starting neuroimaging-aware preprocessing pipeline
+2025-10-25 01:23:47,285 - root - INFO - MAD filtering disabled for volume_sn_voxels (threshold=None)
+2025-10-25 01:23:47,308 - root - INFO - Applying none feature selection to volume_sn_voxels
+2025-10-25 01:23:47,309 - root - INFO - Applying standard scaling to volume_sn_voxels
+2025-10-25 01:23:47,312 - data.preprocessing - WARNING - ⚠️  volume_sn_voxels standardization verification FAILED:
+2025-10-25 01:23:47,313 - data.preprocessing - INFO -    ✓ Mean: -0.000000
+2025-10-25 01:23:47,313 - data.preprocessing - INFO -    ✓ Std:  1.005865
+2025-10-25 01:23:47,313 - data.preprocessing - WARNING -    ❌ Max:  7.85 (threshold: 5.0)
+2025-10-25 01:23:47,313 - data.preprocessing - WARNING -       This suggests EXTREME outliers or non-standardized data!
+2025-10-25 01:23:47,313 - data.preprocessing - WARNING -       SGFA horseshoe priors assume standardized inputs.
+2025-10-25 01:23:47,315 - root - INFO - Applying none feature selection to clinical
+2025-10-25 01:23:47,315 - root - INFO - Applying standard scaling to clinical
+2025-10-25 01:23:47,316 - data.preprocessing - INFO - ✅ clinical standardization verified:
+2025-10-25 01:23:47,316 - data.preprocessing - INFO -    Mean: 0.000000 (target: 0.0, tol: 0.1)
+2025-10-25 01:23:47,316 - data.preprocessing - INFO -    Std:  1.005865 (target: 1.0, tol: 0.2)
+2025-10-25 01:23:47,317 - data.preprocessing - INFO -    Max:  3.62 (threshold: 5.0)
+2025-10-25 01:23:47,318 - experiments.data_validation - INFO -    ✅ Filtered position lookups saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346/position_lookup_filtered
+2025-10-25 01:23:47,318 - experiments.data_validation - INFO -    Creating filtered position lookups with output_dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346
+2025-10-25 01:23:47,318 - experiments.data_validation - INFO -   _create_filtered_position_lookups called:
+2025-10-25 01:23:47,318 - experiments.data_validation - INFO -     view_names: ['volume_sn_voxels', 'clinical']
+2025-10-25 01:23:47,318 - experiments.data_validation - INFO -     n_views raw: 2, preprocessed: 2
+2025-10-25 01:23:47,318 - experiments.data_validation - INFO -   Creating filtered position lookup for volume_sn_voxels...
+2025-10-25 01:23:47,321 - experiments.data_validation - INFO -   Original positions: 1794 rows
+2025-10-25 01:23:47,321 - experiments.data_validation - INFO -   Raw data: 1794 voxels
+2025-10-25 01:23:47,321 - experiments.data_validation - INFO -   Preprocessed data: 1794 voxels
+2025-10-25 01:23:47,321 - experiments.data_validation - INFO -   No voxels dropped, position lookup unchanged
+2025-10-25 01:23:47,334 - experiments.data_validation - INFO -   ✅ Saved filtered position lookup: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346/filtered_position_lookups/sn_filtered_position_lookup.csv
+2025-10-25 01:23:47,334 - experiments.data_validation - INFO -      1794 → 1794 rows
+2025-10-25 01:23:47,334 - experiments.data_validation - INFO -   Skipping clinical view
+2025-10-25 01:23:47,334 - experiments.data_validation - INFO -    ✅ Filtered position lookups saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346/filtered_position_lookups
+2025-10-25 01:23:47,334 - experiments.data_validation - INFO -    Files created: ['/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346/filtered_position_lookups/sn_filtered_position_lookup.csv']
+2025-10-25 01:23:47,336 - experiments.data_validation - INFO - Data structure analysis completed. Raw: 1808 features, Processed: 1808 features
+2025-10-25 01:23:47,336 - experiments.data_validation - INFO - 🔍 Assessing data quality metrics...
+2025-10-25 01:23:47,336 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×1794)...
+2025-10-25 01:23:47,343 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-25 01:23:47,344 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-25 01:23:47,345 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×1794)...
+2025-10-25 01:23:47,351 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-25 01:23:47,352 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-25 01:23:47,352 - experiments.data_validation - INFO - 📊 Estimating Signal-to-Noise Ratio (SNR)...
+2025-10-25 01:23:47,352 - experiments.data_validation - INFO -    Analyzing SNR for volume_sn_voxels ((86, 1794))...
+2025-10-25 01:23:47,378 - experiments.data_validation - INFO -       PCA SNR: 4.93 (signal=9 PCs)
+2025-10-25 01:23:47,379 - experiments.data_validation - INFO -       Effective dim (95%): 21 PCs
+2025-10-25 01:23:47,379 - experiments.data_validation - INFO -       Scree elbow at PC: 2
+2025-10-25 01:23:47,380 - experiments.data_validation - INFO -       Variance SNR: 0.00
+2025-10-25 01:23:47,381 - experiments.data_validation - INFO -       Feature SNR: median=0.00
+2025-10-25 01:23:47,381 - experiments.data_validation - INFO -    📋 SNR Interpretation for volume_sn_voxels:
+2025-10-25 01:23:47,382 - experiments.data_validation - INFO -       Signal quality: Moderate (SNR 3-10): Adequate signal, moderate noise
+2025-10-25 01:23:47,382 - experiments.data_validation - INFO -       Recommended K: 2-2 (moderate signal)
+2025-10-25 01:23:47,382 - experiments.data_validation - INFO -       Prior strength: MODERATE priors (SNR 2-5): Use τ₀ floor (current: 0.3)
+2025-10-25 01:23:47,382 - experiments.data_validation - INFO -       Convergence: MODERATE: May need longer chains or stronger priors
+2025-10-25 01:23:47,382 - experiments.data_validation - INFO -    Analyzing SNR for clinical ((86, 14))...
+2025-10-25 01:23:47,383 - experiments.data_validation - INFO -       PCA SNR: 14.65 (signal=9 PCs)
+2025-10-25 01:23:47,384 - experiments.data_validation - INFO -       Effective dim (95%): 10 PCs
+2025-10-25 01:23:47,384 - experiments.data_validation - INFO -       Scree elbow at PC: 2
+2025-10-25 01:23:47,384 - experiments.data_validation - INFO -       Variance SNR: 0.00
+2025-10-25 01:23:47,385 - experiments.data_validation - INFO -       Feature SNR: median=0.00
+2025-10-25 01:23:47,385 - experiments.data_validation - INFO -    📋 SNR Interpretation for clinical:
+2025-10-25 01:23:47,385 - experiments.data_validation - INFO -       Signal quality: High (SNR > 10): Strong signal, low noise
+2025-10-25 01:23:47,385 - experiments.data_validation - INFO -       Recommended K: 2-8 (signal supports more factors)
+2025-10-25 01:23:47,385 - experiments.data_validation - INFO -       Prior strength: WEAK priors ok (SNR > 5): Data-dependent τ₀ may suffice
+2025-10-25 01:23:47,385 - experiments.data_validation - INFO -       Convergence: GOOD: High SNR + well-defined subspace
+2025-10-25 01:23:47,385 - experiments.data_validation - INFO - ✅ SNR estimation complete for all views
+2025-10-25 01:23:47,403 - experiments.data_validation - INFO - ================================================================================
+2025-10-25 01:23:47,403 - experiments.data_validation - INFO - 🔍 MAD THRESHOLD EXPLORATORY DATA ANALYSIS
+2025-10-25 01:23:47,403 - experiments.data_validation - INFO - ================================================================================
+2025-10-25 01:23:47,404 - experiments.data_validation - INFO - Analyzing optimal MAD threshold values for outlier detection...
+2025-10-25 01:23:47,404 - experiments.data_validation - INFO - Analyzing 1 imaging views: ['volume_sn_voxels']
+2025-10-25 01:23:47,404 - experiments.data_validation - INFO - 📊 Analyzing MAD distributions...
+2025-10-25 01:23:47,404 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-25 01:23:48,413 - experiments.data_validation - INFO -       Saved MAD distribution plot: mad_distribution_sn.png
+2025-10-25 01:23:48,413 - experiments.data_validation - INFO -    ✅ MAD distributions analyzed for 1 views
+2025-10-25 01:23:48,413 - experiments.data_validation - INFO - 📈 Performing elbow analysis...
+2025-10-25 01:23:48,425 - experiments.data_validation - INFO -    volume_sn_voxels: Elbow at 2.26 (7.1% retention)
+2025-10-25 01:23:48,858 - experiments.data_validation - INFO -    ✅ Elbow analysis completed, saved to elbow_analysis_all_views.png
+2025-10-25 01:23:48,858 - experiments.data_validation - INFO - 🗺️  Analyzing spatial distribution of removed voxels...
+2025-10-25 01:23:48,860 - experiments.data_validation - INFO -    Loaded position lookup for volume_sn_voxels: 1794 voxels
+2025-10-25 01:23:50,652 - experiments.data_validation - INFO -       Saved spatial distribution plot: spatial_distribution_sn.png
+2025-10-25 01:23:50,652 - experiments.data_validation - INFO -    ✅ Spatial analysis completed for 1 views
+2025-10-25 01:23:50,652 - experiments.data_validation - INFO - 📊 Analyzing information preservation...
+2025-10-25 01:23:50,652 - experiments.data_validation - INFO -    Processing volume_sn_voxels...
+2025-10-25 01:23:51,260 - experiments.data_validation - INFO -       Saved information preservation plot: information_preservation_all_views.png
+2025-10-25 01:23:51,261 - experiments.data_validation - INFO -    ✅ Information preservation analyzed for 1 views
+2025-10-25 01:23:51,261 - experiments.data_validation - INFO - 👤 Analyzing subject-level data quality...
+2025-10-25 01:23:51,261 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-25 01:23:51,535 - experiments.data_validation - INFO -       Mean outlier %: 1.1%
+2025-10-25 01:23:51,536 - experiments.data_validation - INFO -       Max outlier %: 17.5%
+2025-10-25 01:23:52,000 - experiments.data_validation - INFO -       Saved subject outlier distribution plot: subject_outlier_distributions.png
+2025-10-25 01:23:52,004 - experiments.data_validation - INFO -       Saved flagged subjects table: flagged_subjects.csv (2 subjects)
+2025-10-25 01:23:52,007 - experiments.data_validation - INFO -       Saved flagged subjects report: flagged_subjects_report.txt
+2025-10-25 01:23:52,385 - experiments.data_validation - INFO -       Saved subject outlier comparison plot: subject_outlier_comparison.png
+2025-10-25 01:23:52,894 - experiments.data_validation - INFO -       Saved subject outlier scatter plot: subject_outlier_scatter.png
+2025-10-25 01:23:53,559 - experiments.data_validation - INFO -       Saved top subjects bar chart: subject_outlier_top20.png
+2025-10-25 01:23:53,559 - experiments.data_validation - INFO -    ✅ Subject-level analysis completed: 2 subjects flagged
+2025-10-25 01:23:53,560 - experiments.data_validation - INFO - 📋 Generating threshold comparison summary...
+2025-10-25 01:23:53,563 - experiments.data_validation - INFO -    Saved summary table: mad_threshold_summary_table.csv
+2025-10-25 01:23:53,566 - experiments.data_validation - INFO -    📝 Saved recommendations: mad_threshold_recommendations.txt
+2025-10-25 01:23:53,566 - experiments.data_validation - INFO - ================================================================================
+2025-10-25 01:23:53,566 - experiments.data_validation - INFO - ✅ MAD threshold EDA completed successfully
+2025-10-25 01:23:53,566 - experiments.data_validation - INFO - ================================================================================
+2025-10-25 01:23:53,566 - experiments.data_validation - INFO - 📊 Generating data validation plots...
+2025-10-25 01:23:53,566 - experiments.data_validation - INFO -    Creating distribution histograms for 1 clinical view(s), skipping 1 imaging views
+2025-10-25 01:23:53,691 - experiments.data_validation - INFO -    ✅ Distribution histograms created (stored as data_distribution_comparison)
+2025-10-25 01:23:53,698 - experiments.data_validation - INFO - 📊 Basic data validation plots completed: 1 plots generated
+2025-10-25 01:23:53,698 - experiments.data_validation - INFO - 🎨 Creating comprehensive data validation visualizations for data_quality_assessment
+2025-10-25 01:23:53,703 - visualization.preprocessing_plots - INFO - Creating preprocessing plots
+2025-10-25 01:23:54,201 - visualization.preprocessing_plots - INFO - Saved: results/plots/preprocessing/feature_reduction.png
+2025-10-25 01:23:54,742 - visualization.preprocessing_plots - INFO - Saved: results/plots/preprocessing/variance_distribution.png
+2025-10-25 01:23:54,743 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-25 01:23:54,743 - visualization.covariance_plots - INFO - COVARIANCE STRUCTURE ANALYSIS
+2025-10-25 01:23:54,743 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-25 01:23:54,853 - visualization.covariance_plots - INFO - Intra-modality covariance for volume_sn_voxels: 1794x1794
+2025-10-25 01:23:54,854 - visualization.covariance_plots - INFO - Intra-modality covariance for clinical: 14x14
+2025-10-25 01:23:54,913 - visualization.covariance_plots - INFO - Inter-modality covariance for volume_sn_voxels_vs_clinical: 1794x14
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO - 
+Data structure:
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -   Number of views: 2
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -   Number of samples: 86
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -   volume_sn_voxels: 1794 features
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -   clinical: 14 features
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO - 
+Intra-modality correlation statistics:
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -   volume_sn_voxels:
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -     Mean correlation: 0.388
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -     Std correlation: 0.219
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -     Max |correlation|: 0.994
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -   clinical:
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -     Mean correlation: 0.073
+2025-10-25 01:23:55,013 - visualization.covariance_plots - INFO -     Std correlation: 0.350
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO -     Max |correlation|: 0.911
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO - 
+Inter-modality correlation statistics:
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO -   volume_sn_voxels_vs_clinical:
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO -     Mean correlation: 0.031
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO -     Std correlation: 0.121
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO -     Max |correlation|: 0.371
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO - 
+Generating covariance plots...
+2025-10-25 01:23:55,014 - visualization.covariance_plots - INFO - Subsampling covariance matrix from 1808 to 500 features
+2025-10-25 01:23:56,272 - visualization.covariance_plots - INFO - Saved block covariance matrix plot to results/plots/block_covariance_matrix.png
+2025-10-25 01:24:04,809 - visualization.covariance_plots - INFO - Saved inter/intra comparison plot to results/plots/inter_vs_intra_correlation.png
+2025-10-25 01:24:04,809 - visualization.covariance_plots - INFO - Plots saved to results/plots
+2025-10-25 01:24:04,809 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-25 01:24:04,814 - experiments.data_validation - INFO -    Found 4 plot files to convert
+2025-10-25 01:24:05,533 - experiments.data_validation - INFO -    ✅ Created 4 comprehensive data validation visualizations
+2025-10-25 01:24:05,533 - experiments.data_validation - INFO - 🎨 Comprehensive data validation plots completed: 4 advanced plots generated
+2025-10-25 01:24:05,533 - experiments.data_validation - INFO - 📊 Creating SNR analysis plots...
+2025-10-25 01:24:05,533 - experiments.data_validation - INFO - 📊 Creating SNR analysis visualizations...
+2025-10-25 01:24:05,533 - experiments.data_validation - INFO -    Generating 3-panel SNR plot for volume_sn_voxels...
+2025-10-25 01:24:05,780 - experiments.data_validation - INFO -       ✅ Created SNR plot: snr_analysis_volume_sn_voxels.png
+2025-10-25 01:24:05,780 - experiments.data_validation - INFO -    Generating 3-panel SNR plot for clinical...
+2025-10-25 01:24:05,810 - experiments.data_validation - INFO -       ✅ Created SNR plot: snr_analysis_clinical.png
+2025-10-25 01:24:05,810 - experiments.data_validation - INFO - ✅ Generated 2 SNR visualization(s)
+2025-10-25 01:24:05,810 - experiments.data_validation - INFO - 📊 Total plots ready for saving: 7
+2025-10-25 01:24:05,810 - experiments.data_validation - INFO - 📁 Using experiment output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346
+2025-10-25 01:24:16,689 - core.io_utils - INFO - Saved 7 plots individually to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346/individual_plots (0 skipped)
+2025-10-25 01:24:16,689 - core.io_utils - INFO -   Formats: png, pdf
+2025-10-25 01:24:16,689 - experiments.data_validation - INFO - ✅ Saved 7 individual plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346/individual_plots
+2025-10-25 01:24:16,689 - experiments.data_validation - INFO - 📊 Saving SNR analysis results...
+2025-10-25 01:24:16,690 - experiments.data_validation - INFO - 📊 Saving SNR analysis results...
+2025-10-25 01:24:16,692 - experiments.data_validation - INFO -    ✅ Saved SNR text report: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/data_validation_rois-sn_conf-age+sex+tiv_K2_run_20251025_012346/data_validation_20251025_012346/snr_analysis/snr_report.txt
+2025-10-25 01:24:16,692 - experiments.data_validation - INFO - ✅ SNR results saved successfully
+2025-10-25 01:24:16,692 - experiments.data_validation - INFO - ✅ Data validation with EDA completed!
+2025-10-25 01:24:16,692 - experiments.data_validation - INFO -    Plots generated: 7
+2025-10-25 01:24:16,693 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251025_012346
+2025-10-25 01:24:16,693 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 29.8 seconds
+2025-10-25 01:24:16,693 - experiments.framework - INFO - 🕐 Started: 2025-10-25 01:23:46
+2025-10-25 01:24:16,693 - experiments.framework - INFO - 🕑 Finished: 2025-10-25 01:24:16
+2025-10-25 01:24:16,693 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251025_012346
+2025-10-25 01:24:16,693 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-25 01:24:16,786 - experiments.framework - INFO - Garbage collection freed 3307 objects
+2025-10-25 01:24:17,123 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-25 01:24:18,124 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
