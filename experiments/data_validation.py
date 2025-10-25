@@ -2726,7 +2726,8 @@ class DataValidationExperiments(ExperimentFramework):
                     position_file = Path(data_dir) / "volume_matrices" / f"{roi_name}_position_lookup.tsv"
 
                 if position_file.exists():
-                    positions = pd.read_csv(position_file, sep='\t')
+                    # Position lookup files have NO header row - single column of position indices
+                    positions = pd.read_csv(position_file, sep='\t', header=None, names=['position_idx'])
                     logger.info(f"   Loaded position lookup for {view_name}: {len(positions)} voxels")
 
                     # Analyze at threshold 3.0 (current default)
