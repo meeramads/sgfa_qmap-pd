@@ -976,7 +976,12 @@ class DataValidationExperiments(ExperimentFramework):
             logger.info(f"   Generating 3-panel SNR plot for {view_name}...")
 
             metrics = snr_analysis[view_name]
-            pca_metrics = metrics["pca_snr"]
+            pca_metrics = metrics.get("pca_snr")
+
+            # Skip if PCA SNR estimation failed
+            if pca_metrics is None or not isinstance(pca_metrics, dict):
+                logger.warning(f"   Skipping SNR plot for {view_name} (PCA metrics unavailable)")
+                continue
 
             # Re-compute PCA to get eigenvalues (they're in the metrics but not as array)
             # We need the full eigenvalue spectrum for plotting
@@ -997,12 +1002,12 @@ class DataValidationExperiments(ExperimentFramework):
                 continue
 
             # Get key metrics
-            n_effective_95 = pca_metrics["n_effective_95pct"]
-            n_effective_99 = pca_metrics["n_effective_99pct"]
+            n_effective_95 = pca_metrics.get("n_effective_95pct", 5)
+            n_effective_99 = pca_metrics.get("n_effective_99pct", 10)
             scree_elbow = pca_metrics.get("scree_elbow", n_effective_95)
-            snr_pca = metrics["snr_pca"]
-            signal_quality = metrics["interpretation"]["signal_quality"]
-            recommended_K = metrics["interpretation"]["recommended_K_range"]
+            snr_pca = pca_metrics.get("snr_estimate", 1.0)
+            signal_quality = metrics.get("interpretation", {}).get("signal_quality", "Unknown")
+            recommended_K = metrics.get("interpretation", {}).get("recommended_K_range", "Unknown")
 
             # Signal/noise cutoff (conservative: sqrt(N))
             n_signal = max(5, int(np.sqrt(N)))
@@ -1071,6 +1076,10 @@ class DataValidationExperiments(ExperimentFramework):
             ax3.axis('off')
 
             # Create text summary
+            snr_variance = metrics.get("snr_variance", {}).get("snr_estimate", 0.0) if isinstance(metrics.get("snr_variance"), dict) else 0.0
+            prior_strength = metrics.get("interpretation", {}).get("prior_strength_recommendation", "Unknown")
+            convergence = metrics.get("interpretation", {}).get("convergence_expectation", "Unknown")
+
             summary_text = [
                 f"SNR Analysis Summary",
                 f"{'=' * 35}",
@@ -1080,7 +1089,7 @@ class DataValidationExperiments(ExperimentFramework):
                 f"",
                 f"SNR Estimates:",
                 f"  PCA-based: {snr_pca:.2f}",
-                f"  Variance-based: {metrics['snr_variance']:.2f}",
+                f"  Variance-based: {snr_variance:.2f}",
                 f"",
                 f"Effective Dimensionality:",
                 f"  95% variance: {n_effective_95} PCs",
@@ -1090,10 +1099,10 @@ class DataValidationExperiments(ExperimentFramework):
                 f"Recommendations:",
                 f"  K range: {recommended_K}",
                 f"  Prior strength:",
-                f"    {metrics['interpretation']['prior_strength_recommendation']}",
+                f"    {prior_strength}",
                 f"",
                 f"Convergence:",
-                f"  {metrics['interpretation']['convergence_expectation']}",
+                f"  {convergence}",
             ]
 
             # Add text to plot
