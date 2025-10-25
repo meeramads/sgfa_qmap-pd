@@ -3037,6 +3037,52 @@ class RobustnessExperiments(ExperimentFramework):
 
         self.logger.info(f"  - {len(plots)} plots generated")
 
+        # Save consensus factor loadings and scores to CSV files
+        self.logger.info("=" * 80)
+        self.logger.info("SAVING CONSENSUS FACTOR LOADINGS AND SCORES")
+        self.logger.info("=" * 80)
+        try:
+            # Determine output directory
+            if self._experiment_output_dir:
+                save_dir = str(self._experiment_output_dir)
+            elif output_dir:
+                save_dir = str(output_dir)
+            else:
+                save_dir = str(self.base_output_dir / "factor_stability")
+
+            self.logger.info(f"Saving to: {save_dir}")
+
+            # Use the primary method's effective factors (ARD if available, else samples)
+            # Just use the first chain's effective factors for the summary
+            primary_effective = effective_factors_per_chain[0].get(
+                "ard_precision",
+                effective_factors_per_chain[0]["posterior_samples"]
+            )
+
+            # Extract optional metadata from kwargs
+            subject_ids = kwargs.get("subject_ids", None)
+            view_names_for_save = kwargs.get("view_names", None)
+            feature_names_for_save = kwargs.get("feature_names", None)
+            Dm_for_save = hypers.get("Dm", None)
+
+            # Save stability results (includes consensus W, Z, and all diagnostics)
+            save_stability_results(
+                stability_results=stability_results,
+                effective_results=primary_effective,
+                output_dir=save_dir,
+                subject_ids=subject_ids,
+                view_names=view_names_for_save,
+                feature_names=feature_names_for_save,
+                Dm=Dm_for_save,
+            )
+
+            self.logger.info("✅ Consensus factor loadings and scores saved successfully")
+
+        except Exception as e:
+            self.logger.error(f"❌ Failed to save consensus results: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+
         result = ExperimentResult(
             experiment_id="factor_stability_analysis",
             config=self.config,
