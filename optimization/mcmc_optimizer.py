@@ -280,15 +280,13 @@ class MCMCMemoryOptimizer:
                 ),
             )
 
-            # Capture comprehensive posterior geometry information
+            # Capture essential posterior geometry information (lean mode for speed)
+            # Note: adapt_state (mass matrix) and other expensive fields are excluded by default
+            # Factor stability analysis enables full capture via capture_full_geometry=True
             mcmc.run(rng_key, extra_fields=(
                 "potential_energy",  # Log probability (unnormalized posterior)
                 "accept_prob",       # Per-sample acceptance probability
                 "diverging",         # Divergent transition indicator (critical for geometry)
-                "num_steps",         # Number of leapfrog steps (adaptation indicator)
-                "mean_accept_prob",  # Running mean acceptance probability
-                "adapt_state",       # Contains inverse mass matrix and step size
-                "energy",            # Total Hamiltonian energy
             ))
             samples = mcmc.get_samples(group_by_chain=True)  # Keep chain structure for geometry analysis
 

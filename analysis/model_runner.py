@@ -149,16 +149,12 @@ class ModelRunner:
             num_chains=self.config.num_chains,
         )
 
-        # Run inference with comprehensive posterior geometry capture
+        # Run inference with essential posterior geometry (lean mode for speed)
         start_time = time.time()
         mcmc.run(rng_key, X_list, extra_fields=(
             "potential_energy",  # Log probability (unnormalized posterior)
             "accept_prob",       # Per-sample acceptance probability
             "diverging",         # Divergent transition indicator (critical for geometry)
-            "num_steps",         # Number of leapfrog steps (adaptation indicator)
-            "mean_accept_prob",  # Running mean acceptance probability
-            "adapt_state",       # Contains inverse mass matrix and step size
-            "energy",            # Total Hamiltonian energy
         ))
         elapsed = time.time() - start_time
 

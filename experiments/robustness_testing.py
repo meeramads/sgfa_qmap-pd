@@ -1202,17 +1202,35 @@ class RobustnessExperiments(ExperimentFramework):
                 try:
                     # CRITICAL: model_instance only takes X_list as argument
                     # Hypers are already stored in model_instance.hypers from initialization
-                    # Capture comprehensive posterior geometry for factor stability analysis
-                    mcmc.run(
-                        rng_key, X_list, init_params=init_params, extra_fields=(
+
+                    # Determine which extra fields to capture based on context
+                    # For factor stability: capture comprehensive geometry (includes adapt_state - expensive!)
+                    # For other experiments: capture only essential diagnostics
+                    if kwargs.get("capture_full_geometry", False):
+                        # FULL GEOMETRY (SLOW): Only for factor stability analysis
+                        extra_fields = (
                             "potential_energy",  # Log probability (unnormalized posterior)
                             "accept_prob",       # Per-sample acceptance probability
                             "diverging",         # Divergent transition indicator (critical for geometry)
                             "num_steps",         # Number of leapfrog steps (adaptation indicator)
                             "mean_accept_prob",  # Running mean acceptance probability
-                            "adapt_state",       # Contains inverse mass matrix and step size
+                            "adapt_state",       # Contains inverse mass matrix and step size (EXPENSIVE!)
                             "energy",            # Total Hamiltonian energy
                         )
+                        if verbose:
+                            self.logger.info("📊 Capturing FULL posterior geometry (including adapt_state - may be slow)")
+                    else:
+                        # ESSENTIAL DIAGNOSTICS (FAST): Default for most experiments
+                        extra_fields = (
+                            "potential_energy",  # Log probability (unnormalized posterior)
+                            "accept_prob",       # Per-sample acceptance probability
+                            "diverging",         # Divergent transition indicator (critical for geometry)
+                        )
+                        if verbose:
+                            self.logger.info("📊 Capturing essential diagnostics (fast mode)")
+
+                    mcmc.run(
+                        rng_key, X_list, init_params=init_params, extra_fields=extra_fields
                     )
                     elapsed = time.time() - start_time
                     self.logger.debug(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
@@ -2256,6 +2274,11 @@ class RobustnessExperiments(ExperimentFramework):
         with self.profiler.profile("all_chains") as p:
             self.logger.info(f"Starting SGFA analysis with {n_chains} chains...")
             try:
+                # Enable full geometry capture for factor stability analysis
+                # This includes adapt_state (mass matrix) which is expensive but valuable
+                kwargs["capture_full_geometry"] = True
+                self.logger.info("🔬 Factor stability mode: Capturing full posterior geometry diagnostics")
+
                 # Verbose=True to see the configuration (this is typically called once)
                 result = self._run_sgfa_analysis(X_list, hypers, multi_chain_args, verbose=True, **kwargs)
                 self.logger.info(f"   Result keys: {list(result.keys())}")
@@ -3645,7 +3668,7 @@ class RobustnessExperiments(ExperimentFramework):
                             samples_by_chain=samples_by_chain,
                             save_path=None,
                             num_sources=num_sources,
-                            thin=max(1, W_samples.shape[1] // 1000),
+                            thin=max(1, W_samples_for_plots.shape[1] // 1000),
                             view_names=view_names,
                             save_individual=True,
                             output_dir=str(individual_plots_dir),
@@ -3661,7 +3684,7 @@ class RobustnessExperiments(ExperimentFramework):
 
                         # Analyze variance profile to assess effective dimensionality
                         variance_results = analyze_factor_variance_profile(
-                            Z_samples=Z_samples,
+                            Z_samples=Z_samples_for_plots,
                             variance_threshold=0.1,  # Factors below this are shrunk away
                             save_path=None,
                         )
@@ -3671,7 +3694,7 @@ class RobustnessExperiments(ExperimentFramework):
                         plots["factor_variance_profile"] = plt.gcf()
 
                         # Log key insights
-                        K = Z_samples.shape[3]
+                        K = Z_samples_for_plots.shape[3]
                         n_active = variance_results['n_active_factors']
                         effective_dim = variance_results['effective_dimensionality']
 
@@ -3714,13 +3737,18 @@ class RobustnessExperiments(ExperimentFramework):
 
                         self.logger.debug("Creating rank plots for chain mixing assessment...")
 
+                        # Extract dimensions from sample arrays
+                        K_for_plots = W_samples_for_plots.shape[3]  # Number of factors
+                        D_for_plots = W_samples_for_plots.shape[2]  # Number of features
+                        N_for_plots = Z_samples_for_plots.shape[2]  # Number of subjects
+
                         # Create rank plots for a subset of W parameters
                         # Sample a few factors for rank plots (don't overwhelm with plots)
-                        n_factors_to_plot = min(3, K)  # Plot top 3 factors
+                        n_factors_to_plot = min(3, K_for_plots)  # Plot top 3 factors
 
                         # Sample some features from W for rank plots
-                        n_features_per_factor = min(10, D)  # Sample 10 features per factor
-                        W_subset = W_samples[:, :, :n_features_per_factor, :n_factors_to_plot]
+                        n_features_per_factor = min(10, D_for_plots)  # Sample 10 features per factor
+                        W_subset = W_samples_for_plots[:, :, :n_features_per_factor, :n_factors_to_plot]
 
                         fig_rank_W = plot_rank_statistics(
                             W_subset,
@@ -3732,8 +3760,8 @@ class RobustnessExperiments(ExperimentFramework):
                         self.logger.debug("   ✅ Rank plot for W created")
 
                         # Create rank plots for Z (sample some subjects)
-                        n_subjects_to_plot = min(10, N)
-                        Z_subset = Z_samples[:, :, :n_subjects_to_plot, :n_factors_to_plot]
+                        n_subjects_to_plot = min(10, N_for_plots)
+                        Z_subset = Z_samples_for_plots[:, :, :n_subjects_to_plot, :n_factors_to_plot]
 
                         fig_rank_Z = plot_rank_statistics(
                             Z_subset,
