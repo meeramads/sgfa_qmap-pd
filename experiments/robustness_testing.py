@@ -951,25 +951,59 @@ class RobustnessExperiments(ExperimentFramework):
                         chain_samples = mcmc_single.get_samples()
 
                         # Log tau0 values (data-dependent global scales) for diagnostics
+                        # These reflect the dimensionality-aware prior floors
                         if "tau0_Z" in chain_samples:
                             tau0_Z_val = float(np.array(chain_samples["tau0_Z"]).mean())
-                            self.logger.debug(f"   📊 Prior scale τ₀_Z = {tau0_Z_val:.6f}")
+                            self.logger.info(f"   📊 Global shrinkage prior τ₀_Z = {tau0_Z_val:.6f}")
 
-                        # Log tau0 for each view
+                        # Log tau0 for each view with dimensionality and view name context
+                        self.logger.info("   📊 View-specific global shrinkage priors (τ₀_W):")
                         view_tau0_values = []
+                        view_names_from_kwargs = kwargs.get('view_names', [])
+
                         for key in chain_samples.keys():
                             if key.startswith("tau0_view_"):
-                                view_num = key.split("_")[-1]
+                                view_num_str = key.split("_")[-1]
+                                view_idx = int(view_num_str) - 1  # Convert to 0-based index
                                 tau0_val = float(np.array(chain_samples[key]).mean())
-                                view_tau0_values.append((view_num, tau0_val))
-                                self.logger.debug(f"   📊 Prior scale τ₀_W (view {view_num}) = {tau0_val:.6f}")
+                                view_tau0_values.append((view_num_str, view_idx, tau0_val))
+
+                                # Get view name and dimensionality
+                                view_name = view_names_from_kwargs[view_idx] if view_idx < len(view_names_from_kwargs) else f"View {view_num_str}"
+                                view_dim = X_list[view_idx].shape[1] if view_idx < len(X_list) else "?"
+
+                                # Determine floor category based on dimensionality
+                                if isinstance(view_dim, int):
+                                    if view_dim < 50:
+                                        dim_category = "low-D (<50)"
+                                        expected_floor = 0.8
+                                    elif view_dim < 200:
+                                        dim_category = "medium-D (50-200)"
+                                        expected_floor = 0.5
+                                    else:
+                                        dim_category = "high-D (>200)"
+                                        expected_floor = 0.3
+
+                                    self.logger.info(
+                                        f"     View {view_num_str} ({view_name}): "
+                                        f"τ₀_W = {tau0_val:.6f} | "
+                                        f"D = {view_dim} features ({dim_category}, floor={expected_floor})"
+                                    )
+                                else:
+                                    self.logger.info(
+                                        f"     View {view_num_str} ({view_name}): "
+                                        f"τ₀_W = {tau0_val:.6f}"
+                                    )
 
                         # Warning if tau0 values seem too large
                         if "tau0_Z" in chain_samples and tau0_Z_val > 1.0:
                             self.logger.warning(f"   ⚠️  τ₀_Z = {tau0_Z_val:.6f} is very large (>1.0) - prior may be too loose!")
-                        for view_num, tau0_val in view_tau0_values:
+                        for view_num_str, view_idx, tau0_val in view_tau0_values:
                             if tau0_val > 1.0:
-                                self.logger.warning(f"   ⚠️  τ₀_W (view {view_num}) = {tau0_val:.6f} is very large (>1.0) - prior may be too loose!")
+                                view_name = view_names_from_kwargs[view_idx] if view_idx < len(view_names_from_kwargs) else f"View {view_num_str}"
+                                self.logger.warning(
+                                    f"   ⚠️  τ₀_W ({view_name}) = {tau0_val:.6f} is very large (>1.0) - prior may be too loose!"
+                                )
 
                         # Log other key hyperparameters for diagnostics
                         self.logger.debug("   📊 Hyperparameter Summary:")
