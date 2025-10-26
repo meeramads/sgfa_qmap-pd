@@ -203,7 +203,16 @@ def run_inference(model, args, rng_key, X_list, hypers):
         num_chains=args.num_chains,
         progress_bar=True,  # Enable progress bar
     )
-    mcmc.run(rng_key, X_list, hypers, args, extra_fields=("potential_energy",))
+    # Capture comprehensive posterior geometry information
+    mcmc.run(rng_key, X_list, hypers, args, extra_fields=(
+        "potential_energy",  # Log probability (unnormalized posterior)
+        "accept_prob",       # Per-sample acceptance probability
+        "diverging",         # Divergent transition indicator (critical for geometry)
+        "num_steps",         # Number of leapfrog steps (adaptation indicator)
+        "mean_accept_prob",  # Running mean acceptance probability
+        "adapt_state",       # Contains inverse mass matrix and step size
+        "energy",            # Total Hamiltonian energy
+    ))
     return mcmc
 
 

@@ -1202,8 +1202,17 @@ class RobustnessExperiments(ExperimentFramework):
                 try:
                     # CRITICAL: model_instance only takes X_list as argument
                     # Hypers are already stored in model_instance.hypers from initialization
+                    # Capture comprehensive posterior geometry for factor stability analysis
                     mcmc.run(
-                        rng_key, X_list, init_params=init_params
+                        rng_key, X_list, init_params=init_params, extra_fields=(
+                            "potential_energy",  # Log probability (unnormalized posterior)
+                            "accept_prob",       # Per-sample acceptance probability
+                            "diverging",         # Divergent transition indicator (critical for geometry)
+                            "num_steps",         # Number of leapfrog steps (adaptation indicator)
+                            "mean_accept_prob",  # Running mean acceptance probability
+                            "adapt_state",       # Contains inverse mass matrix and step size
+                            "energy",            # Total Hamiltonian energy
+                        )
                     )
                     elapsed = time.time() - start_time
                     self.logger.debug(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
@@ -2240,6 +2249,10 @@ class RobustnessExperiments(ExperimentFramework):
         chain_results = []
         performance_metrics = {}
 
+        # Initialize aligned sample variables (will be populated during R-hat computation)
+        W_samples_aligned = None
+        Z_samples_aligned = None
+
         with self.profiler.profile("all_chains") as p:
             self.logger.info(f"Starting SGFA analysis with {n_chains} chains...")
             try:
@@ -3148,6 +3161,25 @@ class RobustnessExperiments(ExperimentFramework):
             feature_names_for_save = kwargs.get("feature_names", None)
             Dm_for_save = hypers.get("Dm", None)
 
+            # Extract posterior geometry diagnostics from samples
+            from analysis.factor_stability import extract_posterior_geometry
+            self.logger.info("Extracting posterior geometry diagnostics...")
+            posterior_geometry = None
+            if "samples" in result and result["samples"] is not None:
+                try:
+                    posterior_geometry = extract_posterior_geometry(result["samples"])
+                    self.logger.info(f"  ✅ Extracted posterior geometry diagnostics")
+                    # Log key findings
+                    if "divergence_summary" in posterior_geometry:
+                        div_rate = posterior_geometry["divergence_summary"].get("divergence_rate", 0)
+                        self.logger.info(f"    - Divergence rate: {div_rate:.4f}")
+                    if "acceptance_summary" in posterior_geometry:
+                        acc_mean = posterior_geometry["acceptance_summary"].get("mean", 0)
+                        self.logger.info(f"    - Mean acceptance prob: {acc_mean:.4f}")
+                except Exception as e:
+                    self.logger.warning(f"  ⚠️ Failed to extract posterior geometry: {e}")
+                    posterior_geometry = None
+
             # Save stability results (includes consensus W, Z, and all diagnostics)
             save_stability_results(
                 stability_results=stability_results,
@@ -3157,6 +3189,7 @@ class RobustnessExperiments(ExperimentFramework):
                 view_names=view_names_for_save,
                 feature_names=feature_names_for_save,
                 Dm=Dm_for_save,
+                posterior_geometry=posterior_geometry,
             )
 
             self.logger.info("✅ Consensus factor loadings and scores saved successfully")

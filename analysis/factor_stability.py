@@ -3122,6 +3122,195 @@ def create_effective_factors_summary_table(effective_results: Dict) -> pd.DataFr
     return df
 
 
+def extract_posterior_geometry(
+    samples: Dict[str, np.ndarray],
+) -> Dict:
+    """Extract posterior geometry diagnostics from MCMC samples.
+
+    This function extracts critical information about the posterior geometry
+    that helps diagnose sampling issues and understand the curvature/shape
+    of the posterior distribution.
+
+    Parameters
+    ----------
+    samples : Dict[str, np.ndarray]
+        MCMC samples dictionary containing extra_fields from NUTS sampler:
+        - "potential_energy": Log probability (unnormalized posterior)
+        - "accept_prob": Per-sample acceptance probability
+        - "diverging": Boolean indicator of divergent transitions
+        - "num_steps": Number of leapfrog steps taken
+        - "mean_accept_prob": Running mean acceptance probability
+        - "adapt_state": Dictionary containing inverse mass matrix and step size
+        - "energy": Total Hamiltonian energy
+
+    Returns
+    -------
+    Dict
+        Posterior geometry diagnostics containing:
+        - divergence_summary: Statistics on divergent transitions
+        - energy_summary: Statistics on Hamiltonian energy
+        - step_size_summary: Statistics on adapted step sizes
+        - acceptance_summary: Statistics on acceptance probabilities
+        - num_steps_summary: Statistics on leapfrog step counts
+        - mass_matrix_summary: Statistics on inverse mass matrix (if available)
+    """
+    geometry = {}
+
+    # Divergence diagnostics (critical for identifying geometry issues)
+    if "diverging" in samples:
+        diverging = np.asarray(samples["diverging"])
+        # Handle both flat and chain-structured samples
+        if diverging.ndim == 2:  # (n_chains, n_samples)
+            n_chains, n_samples = diverging.shape
+            geometry["divergence_summary"] = {
+                "total_divergences": int(np.sum(diverging)),
+                "divergence_rate": float(np.mean(diverging)),
+                "per_chain_divergences": [int(np.sum(diverging[c])) for c in range(n_chains)],
+                "per_chain_rates": [float(np.mean(diverging[c])) for c in range(n_chains)],
+                "n_chains": n_chains,
+                "n_samples_per_chain": n_samples,
+            }
+        else:  # (n_samples,)
+            geometry["divergence_summary"] = {
+                "total_divergences": int(np.sum(diverging)),
+                "divergence_rate": float(np.mean(diverging)),
+                "n_samples": len(diverging),
+            }
+
+    # Energy diagnostics (should be stable if sampling is efficient)
+    if "energy" in samples:
+        energy = np.asarray(samples["energy"])
+        if energy.ndim == 2:  # (n_chains, n_samples)
+            geometry["energy_summary"] = {
+                "mean": float(np.mean(energy)),
+                "std": float(np.std(energy)),
+                "min": float(np.min(energy)),
+                "max": float(np.max(energy)),
+                "per_chain_mean": [float(np.mean(energy[c])) for c in range(energy.shape[0])],
+                "per_chain_std": [float(np.std(energy[c])) for c in range(energy.shape[0])],
+            }
+        else:
+            geometry["energy_summary"] = {
+                "mean": float(np.mean(energy)),
+                "std": float(np.std(energy)),
+                "min": float(np.min(energy)),
+                "max": float(np.max(energy)),
+            }
+
+    # Acceptance probability diagnostics
+    if "accept_prob" in samples:
+        accept_prob = np.asarray(samples["accept_prob"])
+        if accept_prob.ndim == 2:  # (n_chains, n_samples)
+            geometry["acceptance_summary"] = {
+                "mean": float(np.mean(accept_prob)),
+                "std": float(np.std(accept_prob)),
+                "min": float(np.min(accept_prob)),
+                "max": float(np.max(accept_prob)),
+                "median": float(np.median(accept_prob)),
+                "per_chain_mean": [float(np.mean(accept_prob[c])) for c in range(accept_prob.shape[0])],
+                "per_chain_std": [float(np.std(accept_prob[c])) for c in range(accept_prob.shape[0])],
+            }
+        else:
+            geometry["acceptance_summary"] = {
+                "mean": float(np.mean(accept_prob)),
+                "std": float(np.std(accept_prob)),
+                "min": float(np.min(accept_prob)),
+                "max": float(np.max(accept_prob)),
+                "median": float(np.median(accept_prob)),
+            }
+
+    # Number of leapfrog steps (indicates adaptation and geometry complexity)
+    if "num_steps" in samples:
+        num_steps = np.asarray(samples["num_steps"])
+        if num_steps.ndim == 2:  # (n_chains, n_samples)
+            geometry["num_steps_summary"] = {
+                "mean": float(np.mean(num_steps)),
+                "std": float(np.std(num_steps)),
+                "min": int(np.min(num_steps)),
+                "max": int(np.max(num_steps)),
+                "median": float(np.median(num_steps)),
+                "per_chain_mean": [float(np.mean(num_steps[c])) for c in range(num_steps.shape[0])],
+                "per_chain_max": [int(np.max(num_steps[c])) for c in range(num_steps.shape[0])],
+            }
+        else:
+            geometry["num_steps_summary"] = {
+                "mean": float(np.mean(num_steps)),
+                "std": float(np.std(num_steps)),
+                "min": int(np.min(num_steps)),
+                "max": int(np.max(num_steps)),
+                "median": float(np.median(num_steps)),
+            }
+
+    # Potential energy (log probability) diagnostics
+    if "potential_energy" in samples:
+        potential_energy = np.asarray(samples["potential_energy"])
+        if potential_energy.ndim == 2:  # (n_chains, n_samples)
+            geometry["potential_energy_summary"] = {
+                "mean": float(np.mean(potential_energy)),
+                "std": float(np.std(potential_energy)),
+                "min": float(np.min(potential_energy)),
+                "max": float(np.max(potential_energy)),
+                "per_chain_mean": [float(np.mean(potential_energy[c])) for c in range(potential_energy.shape[0])],
+                "per_chain_std": [float(np.std(potential_energy[c])) for c in range(potential_energy.shape[0])],
+            }
+        else:
+            geometry["potential_energy_summary"] = {
+                "mean": float(np.mean(potential_energy)),
+                "std": float(np.std(potential_energy)),
+                "min": float(np.min(potential_energy)),
+                "max": float(np.max(potential_energy)),
+            }
+
+    # Adaptation state diagnostics (step size and mass matrix)
+    if "adapt_state" in samples:
+        adapt_state = samples["adapt_state"]
+        # adapt_state is typically a dict with 'step_size' and 'inverse_mass_matrix'
+        if isinstance(adapt_state, dict):
+            # Step size
+            if "step_size" in adapt_state:
+                step_size = np.asarray(adapt_state["step_size"])
+                if step_size.ndim == 1:  # (n_chains,)
+                    geometry["step_size_summary"] = {
+                        "mean": float(np.mean(step_size)),
+                        "std": float(np.std(step_size)),
+                        "min": float(np.min(step_size)),
+                        "max": float(np.max(step_size)),
+                        "per_chain": [float(s) for s in step_size],
+                    }
+                else:
+                    geometry["step_size_summary"] = {
+                        "value": float(step_size),
+                    }
+
+            # Inverse mass matrix (provides information about posterior covariance structure)
+            if "inverse_mass_matrix" in adapt_state:
+                inv_mass = np.asarray(adapt_state["inverse_mass_matrix"])
+                # inv_mass can be diagonal (1D) or full (2D)
+                if inv_mass.ndim >= 1:
+                    # Get diagonal elements (curvature in each parameter direction)
+                    if inv_mass.ndim == 1:
+                        diag_elements = inv_mass
+                    elif inv_mass.ndim == 2:
+                        diag_elements = np.diag(inv_mass)
+                    else:  # (n_chains, D) or (n_chains, D, D)
+                        # Average across chains
+                        if inv_mass.ndim == 3:
+                            diag_elements = np.mean([np.diag(inv_mass[c]) for c in range(inv_mass.shape[0])], axis=0)
+                        else:
+                            diag_elements = np.mean(inv_mass, axis=0)
+
+                    geometry["mass_matrix_summary"] = {
+                        "diagonal_mean": float(np.mean(diag_elements)),
+                        "diagonal_std": float(np.std(diag_elements)),
+                        "diagonal_min": float(np.min(diag_elements)),
+                        "diagonal_max": float(np.max(diag_elements)),
+                        "condition_number": float(np.max(diag_elements) / np.min(diag_elements)) if np.min(diag_elements) > 0 else np.inf,
+                        "dimensionality": len(diag_elements),
+                    }
+
+    return geometry
+
+
 def save_stability_results(
     stability_results: Dict,
     effective_results: Dict,
@@ -3130,6 +3319,7 @@ def save_stability_results(
     view_names: Optional[List[str]] = None,
     feature_names: Optional[Dict[str, List[str]]] = None,
     Dm: Optional[List[int]] = None,
+    posterior_geometry: Optional[Dict] = None,
 ) -> None:
     """Save factor stability and effectiveness results to files.
 
@@ -3149,6 +3339,8 @@ def save_stability_results(
         Feature names per view
     Dm : Optional[List[int]]
         Dimensions per view (e.g., [850, 14] for imaging + clinical)
+    posterior_geometry : Optional[Dict]
+        Posterior geometry diagnostics from extract_posterior_geometry()
 
     Original effective_results parameter docs:
         Output from count_effective_factors()
@@ -3408,6 +3600,94 @@ def save_stability_results(
         )
         similarity_df.to_csv(output_path / "similarity_matrix.csv")
         logger.info(f"  ✅ Saved similarity matrix: .npy and .csv formats")
+
+    # Save posterior geometry diagnostics if available
+    if posterior_geometry is not None:
+        logger.info("  Saving posterior geometry diagnostics...")
+
+        # Save comprehensive geometry JSON
+        save_json(posterior_geometry, output_path / "posterior_geometry.json", indent=2)
+
+        # Create summary tables for key metrics
+        geometry_summary_rows = []
+
+        # Divergence summary
+        if "divergence_summary" in posterior_geometry:
+            div = posterior_geometry["divergence_summary"]
+            geometry_summary_rows.append({
+                "metric": "divergences",
+                "total": div.get("total_divergences", "N/A"),
+                "rate": div.get("divergence_rate", "N/A"),
+                "interpretation": "GOOD" if div.get("divergence_rate", 1.0) < 0.01 else "WARNING" if div.get("divergence_rate", 1.0) < 0.05 else "BAD"
+            })
+
+        # Acceptance probability summary
+        if "acceptance_summary" in posterior_geometry:
+            acc = posterior_geometry["acceptance_summary"]
+            mean_accept = acc.get("mean", 0.0)
+            geometry_summary_rows.append({
+                "metric": "acceptance_prob_mean",
+                "value": mean_accept,
+                "std": acc.get("std", "N/A"),
+                "interpretation": "GOOD" if 0.6 <= mean_accept <= 0.9 else "WARNING" if 0.5 <= mean_accept < 0.6 or 0.9 < mean_accept <= 0.95 else "BAD"
+            })
+
+        # Step size summary
+        if "step_size_summary" in posterior_geometry:
+            step = posterior_geometry["step_size_summary"]
+            geometry_summary_rows.append({
+                "metric": "step_size_mean",
+                "value": step.get("mean", step.get("value", "N/A")),
+                "std": step.get("std", "N/A"),
+                "interpretation": "INFO"
+            })
+
+        # Number of steps summary
+        if "num_steps_summary" in posterior_geometry:
+            steps = posterior_geometry["num_steps_summary"]
+            mean_steps = steps.get("mean", 0)
+            geometry_summary_rows.append({
+                "metric": "num_leapfrog_steps_mean",
+                "value": mean_steps,
+                "max": steps.get("max", "N/A"),
+                "interpretation": "GOOD" if mean_steps < 500 else "WARNING" if mean_steps < 1000 else "BAD"
+            })
+
+        # Mass matrix condition number
+        if "mass_matrix_summary" in posterior_geometry:
+            mass = posterior_geometry["mass_matrix_summary"]
+            cond_num = mass.get("condition_number", float('inf'))
+            geometry_summary_rows.append({
+                "metric": "mass_matrix_condition_number",
+                "value": cond_num if cond_num != float('inf') else "inf",
+                "dimensionality": mass.get("dimensionality", "N/A"),
+                "interpretation": "GOOD" if cond_num < 100 else "WARNING" if cond_num < 1000 else "BAD"
+            })
+
+        # Save summary table
+        if geometry_summary_rows:
+            geometry_df = pd.DataFrame(geometry_summary_rows)
+            save_csv(geometry_df, output_path / "posterior_geometry_summary.csv", index=False)
+            logger.info(f"  ✅ Saved posterior geometry diagnostics")
+
+        # Save per-chain divergence details if available
+        if "divergence_summary" in posterior_geometry:
+            div_sum = posterior_geometry["divergence_summary"]
+            if "per_chain_divergences" in div_sum:
+                per_chain_div = []
+                for i, (count, rate) in enumerate(zip(
+                    div_sum["per_chain_divergences"],
+                    div_sum["per_chain_rates"]
+                )):
+                    per_chain_div.append({
+                        "chain_id": i,
+                        "divergences": count,
+                        "divergence_rate": rate,
+                        "status": "OK" if rate < 0.01 else "WARNING" if rate < 0.05 else "PROBLEM"
+                    })
+                div_df = pd.DataFrame(per_chain_div)
+                save_csv(div_df, output_path / "divergences_per_chain.csv", index=False)
+                logger.info(f"  ✅ Saved per-chain divergence details")
 
     logger.info("Factor stability results saved successfully")
 
