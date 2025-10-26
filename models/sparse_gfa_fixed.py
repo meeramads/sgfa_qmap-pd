@@ -282,6 +282,12 @@ class SparseGFAFixedModel(BaseGFAModel):
 
         # Apply sparsity to each source
         d = 0
+
+        # RATIO-BASED FLOOR CALCULATION: Compute total dimensionality once
+        # This allows floors to adapt automatically to feature selection (e.g., MAD filtering)
+        total_D = sum(Dm_static)  # Total features across all views
+        logger.debug(f"      Total dimensionality across views: {total_D}")
+
         logger.debug(f"      Processing {M} views...")
         for m in range(M):
             pW_m = pW_static[m]
@@ -299,28 +305,42 @@ class SparseGFAFixedModel(BaseGFAModel):
             # Without floor, high-dimensional views with small N lead to τ₀ → 0
             # This causes multimodal posteriors and chain disagreement
             #
-            # DIMENSIONALITY-AWARE FLOORS: Compensate for likelihood dominance
-            # Problem: High-D views (imaging: 1794 features) contribute 128× more
-            # likelihood terms than low-D views (clinical: 14 features).
-            # Even with correct standardization, the posterior is dominated by
-            # "fit the high-D view well" regardless of low-D view informativeness.
+            # RATIO-BASED DIMENSIONALITY-AWARE FLOORS: Compensate for likelihood dominance
             #
-            # Solution: Use dimensionality-adaptive floors to give low-D views
-            # weaker shrinkage (larger τ₀), allowing them to compete for signal.
-            if Dm_m < 50:
-                # Low-dimensional views (clinical, behavioral, demographics)
-                # Need weaker floors to overcome likelihood disadvantage
+            # Problem: High-D views contribute proportionally more likelihood terms
+            # than low-D views. Even with correct standardization, the posterior is
+            # dominated by "fit the high-D view well" regardless of informativeness.
+            #
+            # Solution: Use view's proportion of total dimensionality to set floors.
+            # This automatically adapts to feature selection (e.g., MAD filtering
+            # reducing imaging from D=1794 to D=531).
+            #
+            # View proportion = Dm_m / total_D
+            # Examples:
+            #   - Clinical (14/1808 = 0.008): Very small → high floor (0.8)
+            #   - Imaging unfiltered (1794/1808 = 0.99): Dominant → low floor (0.3)
+            #   - Imaging MAD-filtered (531/545 = 0.97): Still dominant → low floor (0.3)
+            #   - Regional summaries (100/400 = 0.25): Moderate → medium floor (0.5)
+            view_proportion = Dm_m / total_D
+
+            if view_proportion < 0.05:
+                # Views with <5% of total features (e.g., clinical: 14 of 1808 = 0.8%, or 14 of 545 = 2.6%)
+                # Need weakest shrinkage to overcome extreme likelihood disadvantage
+                # Even after aggressive MAD filtering, clinical stays <5%
                 tau0_W_floor = 0.8
-                floor_reason = "low-D (<50 features)"
-            elif Dm_m < 200:
-                # Medium-dimensional views (regional summaries)
+                floor_reason = f"tiny view ({view_proportion:.3f} of total features)"
+            elif view_proportion < 0.20:
+                # Views with 5-20% of features (e.g., 50-300 features in ~1500-feature model)
+                # Moderate likelihood disadvantage, need medium floor
+                # Rare with typical imaging+clinical setup, but useful for multi-view extensions
                 tau0_W_floor = 0.5
-                floor_reason = "medium-D (50-200 features)"
+                floor_reason = f"minority view ({view_proportion:.3f} of total features)"
             else:
-                # High-dimensional views (voxel-wise imaging)
-                # Standard floor sufficient - likelihood dominance already present
+                # Views with >20% of features (dominant views)
+                # Likelihood dominance present, standard floor sufficient
+                # Imaging view stays here even after MAD filtering (531/545 = 97%)
                 tau0_W_floor = 0.3
-                floor_reason = "high-D (>200 features)"
+                floor_reason = f"dominant view ({view_proportion:.3f} of total features)"
 
             tau0_W_scale = jnp.maximum(tau0_W_auto, tau0_W_floor)
             logger.debug(f"        View {m+1} τ₀_W: auto={tau0_W_auto}, used={tau0_W_scale} (floor={tau0_W_floor}, {floor_reason})")
