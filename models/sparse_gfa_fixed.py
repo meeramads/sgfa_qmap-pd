@@ -297,8 +297,32 @@ class SparseGFAFixedModel(BaseGFAModel):
             # CRITICAL: Add floor to prevent extreme prior weakness in N<<D regime
             # Without floor, high-dimensional views with small N lead to τ₀ → 0
             # This causes multimodal posteriors and chain disagreement
-            tau0_W_scale = jnp.maximum(tau0_W_auto, 0.3)  # Min scale for stability
-            logger.debug(f"        View {m+1} τ₀_W: auto={tau0_W_auto}, used={tau0_W_scale} (floor=0.3)")
+            #
+            # DIMENSIONALITY-AWARE FLOORS: Compensate for likelihood dominance
+            # Problem: High-D views (imaging: 1794 features) contribute 128× more
+            # likelihood terms than low-D views (clinical: 14 features).
+            # Even with correct standardization, the posterior is dominated by
+            # "fit the high-D view well" regardless of low-D view informativeness.
+            #
+            # Solution: Use dimensionality-adaptive floors to give low-D views
+            # weaker shrinkage (larger τ₀), allowing them to compete for signal.
+            if Dm_m < 50:
+                # Low-dimensional views (clinical, behavioral, demographics)
+                # Need weaker floors to overcome likelihood disadvantage
+                tau0_W_floor = 0.8
+                floor_reason = "low-D (<50 features)"
+            elif Dm_m < 200:
+                # Medium-dimensional views (regional summaries)
+                tau0_W_floor = 0.5
+                floor_reason = "medium-D (50-200 features)"
+            else:
+                # High-dimensional views (voxel-wise imaging)
+                # Standard floor sufficient - likelihood dominance already present
+                tau0_W_floor = 0.3
+                floor_reason = "high-D (>200 features)"
+
+            tau0_W_scale = jnp.maximum(tau0_W_auto, tau0_W_floor)
+            logger.debug(f"        View {m+1} τ₀_W: auto={tau0_W_auto}, used={tau0_W_scale} (floor={tau0_W_floor}, {floor_reason})")
 
             # CRITICAL FIX: Sample tau directly from HalfStudentT(df=2, scale=tau0)
             # Following Piironen & Vehtari (2017) recommendation
