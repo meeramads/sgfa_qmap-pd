@@ -171,33 +171,34 @@ class SparseGFAFixedModel(BaseGFAModel):
             # Apply regularization and PARTIAL CENTERING transformation
             logger.debug("      Applying slab regularization formula: λ̃² = (c²λ²)/(c² + τ²λ²)...")
             logger.debug("      Using PARTIAL CENTERING to handle funnel geometry...")
-            lmbZ_sqr = jnp.square(lmbZ)
-            Z = jnp.zeros((N, K))
-            for k in range(K):
-                lmbZ_tilde = jnp.sqrt(
-                    lmbZ_sqr[:, k]
-                    * cZ[0, k] ** 2
-                    / (cZ[0, k] ** 2 + tauZ[0, k] ** 2 * lmbZ_sqr[:, k])
-                )
 
-                # PARTIAL CENTERING: Blend centered and non-centered based on τ
-                # When τ is large (data informative): use more centered parameterization
-                # When τ is small (weak prior): use more non-centered parameterization
-                # phi in [0, 1]: 0 = fully non-centered, 1 = fully centered
-                tau_k = tauZ[0, k]
-                phi = jnp.sqrt(1.0 - jnp.exp(-tau_k))  # Smooth transition based on τ magnitude
+            # Vectorized slab regularization (no loop needed!)
+            lmbZ_sqr = jnp.square(lmbZ)  # Shape: (N, K)
+            cZ_sqr = cZ ** 2  # Shape: (1, K)
+            tauZ_sqr = tauZ ** 2  # Shape: (1, K)
 
-                # Centered component (no raw): just the scale
-                Z_centered_k = lmbZ_tilde * tau_k
+            # Regularized lambda: λ̃² = (c²λ²)/(c² + τ²λ²)
+            # Broadcasting handles all factors at once
+            lmbZ_tilde = jnp.sqrt(
+                lmbZ_sqr * cZ_sqr / (cZ_sqr + tauZ_sqr * lmbZ_sqr)
+            )  # Shape: (N, K)
 
-                # Non-centered component: scaled by raw parameter
-                Z_noncentered_k = Z_raw[:, k] * lmbZ_tilde * tau_k
+            # PARTIAL CENTERING: Blend centered and non-centered based on τ
+            # When τ is large (data informative): use more centered parameterization
+            # When τ is small (weak prior): use more non-centered parameterization
+            # phi in [0, 1]: 0 = fully non-centered, 1 = fully centered
+            phi = jnp.sqrt(1.0 - jnp.exp(-tauZ))  # Shape: (1, K), vectorized across all factors
 
-                # Blend: when tau small (phi→0), use non-centered; when tau large (phi→1), use centered
-                Z_k = phi * Z_centered_k + (1.0 - phi) * Z_noncentered_k
+            # Centered component (no raw parameter)
+            Z_centered = lmbZ_tilde * tauZ  # Shape: (N, K)
 
-                Z = Z.at[:, k].set(Z_k)
-            logger.debug(f"      ✓ Applied partial centering with regularization for {K} factors")
+            # Non-centered component (with raw parameter)
+            Z_noncentered = Z_raw * lmbZ_tilde * tauZ  # Shape: (N, K)
+
+            # Blend adaptively per factor (vectorized)
+            Z = phi * Z_centered + (1.0 - phi) * Z_noncentered
+
+            logger.debug(f"      ✓ Applied vectorized partial centering with regularization for {K} factors")
         else:
             # Non-regularized with PARTIAL CENTERING
             logger.debug("      Using non-regularized horseshoe with PARTIAL CENTERING...")
