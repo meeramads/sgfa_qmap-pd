@@ -3372,10 +3372,10 @@ def save_stability_results(
             "n_chains": stability_results["n_chains"],
         },
         "effectiveness": {
-            "n_effective": effective_results["n_effective"],
-            "total_factors": effective_results["total_factors"],
-            "shrinkage_rate": effective_results["shrinkage_rate"],
-            "sparsity_threshold": effective_results["sparsity_threshold"],
+            "n_effective": effective_results.get("n_effective", 0),
+            "total_factors": effective_results.get("total_factors", 0),
+            "shrinkage_rate": effective_results.get("shrinkage_rate", 0.0),
+            "sparsity_threshold": effective_results.get("sparsity_threshold", 0.01),
         },
     }
     save_json(summary, output_path / "factor_stability_summary.json", indent=2)
