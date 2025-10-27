@@ -902,41 +902,39 @@ def _save_individual_posteriors(
             view_label = f"View {view_idx + 1}"
         return view_label
 
-    # Plot tauW for each view and factor
+    # Plot tauW for each view (per-view global scale, not per-factor)
     for view_idx in range(num_sources):
         param_name = f"tauW{view_idx + 1}"
         view_label = get_view_label(view_idx)
 
         if param_name in samples_by_chain[0]:
-            for k in range(K):
-                fig, ax = plt.subplots(figsize=(6, 4))
+            # tauW is scalar per view, create only ONE plot per view
+            fig, ax = plt.subplots(figsize=(6, 4))
 
-                for chain_idx in range(n_chains):
-                    samples = samples_by_chain[chain_idx][param_name]
-                    if len(samples.shape) == 1:
-                        tau_samples = samples
-                    else:
-                        tau_samples = samples[:, k] if samples.shape[1] > k else samples[:, 0]
+            for chain_idx in range(n_chains):
+                samples = samples_by_chain[chain_idx][param_name]
+                # tauW is shape (n_samples,) - scalar per view
+                tau_samples = samples
 
-                    # Log sample statistics for debugging empty plots
-                    logger.debug(f"    Chain {chain_idx} {param_name} factor {k}: "
-                                f"shape={tau_samples.shape}, "
-                                f"min={np.min(tau_samples):.4f}, "
-                                f"max={np.max(tau_samples):.4f}, "
-                                f"mean={np.mean(tau_samples):.4f}, "
-                                f"std={np.std(tau_samples):.4f}")
+                # Log sample statistics for debugging empty plots
+                logger.debug(f"    Chain {chain_idx} {param_name}: "
+                            f"shape={tau_samples.shape}, "
+                            f"min={np.min(tau_samples):.4f}, "
+                            f"max={np.max(tau_samples):.4f}, "
+                            f"mean={np.mean(tau_samples):.4f}, "
+                            f"std={np.std(tau_samples):.4f}")
 
-                    ax.hist(tau_samples, bins=50, alpha=0.4, color=colors[chain_idx],
-                           label=f'Chain {chain_idx}', density=True)
+                ax.hist(tau_samples, bins=50, alpha=0.4, color=colors[chain_idx],
+                       label=f'Chain {chain_idx}', density=True)
 
-                ax.set_xlabel(r'$\tau_W$ Value', fontsize=12)
-                ax.set_ylabel('Density', fontsize=12)
-                ax.set_title(f'tauW Posterior ({view_label}, Factor {k})', fontsize=14, fontweight='bold')
-                ax.grid(True, alpha=0.3)
-                ax.legend()
-                ax.axvline(0, color='red', linestyle='--', alpha=0.5, linewidth=1)
+            ax.set_xlabel(r'$\tau_W$ Value', fontsize=12)
+            ax.set_ylabel('Density', fontsize=12)
+            ax.set_title(f'tauW Posterior ({view_label})\n[per-view global scale]', fontsize=14, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            ax.axvline(0, color='red', linestyle='--', alpha=0.5, linewidth=1)
 
-                _save_individual_plot(fig, f"posterior_tauW_view{view_idx+1}_factor{k}", output_dir)
+            _save_individual_plot(fig, f"posterior_tauW_{view_label}", output_dir)
 
     # Plot tauZ for each factor
     if "tauZ" in samples_by_chain[0]:
@@ -1666,44 +1664,20 @@ def plot_hyperparameter_traces(
         else:
             view_label = f"View {view_idx + 1}"
 
+        # tauW is per-view (scalar), not per-factor
+        # Plot only in first column, mark others as N/A
         for k in range(K):
             ax = axes[view_idx, k]
 
-            if param_name in samples_by_chain[0]:
-                for chain_idx in range(n_chains):
-                    samples = samples_by_chain[chain_idx][param_name]
-
-                    # Extract samples for this factor
-                    if len(samples.shape) == 1:
-                        tau_trace = samples[::thin]
-                    else:
-                        tau_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
-
-                    ax.plot(
-                        iterations[:len(tau_trace)],
-                        tau_trace,
-                        color=colors[chain_idx],
-                        alpha=0.7,
-                        linewidth=1,
-                        label=f'Chain {chain_idx}'
-                    )
-
-                ax.set_xlabel('Iteration')
-                ax.set_ylabel(r'$\tau_W$ Value')
-                ax.set_title(f'tauW Trace ({view_label}, Factor {k})', fontsize=10)
-                ax.grid(True, alpha=0.3)
-                ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
-
-                # Save individual plot
-                if save_individual:
-                    individual_fig, individual_ax = plt.subplots(1, 1, figsize=(6, 4))
+            if k == 0:
+                # Plot tauW only in first column (it's the same for all factors)
+                if param_name in samples_by_chain[0]:
                     for chain_idx in range(n_chains):
                         samples = samples_by_chain[chain_idx][param_name]
-                        if len(samples.shape) == 1:
-                            tau_trace = samples[::thin]
-                        else:
-                            tau_trace = samples[::thin, k] if samples.shape[1] > k else samples[::thin, 0]
-                        individual_ax.plot(
+                        # tauW is scalar per view, shape (n_samples,)
+                        tau_trace = samples[::thin]
+
+                        ax.plot(
                             iterations[:len(tau_trace)],
                             tau_trace,
                             color=colors[chain_idx],
@@ -1711,19 +1685,46 @@ def plot_hyperparameter_traces(
                             linewidth=1,
                             label=f'Chain {chain_idx}'
                         )
-                    individual_ax.set_xlabel('Iteration')
-                    individual_ax.set_ylabel(r'$\tau_W$ Value')
-                    individual_ax.set_title(f'tauW Trace ({view_label}, Factor {k})', fontsize=10)
-                    individual_ax.grid(True, alpha=0.3)
-                    individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
-                    individual_fig.tight_layout()
-                    individual_path = output_dir / f"trace_tauW_{view_label}_factor{k}.png"
-                    individual_fig.savefig(str(individual_path), dpi=150, bbox_inches='tight')
-                    plt.close(individual_fig)
 
+                    ax.set_xlabel('Iteration')
+                    ax.set_ylabel(r'$\tau_W$ Value')
+                    ax.set_title(f'tauW Trace ({view_label})\n[per-view global scale]', fontsize=10)
+                    ax.grid(True, alpha=0.3)
+                    ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
+
+                    # Save individual plot (only once per view)
+                    if save_individual:
+                        individual_fig, individual_ax = plt.subplots(1, 1, figsize=(6, 4))
+                        for chain_idx in range(n_chains):
+                            samples = samples_by_chain[chain_idx][param_name]
+                            tau_trace = samples[::thin]
+                            individual_ax.plot(
+                                iterations[:len(tau_trace)],
+                                tau_trace,
+                                color=colors[chain_idx],
+                                alpha=0.7,
+                                linewidth=1,
+                                label=f'Chain {chain_idx}'
+                            )
+                        individual_ax.set_xlabel('Iteration')
+                        individual_ax.set_ylabel(r'$\tau_W$ Value')
+                        individual_ax.set_title(f'tauW Trace ({view_label})\n[per-view global scale]', fontsize=10)
+                        individual_ax.grid(True, alpha=0.3)
+                        individual_ax.legend(fontsize=8, loc='upper right', framealpha=0.9, ncol=1)
+                        individual_fig.tight_layout()
+                        individual_path = output_dir / f"trace_tauW_{view_label}.png"
+                        individual_fig.savefig(str(individual_path), dpi=150, bbox_inches='tight')
+                        plt.close(individual_fig)
+
+                else:
+                    ax.text(0.5, 0.5, f'{param_name}\nnot found',
+                           ha='center', va='center', transform=ax.transAxes)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
             else:
-                ax.text(0.5, 0.5, f'{param_name}\nnot found',
-                       ha='center', va='center', transform=ax.transAxes)
+                # Other columns: mark as N/A since tauW is per-view, not per-factor
+                ax.text(0.5, 0.5, 'N/A\n(tauW is per-view)',
+                       ha='center', va='center', transform=ax.transAxes, fontsize=9, color='gray')
                 ax.set_xticks([])
                 ax.set_yticks([])
 
