@@ -3760,7 +3760,7 @@ class RobustnessExperiments(ExperimentFramework):
                             W_subset,
                             param_name="W (Factor Loadings)",
                             save_path=None,
-                            max_params=4
+                            max_params=12  # Increased from 4 to show more parameters
                         )
                         plots["rank_plot_W"] = fig_rank_W
                         self.logger.debug("   ✅ Rank plot for W created")
@@ -3773,7 +3773,7 @@ class RobustnessExperiments(ExperimentFramework):
                             Z_subset,
                             param_name="Z (Factor Scores)",
                             save_path=None,
-                            max_params=4
+                            max_params=12  # Increased from 4 to show more parameters
                         )
                         plots["rank_plot_Z"] = fig_rank_Z
                         self.logger.debug("   ✅ Rank plot for Z created")

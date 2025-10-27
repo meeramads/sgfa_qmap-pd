@@ -84,14 +84,25 @@ def _log_preprocessing_summary(preprocessing_info):
         )
 
 
-def run_data_validation(config):
-    """Run data validation experiments with remote workstation integration."""
+def run_data_validation(config, unified_dir=None, experiment_dir=None):
+    """Run data validation experiments with remote workstation integration.
+
+    Parameters
+    ----------
+    config : dict
+        Experiment configuration dictionary
+    unified_dir : Path, optional
+        Unified run directory for all experiments (e.g., results/all_rois-sn_conf-age+sex+tiv_K5_run_20251027_001201/)
+    experiment_dir : Path, optional
+        Specific experiment directory (e.g., 01_data_validation_fixed_K5_percW33_slab4_2_tree10)
+    """
     logger.info("Starting Data Validation Experiments")
 
     try:
         # Self-contained data validation - no external framework dependencies
         import os
         import sys
+        from pathlib import Path
 
         # Add project root for basic imports only
         current_file = os.path.abspath(__file__)
@@ -114,10 +125,27 @@ def run_data_validation(config):
             data_dir=get_data_dir(config),
             preprocessing_config=config.get("preprocessing", {}),  # Pass preprocessing config!
             max_tree_depth=config.get("mcmc", {}).get("max_tree_depth"),  # For semantic naming
+            model_type=config.get("model", {}).get("model_type", "sparse_gfa"),
+            K=config.get("model", {}).get("K"),
+            percW=config.get("model", {}).get("percW"),
+            slab_df=config.get("model", {}).get("slab_df"),
+            slab_scale=config.get("model", {}).get("slab_scale"),
+            qc_outlier_threshold=config.get("preprocessing", {}).get("qc_outlier_threshold"),
         )
 
-        # Initialize experiment framework
-        framework = ExperimentFramework(get_output_dir(config))
+        # Determine base directory
+        if unified_dir and experiment_dir:
+            # Use the provided unified directory and experiment subdirectory
+            base_dir = Path(unified_dir)
+            exp_dir = base_dir / experiment_dir
+            exp_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"📁 Using unified directory structure: {exp_dir}")
+            # Create a simple framework that won't add timestamp
+            framework = ExperimentFramework(base_dir)
+        else:
+            # Fall back to default behavior
+            framework = ExperimentFramework(get_output_dir(config))
+            exp_dir = None
 
         # Define the experiment function (similar to other experiments)
         def data_validation_experiment(config, output_dir, **kwargs):
@@ -144,11 +172,21 @@ def run_data_validation(config):
             }
 
         # Run experiment using framework (auto-saves plots and results)
-        result = framework.run_experiment(
-            experiment_function=data_validation_experiment,
-            config=exp_config,
-            model_results={},
-        )
+        if exp_dir is not None:
+            # Use pre-created directory (unified directory structure)
+            result = framework.run_experiment(
+                experiment_function=data_validation_experiment,
+                config=exp_config,
+                output_dir=exp_dir,
+                model_results={},
+            )
+        else:
+            # Let framework create its own directory (legacy behavior)
+            result = framework.run_experiment(
+                experiment_function=data_validation_experiment,
+                config=exp_config,
+                model_results={},
+            )
 
         logger.info("✅ Data validation completed successfully")
 

@@ -439,7 +439,7 @@ class ExperimentFramework:
             return exp_dir
 
     def run_experiment(
-        self, experiment_function: Callable, config: ExperimentConfig, **kwargs
+        self, experiment_function: Callable, config: ExperimentConfig, output_dir: Optional[Path] = None, **kwargs
     ) -> ExperimentResult:
         """
         Run a single experiment.
@@ -450,6 +450,8 @@ class ExperimentFramework:
             Function that runs the actual experiment.
         config : ExperimentConfig
             Experiment configuration.
+        output_dir : Path, optional
+            Pre-created output directory. If provided, bypasses create_experiment_dir().
         **kwargs
             Additional arguments for experiment function.
 
@@ -457,8 +459,12 @@ class ExperimentFramework:
         -------
         ExperimentResult : Results of the experiment.
         """
-        # Create experiment directory with semantic naming
-        exp_dir = self.create_experiment_dir(config.experiment_name, config)
+        # Create experiment directory with semantic naming (or use provided directory)
+        if output_dir is not None:
+            exp_dir = Path(output_dir)
+            exp_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            exp_dir = self.create_experiment_dir(config.experiment_name, config)
 
         # Generate experiment ID
         experiment_id = (

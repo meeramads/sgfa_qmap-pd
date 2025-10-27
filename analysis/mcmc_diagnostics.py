@@ -2446,8 +2446,25 @@ def plot_rank_statistics(
     samples_flat = samples.reshape(n_chains, n_samples, -1)
     n_params = samples_flat.shape[2]
 
+    # Diagnostic logging
+    logger.info(f"  Input shape: {original_shape}")
+    logger.info(f"  n_chains={n_chains}, n_samples={n_samples}, n_params={n_params}")
+
     # Limit number of parameters to plot
     n_to_plot = min(n_params, max_params)
+
+    # Check if we have data to plot
+    if n_samples == 0:
+        logger.error("  ❌ No samples to plot! n_samples=0")
+        fig, ax = plt.subplots(1, 1, figsize=(12, 3))
+        ax.text(0.5, 0.5, 'No samples available', ha='center', va='center', fontsize=16)
+        return fig
+
+    if n_params == 0:
+        logger.error("  ❌ No parameters to plot! n_params=0")
+        fig, ax = plt.subplots(1, 1, figsize=(12, 3))
+        ax.text(0.5, 0.5, 'No parameters available', ha='center', va='center', fontsize=16)
+        return fig
 
     # Create subplots
     fig, axes = plt.subplots(n_to_plot, 1, figsize=(12, 3 * n_to_plot))
@@ -2462,6 +2479,11 @@ def plot_rank_statistics(
         # Extract this parameter from all chains
         param_samples = samples_flat[:, :, param_idx]  # (n_chains, n_samples)
 
+        # Diagnostic: check for valid data
+        if param_idx == 0:  # Log once for first parameter
+            logger.debug(f"    Parameter 0 sample range: [{param_samples.min():.4f}, {param_samples.max():.4f}]")
+            logger.debug(f"    Parameter 0 unique values: {len(np.unique(param_samples))}")
+
         # Pool all samples and compute ranks
         all_samples = param_samples.flatten()
         ranks = np.argsort(np.argsort(all_samples))  # Double argsort gives ranks
@@ -2474,8 +2496,21 @@ def plot_rank_statistics(
         colors = plt.cm.tab10(np.linspace(0, 1, n_chains))
 
         for chain_idx in range(n_chains):
+            chain_ranks = ranks_by_chain[chain_idx]
+
+            # Diagnostic: check histogram input
+            if param_idx == 0 and chain_idx == 0:  # Log once
+                logger.debug(f"    Chain 0 ranks range: [{chain_ranks.min()}, {chain_ranks.max()}]")
+                logger.debug(f"    Chain 0 ranks shape: {chain_ranks.shape}")
+
+            counts, bin_edges = np.histogram(chain_ranks, bins=bins, density=True)
+
+            # Check if histogram has any data
+            if param_idx == 0 and chain_idx == 0:
+                logger.debug(f"    Histogram counts (chain 0): max={counts.max():.4f}, sum={counts.sum():.4f}")
+
             ax.hist(
-                ranks_by_chain[chain_idx],
+                chain_ranks,
                 bins=bins,
                 alpha=0.6,
                 label=f"Chain {chain_idx}",

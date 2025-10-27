@@ -503,12 +503,12 @@ def main():
             return "_".join(parts)
 
         # Create organized subdirectories for pipeline experiments
-        # Numbering reflects the pipeline execution order (data_validation → robustness → stability → clinical)
+        # Numbering reflects the pipeline execution order (data_validation → stability → clinical)
+        # NOTE: robustness_testing was removed from the pipeline, so factor_stability is now 02
         experiment_dir_mapping = {
             "data_validation": get_semantic_subdir_name("data_validation", "01_data_validation"),
-            "robustness_testing": get_semantic_subdir_name("robustness_testing", "02_robustness_testing"),
-            "factor_stability": get_semantic_subdir_name("factor_stability", "03_factor_stability"),
-            "clinical_validation": get_semantic_subdir_name("clinical_validation", "04_clinical_validation"),
+            "factor_stability": get_semantic_subdir_name("factor_stability", "02_factor_stability"),
+            "clinical_validation": get_semantic_subdir_name("clinical_validation", "03_clinical_validation"),
         }
 
         # Only create directories for experiments that are actually being run
@@ -583,7 +583,12 @@ def main():
     # Run experiments sequentially, passing context through config
     if "data_validation" in experiments_to_run:
         logger.info("🔍 1/2 Starting Data Validation Experiment...")
-        results["data_validation"] = run_data_validation(config)
+        # Pass unified directory and semantic experiment directory name
+        if 'unified_dir' in locals() and unified_dir:
+            data_val_dir = experiment_dir_mapping.get("data_validation", "01_data_validation")
+            results["data_validation"] = run_data_validation(config, unified_dir=unified_dir, experiment_dir=data_val_dir)
+        else:
+            results["data_validation"] = run_data_validation(config)
 
         # Update pipeline context with results from data validation
         if results["data_validation"] and hasattr(
@@ -735,7 +740,8 @@ def main():
             logger.info(f"📁 Set base_output_dir to run directory: {unified_dir}")
 
         # Create experiment-specific subdirectory inside the run directory
-        semantic_name = repro_exp._generate_semantic_experiment_name("factor_stability", experiment_config)
+        # Use the same directory name from experiment_dir_mapping to avoid duplicate saving
+        semantic_name = experiment_dir_mapping.get("factor_stability", "02_factor_stability")
         experiment_output_dir = repro_exp.base_output_dir / semantic_name
         experiment_output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"📁 Created factor_stability experiment directory: {experiment_output_dir}")
@@ -846,7 +852,7 @@ def main():
 
             # Get output directory for factor stability
             if unified_dir:
-                fs_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "03_factor_stability")
+                fs_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "02_factor_stability")
             else:
                 fs_output_dir = get_output_dir(exp_config) / "factor_stability"
             fs_output_dir.mkdir(parents=True, exist_ok=True)
@@ -968,31 +974,9 @@ def main():
                 }
                 save_json(metadata, chain_dir / "metadata.json", indent=2)
 
-            # Save stability analysis results
-            if stability_results_data and effective_factors_data:
-                stability_dir = fs_output_dir / "stability_analysis"
-                # Extract the effective factors dict (handle nested structure)
-                if effective_factors_data:
-                    first_chain = effective_factors_data[0]
-                    # Check for nested structure (ard_precision or posterior_samples)
-                    if "ard_precision" in first_chain:
-                        effective_dict = first_chain["ard_precision"]
-                    elif "posterior_samples" in first_chain:
-                        effective_dict = first_chain["posterior_samples"]
-                    else:
-                        effective_dict = first_chain
-                else:
-                    effective_dict = {}
-
-                save_stability_results(
-                    stability_results_data,
-                    effective_dict,
-                    str(stability_dir),
-                    subject_ids=subject_ids,  # Pass subject IDs for Z score indexing
-                    view_names=view_names,  # Pass view names for W indexing
-                    feature_names=feature_names,  # Pass feature names for W indexing
-                    Dm=hypers['Dm'],  # Pass view dimensions for per-view consensus saving
-                )
+            # NOTE: save_stability_results() is already called inside run_factor_stability_analysis()
+            # at experiments/robustness_testing.py:3208, so we skip the duplicate call here.
+            # We only save the per-chain results and R-hat diagnostics which are unique to this section.
 
             # Save R-hat convergence diagnostics
             if hasattr(result, "diagnostics") and result.diagnostics:
@@ -1229,7 +1213,7 @@ def main():
 
                         # Set output directory to factor_stability directory
                         if unified_dir:
-                            subtype_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "03_factor_stability") / "pd_subtype_discovery"
+                            subtype_output_dir = unified_dir / experiment_dir_mapping.get("factor_stability", "02_factor_stability") / "pd_subtype_discovery"
                         else:
                             subtype_output_dir = get_output_dir(config) / "factor_stability" / "pd_subtype_discovery"
                         subtype_output_dir.mkdir(parents=True, exist_ok=True)
@@ -1451,9 +1435,8 @@ def main():
             # Only document directories for experiments that were actually run
             experiment_descriptions = {
                 "data_validation": "01_data_validation/     - Data quality and preprocessing analysis",
-                "robustness_testing": "02_robustness_testing/     - Robustness and quality control testing",
-                "factor_stability": "03_factor_stability/        - Factor stability analysis across chains",
-                "clinical_validation": "04_clinical_validation/ - Clinical validation studies",
+                "factor_stability": "02_factor_stability/        - Factor stability analysis across chains",
+                "clinical_validation": "03_clinical_validation/ - Clinical validation studies",
             }
 
             for experiment in experiments_to_run:
