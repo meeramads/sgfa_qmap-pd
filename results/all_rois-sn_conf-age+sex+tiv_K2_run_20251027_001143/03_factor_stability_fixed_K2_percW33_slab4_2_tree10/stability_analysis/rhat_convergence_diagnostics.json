@@ -1,0 +1,56 @@
+{
+  "W": {
+    "max_rhat_per_factor": [
+      2.9538087844848633,
+      2.833937168121338
+    ],
+    "mean_rhat_per_factor": [
+      2.2943129539489746,
+      2.6051313877105713
+    ],
+    "max_rhat_overall": 2.9538087844848633,
+    "mean_rhat_overall": 2.4497220516204834
+  },
+  "Z": {
+    "max_rhat_per_factor": [
+      300.6792907714844,
+      84.32598114013672
+    ],
+    "mean_rhat_per_factor": [
+      96.27408599853516,
+      8.260934829711914
+    ],
+    "max_rhat_overall": 300.6792907714844,
+    "mean_rhat_overall": 52.26750946044922
+  },
+  "W_aligned": {
+    "max_rhat_per_factor": [
+      2.922475576400757,
+      2.78190016746521
+    ],
+    "mean_rhat_per_factor": [
+      2.2420761585235596,
+      2.5485618114471436
+    ],
+    "max_rhat_overall": 2.922475576400757,
+    "mean_rhat_overall": 2.3953187465667725,
+    "convergence_rate": 0.0,
+    "factor_match_rate": 1.0,
+    "n_matched_factors": 2
+  },
+  "Z_aligned": {
+    "max_rhat_per_factor": [
+      302.5273742675781,
+      224.69381713867188
+    ],
+    "mean_rhat_per_factor": [
+      103.02400207519531,
+      46.3062744140625
+    ],
+    "max_rhat_overall": 302.5273742675781,
+    "mean_rhat_overall": 74.66514587402344,
+    "convergence_rate": 0.0,
+    "factor_match_rate": 1.0,
+    "n_matched_factors": 2
+  }
+}

@@ -1,0 +1,14 @@
+================================================================================
+SIGNAL-TO-NOISE RATIO (SNR) ANALYSIS REPORT
+================================================================================
+
+================================================================================
+KEY INSIGHTS:
+================================================================================
+- PCA SNR: Ratio of signal subspace variance to noise variance
+- Variance SNR: Between-subject variance / within-subject variance
+- Effective dimensions: Number of PCs explaining 95%/99% of variance
+- High SNR (>10): Strong signal, expect fast convergence
+- Moderate SNR (3-10): Moderate signal, may need longer chains
+- Low SNR (<3): Weak signal, requires strong priors and careful tuning
+================================================================================
