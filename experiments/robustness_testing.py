@@ -2296,6 +2296,39 @@ class RobustnessExperiments(ExperimentFramework):
                 self.logger.error(traceback.format_exc())
                 raise
 
+        # Extract posterior geometry diagnostics IMMEDIATELY (before any sample deletion)
+        from analysis.factor_stability import extract_posterior_geometry
+        self.logger.info("=" * 80)
+        self.logger.info("EXTRACTING POSTERIOR GEOMETRY DIAGNOSTICS")
+        self.logger.info("=" * 80)
+        posterior_geometry = None
+        if "samples" in result and result["samples"] is not None:
+            try:
+                posterior_geometry = extract_posterior_geometry(result["samples"])
+                self.logger.info(f"  ✅ Extracted posterior geometry diagnostics")
+                # Log key findings
+                if "divergence_summary" in posterior_geometry:
+                    div_rate = posterior_geometry["divergence_summary"].get("divergence_rate", 0)
+                    total_divergences = posterior_geometry["divergence_summary"].get("total_divergences", 0)
+                    self.logger.info(f"    - Divergence rate: {div_rate:.4f} ({total_divergences} total)")
+                if "acceptance_summary" in posterior_geometry:
+                    acc_mean = posterior_geometry["acceptance_summary"].get("mean", 0)
+                    acc_std = posterior_geometry["acceptance_summary"].get("std", 0)
+                    self.logger.info(f"    - Mean acceptance prob: {acc_mean:.4f} ± {acc_std:.4f}")
+                if "step_size_summary" in posterior_geometry:
+                    step_mean = posterior_geometry["step_size_summary"].get("mean", 0)
+                    self.logger.info(f"    - Mean step size: {step_mean:.6f}")
+                if "mass_matrix_summary" in posterior_geometry:
+                    mass_mean = posterior_geometry["mass_matrix_summary"].get("mean_diagonal", 0)
+                    self.logger.info(f"    - Mean mass matrix diagonal: {mass_mean:.6f}")
+            except Exception as e:
+                self.logger.warning(f"  ⚠️ Failed to extract posterior geometry: {e}")
+                import traceback
+                self.logger.warning(traceback.format_exc())
+                posterior_geometry = None
+        else:
+            self.logger.warning("  ⚠️ No MCMC samples available for posterior geometry extraction")
+
         # Extract per-chain results from grouped samples
         W_samples = result.get("W_samples")  # Shape: (num_chains, num_samples, D, K)
         Z_samples = result.get("Z_samples")  # Shape: (num_chains, num_samples, N, K)
@@ -3185,24 +3218,8 @@ class RobustnessExperiments(ExperimentFramework):
             feature_names_for_save = kwargs.get("feature_names", None)
             Dm_for_save = hypers.get("Dm", None)
 
-            # Extract posterior geometry diagnostics from samples
-            from analysis.factor_stability import extract_posterior_geometry
-            self.logger.info("Extracting posterior geometry diagnostics...")
-            posterior_geometry = None
-            if "samples" in result and result["samples"] is not None:
-                try:
-                    posterior_geometry = extract_posterior_geometry(result["samples"])
-                    self.logger.info(f"  ✅ Extracted posterior geometry diagnostics")
-                    # Log key findings
-                    if "divergence_summary" in posterior_geometry:
-                        div_rate = posterior_geometry["divergence_summary"].get("divergence_rate", 0)
-                        self.logger.info(f"    - Divergence rate: {div_rate:.4f}")
-                    if "acceptance_summary" in posterior_geometry:
-                        acc_mean = posterior_geometry["acceptance_summary"].get("mean", 0)
-                        self.logger.info(f"    - Mean acceptance prob: {acc_mean:.4f}")
-                except Exception as e:
-                    self.logger.warning(f"  ⚠️ Failed to extract posterior geometry: {e}")
-                    posterior_geometry = None
+            # NOTE: posterior_geometry was extracted earlier (right after MCMC completed)
+            # before samples were deleted for memory management. We just use it here.
 
             # Save stability results (includes consensus W, Z, and all diagnostics)
             save_stability_results(

@@ -3578,15 +3578,11 @@ def save_stability_results(
             logger.info(f"  ✅ Saved consensus Z 97.5th percentile (upper 95% CI)")
             logger.info(f"  📊 Z posterior uncertainty quantified (Aspect 6: Z Indeterminacy)")
 
-    # Save similarity matrix
+    # Save similarity matrix (CSV format only - more readable than .npy)
     if "similarity_matrix" in stability_results:
         similarity_matrix = stability_results["similarity_matrix"]
-        save_numpy(
-            similarity_matrix,
-            output_path / "similarity_matrix.npy",
-        )
 
-        # Also save as CSV for easier inspection
+        # Save as CSV for easier inspection
         # Average across factors for summary (shape: n_chains x n_chains x K -> n_chains x n_chains)
         if similarity_matrix.ndim == 3:
             similarity_matrix_avg = np.mean(similarity_matrix, axis=2)
@@ -3599,7 +3595,7 @@ def save_stability_results(
             columns=[f"Chain_{i}" for i in range(similarity_matrix_avg.shape[1])]
         )
         similarity_df.to_csv(output_path / "similarity_matrix.csv")
-        logger.info(f"  ✅ Saved similarity matrix: .npy and .csv formats")
+        logger.info(f"  ✅ Saved similarity matrix: .csv format")
 
     # Save posterior geometry diagnostics if available
     if posterior_geometry is not None:
