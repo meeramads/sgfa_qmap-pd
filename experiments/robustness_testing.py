@@ -2177,12 +2177,20 @@ class RobustnessExperiments(ExperimentFramework):
             self._experiment_output_dir = Path(output_dir)
             self.logger.info(f"📁 Experiment output directory set to: {self._experiment_output_dir}")
 
-            # Set up experiment-specific logging to write to this directory's experiments.log
-            try:
-                self._setup_experiment_logging(self._experiment_output_dir)
-            except Exception as e:
-                self.logger.warning(f"Failed to set up experiment-specific logging: {e}")
-                # Continue anyway - logs will go to base directory
+            # Check if we're part of a pipeline with unified logging
+            # If the parent directory already has experiments.log, we're in pipeline mode
+            parent_log = self._experiment_output_dir.parent / "experiments.log"
+            if parent_log.exists():
+                self.logger.info(f"📝 Using unified pipeline logging: {parent_log}")
+                self.logger.info(f"   Skipping experiment-specific log file creation")
+                self._experiment_log_handler = None  # No separate handler needed
+            else:
+                # Set up experiment-specific logging to write to this directory's experiments.log
+                try:
+                    self._setup_experiment_logging(self._experiment_output_dir)
+                except Exception as e:
+                    self.logger.warning(f"Failed to set up experiment-specific logging: {e}")
+                    # Continue anyway - logs will go to base directory
         else:
             self._experiment_output_dir = None
             self.logger.warning("⚠️  No experiment output_dir provided - will use base_output_dir")

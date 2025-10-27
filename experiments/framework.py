@@ -314,7 +314,20 @@ class ExperimentFramework:
         """Setup experiment-specific logging."""
         log_file = self.base_output_dir / "experiments.log"
 
-        # Create file handler
+        # Check if a handler for this log file already exists on the root logger
+        # This prevents duplicate handlers when running as part of a pipeline
+        root_logger = logging.getLogger()
+        log_file_str = str(log_file.resolve())
+
+        for handler in root_logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                existing_file = getattr(handler, 'baseFilename', None)
+                if existing_file and str(Path(existing_file).resolve()) == log_file_str:
+                    self.logger.info(f"📝 Log handler already exists for {log_file} - skipping duplicate")
+                    self._log_file_handler = None  # No new handler needed
+                    return
+
+        # Create file handler (only if not already present)
         file_handler = ResilientFileHandler(log_file)
         file_handler.setLevel(logging.INFO)
 
@@ -327,7 +340,6 @@ class ExperimentFramework:
         # Add handler to ROOT logger so all child loggers inherit it
         # This ensures logs from all modules (__main__, experiments.*, analysis.*, etc.)
         # get written to the per-run experiments.log file
-        root_logger = logging.getLogger()
         root_logger.addHandler(file_handler)
 
         # Also store handler reference for cleanup
@@ -335,7 +347,7 @@ class ExperimentFramework:
 
     def _cleanup_logging(self):
         """Remove the experiment-specific file handler from root logger."""
-        if hasattr(self, '_log_file_handler'):
+        if hasattr(self, '_log_file_handler') and self._log_file_handler is not None:
             root_logger = logging.getLogger()
             root_logger.removeHandler(self._log_file_handler)
             self._log_file_handler.close()

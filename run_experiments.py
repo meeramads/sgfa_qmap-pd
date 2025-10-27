@@ -460,6 +460,20 @@ def main():
         logger.info(f"🗂️  Using unified results directory: {unified_dir}")
         logger.info(f"   All experiments will save to: {unified_dir.name}")
 
+        # Set up comprehensive logging to unified directory's experiments.log
+        unified_log_file = unified_dir / "experiments.log"
+        unified_file_handler = ResilientFileHandler(unified_log_file)
+        unified_file_handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        unified_file_handler.setFormatter(formatter)
+
+        # Add handler to root logger so all experiments log to this file
+        root_logger = logging.getLogger()
+        root_logger.addHandler(unified_file_handler)
+
+        logger.info(f"📝 Comprehensive pipeline logging configured: {unified_log_file}")
+        logger.info(f"   All experiments will log to this single file")
+
         # Build semantic names for subdirectories
         # Helper function to create semantic experiment names
         def get_semantic_subdir_name(base_name: str, prefix: str) -> str:
