@@ -246,17 +246,12 @@ def assess_factor_stability_cosine(
             W_samples = result["samples"]["W"]  # (n_samples, D, K) or (n_samples, sum(D_m), K)
             logger.info(f"Chain {chain_id}: Averaging {W_samples.shape[0]} posterior samples")
 
-            # Handle multi-view case (list of W matrices)
-            if isinstance(result["W"], list):
-                # W is a list of views - concatenate them
-                W_concat = np.vstack([W_view for W_view in result["W"]])
-                W_chain_avg.append(W_concat)
-                logger.info(f"Chain {chain_id}: Multi-view W concatenated to shape {W_concat.shape}")
-            else:
-                # Single concatenated W matrix - average across samples
-                W_avg = np.mean(W_samples, axis=0)  # (D, K)
-                W_chain_avg.append(W_avg)
-                logger.info(f"Chain {chain_id}: Averaged W shape {W_avg.shape}")
+            # IMPORTANT: W_samples from MCMC is already concatenated across views
+            # Shape: (n_samples, sum(D_m), K) where sum(D_m) is total features across all views
+            # We need to average across the samples dimension (axis=0)
+            W_avg = np.mean(W_samples, axis=0)  # (sum(D_m), K)
+            W_chain_avg.append(W_avg)
+            logger.info(f"Chain {chain_id}: Averaged W samples -> shape {W_avg.shape}")
         else:
             # No samples, use point estimate
             W = result["W"]
