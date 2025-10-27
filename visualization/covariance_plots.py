@@ -280,8 +280,18 @@ def plot_block_covariance_matrix(
     plt.tight_layout()
 
     if output_path:
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        logger.info(f"Saved block covariance matrix plot to {output_path}")
+        try:
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            logger.info(f"Saved block covariance matrix plot to {output_path}")
+        except (AttributeError, OSError) as e:
+            # Fallback: try saving with lower DPI or different format
+            logger.warning(f"Failed to save with dpi=300: {e}. Trying fallback...")
+            try:
+                plt.savefig(output_path, dpi=150, bbox_inches='tight', format='png')
+                logger.info(f"Saved with fallback settings to {output_path}")
+            except Exception as e2:
+                logger.error(f"Failed to save covariance plot: {e2}")
+                # Don't crash - just skip this plot
 
     return fig
 
