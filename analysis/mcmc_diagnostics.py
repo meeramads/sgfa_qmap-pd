@@ -41,10 +41,8 @@ def _save_individual_plot(fig, filename, output_dir, dpi=150):
         Resolution for saved figure
     """
     save_path_png = output_dir / f"{filename}.png"
-    save_path_pdf = output_dir / f"{filename}.pdf"
 
     fig.savefig(save_path_png, dpi=dpi, bbox_inches='tight')
-    fig.savefig(save_path_pdf, bbox_inches='tight')
     plt.close(fig)
 
 

@@ -454,8 +454,7 @@ def main():
 
                 for plot_name, fig in result.plots.items():
                     if fig is not None:
-                        save_plot(plots_dir / f"{plot_name}.png", dpi=300, close_after=False)
-                        save_plot(plots_dir / f"{plot_name}.pdf", close_after=True)
+                        save_plot(plots_dir / f"{plot_name}.png", dpi=300, close_after=True)
                         logger.info(f"  Saved plot: {plot_name}")
 
             logger.info(f"Results saved to {output_dir}")

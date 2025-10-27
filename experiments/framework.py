@@ -244,7 +244,7 @@ class ExperimentResult:
                 plot_name: {
                     "type": "matplotlib_figure",
                     "saved": True,
-                    "files": [f"{plot_name}.png", f"{plot_name}.pdf"],
+                    "files": [f"{plot_name}.png"],
                 }
                 for plot_name in self.plots.keys()
             }
@@ -1283,15 +1283,8 @@ class ExperimentFramework:
                     close_after=False,
                 )
 
-                # Save as PDF (vector format for publications)
-                pdf_path = plots_dir / f"{filename}.pdf"
-                save_plot(
-                    pdf_path,
-                    bbox_inches="tight",
-                    facecolor="white",
-                    edgecolor="none",
-                    close_after=True,
-                )
+                # Close the figure after PNG save
+                plt.close()
 
                 safe_log(logger.info, f"  ✅ Saved plot: {plot_name}")
 

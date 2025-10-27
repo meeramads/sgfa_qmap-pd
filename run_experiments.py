@@ -1008,8 +1008,7 @@ def main():
                 from core.io_utils import save_plot
                 for plot_name, fig in result.plots.items():
                     if fig is not None:
-                        save_plot(plots_dir / f"{plot_name}.png", dpi=300, close_after=False)
-                        save_plot(plots_dir / f"{plot_name}.pdf", close_after=True)
+                        save_plot(plots_dir / f"{plot_name}.png", dpi=300, close_after=True)
 
             # Save PCA information README if PCA was used
             if pca_enabled and preprocessor:
