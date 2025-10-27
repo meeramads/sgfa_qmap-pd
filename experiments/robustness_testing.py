@@ -2268,8 +2268,9 @@ class RobustnessExperiments(ExperimentFramework):
         performance_metrics = {}
 
         # Initialize aligned sample variables (will be populated during R-hat computation)
-        W_samples_aligned = None
-        Z_samples_aligned = None
+        # Type hints for Pylance
+        W_samples_aligned: Optional[np.ndarray] = None
+        Z_samples_aligned: Optional[np.ndarray] = None
 
         with self.profiler.profile("all_chains") as p:
             self.logger.info(f"Starting SGFA analysis with {n_chains} chains...")
@@ -3570,15 +3571,20 @@ class RobustnessExperiments(ExperimentFramework):
 
                     # Use aligned samples if available (preferred for R-hat evolution plots)
                     # Otherwise fall back to raw samples
-                    if 'W_samples_aligned' in locals() and W_samples_aligned is not None:
-                        W_samples_for_plots = W_samples_aligned
+                    # Note: W_samples_aligned and Z_samples_aligned are initialized to None at function start (line 2272-2273)
+                    # Pylance loses track of initialization through deeply nested blocks - suppress false positive
+                    w_aligned = W_samples_aligned  # type: ignore[name-defined]
+                    z_aligned = Z_samples_aligned  # type: ignore[name-defined]
+
+                    if w_aligned is not None:
+                        W_samples_for_plots = w_aligned
                         self.logger.info(f"  Using ALIGNED W_samples for plots (accounts for sign/rotation)")
                     else:
                         W_samples_for_plots = W_samples_raw
                         self.logger.warning(f"  Using RAW W_samples for plots (alignment not available)")
 
-                    if 'Z_samples_aligned' in locals() and Z_samples_aligned is not None:
-                        Z_samples_for_plots = Z_samples_aligned
+                    if z_aligned is not None:
+                        Z_samples_for_plots = z_aligned
                         self.logger.info(f"  Using ALIGNED Z_samples for plots (accounts for sign/rotation)")
                     else:
                         Z_samples_for_plots = Z_samples_raw
