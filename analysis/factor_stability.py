@@ -1991,14 +1991,38 @@ def _compute_consensus_loadings(
             reference = matched_loadings[0]
             aligned_loadings = [reference]  # Reference doesn't need alignment
 
-            for loading in matched_loadings[1:]:
-                # Check if this loading has opposite sign from reference
-                correlation = np.dot(reference, loading)
-                if correlation < 0:
-                    # Flip sign to match reference
-                    aligned_loadings.append(-loading)
-                else:
+            # Log magnitude statistics for convergence diagnostics
+            ref_norm = np.linalg.norm(reference)
+            logger.debug(f"  Factor {factor_idx}: Chain 0 (ref) norm={ref_norm:.3f}")
+
+            for chain_idx, loading in enumerate(matched_loadings[1:], start=1):
+                # Compute NORMALIZED correlation (cosine similarity)
+                # This is robust to scale differences between chains
+                loading_norm = np.linalg.norm(loading)
+                logger.debug(f"  Factor {factor_idx}: Chain {chain_idx} norm={loading_norm:.3f}")
+
+                # Handle near-zero vectors (heavily shrunk factors)
+                if ref_norm < 1e-10 and loading_norm < 1e-10:
+                    # Both shrunk to zero - just use as-is
                     aligned_loadings.append(loading)
+                elif ref_norm < 1e-10 or loading_norm < 1e-10:
+                    # One shrunk, one not - this shouldn't happen if matching worked correctly
+                    logger.warning(f"  Factor {factor_idx}: Magnitude mismatch between chains "
+                                 f"(ref={ref_norm:.3e}, chain{chain_idx}={loading_norm:.3e})")
+                    aligned_loadings.append(loading)
+                else:
+                    # Normal case: compute normalized cosine similarity
+                    # cosine_sim = dot(a,b) / (||a|| * ||b||)
+                    # This is sign-aware: ranges from -1 (opposite) to +1 (same)
+                    cosine_sim = np.dot(reference, loading) / (ref_norm * loading_norm)
+
+                    if cosine_sim < 0:
+                        # Negative correlation - flip sign to align
+                        aligned_loadings.append(-loading)
+                        logger.debug(f"  Factor {factor_idx}: Chain {chain_idx} FLIPPED (cosine={cosine_sim:.3f})")
+                    else:
+                        aligned_loadings.append(loading)
+                        logger.debug(f"  Factor {factor_idx}: Chain {chain_idx} aligned (cosine={cosine_sim:.3f})")
 
             # Use MEDIAN instead of MEAN for robustness
             # Median is robust to outliers and equals mode for symmetric posteriors
@@ -2068,14 +2092,38 @@ def _compute_consensus_scores(
             reference = matched_scores[0]
             aligned_scores = [reference]  # Reference doesn't need alignment
 
-            for scores in matched_scores[1:]:
-                # Check if these scores have opposite sign from reference
-                correlation = np.dot(reference, scores)
-                if correlation < 0:
-                    # Flip sign to match reference
-                    aligned_scores.append(-scores)
-                else:
+            # Log magnitude statistics for convergence diagnostics
+            ref_norm = np.linalg.norm(reference)
+            logger.debug(f"  Factor {factor_idx} scores: Chain 0 (ref) norm={ref_norm:.3f}")
+
+            for chain_idx, scores in enumerate(matched_scores[1:], start=1):
+                # Compute NORMALIZED correlation (cosine similarity)
+                # This is robust to scale differences between chains
+                scores_norm = np.linalg.norm(scores)
+                logger.debug(f"  Factor {factor_idx} scores: Chain {chain_idx} norm={scores_norm:.3f}")
+
+                # Handle near-zero vectors (heavily shrunk factors)
+                if ref_norm < 1e-10 and scores_norm < 1e-10:
+                    # Both shrunk to zero - just use as-is
                     aligned_scores.append(scores)
+                elif ref_norm < 1e-10 or scores_norm < 1e-10:
+                    # One shrunk, one not - this shouldn't happen if matching worked correctly
+                    logger.warning(f"  Factor {factor_idx} scores: Magnitude mismatch between chains "
+                                 f"(ref={ref_norm:.3e}, chain{chain_idx}={scores_norm:.3e})")
+                    aligned_scores.append(scores)
+                else:
+                    # Normal case: compute normalized cosine similarity
+                    # cosine_sim = dot(a,b) / (||a|| * ||b||)
+                    # This is sign-aware: ranges from -1 (opposite) to +1 (same)
+                    cosine_sim = np.dot(reference, scores) / (ref_norm * scores_norm)
+
+                    if cosine_sim < 0:
+                        # Negative correlation - flip sign to align
+                        aligned_scores.append(-scores)
+                        logger.debug(f"  Factor {factor_idx} scores: Chain {chain_idx} FLIPPED (cosine={cosine_sim:.3f})")
+                    else:
+                        aligned_scores.append(scores)
+                        logger.debug(f"  Factor {factor_idx} scores: Chain {chain_idx} aligned (cosine={cosine_sim:.3f})")
 
             # Convert to array for easy computation: (n_chains, N)
             aligned_scores_array = np.array(aligned_scores)
