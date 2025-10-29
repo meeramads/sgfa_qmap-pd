@@ -829,37 +829,6 @@ class RobustnessExperiments(ExperimentFramework):
             samples = {}
             # Note: log_likelihood removed - not a meaningful metric for factor analysis
 
-            # NOTE: Capturing extra_fields (diverging, accept_prob, energy, etc.) per-sample
-            # causes ~5x slowdown due to memory overhead and data transfer.
-            # We extract step_size and mass_matrix from final MCMC state instead (memory-efficient).
-            # For now, we disable per-sample extra_fields to maintain performance.
-            # If you need full diagnostics, uncomment the extra_fields configuration below.
-            extra_fields = None  # Disabled for performance (was causing 5x slowdown)
-
-            # # FULL GEOMETRY (if needed - causes 5x slowdown):
-            # if kwargs.get("capture_full_geometry", False):
-            #     extra_fields = (
-            #         "potential_energy",  # Log probability
-            #         "accept_prob",       # Acceptance probability
-            #         "diverging",         # Divergences (critical for geometry)
-            #         "num_steps",         # Leapfrog steps
-            #         "mean_accept_prob",  # Running mean
-            #         "energy",            # Hamiltonian energy
-            #     )
-            #     if verbose:
-            #         self.logger.info("📊 Capturing comprehensive posterior geometry")
-            # else:
-            #     extra_fields = (
-            #         "potential_energy",
-            #         "accept_prob",
-            #         "diverging",
-            #     )
-            #     if verbose:
-            #         self.logger.info("📊 Capturing essential diagnostics")
-
-            if verbose:
-                self.logger.info("📊 Skipping per-sample extra_fields for performance (extracting final state only)")
-
             # For multiple chains with memory constraints, run chains individually with cache clearing
             # NOTE: Even with chain_method='sequential', NumPyro may not clear JAX caches between chains,
             # leading to OOM errors. We explicitly run chains one-by-one with cache clearing.
@@ -970,17 +939,10 @@ class RobustnessExperiments(ExperimentFramework):
                     try:
                         # CRITICAL: model_instance only takes X_list as argument
                         # Hypers are already stored in model_instance.hypers from initialization
-                        if extra_fields is not None:
-                            mcmc_single.run(
-                                chain_rng_key, X_list,
-                                init_params=init_params,
-                                extra_fields=extra_fields
-                            )
-                        else:
-                            mcmc_single.run(
-                                chain_rng_key, X_list,
-                                init_params=init_params
-                            )
+                        mcmc_single.run(
+                            chain_rng_key, X_list,
+                            init_params=init_params
+                        )
                         elapsed = time.time() - start_time
                         total_elapsed += elapsed
                         self.logger.debug(f"✅ Chain {chain_idx + 1} COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
@@ -1271,16 +1233,10 @@ class RobustnessExperiments(ExperimentFramework):
                 try:
                     # CRITICAL: model_instance only takes X_list as argument
                     # Hypers are already stored in model_instance.hypers from initialization
-                    # Note: extra_fields already configured earlier in function
 
-                    if extra_fields is not None:
-                        mcmc.run(
-                            rng_key, X_list, init_params=init_params, extra_fields=extra_fields
-                        )
-                    else:
-                        mcmc.run(
-                            rng_key, X_list, init_params=init_params
-                        )
+                    mcmc.run(
+                        rng_key, X_list, init_params=init_params
+                    )
                     elapsed = time.time() - start_time
                     self.logger.debug(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
