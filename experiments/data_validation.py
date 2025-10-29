@@ -2250,15 +2250,23 @@ class DataValidationExperiments(ExperimentFramework):
             from visualization.manager import VisualizationManager
 
             # Create a data validation focused config for visualization
+            # Use experiment-specific output directory if available, otherwise fallback to /tmp
+            if hasattr(self, 'base_output_dir') and self.base_output_dir:
+                output_dir = str(self.base_output_dir)
+                logger.info(f"📁 Using experiment output dir for covariance plots: {output_dir}")
+            else:
+                output_dir = f"/tmp/data_validation_viz_{experiment_name}"
+                logger.warning(f"⚠️  Falling back to temp dir for covariance plots: {output_dir}")
+
             viz_config = ConfigAccessor(
                 {
                     "visualization": {
                         "create_brain_viz": False,  # Focus on preprocessing, not brain maps
-                        "output_format": ["png", "pdf"],
+                        "output_format": ["png"],  # PNG only (not PDF)
                         "dpi": 300,
                         "data_validation_focus": True,
                     },
-                    "output_dir": f"/tmp/data_validation_viz_{experiment_name}",
+                    "output_dir": output_dir,
                 }
             )
 
