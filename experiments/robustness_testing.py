@@ -829,30 +829,36 @@ class RobustnessExperiments(ExperimentFramework):
             samples = {}
             # Note: log_likelihood removed - not a meaningful metric for factor analysis
 
-            # Determine which extra fields to capture based on context
-            # NOTE: adapt_state (mass matrix) is EXTREMELY memory intensive (~26MB per sample!)
-            # We extract it from the final MCMC state instead of storing per-sample
-            if kwargs.get("capture_full_geometry", False):
-                # FULL GEOMETRY (FAST): Comprehensive diagnostics WITHOUT adapt_state
-                extra_fields = (
-                    "potential_energy",  # Log probability (unnormalized posterior)
-                    "accept_prob",       # Per-sample acceptance probability
-                    "diverging",         # Divergent transition indicator (critical for geometry)
-                    "num_steps",         # Number of leapfrog steps (adaptation indicator)
-                    "mean_accept_prob",  # Running mean acceptance probability
-                    "energy",            # Total Hamiltonian energy
-                )
-                if verbose:
-                    self.logger.info("📊 Capturing comprehensive posterior geometry (memory-efficient mode)")
-            else:
-                # ESSENTIAL DIAGNOSTICS (FAST): Default for most experiments
-                extra_fields = (
-                    "potential_energy",  # Log probability (unnormalized posterior)
-                    "accept_prob",       # Per-sample acceptance probability
-                    "diverging",         # Divergent transition indicator (critical for geometry)
-                )
-                if verbose:
-                    self.logger.info("📊 Capturing essential diagnostics (fast mode)")
+            # NOTE: Capturing extra_fields (diverging, accept_prob, energy, etc.) per-sample
+            # causes ~5x slowdown due to memory overhead and data transfer.
+            # We extract step_size and mass_matrix from final MCMC state instead (memory-efficient).
+            # For now, we disable per-sample extra_fields to maintain performance.
+            # If you need full diagnostics, uncomment the extra_fields configuration below.
+            extra_fields = None  # Disabled for performance (was causing 5x slowdown)
+
+            # # FULL GEOMETRY (if needed - causes 5x slowdown):
+            # if kwargs.get("capture_full_geometry", False):
+            #     extra_fields = (
+            #         "potential_energy",  # Log probability
+            #         "accept_prob",       # Acceptance probability
+            #         "diverging",         # Divergences (critical for geometry)
+            #         "num_steps",         # Leapfrog steps
+            #         "mean_accept_prob",  # Running mean
+            #         "energy",            # Hamiltonian energy
+            #     )
+            #     if verbose:
+            #         self.logger.info("📊 Capturing comprehensive posterior geometry")
+            # else:
+            #     extra_fields = (
+            #         "potential_energy",
+            #         "accept_prob",
+            #         "diverging",
+            #     )
+            #     if verbose:
+            #         self.logger.info("📊 Capturing essential diagnostics")
+
+            if verbose:
+                self.logger.info("📊 Skipping per-sample extra_fields for performance (extracting final state only)")
 
             # For multiple chains with memory constraints, run chains individually with cache clearing
             # NOTE: Even with chain_method='sequential', NumPyro may not clear JAX caches between chains,
@@ -964,18 +970,23 @@ class RobustnessExperiments(ExperimentFramework):
                     try:
                         # CRITICAL: model_instance only takes X_list as argument
                         # Hypers are already stored in model_instance.hypers from initialization
-                        mcmc_single.run(
-                            chain_rng_key, X_list,
-                            init_params=init_params,
-                            extra_fields=extra_fields
-                        )
+                        if extra_fields is not None:
+                            mcmc_single.run(
+                                chain_rng_key, X_list,
+                                init_params=init_params,
+                                extra_fields=extra_fields
+                            )
+                        else:
+                            mcmc_single.run(
+                                chain_rng_key, X_list,
+                                init_params=init_params
+                            )
                         elapsed = time.time() - start_time
                         total_elapsed += elapsed
                         self.logger.debug(f"✅ Chain {chain_idx + 1} COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
                         # Get samples from this chain and convert to numpy to break JAX references
-                        # IMPORTANT: include_extra_fields=True needed for posterior_geometry extraction
-                        chain_samples = mcmc_single.get_samples(include_extra_fields=True)
+                        chain_samples = mcmc_single.get_samples()
 
                         # Extract final MCMC state for step size and mass matrix (memory-efficient)
                         # This captures adaptation results without storing per-sample
@@ -1261,9 +1272,14 @@ class RobustnessExperiments(ExperimentFramework):
                     # Hypers are already stored in model_instance.hypers from initialization
                     # Note: extra_fields already configured earlier in function
 
-                    mcmc.run(
-                        rng_key, X_list, init_params=init_params, extra_fields=extra_fields
-                    )
+                    if extra_fields is not None:
+                        mcmc.run(
+                            rng_key, X_list, init_params=init_params, extra_fields=extra_fields
+                        )
+                    else:
+                        mcmc.run(
+                            rng_key, X_list, init_params=init_params
+                        )
                     elapsed = time.time() - start_time
                     self.logger.debug(f"✅ MCMC SAMPLING COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
@@ -1286,13 +1302,12 @@ class RobustnessExperiments(ExperimentFramework):
                     raise
 
                 # Get samples - group by chain if running multiple chains
-                # IMPORTANT: include_extra_fields=True needed for posterior_geometry extraction
                 if num_chains > 1:
-                    samples = mcmc.get_samples(group_by_chain=True, include_extra_fields=True)
-                    self.logger.debug(f"Got samples grouped by chain: {num_chains} chains (with extra_fields)")
+                    samples = mcmc.get_samples(group_by_chain=True)
+                    self.logger.debug(f"Got samples grouped by chain: {num_chains} chains")
                 else:
-                    samples = mcmc.get_samples(include_extra_fields=True)
-                    self.logger.debug(f"Got samples from single chain (with extra_fields)")
+                    samples = mcmc.get_samples()
+                    self.logger.debug(f"Got samples from single chain")
 
                 # Extract final MCMC state for step size and mass matrix (memory-efficient)
                 # This captures adaptation results without storing per-sample
