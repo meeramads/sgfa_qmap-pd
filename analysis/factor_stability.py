@@ -3351,6 +3351,43 @@ def extract_posterior_geometry(
                         "dimensionality": len(diag_elements),
                     }
 
+    # Extract final MCMC state (memory-efficient alternative to per-sample adapt_state)
+    # These fields are added by robustness_testing.py when capturing final state
+    if "_final_step_size" in samples:
+        step_size = np.asarray(samples["_final_step_size"])
+        if step_size.ndim == 0:  # Single value
+            geometry["step_size_summary"] = {
+                "value": float(step_size),
+            }
+        elif step_size.ndim == 1:  # Per-chain
+            geometry["step_size_summary"] = {
+                "mean": float(np.mean(step_size)),
+                "std": float(np.std(step_size)),
+                "min": float(np.min(step_size)),
+                "max": float(np.max(step_size)),
+                "per_chain": [float(s) for s in step_size],
+            }
+
+    if "_final_mass_matrix_diagonal" in samples:
+        mass_diag = np.asarray(samples["_final_mass_matrix_diagonal"])
+        # Handle different shapes
+        if mass_diag.ndim == 1:  # Single chain diagonal
+            diag_elements = mass_diag
+        elif mass_diag.ndim == 2:  # Per-chain diagonals - average them
+            diag_elements = np.mean(mass_diag, axis=0)
+        else:
+            diag_elements = None
+
+        if diag_elements is not None and len(diag_elements) > 0:
+            geometry["mass_matrix_summary"] = {
+                "diagonal_mean": float(np.mean(diag_elements)),
+                "diagonal_std": float(np.std(diag_elements)),
+                "diagonal_min": float(np.min(diag_elements)),
+                "diagonal_max": float(np.max(diag_elements)),
+                "condition_number": float(np.max(diag_elements) / np.min(diag_elements)) if np.min(diag_elements) > 0 else np.inf,
+                "dimensionality": len(diag_elements),
+            }
+
     return geometry
 
 
@@ -3640,8 +3677,8 @@ def save_stability_results(
         similarity_df.to_csv(output_path / "similarity_matrix.csv")
         logger.info(f"  ✅ Saved similarity matrix: .csv format")
 
-    # Save posterior geometry diagnostics if available
-    if posterior_geometry is not None:
+    # Save posterior geometry diagnostics if available and non-empty
+    if posterior_geometry is not None and len(posterior_geometry) > 0:
         logger.info("  Saving posterior geometry diagnostics...")
 
         # Save comprehensive geometry JSON

@@ -830,21 +830,20 @@ class RobustnessExperiments(ExperimentFramework):
             # Note: log_likelihood removed - not a meaningful metric for factor analysis
 
             # Determine which extra fields to capture based on context
-            # For factor stability: capture comprehensive geometry (includes adapt_state - expensive!)
-            # For other experiments: capture only essential diagnostics
+            # NOTE: adapt_state (mass matrix) is EXTREMELY memory intensive (~26MB per sample!)
+            # We extract it from the final MCMC state instead of storing per-sample
             if kwargs.get("capture_full_geometry", False):
-                # FULL GEOMETRY (SLOW): Only for factor stability analysis
+                # FULL GEOMETRY (FAST): Comprehensive diagnostics WITHOUT adapt_state
                 extra_fields = (
                     "potential_energy",  # Log probability (unnormalized posterior)
                     "accept_prob",       # Per-sample acceptance probability
                     "diverging",         # Divergent transition indicator (critical for geometry)
                     "num_steps",         # Number of leapfrog steps (adaptation indicator)
                     "mean_accept_prob",  # Running mean acceptance probability
-                    "adapt_state",       # Contains inverse mass matrix and step size (EXPENSIVE!)
                     "energy",            # Total Hamiltonian energy
                 )
                 if verbose:
-                    self.logger.info("📊 Capturing FULL posterior geometry (including adapt_state - may be slow)")
+                    self.logger.info("📊 Capturing comprehensive posterior geometry (memory-efficient mode)")
             else:
                 # ESSENTIAL DIAGNOSTICS (FAST): Default for most experiments
                 extra_fields = (
@@ -977,6 +976,36 @@ class RobustnessExperiments(ExperimentFramework):
                         # Get samples from this chain and convert to numpy to break JAX references
                         # IMPORTANT: include_extra_fields=True needed for posterior_geometry extraction
                         chain_samples = mcmc_single.get_samples(include_extra_fields=True)
+
+                        # Extract final MCMC state for step size and mass matrix (memory-efficient)
+                        # This captures adaptation results without storing per-sample
+                        try:
+                            final_state = mcmc_single.last_state
+                            if hasattr(final_state, 'adapt_state') and final_state.adapt_state is not None:
+                                adapt_state = final_state.adapt_state
+
+                                # Extract step size (single value per chain)
+                                if hasattr(adapt_state, 'step_size'):
+                                    step_size = float(np.array(adapt_state.step_size))
+                                    chain_samples['_final_step_size'] = step_size
+                                    self.logger.debug(f"   Captured final step size: {step_size:.6f}")
+
+                                # Extract mass matrix diagonal (for condition number)
+                                if hasattr(adapt_state, 'inverse_mass_matrix'):
+                                    inv_mass = np.array(adapt_state.inverse_mass_matrix)
+                                    # Get diagonal elements
+                                    if inv_mass.ndim == 1:
+                                        mass_diag = inv_mass
+                                    elif inv_mass.ndim == 2:
+                                        mass_diag = np.diag(inv_mass)
+                                    else:
+                                        mass_diag = None
+
+                                    if mass_diag is not None:
+                                        chain_samples['_final_mass_matrix_diagonal'] = mass_diag
+                                        self.logger.debug(f"   Captured mass matrix diagonal (dim={len(mass_diag)})")
+                        except Exception as e:
+                            self.logger.debug(f"   Could not extract final MCMC state: {e}")
 
                         # Log tau0 values (data-dependent global scales) for diagnostics
                         # These reflect the dimensionality-aware prior floors
@@ -1264,6 +1293,41 @@ class RobustnessExperiments(ExperimentFramework):
                 else:
                     samples = mcmc.get_samples(include_extra_fields=True)
                     self.logger.debug(f"Got samples from single chain (with extra_fields)")
+
+                # Extract final MCMC state for step size and mass matrix (memory-efficient)
+                # This captures adaptation results without storing per-sample
+                try:
+                    final_state = mcmc.last_state
+                    if hasattr(final_state, 'adapt_state') and final_state.adapt_state is not None:
+                        adapt_state = final_state.adapt_state
+
+                        # Extract step size (could be per-chain or single value)
+                        if hasattr(adapt_state, 'step_size'):
+                            step_size = np.array(adapt_state.step_size)
+                            samples['_final_step_size'] = step_size
+                            if step_size.ndim == 0:
+                                self.logger.debug(f"   Captured final step size: {float(step_size):.6f}")
+                            else:
+                                self.logger.debug(f"   Captured final step sizes (per-chain): {step_size.shape}")
+
+                        # Extract mass matrix diagonal (for condition number)
+                        if hasattr(adapt_state, 'inverse_mass_matrix'):
+                            inv_mass = np.array(adapt_state.inverse_mass_matrix)
+                            # Handle different shapes (could be per-chain)
+                            if inv_mass.ndim == 1:
+                                mass_diag = inv_mass
+                            elif inv_mass.ndim == 2:
+                                mass_diag = np.diag(inv_mass)
+                            elif inv_mass.ndim == 3:  # per-chain full matrices
+                                mass_diag = np.array([np.diag(inv_mass[i]) for i in range(inv_mass.shape[0])])
+                            else:
+                                mass_diag = None
+
+                            if mass_diag is not None:
+                                samples['_final_mass_matrix_diagonal'] = mass_diag
+                                self.logger.debug(f"   Captured mass matrix diagonal: {mass_diag.shape}")
+                except Exception as e:
+                    self.logger.debug(f"   Could not extract final MCMC state: {e}")
 
             # Extract mean parameters
             W_samples = samples["W"]  # Shape: (num_chains, num_samples, D, K) or (num_samples, D, K)
