@@ -829,6 +829,32 @@ class RobustnessExperiments(ExperimentFramework):
             samples = {}
             # Note: log_likelihood removed - not a meaningful metric for factor analysis
 
+            # Determine which extra fields to capture based on context
+            # For factor stability: capture comprehensive geometry (includes adapt_state - expensive!)
+            # For other experiments: capture only essential diagnostics
+            if kwargs.get("capture_full_geometry", False):
+                # FULL GEOMETRY (SLOW): Only for factor stability analysis
+                extra_fields = (
+                    "potential_energy",  # Log probability (unnormalized posterior)
+                    "accept_prob",       # Per-sample acceptance probability
+                    "diverging",         # Divergent transition indicator (critical for geometry)
+                    "num_steps",         # Number of leapfrog steps (adaptation indicator)
+                    "mean_accept_prob",  # Running mean acceptance probability
+                    "adapt_state",       # Contains inverse mass matrix and step size (EXPENSIVE!)
+                    "energy",            # Total Hamiltonian energy
+                )
+                if verbose:
+                    self.logger.info("📊 Capturing FULL posterior geometry (including adapt_state - may be slow)")
+            else:
+                # ESSENTIAL DIAGNOSTICS (FAST): Default for most experiments
+                extra_fields = (
+                    "potential_energy",  # Log probability (unnormalized posterior)
+                    "accept_prob",       # Per-sample acceptance probability
+                    "diverging",         # Divergent transition indicator (critical for geometry)
+                )
+                if verbose:
+                    self.logger.info("📊 Capturing essential diagnostics (fast mode)")
+
             # For multiple chains with memory constraints, run chains individually with cache clearing
             # NOTE: Even with chain_method='sequential', NumPyro may not clear JAX caches between chains,
             # leading to OOM errors. We explicitly run chains one-by-one with cache clearing.
@@ -941,14 +967,16 @@ class RobustnessExperiments(ExperimentFramework):
                         # Hypers are already stored in model_instance.hypers from initialization
                         mcmc_single.run(
                             chain_rng_key, X_list,
-                            init_params=init_params
+                            init_params=init_params,
+                            extra_fields=extra_fields
                         )
                         elapsed = time.time() - start_time
                         total_elapsed += elapsed
                         self.logger.debug(f"✅ Chain {chain_idx + 1} COMPLETED in {elapsed:.1f}s ({elapsed/60:.1f} min)")
 
                         # Get samples from this chain and convert to numpy to break JAX references
-                        chain_samples = mcmc_single.get_samples()
+                        # IMPORTANT: include_extra_fields=True needed for posterior_geometry extraction
+                        chain_samples = mcmc_single.get_samples(include_extra_fields=True)
 
                         # Log tau0 values (data-dependent global scales) for diagnostics
                         # These reflect the dimensionality-aware prior floors
@@ -1202,32 +1230,7 @@ class RobustnessExperiments(ExperimentFramework):
                 try:
                     # CRITICAL: model_instance only takes X_list as argument
                     # Hypers are already stored in model_instance.hypers from initialization
-
-                    # Determine which extra fields to capture based on context
-                    # For factor stability: capture comprehensive geometry (includes adapt_state - expensive!)
-                    # For other experiments: capture only essential diagnostics
-                    if kwargs.get("capture_full_geometry", False):
-                        # FULL GEOMETRY (SLOW): Only for factor stability analysis
-                        extra_fields = (
-                            "potential_energy",  # Log probability (unnormalized posterior)
-                            "accept_prob",       # Per-sample acceptance probability
-                            "diverging",         # Divergent transition indicator (critical for geometry)
-                            "num_steps",         # Number of leapfrog steps (adaptation indicator)
-                            "mean_accept_prob",  # Running mean acceptance probability
-                            "adapt_state",       # Contains inverse mass matrix and step size (EXPENSIVE!)
-                            "energy",            # Total Hamiltonian energy
-                        )
-                        if verbose:
-                            self.logger.info("📊 Capturing FULL posterior geometry (including adapt_state - may be slow)")
-                    else:
-                        # ESSENTIAL DIAGNOSTICS (FAST): Default for most experiments
-                        extra_fields = (
-                            "potential_energy",  # Log probability (unnormalized posterior)
-                            "accept_prob",       # Per-sample acceptance probability
-                            "diverging",         # Divergent transition indicator (critical for geometry)
-                        )
-                        if verbose:
-                            self.logger.info("📊 Capturing essential diagnostics (fast mode)")
+                    # Note: extra_fields already configured earlier in function
 
                     mcmc.run(
                         rng_key, X_list, init_params=init_params, extra_fields=extra_fields
@@ -1254,12 +1257,13 @@ class RobustnessExperiments(ExperimentFramework):
                     raise
 
                 # Get samples - group by chain if running multiple chains
+                # IMPORTANT: include_extra_fields=True needed for posterior_geometry extraction
                 if num_chains > 1:
-                    samples = mcmc.get_samples(group_by_chain=True)
-                    self.logger.debug(f"Got samples grouped by chain: {num_chains} chains")
+                    samples = mcmc.get_samples(group_by_chain=True, include_extra_fields=True)
+                    self.logger.debug(f"Got samples grouped by chain: {num_chains} chains (with extra_fields)")
                 else:
-                    samples = mcmc.get_samples()
-                    self.logger.debug(f"Got samples from single chain")
+                    samples = mcmc.get_samples(include_extra_fields=True)
+                    self.logger.debug(f"Got samples from single chain (with extra_fields)")
 
             # Extract mean parameters
             W_samples = samples["W"]  # Shape: (num_chains, num_samples, D, K) or (num_samples, D, K)
