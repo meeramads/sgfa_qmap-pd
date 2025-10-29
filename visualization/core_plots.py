@@ -47,8 +47,8 @@ def safe_plotting_context(figsize=None, dpi=300):
         gc.collect()
 
 
-def save_plot_safely(fig, filepath, formats=["png", "pdf"], **kwargs):
-    """Safely save plot in multiple formats with error handling."""
+def save_plot_safely(fig, filepath, formats=["png"], **kwargs):
+    """Safely save plot in PNG format with error handling."""
     filepath = Path(filepath)
     saved_files = []
 

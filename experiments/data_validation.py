@@ -481,7 +481,7 @@ class DataValidationExperiments(ExperimentFramework):
                 logger.warning(f"⚠️  Falling back to global data_validation dir: {base_dir}")
 
             output_dir = base_dir / "individual_plots"
-            save_all_plots_individually(plots, output_dir, dpi=300)
+            save_all_plots_individually(plots, output_dir, dpi=300, formats=['png'])
             logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
         except Exception as e:
             logger.warning(f"Failed to save individual plots: {e}")

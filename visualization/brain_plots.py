@@ -165,7 +165,7 @@ class BrainVisualizer:
                 plt.colorbar(im, ax=axes[1, 1])
 
             plt.tight_layout()
-            save_plot(fig, plot_dir / "factor_summary", formats=["png", "pdf"])
+            save_plot(fig, plot_dir / "factor_summary", formats=["png"])
             plt.close(fig)
 
         except Exception as e:

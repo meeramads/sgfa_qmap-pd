@@ -308,7 +308,7 @@ def save_all_plots_individually(
     Save all plots from a dictionary as individual files.
 
     This function takes a dictionary of matplotlib figures and saves each one
-    as a separate file in both PNG and PDF formats (by default).
+    as a separate file in PNG format (by default).
 
     Parameters
     ----------
@@ -319,7 +319,7 @@ def save_all_plots_individually(
     dpi : int, optional
         Resolution for saved figures (default: 300)
     formats : list, optional
-        List of file formats to save (default: ['png', 'pdf'])
+        List of file formats to save (default: ['png'])
 
     Examples
     --------
@@ -333,7 +333,7 @@ def save_all_plots_individually(
     from matplotlib.figure import Figure
 
     if formats is None:
-        formats = ['png', 'pdf']
+        formats = ['png']
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

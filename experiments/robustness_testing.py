@@ -3123,6 +3123,8 @@ class RobustnessExperiments(ExperimentFramework):
                 performance_metrics,
                 X_list=X_list,
                 data=kwargs,  # Pass any additional data (view_names, feature_names, etc.)
+                W_samples_aligned=W_samples_aligned,  # Pass aligned W samples
+                Z_samples_aligned=Z_samples_aligned,  # Pass aligned Z samples
             )
             self.logger.info(f"✅ Generated {len(plots)} plots")
             for plot_name in plots.keys():
@@ -3277,6 +3279,8 @@ class RobustnessExperiments(ExperimentFramework):
         performance_metrics: Dict,
         X_list: Optional[List[np.ndarray]] = None,
         data: Optional[Dict] = None,
+        W_samples_aligned: Optional[np.ndarray] = None,
+        Z_samples_aligned: Optional[np.ndarray] = None,
     ) -> Dict:
         """Generate plots for factor stability analysis."""
         plots = {}
@@ -3594,26 +3598,26 @@ class RobustnessExperiments(ExperimentFramework):
                     W_samples_raw = np.stack(W_samples_list, axis=0)
                     Z_samples_raw = np.stack(Z_samples_list, axis=0)
 
-                    # Use aligned samples if available (preferred for R-hat evolution plots)
+                    # Use aligned samples passed as function parameters (preferred for R-hat evolution plots)
                     # Otherwise fall back to raw samples
-                    # Note: W_samples_aligned and Z_samples_aligned are initialized to None at function start (line 2272-2273)
-                    # Pylance loses track of initialization through deeply nested blocks - suppress false positive
-                    w_aligned = W_samples_aligned  # type: ignore[name-defined]
-                    z_aligned = Z_samples_aligned  # type: ignore[name-defined]
-
-                    if w_aligned is not None:
-                        W_samples_for_plots = w_aligned
-                        self.logger.info(f"  Using ALIGNED W_samples for plots (accounts for sign/rotation)")
+                    # W_samples_aligned and Z_samples_aligned are passed from the outer scope where they were computed
+                    if W_samples_aligned is not None:
+                        W_samples_for_plots = W_samples_aligned
+                        self.logger.info(f"  ✅ Using ALIGNED W_samples for plots (shape: {W_samples_aligned.shape})")
+                        self.logger.info(f"     Accounts for sign/rotation indeterminacy across chains")
                     else:
                         W_samples_for_plots = W_samples_raw
-                        self.logger.warning(f"  Using RAW W_samples for plots (alignment not available)")
+                        self.logger.warning(f"  ⚠️  Using RAW W_samples for plots (alignment not available)")
+                        self.logger.warning(f"     Plots may show sign flipping artifacts between chains")
 
-                    if z_aligned is not None:
-                        Z_samples_for_plots = z_aligned
-                        self.logger.info(f"  Using ALIGNED Z_samples for plots (accounts for sign/rotation)")
+                    if Z_samples_aligned is not None:
+                        Z_samples_for_plots = Z_samples_aligned
+                        self.logger.info(f"  ✅ Using ALIGNED Z_samples for plots (shape: {Z_samples_aligned.shape})")
+                        self.logger.info(f"     Accounts for sign/rotation indeterminacy across chains")
                     else:
                         Z_samples_for_plots = Z_samples_raw
-                        self.logger.warning(f"  Using RAW Z_samples for plots (alignment not available)")
+                        self.logger.warning(f"  ⚠️  Using RAW Z_samples for plots (alignment not available)")
+                        self.logger.warning(f"     Plots may show sign flipping artifacts between chains")
 
                     self.logger.info(f"  W_samples shape: {W_samples_for_plots.shape}")
                     self.logger.info(f"  Z_samples shape: {Z_samples_for_plots.shape}")
@@ -3834,7 +3838,7 @@ class RobustnessExperiments(ExperimentFramework):
                 self.logger.warning(f"⚠️  Falling back to global factor_stability dir: {base_dir}")
 
             output_dir = base_dir / "individual_plots"
-            save_all_plots_individually(plots, output_dir, dpi=300)
+            save_all_plots_individually(plots, output_dir, dpi=300, formats=['png'])
             self.logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
         except Exception as e:
             self.logger.warning(f"Failed to save individual plots: {e}")
@@ -4228,7 +4232,7 @@ def run_robustness_testing(config):
                     logger.warning(f"⚠️  Falling back to global robustness_testing dir: {base_dir}")
 
                 output_dir = base_dir / "individual_plots"
-                save_all_plots_individually(plots, output_dir, dpi=300)
+                save_all_plots_individually(plots, output_dir, dpi=300, formats=['png'])
                 logger.info(f"✅ Saved {len(plots)} individual plots to {output_dir}")
             except Exception as e:
                 logger.warning(f"Failed to save individual plots: {e}")
