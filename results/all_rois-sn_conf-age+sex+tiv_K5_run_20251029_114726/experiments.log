@@ -1,0 +1,797 @@
+2025-10-29 11:47:26,885 - __main__ - INFO - 📝 Comprehensive pipeline logging configured: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/experiments.log
+2025-10-29 11:47:26,885 - __main__ - INFO -    All experiments will log to this single file
+2025-10-29 11:47:26,887 - core.config_utils - INFO - Ensured output directory exists: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726
+2025-10-29 11:47:26,888 - core.config_utils - INFO - Ensured checkpoint directory exists: results/checkpoints
+2025-10-29 11:47:26,888 - __main__ - INFO -  Available devices: [cuda(id=0)]
+2025-10-29 11:47:26,888 - __main__ - INFO -  GPU devices available for acceleration: [cuda(id=0)]
+2025-10-29 11:47:26,890 - core.results_cache - INFO - 📦 SGFA results cache initialized: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/.sgfa_cache
+2025-10-29 11:47:26,890 - __main__ - INFO -  Starting Remote Workstation Experimental Framework at 2025-10-29 11:47:26.890660
+2025-10-29 11:47:26,890 - __main__ - INFO -  Running experiments: ['all']
+2025-10-29 11:47:26,890 - __main__ - INFO - ℹ️  Running core analysis pipeline: data_validation → factor_stability
+2025-10-29 11:47:26,890 - __main__ - INFO - 🔗 Using SHARED DATA MODE - efficient pipeline with data reuse
+2025-10-29 11:47:26,891 - __main__ - INFO - 🔄 Pipeline context initialized (shared_mode: True)
+2025-10-29 11:47:26,891 - __main__ - INFO - 🔍 1/2 Starting Data Validation Experiment...
+2025-10-29 11:47:26,891 - experiments.data_validation - INFO - Starting Data Validation Experiments
+2025-10-29 11:47:26,891 - experiments.data_validation - INFO - Running comprehensive data validation with EDA plots...
+2025-10-29 11:47:26,891 - experiments.data_validation - INFO - 📁 Using unified directory structure: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 11:47:26,894 - experiments.framework - INFO - 📝 Log handler already exists for /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/experiments.log - skipping duplicate
+2025-10-29 11:47:26,894 - experiments.framework - INFO - ExperimentFramework initialized with output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726
+2025-10-29 11:47:26,906 - experiments.framework - INFO - Starting experiment: data_validation_20251029_114726
+2025-10-29 11:47:26,907 - experiments.data_validation - INFO - Running comprehensive data validation...
+2025-10-29 11:47:26,908 - experiments.data_validation - INFO - Auto-configured system: 22.4GB memory limit
+2025-10-29 11:47:26,910 - experiments.data_validation - INFO - ExperimentFramework initialized with output dir: results
+2025-10-29 11:47:26,911 - experiments.data_validation - INFO - Auto-configured system: 22.4GB memory limit
+2025-10-29 11:47:26,911 - experiments.data_validation - INFO - Memory optimizer initialized with 22.4GB limit
+2025-10-29 11:47:26,911 - experiments.data_validation - INFO - Data streaming components initialized
+2025-10-29 11:47:26,911 - experiments.data_validation - INFO - MCMC memory optimizer initialized
+2025-10-29 11:47:26,912 - experiments.data_validation - INFO - Running data quality assessment
+2025-10-29 11:47:26,912 - experiments.data_validation - INFO - Loading qMAP-PD data for quality assessment...
+2025-10-29 11:47:26,912 - experiments.data_validation - INFO -    ROI selection: ['volume_sn_voxels.tsv']
+2025-10-29 11:47:26,912 - experiments.data_validation - INFO -    Confound regression: ['age', 'sex', 'tiv']
+2025-10-29 11:47:26,912 - experiments.data_validation - INFO -    Feature selection: none
+2025-10-29 11:47:26,924 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-29 11:47:27,061 - root - INFO - Regressing out confounds (before preprocessing): ['age', 'sex', 'tiv']
+2025-10-29 11:47:27,068 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-29 11:47:27,069 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-29 11:47:27,069 - root - INFO -   Remaining clinical features: 14
+2025-10-29 11:47:27,069 - root - INFO - ✅ Confound regression complete (before preprocessing)
+2025-10-29 11:47:27,077 - root - INFO - Preprocessing module imported successfully
+2025-10-29 11:47:27,082 - experiments.data_validation - INFO -    PCA enabled in preprocessing_config: False
+2025-10-29 11:47:27,093 - root - INFO - Loading selected ROIs: ['volume_sn_voxels.tsv']
+2025-10-29 11:47:27,315 - root - INFO - Regressing out confounds (before preprocessing): ['age', 'sex', 'tiv']
+2025-10-29 11:47:27,320 - root - INFO -   Regressed confounds from volume_sn_voxels: ['age', 'sex', 'tiv']
+2025-10-29 11:47:27,321 - root - INFO -   Dropped 3 confound features from clinical: ['age', 'sex', 'tiv']
+2025-10-29 11:47:27,321 - root - INFO -   Remaining clinical features: 14
+2025-10-29 11:47:27,321 - root - INFO - ✅ Confound regression complete (before preprocessing)
+2025-10-29 11:47:27,321 - root - INFO - Starting neuroimaging-aware preprocessing pipeline
+2025-10-29 11:47:27,321 - root - INFO - MAD filtering disabled for volume_sn_voxels (threshold=None)
+2025-10-29 11:47:27,346 - root - INFO - Applying none feature selection to volume_sn_voxels
+2025-10-29 11:47:27,346 - root - INFO - Applying standard scaling to volume_sn_voxels
+2025-10-29 11:47:27,350 - data.preprocessing - WARNING - ⚠️  volume_sn_voxels standardization verification FAILED:
+2025-10-29 11:47:27,350 - data.preprocessing - INFO -    ✓ Mean: -0.000000
+2025-10-29 11:47:27,350 - data.preprocessing - INFO -    ✓ Std:  1.005865
+2025-10-29 11:47:27,350 - data.preprocessing - WARNING -    ❌ Max:  7.85 (threshold: 5.0)
+2025-10-29 11:47:27,350 - data.preprocessing - WARNING -       This suggests EXTREME outliers or non-standardized data!
+2025-10-29 11:47:27,350 - data.preprocessing - WARNING -       SGFA horseshoe priors assume standardized inputs.
+2025-10-29 11:47:27,352 - root - INFO - Applying none feature selection to clinical
+2025-10-29 11:47:27,352 - root - INFO - Applying standard scaling to clinical
+2025-10-29 11:47:27,353 - data.preprocessing - INFO - ✅ clinical standardization verified:
+2025-10-29 11:47:27,354 - data.preprocessing - INFO -    Mean: 0.000000 (target: 0.0, tol: 0.1)
+2025-10-29 11:47:27,354 - data.preprocessing - INFO -    Std:  1.005865 (target: 1.0, tol: 0.2)
+2025-10-29 11:47:27,354 - data.preprocessing - INFO -    Max:  3.62 (threshold: 5.0)
+2025-10-29 11:47:27,355 - experiments.data_validation - INFO -    ✅ Filtered position lookups saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/position_lookup_filtered
+2025-10-29 11:47:27,355 - experiments.data_validation - INFO -    Creating filtered position lookups with output_dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 11:47:27,355 - experiments.data_validation - INFO -   _create_filtered_position_lookups called:
+2025-10-29 11:47:27,355 - experiments.data_validation - INFO -     view_names: ['volume_sn_voxels', 'clinical']
+2025-10-29 11:47:27,355 - experiments.data_validation - INFO -     n_views raw: 2, preprocessed: 2
+2025-10-29 11:47:27,355 - experiments.data_validation - INFO -   Creating filtered position lookup for volume_sn_voxels...
+2025-10-29 11:47:27,358 - experiments.data_validation - INFO -   Original positions: 1794 rows
+2025-10-29 11:47:27,358 - experiments.data_validation - INFO -   Raw data: 1794 voxels
+2025-10-29 11:47:27,358 - experiments.data_validation - INFO -   Preprocessed data: 1794 voxels
+2025-10-29 11:47:27,358 - experiments.data_validation - INFO -   No voxels dropped, position lookup unchanged
+2025-10-29 11:47:27,371 - experiments.data_validation - INFO -   ✅ Saved filtered position lookup: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/filtered_position_lookups/sn_filtered_position_lookup.csv
+2025-10-29 11:47:27,371 - experiments.data_validation - INFO -      1794 → 1794 rows
+2025-10-29 11:47:27,371 - experiments.data_validation - INFO -   Skipping clinical view
+2025-10-29 11:47:27,371 - experiments.data_validation - INFO -    ✅ Filtered position lookups saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/filtered_position_lookups
+2025-10-29 11:47:27,371 - experiments.data_validation - INFO -    Files created: ['/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/filtered_position_lookups/sn_filtered_position_lookup.csv']
+2025-10-29 11:47:27,373 - experiments.data_validation - INFO - Data structure analysis completed. Raw: 1808 features, Processed: 1808 features
+2025-10-29 11:47:27,373 - experiments.data_validation - INFO - 🔍 Assessing data quality metrics...
+2025-10-29 11:47:27,373 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×1794)...
+2025-10-29 11:47:27,380 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-29 11:47:27,381 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-29 11:47:27,382 - experiments.data_validation - INFO -    Analyzing quality metrics for volume_sn_voxels (86×1794)...
+2025-10-29 11:47:27,388 - experiments.data_validation - INFO -    Analyzing quality metrics for clinical (86×14)...
+2025-10-29 11:47:27,389 - experiments.data_validation - INFO -       Computing correlation matrix for clinical...
+2025-10-29 11:47:27,389 - experiments.data_validation - INFO - 📊 Estimating Signal-to-Noise Ratio (SNR)...
+2025-10-29 11:47:27,389 - experiments.data_validation - INFO -    Analyzing SNR for volume_sn_voxels ((86, 1794))...
+2025-10-29 11:47:27,415 - experiments.data_validation - INFO -       PCA SNR: 4.93 (signal=9 PCs)
+2025-10-29 11:47:27,415 - experiments.data_validation - INFO -       Effective dim (95%): 21 PCs
+2025-10-29 11:47:27,415 - experiments.data_validation - INFO -       Scree elbow at PC: 2
+2025-10-29 11:47:27,417 - experiments.data_validation - INFO -       Variance SNR: 0.00
+2025-10-29 11:47:27,418 - experiments.data_validation - INFO -       Feature SNR: median=0.00
+2025-10-29 11:47:27,418 - experiments.data_validation - INFO -    📋 SNR Interpretation for volume_sn_voxels:
+2025-10-29 11:47:27,418 - experiments.data_validation - INFO -       Signal quality: Moderate (SNR 3-10): Adequate signal, moderate noise
+2025-10-29 11:47:27,419 - experiments.data_validation - INFO -       Recommended K: 2-2 (moderate signal)
+2025-10-29 11:47:27,419 - experiments.data_validation - INFO -       Prior strength: MODERATE priors (SNR 2-5): Use τ₀ floor (current: 0.3)
+2025-10-29 11:47:27,419 - experiments.data_validation - INFO -       Convergence: MODERATE: May need longer chains or stronger priors
+2025-10-29 11:47:27,419 - experiments.data_validation - INFO -    Analyzing SNR for clinical ((86, 14))...
+2025-10-29 11:47:27,420 - experiments.data_validation - INFO -       PCA SNR: 14.65 (signal=9 PCs)
+2025-10-29 11:47:27,421 - experiments.data_validation - INFO -       Effective dim (95%): 10 PCs
+2025-10-29 11:47:27,421 - experiments.data_validation - INFO -       Scree elbow at PC: 2
+2025-10-29 11:47:27,421 - experiments.data_validation - INFO -       Variance SNR: 0.00
+2025-10-29 11:47:27,422 - experiments.data_validation - INFO -       Feature SNR: median=0.00
+2025-10-29 11:47:27,422 - experiments.data_validation - INFO -    📋 SNR Interpretation for clinical:
+2025-10-29 11:47:27,422 - experiments.data_validation - INFO -       Signal quality: High (SNR > 10): Strong signal, low noise
+2025-10-29 11:47:27,423 - experiments.data_validation - INFO -       Recommended K: 2-8 (signal supports more factors)
+2025-10-29 11:47:27,423 - experiments.data_validation - INFO -       Prior strength: WEAK priors ok (SNR > 5): Data-dependent τ₀ may suffice
+2025-10-29 11:47:27,423 - experiments.data_validation - INFO -       Convergence: GOOD: High SNR + well-defined subspace
+2025-10-29 11:47:27,423 - experiments.data_validation - INFO - ✅ SNR estimation complete for all views
+2025-10-29 11:47:27,441 - experiments.data_validation - INFO - ================================================================================
+2025-10-29 11:47:27,441 - experiments.data_validation - INFO - 🔍 MAD THRESHOLD EXPLORATORY DATA ANALYSIS
+2025-10-29 11:47:27,441 - experiments.data_validation - INFO - ================================================================================
+2025-10-29 11:47:27,441 - experiments.data_validation - INFO - Analyzing optimal MAD threshold values for outlier detection...
+2025-10-29 11:47:27,442 - experiments.data_validation - INFO - Analyzing 1 imaging views: ['volume_sn_voxels']
+2025-10-29 11:47:27,442 - experiments.data_validation - INFO - 📊 Analyzing MAD distributions...
+2025-10-29 11:47:27,442 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-29 11:47:28,428 - experiments.data_validation - INFO -       Saved MAD distribution plot: mad_distribution_sn.png
+2025-10-29 11:47:28,428 - experiments.data_validation - INFO -    ✅ MAD distributions analyzed for 1 views
+2025-10-29 11:47:28,428 - experiments.data_validation - INFO - 📈 Performing elbow analysis...
+2025-10-29 11:47:28,440 - experiments.data_validation - INFO -    volume_sn_voxels: Elbow at 2.26 (7.1% retention)
+2025-10-29 11:47:28,851 - experiments.data_validation - INFO -    ✅ Elbow analysis completed, saved to elbow_analysis_all_views.png
+2025-10-29 11:47:28,851 - experiments.data_validation - INFO - 🗺️  Analyzing spatial distribution of removed voxels...
+2025-10-29 11:47:28,853 - experiments.data_validation - INFO -    Loaded position lookup for volume_sn_voxels: 1794 voxels
+2025-10-29 11:47:29,815 - experiments.data_validation - INFO -       Saved spatial distribution plot: spatial_distribution_sn.png
+2025-10-29 11:47:29,816 - experiments.data_validation - INFO -    ✅ Spatial analysis completed for 1 views
+2025-10-29 11:47:29,816 - experiments.data_validation - INFO - 📊 Analyzing information preservation...
+2025-10-29 11:47:29,816 - experiments.data_validation - INFO -    Processing volume_sn_voxels...
+2025-10-29 11:47:30,380 - experiments.data_validation - INFO -       Saved information preservation plot: information_preservation_all_views.png
+2025-10-29 11:47:30,381 - experiments.data_validation - INFO -    ✅ Information preservation analyzed for 1 views
+2025-10-29 11:47:30,381 - experiments.data_validation - INFO - 👤 Analyzing subject-level data quality...
+2025-10-29 11:47:30,381 - experiments.data_validation - INFO -    Processing volume_sn_voxels: (86, 1794)
+2025-10-29 11:47:30,640 - experiments.data_validation - INFO -       Mean outlier %: 1.1%
+2025-10-29 11:47:30,640 - experiments.data_validation - INFO -       Max outlier %: 17.5%
+2025-10-29 11:47:31,107 - experiments.data_validation - INFO -       Saved subject outlier distribution plot: subject_outlier_distributions.png
+2025-10-29 11:47:31,111 - experiments.data_validation - INFO -       Saved flagged subjects table: flagged_subjects.csv (2 subjects)
+2025-10-29 11:47:31,113 - experiments.data_validation - INFO -       Saved flagged subjects report: flagged_subjects_report.txt
+2025-10-29 11:47:31,510 - experiments.data_validation - INFO -       Saved subject outlier comparison plot: subject_outlier_comparison.png
+2025-10-29 11:47:32,023 - experiments.data_validation - INFO -       Saved subject outlier scatter plot: subject_outlier_scatter.png
+2025-10-29 11:47:32,727 - experiments.data_validation - INFO -       Saved top subjects bar chart: subject_outlier_top20.png
+2025-10-29 11:47:32,727 - experiments.data_validation - INFO -    ✅ Subject-level analysis completed: 2 subjects flagged
+2025-10-29 11:47:32,727 - experiments.data_validation - INFO - 📋 Generating threshold comparison summary...
+2025-10-29 11:47:32,730 - experiments.data_validation - INFO -    Saved summary table: mad_threshold_summary_table.csv
+2025-10-29 11:47:32,733 - experiments.data_validation - INFO -    📝 Saved recommendations: mad_threshold_recommendations.txt
+2025-10-29 11:47:32,733 - experiments.data_validation - INFO - ================================================================================
+2025-10-29 11:47:32,733 - experiments.data_validation - INFO - ✅ MAD threshold EDA completed successfully
+2025-10-29 11:47:32,733 - experiments.data_validation - INFO - ================================================================================
+2025-10-29 11:47:32,733 - experiments.data_validation - INFO - 📊 Generating data validation plots...
+2025-10-29 11:47:32,733 - experiments.data_validation - INFO -    Creating distribution histograms for 1 clinical view(s), skipping 1 imaging views
+2025-10-29 11:47:32,857 - experiments.data_validation - INFO -    ✅ Distribution histograms created (stored as data_distribution_comparison)
+2025-10-29 11:47:32,863 - experiments.data_validation - INFO - 📊 Basic data validation plots completed: 1 plots generated
+2025-10-29 11:47:32,864 - experiments.data_validation - INFO - 🎨 Creating comprehensive data validation visualizations for data_quality_assessment
+2025-10-29 11:47:32,864 - experiments.data_validation - INFO - 📁 Using experiment output dir for covariance plots: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 11:47:32,867 - visualization.preprocessing_plots - INFO - Creating preprocessing plots
+2025-10-29 11:47:32,869 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-29 11:47:32,869 - visualization.covariance_plots - INFO - COVARIANCE STRUCTURE ANALYSIS
+2025-10-29 11:47:32,869 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-29 11:47:32,982 - visualization.covariance_plots - INFO - Intra-modality covariance for volume_sn_voxels: 1794x1794
+2025-10-29 11:47:32,983 - visualization.covariance_plots - INFO - Intra-modality covariance for clinical: 14x14
+2025-10-29 11:47:33,044 - visualization.covariance_plots - INFO - Inter-modality covariance for volume_sn_voxels_vs_clinical: 1794x14
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO - 
+Data structure:
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -   Number of views: 2
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -   Number of samples: 86
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -   volume_sn_voxels: 1794 features
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -   clinical: 14 features
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO - 
+Intra-modality correlation statistics:
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -   volume_sn_voxels:
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Mean correlation: 0.388
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Std correlation: 0.219
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Max |correlation|: 0.994
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -   clinical:
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Mean correlation: 0.073
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Std correlation: 0.350
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Max |correlation|: 0.911
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO - 
+Inter-modality correlation statistics:
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -   volume_sn_voxels_vs_clinical:
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Mean correlation: 0.031
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Std correlation: 0.121
+2025-10-29 11:47:33,145 - visualization.covariance_plots - INFO -     Max |correlation|: 0.371
+2025-10-29 11:47:33,146 - visualization.covariance_plots - INFO - 
+Generating covariance plots...
+2025-10-29 11:47:33,146 - visualization.covariance_plots - INFO - Subsampling covariance matrix from 1808 to 500 features
+2025-10-29 11:47:34,428 - visualization.covariance_plots - INFO - Saved block covariance matrix plot to results/plots/block_covariance_matrix.png
+2025-10-29 11:47:43,019 - visualization.covariance_plots - INFO - Saved inter/intra comparison plot to results/plots/inter_vs_intra_correlation.png
+2025-10-29 11:47:43,019 - visualization.covariance_plots - INFO - Plots saved to results/plots
+2025-10-29 11:47:43,019 - visualization.covariance_plots - INFO - ================================================================================
+2025-10-29 11:47:43,024 - experiments.data_validation - INFO -    Found 2 plot files to convert
+2025-10-29 11:47:43,506 - experiments.data_validation - INFO -    ✅ Created 2 comprehensive data validation visualizations
+2025-10-29 11:47:43,506 - experiments.data_validation - INFO - 🎨 Comprehensive data validation plots completed: 2 advanced plots generated
+2025-10-29 11:47:43,506 - experiments.data_validation - INFO - 📊 Creating SNR analysis plots...
+2025-10-29 11:47:43,507 - experiments.data_validation - INFO - 📊 Creating SNR analysis visualizations...
+2025-10-29 11:47:43,507 - experiments.data_validation - INFO -    Generating 3-panel SNR plot for volume_sn_voxels...
+2025-10-29 11:47:43,637 - experiments.data_validation - INFO -       ✅ Created SNR plot: snr_analysis_volume_sn_voxels.png
+2025-10-29 11:47:43,637 - experiments.data_validation - INFO -    Generating 3-panel SNR plot for clinical...
+2025-10-29 11:47:43,667 - experiments.data_validation - INFO -       ✅ Created SNR plot: snr_analysis_clinical.png
+2025-10-29 11:47:43,667 - experiments.data_validation - INFO - ✅ Generated 2 SNR visualization(s)
+2025-10-29 11:47:43,668 - experiments.data_validation - INFO - 📊 Total plots ready for saving: 5
+2025-10-29 11:47:43,668 - experiments.data_validation - INFO - 📁 Using experiment output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 11:47:48,181 - core.io_utils - INFO - Saved 5 plots individually to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/individual_plots (0 skipped)
+2025-10-29 11:47:48,181 - core.io_utils - INFO -   Formats: png
+2025-10-29 11:47:48,182 - experiments.data_validation - INFO - ✅ Saved 5 individual plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/individual_plots
+2025-10-29 11:47:48,182 - experiments.data_validation - INFO - 📊 Saving SNR analysis results...
+2025-10-29 11:47:48,182 - experiments.data_validation - INFO - 📊 Saving SNR analysis results...
+2025-10-29 11:47:48,185 - experiments.data_validation - INFO -    ✅ Saved SNR text report: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/snr_analysis/snr_report.txt
+2025-10-29 11:47:48,185 - experiments.data_validation - INFO - ✅ SNR results saved successfully
+2025-10-29 11:47:48,185 - experiments.data_validation - INFO - ✅ Data validation with EDA completed!
+2025-10-29 11:47:48,185 - experiments.data_validation - INFO -    Plots generated: 5
+2025-10-29 11:47:48,185 - experiments.framework - INFO - 🏁 EXPERIMENT COMPLETED: data_validation_20251029_114726
+2025-10-29 11:47:48,185 - experiments.framework - INFO - ⏱️  TOTAL RUNTIME: 21.3 seconds
+2025-10-29 11:47:48,185 - experiments.framework - INFO - 🕐 Started: 2025-10-29 11:47:26
+2025-10-29 11:47:48,185 - experiments.framework - INFO - 🕑 Finished: 2025-10-29 11:47:48
+2025-10-29 11:47:48,185 - experiments.framework - INFO - Experiment completed successfully: data_validation_20251029_114726
+2025-10-29 11:47:48,185 - experiments.framework - INFO - 🧹 Performing comprehensive memory cleanup...
+2025-10-29 11:47:48,273 - experiments.framework - INFO - Garbage collection freed 3553 objects
+2025-10-29 11:47:48,580 - experiments.framework - INFO - GPU memory cleanup attempted
+2025-10-29 11:47:49,581 - experiments.framework - INFO - ✅ Comprehensive memory cleanup completed
+2025-10-29 11:47:49,910 - experiments.framework - INFO - Pickle saving disabled to prevent large files - using JSON and CSV instead
+2025-10-29 11:47:49,916 - experiments.framework - INFO - Saving 5 plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/plots
+2025-10-29 11:47:50,621 - experiments.framework - WARNING - Failed to save plot data_distribution_comparison: name 'plt' is not defined
+2025-10-29 11:47:51,328 - experiments.framework - WARNING - Failed to save plot data_validation_block_covariance_matrix: name 'plt' is not defined
+2025-10-29 11:47:52,036 - experiments.framework - WARNING - Failed to save plot data_validation_inter_vs_intra_correlation: name 'plt' is not defined
+2025-10-29 11:47:52,747 - experiments.framework - WARNING - Failed to save plot snr_analysis_volume_sn_voxels: name 'plt' is not defined
+2025-10-29 11:47:53,450 - experiments.framework - WARNING - Failed to save plot snr_analysis_clinical: name 'plt' is not defined
+2025-10-29 11:47:53,450 - experiments.framework - INFO - All plots saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/01_data_validation_fixed_K5_percW33_slab4_2_tree10/plots
+2025-10-29 11:47:53,450 - experiments.data_validation - INFO - ✅ Data validation completed successfully
+2025-10-29 11:47:53,558 - experiments.data_validation - INFO - 🧹 Memory cleanup completed
+2025-10-29 11:47:53,559 - __main__ - INFO - 📊 Data validation loaded data: 2 views
+2025-10-29 11:47:53,559 - __main__ - INFO -    Strategy: unknown
+2025-10-29 11:47:53,559 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:53,559 - __main__ - INFO - 🔬 3/4 STARTING FACTOR STABILITY ANALYSIS
+2025-10-29 11:47:53,559 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:53,559 - __main__ - INFO -    → Using shared data from previous experiments
+2025-10-29 11:47:53,559 - __main__ - INFO -    → X_list: 2 views
+2025-10-29 11:47:53,559 - __main__ - INFO -       View 0: (86, 1794)
+2025-10-29 11:47:53,559 - __main__ - INFO -       View 1: (86, 14)
+2025-10-29 11:47:53,559 - __main__ - INFO -    Factor stability config from config.yaml: K=20, percW=None, num_chains=4
+2025-10-29 11:47:53,559 - __main__ - INFO -    Using command-line K override: 5 (config.yaml has 20)
+2025-10-29 11:47:53,560 - __main__ - INFO - Auto-configured system: 21.7GB memory limit
+2025-10-29 11:47:53,562 - __main__ - INFO - 📝 Log handler already exists for results/experiments.log - skipping duplicate
+2025-10-29 11:47:53,563 - __main__ - INFO - ExperimentFramework initialized with output dir: results
+2025-10-29 11:47:53,563 - __main__ - INFO - Auto-configured system: 21.7GB memory limit
+2025-10-29 11:47:53,563 - __main__ - INFO - Memory optimizer initialized with 21.7GB limit
+2025-10-29 11:47:53,563 - __main__ - INFO - Data streaming components initialized
+2025-10-29 11:47:53,563 - __main__ - INFO - MCMC memory optimizer initialized
+2025-10-29 11:47:53,563 - __main__ - INFO - 📁 Set base_output_dir to run directory: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726
+2025-10-29 11:47:53,564 - __main__ - INFO - 📁 Created factor_stability experiment directory: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 11:47:53,564 - __main__ - INFO -    Using shared data: 2 views
+2025-10-29 11:47:53,564 - __main__ - INFO -    Views: ['volume_sn_voxels', 'clinical']
+2025-10-29 11:47:53,564 - __main__ - INFO -    Using global model hyperparameters: percW=33, slab_df=4, slab_scale=2
+2025-10-29 11:47:53,564 - __main__ - INFO -    Detected 2 data views/sources from X_list
+2025-10-29 11:47:53,564 - __main__ - INFO -    Using parameters from config.yaml:
+2025-10-29 11:47:53,564 - __main__ - INFO -    - K=5, percW=33, slab_df=4, slab_scale=2
+2025-10-29 11:47:53,564 - __main__ - INFO -    - num_samples=10000, num_warmup=3000
+2025-10-29 11:47:53,564 - __main__ - INFO -    - target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-29 11:47:53,564 - __main__ - INFO -    - cosine_threshold=0.8, min_match_rate=0.5
+2025-10-29 11:47:53,564 - __main__ - INFO -    Running 4 chains with K=5 factors...
+2025-10-29 11:47:53,564 - __main__ - INFO -    This will take approximately 40 minutes
+2025-10-29 11:47:53,565 - __main__ - INFO - 📁 Experiment output directory set to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 11:47:53,566 - __main__ - INFO - 📝 Using unified pipeline logging: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/experiments.log
+2025-10-29 11:47:53,566 - __main__ - INFO -    Skipping experiment-specific log file creation
+2025-10-29 11:47:53,566 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:53,566 - __main__ - INFO - FACTOR STABILITY ANALYSIS - STARTING
+2025-10-29 11:47:53,566 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:53,566 - __main__ - INFO - Output directory: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 11:47:53,567 - __main__ - INFO - Running factor stability analysis with 4 independent chains
+2025-10-29 11:47:53,567 - __main__ - INFO - Cosine similarity threshold: 0.8
+2025-10-29 11:47:53,567 - __main__ - INFO - Minimum match rate: 0.5
+2025-10-29 11:47:53,567 - __main__ - INFO - View names: ['volume_sn_voxels', 'clinical']
+2025-10-29 11:47:53,567 - __main__ - INFO - Feature counts per view: {'volume_sn_voxels': 1794, 'clinical': 14}
+2025-10-29 11:47:53,573 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:53,573 - __main__ - INFO - RUNNING 4 CHAINS WITH METHOD: parallel
+2025-10-29 11:47:53,573 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:55,193 - __main__ - INFO - Base seed: 42
+2025-10-29 11:47:55,194 - __main__ - INFO - MCMC config: samples=10000, warmup=3000, chains=4
+2025-10-29 11:47:55,194 - __main__ - INFO - JAX will automatically split PRNG key for independent chains
+2025-10-29 11:47:55,194 - __main__ - INFO - Chain RNG keys computed via fold_in for reproducibility
+2025-10-29 11:47:55,311 - __main__ - INFO - Starting SGFA analysis with 4 chains...
+2025-10-29 11:47:55,311 - __main__ - INFO - 🔬 Factor stability mode: Capturing full posterior geometry diagnostics
+2025-10-29 11:47:55,311 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:55,311 - __main__ - INFO - _RUN_SGFA_ANALYSIS - STARTING
+2025-10-29 11:47:55,311 - __main__ - INFO - ================================================================================
+2025-10-29 11:47:55,312 - __main__ - INFO - Running SGFA: K=5, n_subjects=86, n_features=1808
+2025-10-29 11:47:55,342 - models.models_integration - INFO -    Total features: 1,808
+2025-10-29 11:47:55,342 - models.models_integration - INFO -    Views: 2
+2025-10-29 11:47:55,342 - models.models_integration - INFO -    Subjects: 86
+2025-10-29 11:47:55,342 - models.models_integration - INFO -    Has imaging data: True
+2025-10-29 11:47:55,343 - models.models_integration - INFO - ✅ Selected model type: sparse_gfa_fixed
+2025-10-29 11:47:55,343 - models.models_integration - INFO - 🏗️ Creating model instance: sparse_gfa_fixed
+2025-10-29 11:47:55,343 - models.models_integration - INFO -    Factory method: True
+2025-10-29 11:47:55,343 - models.models_integration - INFO -  Model type: sparse_gfa_fixed
+2025-10-29 11:47:55,343 - models.models_integration - INFO -  Model factory: True
+2025-10-29 11:47:55,343 - models.models_integration - INFO -  Structured management: True
+2025-10-29 11:47:55,343 - __main__ - INFO - MCMC configuration: warmup=3000, samples=10000, chains=4
+2025-10-29 11:47:55,344 - __main__ - INFO - NUTS kernel parameters: target_accept_prob=0.8, max_tree_depth=10, dense_mass=False
+2025-10-29 11:47:55,345 - __main__ - INFO - Creating MCMC sampler with chain_method=parallel...
+2025-10-29 11:47:55,345 - __main__ - WARNING - ⚠️  Running chains in explicit sequential mode with JAX cache clearing to prevent OOM
+2025-10-29 11:47:55,345 - __main__ - WARNING -     (NumPyro's default chain execution can cause GPU memory accumulation)
+2025-10-29 11:47:55,346 - __main__ - INFO -       Model: SparseGFAFixedModel
+2025-10-29 11:47:55,346 - __main__ - INFO -       Warmup: 3000, Samples: 10000
+2025-10-29 11:47:55,346 - __main__ - INFO -       Using init_params: False
+2025-10-29 13:18:00,768 - __main__ - INFO -    📊 Global shrinkage prior τ₀_Z = 0.050000
+2025-10-29 13:18:00,769 - __main__ - INFO -    📊 View-specific global shrinkage priors (τ₀_W):
+2025-10-29 13:18:00,769 - __main__ - INFO -      View 1 (volume_sn_voxels): τ₀_W = 0.300000 | D = 1794 features (high-D (>200), floor=0.3)
+2025-10-29 13:18:00,770 - __main__ - INFO -      View 2 (clinical): τ₀_W = 0.800000 | D = 14 features (low-D (<50), floor=0.8)
+2025-10-29 13:18:00,770 - __main__ - INFO -       τ_Z (global shrinkage, factors): 314047232.000000 ± 628094400.000000
+2025-10-29 13:18:00,770 - __main__ - INFO -       τ_W (global shrinkage, view 1): 4265057280.000000 ± 512.000000
+2025-10-29 13:18:00,770 - __main__ - INFO -       τ_W (global shrinkage, view 2): 0.000684 ± 0.000001
+2025-10-29 13:18:00,771 - __main__ - INFO -       c_W (slab scale, loadings): 1.590961
+2025-10-29 13:18:00,771 - __main__ - INFO -       c_Z (slab scale, factors): 1.104119
+2025-10-29 13:18:05,506 - __main__ - INFO - ✅ Chain 1 cleanup complete
+2025-10-29 13:18:17,049 - __main__ - INFO -       Model: SparseGFAFixedModel
+2025-10-29 13:18:17,049 - __main__ - INFO -       Warmup: 3000, Samples: 10000
+2025-10-29 13:18:17,049 - __main__ - INFO -       Using init_params: False
+2025-10-29 14:48:10,075 - __main__ - INFO -    📊 Global shrinkage prior τ₀_Z = 0.050000
+2025-10-29 14:48:10,076 - __main__ - INFO -    📊 View-specific global shrinkage priors (τ₀_W):
+2025-10-29 14:48:10,076 - __main__ - INFO -      View 1 (volume_sn_voxels): τ₀_W = 0.300000 | D = 1794 features (high-D (>200), floor=0.3)
+2025-10-29 14:48:10,077 - __main__ - INFO -      View 2 (clinical): τ₀_W = 0.800000 | D = 14 features (low-D (<50), floor=0.8)
+2025-10-29 14:48:10,077 - __main__ - INFO -       τ_Z (global shrinkage, factors): 0.065968 ± 0.059467
+2025-10-29 14:48:10,077 - __main__ - INFO -       τ_W (global shrinkage, view 1): 640.393372 ± 8.938732
+2025-10-29 14:48:10,078 - __main__ - INFO -       τ_W (global shrinkage, view 2): 0.092302 ± 0.003854
+2025-10-29 14:48:10,078 - __main__ - INFO -       c_W (slab scale, loadings): 7.481374
+2025-10-29 14:48:10,078 - __main__ - INFO -       c_Z (slab scale, factors): 2.233123
+2025-10-29 14:48:14,801 - __main__ - INFO - ✅ Chain 2 cleanup complete
+2025-10-29 14:48:26,355 - __main__ - INFO -       Model: SparseGFAFixedModel
+2025-10-29 14:48:26,355 - __main__ - INFO -       Warmup: 3000, Samples: 10000
+2025-10-29 14:48:26,355 - __main__ - INFO -       Using init_params: False
+2025-10-29 16:18:28,032 - __main__ - INFO -    📊 Global shrinkage prior τ₀_Z = 0.050000
+2025-10-29 16:18:28,034 - __main__ - INFO -    📊 View-specific global shrinkage priors (τ₀_W):
+2025-10-29 16:18:28,034 - __main__ - INFO -      View 1 (volume_sn_voxels): τ₀_W = 0.300000 | D = 1794 features (high-D (>200), floor=0.3)
+2025-10-29 16:18:28,034 - __main__ - INFO -      View 2 (clinical): τ₀_W = 0.800000 | D = 14 features (low-D (<50), floor=0.8)
+2025-10-29 16:18:28,035 - __main__ - INFO -       τ_Z (global shrinkage, factors): 0.073358 ± 0.044457
+2025-10-29 16:18:28,035 - __main__ - INFO -       τ_W (global shrinkage, view 1): 117.354935 ± 8.420810
+2025-10-29 16:18:28,035 - __main__ - INFO -       τ_W (global shrinkage, view 2): 0.023246 ± 0.026261
+2025-10-29 16:18:28,036 - __main__ - INFO -       c_W (slab scale, loadings): 9.153316
+2025-10-29 16:18:28,036 - __main__ - INFO -       c_Z (slab scale, factors): 2.716211
+2025-10-29 16:18:32,761 - __main__ - INFO - ✅ Chain 3 cleanup complete
+2025-10-29 16:18:44,311 - __main__ - INFO -       Model: SparseGFAFixedModel
+2025-10-29 16:18:44,311 - __main__ - INFO -       Warmup: 3000, Samples: 10000
+2025-10-29 16:18:44,311 - __main__ - INFO -       Using init_params: False
+2025-10-29 17:48:32,873 - __main__ - INFO -    📊 Global shrinkage prior τ₀_Z = 0.050000
+2025-10-29 17:48:32,874 - __main__ - INFO -    📊 View-specific global shrinkage priors (τ₀_W):
+2025-10-29 17:48:32,874 - __main__ - INFO -      View 1 (volume_sn_voxels): τ₀_W = 0.300000 | D = 1794 features (high-D (>200), floor=0.3)
+2025-10-29 17:48:32,875 - __main__ - INFO -      View 2 (clinical): τ₀_W = 0.800000 | D = 14 features (low-D (<50), floor=0.8)
+2025-10-29 17:48:32,875 - __main__ - INFO -       τ_Z (global shrinkage, factors): 0.073953 ± 0.043455
+2025-10-29 17:48:32,876 - __main__ - INFO -       τ_W (global shrinkage, view 1): 45.271061 ± 0.336023
+2025-10-29 17:48:32,876 - __main__ - INFO -       τ_W (global shrinkage, view 2): 0.160111 ± 0.002023
+2025-10-29 17:48:32,876 - __main__ - INFO -       c_W (slab scale, loadings): 4.018110
+2025-10-29 17:48:32,876 - __main__ - INFO -       c_Z (slab scale, factors): 2.053295
+2025-10-29 17:48:37,621 - __main__ - INFO - ✅ Chain 4 cleanup complete
+2025-10-29 17:48:37,944 - __main__ - INFO - Got samples grouped by chain: 4 chains
+2025-10-29 17:48:37,944 - __main__ - INFO - Stored full samples for 4 chains for MCMC diagnostics
+2025-10-29 17:48:37,944 - __main__ - INFO - W_samples shape: (4, 10000, 1808, 5)
+2025-10-29 17:48:37,944 - __main__ - INFO - Z_samples shape: (4, 10000, 86, 5)
+2025-10-29 17:48:37,944 - __main__ - INFO -    Result keys: ['W_samples', 'Z_samples', 'samples', 'n_iterations', 'num_chains', 'convergence', 'execution_time', 'robustness_info']
+2025-10-29 17:48:37,945 - __main__ - INFO - ✅ All 4 chains completed successfully
+2025-10-29 17:48:38,053 - optimization.profiler - INFO - Performance: all_chains: 21642.635s, 9.47GB peak, 100.2% CPU
+2025-10-29 17:48:38,053 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,053 - __main__ - INFO - EXTRACTING POSTERIOR GEOMETRY DIAGNOSTICS
+2025-10-29 17:48:38,053 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,053 - __main__ - INFO -   ✅ Extracted posterior geometry diagnostics
+2025-10-29 17:48:38,053 - __main__ - INFO - W_samples shape: (4, 10000, 1808, 5)
+2025-10-29 17:48:38,053 - __main__ - INFO - Z_samples shape: (4, 10000, 86, 5)
+2025-10-29 17:48:38,053 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,053 - __main__ - INFO - VALIDATING MCMC SAMPLES (NaN/Inf CHECK)
+2025-10-29 17:48:38,054 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,618 - __main__ - INFO - W (factor loadings) validation:
+2025-10-29 17:48:38,619 - __main__ - INFO -   Total elements: 361,600,000
+2025-10-29 17:48:38,619 - __main__ - INFO -   NaN values: 0 (0.0000%)
+2025-10-29 17:48:38,619 - __main__ - INFO -   Inf values: 0 (0.0000%)
+2025-10-29 17:48:38,619 - __main__ - INFO -   ✓ All W samples are valid (finite)
+2025-10-29 17:48:38,645 - __main__ - INFO - Z (factor scores) validation:
+2025-10-29 17:48:38,645 - __main__ - INFO -   Total elements: 17,200,000
+2025-10-29 17:48:38,645 - __main__ - INFO -   NaN values: 0 (0.0000%)
+2025-10-29 17:48:38,645 - __main__ - INFO -   Inf values: 0 (0.0000%)
+2025-10-29 17:48:38,645 - __main__ - INFO -   ✓ All Z samples are valid (finite)
+2025-10-29 17:48:38,645 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,645 - __main__ - INFO - ✓ SAMPLE VALIDATION PASSED - All samples are valid
+2025-10-29 17:48:38,645 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,645 - __main__ - INFO - Processing chain 1/4...
+2025-10-29 17:48:38,675 - __main__ - INFO - Chain 0 processed: W shape: (1794, 5), Z shape: (86, 5)
+2025-10-29 17:48:38,675 - __main__ - INFO - Processing chain 2/4...
+2025-10-29 17:48:38,704 - __main__ - INFO - Chain 1 processed: W shape: (1794, 5), Z shape: (86, 5)
+2025-10-29 17:48:38,704 - __main__ - INFO - Processing chain 3/4...
+2025-10-29 17:48:38,734 - __main__ - INFO - Chain 2 processed: W shape: (1794, 5), Z shape: (86, 5)
+2025-10-29 17:48:38,734 - __main__ - INFO - Processing chain 4/4...
+2025-10-29 17:48:38,764 - __main__ - INFO - Chain 3 processed: W shape: (1794, 5), Z shape: (86, 5)
+2025-10-29 17:48:38,764 - __main__ - INFO - ✅ All chains completed in 21642.6s (360.7 min)
+2025-10-29 17:48:38,764 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,765 - __main__ - INFO - ASSESSING FACTOR STABILITY ACROSS CHAINS
+2025-10-29 17:48:38,765 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,765 - __main__ - INFO - Number of chains to analyze: 4
+2025-10-29 17:48:38,765 - __main__ - INFO - Cosine threshold: 0.8
+2025-10-29 17:48:38,765 - __main__ - INFO - Min match rate: 0.5
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - ================================================================================
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - ASSESS_FACTOR_STABILITY_COSINE - STARTING
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - ================================================================================
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Number of chains: 4
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Similarity threshold: 0.8
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Min match rate: 0.5
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Chain 0: W type=<class 'list'>, samples=True
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Chain 1: W type=<class 'list'>, samples=True
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Chain 2: W type=<class 'list'>, samples=True
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Chain 3: W type=<class 'list'>, samples=True
+2025-10-29 17:48:38,765 - analysis.factor_stability - INFO - Chain 0: Averaging 10000 posterior samples
+2025-10-29 17:48:38,793 - analysis.factor_stability - INFO - Chain 0: Averaged W samples -> shape (1808, 5)
+2025-10-29 17:48:38,794 - analysis.factor_stability - INFO - Chain 1: Averaging 10000 posterior samples
+2025-10-29 17:48:38,822 - analysis.factor_stability - INFO - Chain 1: Averaged W samples -> shape (1808, 5)
+2025-10-29 17:48:38,822 - analysis.factor_stability - INFO - Chain 2: Averaging 10000 posterior samples
+2025-10-29 17:48:38,850 - analysis.factor_stability - INFO - Chain 2: Averaged W samples -> shape (1808, 5)
+2025-10-29 17:48:38,850 - analysis.factor_stability - INFO - Chain 3: Averaging 10000 posterior samples
+2025-10-29 17:48:38,879 - analysis.factor_stability - INFO - Chain 3: Averaged W samples -> shape (1808, 5)
+2025-10-29 17:48:38,879 - analysis.factor_stability - INFO - Factor loading matrices: D=1808 features, K=5 factors
+2025-10-29 17:48:38,881 - analysis.factor_stability - INFO - Chain 0: Averaged Z shape (86, 5)
+2025-10-29 17:48:38,882 - analysis.factor_stability - INFO - Chain 1: Averaged Z shape (86, 5)
+2025-10-29 17:48:38,884 - analysis.factor_stability - INFO - Chain 2: Averaged Z shape (86, 5)
+2025-10-29 17:48:38,886 - analysis.factor_stability - INFO - Chain 3: Averaged Z shape (86, 5)
+2025-10-29 17:48:38,886 - analysis.factor_stability - INFO - Step 2: Matching 5 factors across 4 chains
+2025-10-29 17:48:38,886 - analysis.factor_stability - INFO -   Using sign-invariant cosine similarity (handles factor sign flips)
+2025-10-29 17:48:38,886 - analysis.factor_stability - INFO -   Zero-vector detection enabled (threshold: 1e-10)
+2025-10-29 17:48:38,886 - analysis.factor_stability - INFO -   Processing factor 0/5
+2025-10-29 17:48:38,887 - analysis.factor_stability - INFO - Factor 0: ROBUST (matched in 4/4 chains, rate=100.00%)
+2025-10-29 17:48:38,888 - analysis.factor_stability - INFO - Factor 1: ROBUST (matched in 4/4 chains, rate=100.00%)
+2025-10-29 17:48:38,889 - analysis.factor_stability - INFO - Factor 2: ROBUST (matched in 4/4 chains, rate=100.00%)
+2025-10-29 17:48:38,889 - analysis.factor_stability - INFO - Factor 3: ROBUST (matched in 4/4 chains, rate=100.00%)
+2025-10-29 17:48:38,890 - analysis.factor_stability - INFO - Factor 4: ROBUST (matched in 4/4 chains, rate=100.00%)
+2025-10-29 17:48:38,890 - analysis.factor_stability - INFO - 
+📊 Cosine Similarity Edge Case Summary:
+2025-10-29 17:48:38,890 - analysis.factor_stability - INFO -   Zero reference vectors encountered: 0
+2025-10-29 17:48:38,890 - analysis.factor_stability - INFO -   Zero comparison vectors encountered: 0
+2025-10-29 17:48:38,890 - analysis.factor_stability - INFO -   Sign flips detected (|sim_raw| < -0.5): 0
+2025-10-29 17:48:38,890 - analysis.factor_stability - INFO -   Total factor comparisons: 75
+2025-10-29 17:48:38,890 - analysis.factor_stability - INFO - Computing consensus loadings for all 5 factors
+2025-10-29 17:48:38,891 - analysis.factor_stability - INFO -   (Stable factors: 5/5)
+2025-10-29 17:48:38,892 - analysis.factor_stability - INFO - Computing consensus scores for all 5 factors
+2025-10-29 17:48:38,893 - analysis.factor_stability - INFO - Consensus Z computed with uncertainty quantification
+2025-10-29 17:48:38,893 - analysis.factor_stability - INFO -   Median Z: shape (86, 5)
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   Mean std per subject: 0.468
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   Max std per subject: 1.953
+2025-10-29 17:48:38,894 - analysis.factor_stability - WARNING -   ⚠️  20 subjects have high uncertainty (>95th percentile)
+2025-10-29 17:48:38,894 - analysis.factor_stability - WARNING -      Consider: More chains, longer sampling, or model issues
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO - ================================================================================
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO - ASSESS_FACTOR_STABILITY_COSINE - COMPLETED
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO - ================================================================================
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO - Results:
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - Stable factors: 5/5
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - Stability rate: 100.0%
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - Stable factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - Consensus W shape: (1808, 5)
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - Consensus Z shape: (86, 5)
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - Z posterior uncertainty quantified (std, CI)
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO - Factor stability analysis complete:
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - 5/5 factors are robust (100.0%)
+2025-10-29 17:48:38,894 - analysis.factor_stability - INFO -   - Stable factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:38,894 - __main__ - INFO - ✅ Stability analysis completed
+2025-10-29 17:48:38,894 - __main__ - INFO -    Stable factors: 5/5
+2025-10-29 17:48:38,894 - __main__ - INFO -    Stability rate: 100.0%
+2025-10-29 17:48:38,894 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,894 - __main__ - INFO - COUNTING EFFECTIVE FACTORS PER CHAIN
+2025-10-29 17:48:38,894 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:38,894 - __main__ - INFO - Thresholds:
+2025-10-29 17:48:38,894 - __main__ - INFO -   - Sparsity: 0.001, Min nonzero %: 0.01
+2025-10-29 17:48:38,895 - __main__ - INFO -   - ARD precision threshold: 100.0
+2025-10-29 17:48:38,895 - __main__ - INFO -   - ARD variance threshold: 0.01
+2025-10-29 17:48:38,895 - __main__ - WARNING - ⚠ tau_W samples not available - ARD-based method will be skipped
+2025-10-29 17:48:38,895 - __main__ - INFO - 
+============================================================
+2025-10-29 17:48:38,895 - __main__ - INFO - CHAIN 0 - EFFECTIVE FACTOR ANALYSIS
+2025-10-29 17:48:38,895 - __main__ - INFO - ============================================================
+2025-10-29 17:48:38,895 - analysis.factor_stability - INFO - Counting effective factors in multi-view W: 2 views, 1808 total features, K=5
+2025-10-29 17:48:38,895 - analysis.factor_stability - INFO - Effective factor analysis:
+2025-10-29 17:48:38,895 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:38,895 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:38,895 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:38,895 - analysis.factor_stability - INFO - Counting effective factors from 10000 posterior samples: D=1808, K=5
+2025-10-29 17:48:39,690 - analysis.factor_stability - INFO - Effective factor analysis (from samples):
+2025-10-29 17:48:39,690 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:39,690 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:39,690 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:39,691 - __main__ - INFO - 
+Chain 0 - Method Comparison:
+2025-10-29 17:48:39,691 - __main__ - INFO -   Posterior Mean:    5/5 effective
+2025-10-29 17:48:39,691 - __main__ - INFO -   Posterior Samples: 5/5 effective
+2025-10-29 17:48:39,691 - __main__ - INFO - 
+============================================================
+2025-10-29 17:48:39,691 - __main__ - INFO - CHAIN 1 - EFFECTIVE FACTOR ANALYSIS
+2025-10-29 17:48:39,691 - __main__ - INFO - ============================================================
+2025-10-29 17:48:39,691 - analysis.factor_stability - INFO - Counting effective factors in multi-view W: 2 views, 1808 total features, K=5
+2025-10-29 17:48:39,691 - analysis.factor_stability - INFO - Effective factor analysis:
+2025-10-29 17:48:39,692 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:39,692 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:39,692 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:39,692 - analysis.factor_stability - INFO - Counting effective factors from 10000 posterior samples: D=1808, K=5
+2025-10-29 17:48:40,649 - analysis.factor_stability - INFO - Effective factor analysis (from samples):
+2025-10-29 17:48:40,649 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:40,649 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:40,649 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:40,650 - __main__ - INFO - 
+Chain 1 - Method Comparison:
+2025-10-29 17:48:40,650 - __main__ - INFO -   Posterior Mean:    5/5 effective
+2025-10-29 17:48:40,650 - __main__ - INFO -   Posterior Samples: 5/5 effective
+2025-10-29 17:48:40,650 - __main__ - INFO - 
+============================================================
+2025-10-29 17:48:40,650 - __main__ - INFO - CHAIN 2 - EFFECTIVE FACTOR ANALYSIS
+2025-10-29 17:48:40,650 - __main__ - INFO - ============================================================
+2025-10-29 17:48:40,650 - analysis.factor_stability - INFO - Counting effective factors in multi-view W: 2 views, 1808 total features, K=5
+2025-10-29 17:48:40,650 - analysis.factor_stability - INFO - Effective factor analysis:
+2025-10-29 17:48:40,650 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:40,650 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:40,650 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:40,650 - analysis.factor_stability - INFO - Counting effective factors from 10000 posterior samples: D=1808, K=5
+2025-10-29 17:48:41,598 - analysis.factor_stability - INFO - Effective factor analysis (from samples):
+2025-10-29 17:48:41,599 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:41,599 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:41,599 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:41,599 - __main__ - INFO - 
+Chain 2 - Method Comparison:
+2025-10-29 17:48:41,599 - __main__ - INFO -   Posterior Mean:    5/5 effective
+2025-10-29 17:48:41,599 - __main__ - INFO -   Posterior Samples: 5/5 effective
+2025-10-29 17:48:41,599 - __main__ - INFO - 
+============================================================
+2025-10-29 17:48:41,599 - __main__ - INFO - CHAIN 3 - EFFECTIVE FACTOR ANALYSIS
+2025-10-29 17:48:41,599 - __main__ - INFO - ============================================================
+2025-10-29 17:48:41,599 - analysis.factor_stability - INFO - Counting effective factors in multi-view W: 2 views, 1808 total features, K=5
+2025-10-29 17:48:41,600 - analysis.factor_stability - INFO - Effective factor analysis:
+2025-10-29 17:48:41,600 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:41,600 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:41,600 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:41,600 - analysis.factor_stability - INFO - Counting effective factors from 10000 posterior samples: D=1808, K=5
+2025-10-29 17:48:42,800 - analysis.factor_stability - INFO - Effective factor analysis (from samples):
+2025-10-29 17:48:42,800 - analysis.factor_stability - INFO -   - 5/5 factors are effective
+2025-10-29 17:48:42,800 - analysis.factor_stability - INFO -   - Shrinkage rate: 0.0%
+2025-10-29 17:48:42,800 - analysis.factor_stability - INFO -   - Effective factor indices: [0, 1, 2, 3, 4]
+2025-10-29 17:48:42,800 - __main__ - INFO - 
+Chain 3 - Method Comparison:
+2025-10-29 17:48:42,800 - __main__ - INFO -   Posterior Mean:    5/5 effective
+2025-10-29 17:48:42,800 - __main__ - INFO -   Posterior Samples: 5/5 effective
+2025-10-29 17:48:42,800 - __main__ - INFO - 
+================================================================================
+2025-10-29 17:48:42,800 - __main__ - INFO - EFFECTIVE FACTOR SUMMARY (Using preferred method)
+2025-10-29 17:48:42,800 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:42,800 - __main__ - INFO - Chain 0 (Posterior Samples): 5/5 effective factors
+2025-10-29 17:48:42,800 - __main__ - INFO - Chain 1 (Posterior Samples): 5/5 effective factors
+2025-10-29 17:48:42,800 - __main__ - INFO - Chain 2 (Posterior Samples): 5/5 effective factors
+2025-10-29 17:48:42,800 - __main__ - INFO - Chain 3 (Posterior Samples): 5/5 effective factors
+2025-10-29 17:48:42,800 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:42,800 - __main__ - INFO - R-HAT CONVERGENCE DIAGNOSTICS
+2025-10-29 17:48:42,801 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:42,801 - __main__ - INFO - NOTE: Raw R-hat reported for completeness. Aligned R-hat (below) is primary metric.
+2025-10-29 17:48:42,801 - __main__ - INFO - 
+2025-10-29 17:48:43,825 - __main__ - INFO - R-hat for W (factor loadings):
+2025-10-29 17:48:43,825 - __main__ - INFO -   Overall: max=184.0549, mean=25.2989
+2025-10-29 17:48:43,825 - __main__ - INFO -   Factor 0: max=93.8675, mean=8.2647 ⚠️
+2025-10-29 17:48:43,825 - __main__ - INFO -   Factor 1: max=184.0549, mean=17.8364 ⚠️
+2025-10-29 17:48:43,825 - __main__ - INFO -   Factor 2: max=146.0707, mean=86.0303 ⚠️
+2025-10-29 17:48:43,825 - __main__ - INFO -   Factor 3: max=43.5956, mean=8.5269 ⚠️
+2025-10-29 17:48:43,825 - __main__ - INFO -   Factor 4: max=88.6225, mean=5.8361 ⚠️
+2025-10-29 17:48:43,825 - __main__ - WARNING - ⚠️  High raw R-hat detected for W: 184.0549 > 1.1
+2025-10-29 17:48:43,825 - __main__ - WARNING -      This may reflect sign/rotation ambiguity in factor models.
+2025-10-29 17:48:43,825 - __main__ - WARNING -      Check aligned R-hat below for true convergence assessment.
+2025-10-29 17:48:43,875 - __main__ - INFO - R-hat for Z (factor scores):
+2025-10-29 17:48:43,876 - __main__ - INFO -   Overall: max=161.1529, mean=32.6167
+2025-10-29 17:48:43,876 - __main__ - INFO -   Factor 0: max=161.1529, mean=48.7689 ⚠️
+2025-10-29 17:48:43,876 - __main__ - INFO -   Factor 1: max=129.9204, mean=13.8171 ⚠️
+2025-10-29 17:48:43,876 - __main__ - INFO -   Factor 2: max=36.3300, mean=3.0489 ⚠️
+2025-10-29 17:48:43,876 - __main__ - INFO -   Factor 3: max=128.8103, mean=66.4080 ⚠️
+2025-10-29 17:48:43,876 - __main__ - INFO -   Factor 4: max=109.6338, mean=31.0407 ⚠️
+2025-10-29 17:48:43,876 - __main__ - WARNING - ⚠️  High raw R-hat detected for Z: 161.1529 > 1.1
+2025-10-29 17:48:43,876 - __main__ - WARNING -      This may reflect sign/rotation ambiguity in factor models.
+2025-10-29 17:48:43,876 - __main__ - WARNING -      Check aligned R-hat below for true convergence assessment.
+2025-10-29 17:48:43,876 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:43,876 - __main__ - INFO - ALIGNED R-HAT - PRIMARY CONVERGENCE METRIC
+2025-10-29 17:48:43,876 - __main__ - INFO - (Accounts for sign/rotation indeterminacy in factor models)
+2025-10-29 17:48:43,877 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:43,877 - __main__ - INFO - Computing aligned R-hat for W (factor loadings)...
+2025-10-29 17:48:43,877 - analysis.factor_stability - INFO - Computing aligned R-hat (accounting for factor sign/rotation ambiguity)
+2025-10-29 17:48:43,877 - analysis.factor_stability - INFO -   Input shape: (4, 10000, 1808, 5)
+2025-10-29 17:48:43,877 - analysis.factor_stability - INFO -   Reference chain: 0
+2025-10-29 17:48:45,767 - analysis.factor_stability - INFO -   Aligned 4/4 chains to reference
+2025-10-29 17:48:45,767 - analysis.factor_stability - INFO -   ✓ All factors matched across chains (good stability)
+2025-10-29 17:48:46,884 - analysis.factor_stability - INFO -   Computing split Gelman-Rubin on 5 matched factors...
+2025-10-29 17:48:47,904 - analysis.factor_stability - INFO -   Aligned R-hat results (matched factors only):
+2025-10-29 17:48:47,905 - analysis.factor_stability - INFO -     Max R-hat overall:  12.2945
+2025-10-29 17:48:47,905 - analysis.factor_stability - INFO -     Mean R-hat overall: 5.6334
+2025-10-29 17:48:47,905 - analysis.factor_stability - INFO -     Parameters with R-hat < 1.1: 0/9040 (0.0%)
+2025-10-29 17:48:47,913 - __main__ - INFO - Aligned R-hat for W:
+2025-10-29 17:48:47,913 - __main__ - INFO -   Factor match rate:  100.0% (5/5 factors matched across all chains)
+2025-10-29 17:48:47,913 - __main__ - INFO -   Max R-hat overall:  12.2945
+2025-10-29 17:48:47,913 - __main__ - INFO -   Mean R-hat overall: 5.6334
+2025-10-29 17:48:47,913 - __main__ - INFO -   Convergence rate:   0.0% (R-hat < 1.1)
+2025-10-29 17:48:47,913 - __main__ - WARNING - ⚠ W: Good matching but poor R-hat (12.2945 >= 1.1) - need more samples
+2025-10-29 17:48:47,913 - __main__ - INFO - ⚡ Alignment improved R-hat by 171.76
+2025-10-29 17:48:47,913 - __main__ - INFO -    Raw: 184.0549 → Aligned: 12.2945
+2025-10-29 17:48:47,913 - __main__ - INFO - Computing aligned R-hat for Z (factor scores)...
+2025-10-29 17:48:47,913 - analysis.factor_stability - INFO - Computing aligned R-hat (accounting for factor sign/rotation ambiguity)
+2025-10-29 17:48:47,913 - analysis.factor_stability - INFO -   Input shape: (4, 10000, 86, 5)
+2025-10-29 17:48:47,913 - analysis.factor_stability - INFO -   Reference chain: 0
+2025-10-29 17:48:48,006 - analysis.factor_stability - INFO -   Aligned 4/4 chains to reference
+2025-10-29 17:48:48,006 - analysis.factor_stability - INFO -   ✓ All factors matched across chains (good stability)
+2025-10-29 17:48:48,060 - analysis.factor_stability - INFO -   Computing split Gelman-Rubin on 5 matched factors...
+2025-10-29 17:48:48,111 - analysis.factor_stability - INFO -   Aligned R-hat results (matched factors only):
+2025-10-29 17:48:48,111 - analysis.factor_stability - INFO -     Max R-hat overall:  132.1965
+2025-10-29 17:48:48,111 - analysis.factor_stability - INFO -     Mean R-hat overall: 15.6487
+2025-10-29 17:48:48,111 - analysis.factor_stability - INFO -     Parameters with R-hat < 1.1: 0/430 (0.0%)
+2025-10-29 17:48:48,112 - __main__ - INFO - Aligned R-hat for Z:
+2025-10-29 17:48:48,112 - __main__ - INFO -   Factor match rate:  100.0% (5/5 factors matched across all chains)
+2025-10-29 17:48:48,112 - __main__ - INFO -   Max R-hat overall:  132.1965
+2025-10-29 17:48:48,112 - __main__ - INFO -   Mean R-hat overall: 15.6487
+2025-10-29 17:48:48,112 - __main__ - INFO -   Convergence rate:   0.0% (R-hat < 1.1)
+2025-10-29 17:48:48,112 - __main__ - WARNING - ⚠ Z: Good matching but poor R-hat (132.1965 >= 1.1) - need more samples
+2025-10-29 17:48:48,112 - __main__ - INFO - ⚡ Alignment improved R-hat by 28.96
+2025-10-29 17:48:48,112 - __main__ - INFO -    Raw: 161.1529 → Aligned: 132.1965
+2025-10-29 17:48:48,112 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:48,112 - __main__ - INFO - EFFECTIVE SAMPLE SIZE (ESS) DIAGNOSTICS
+2025-10-29 17:48:48,112 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:48,112 - __main__ - INFO - Computing ESS for W (factor loadings)...
+2025-10-29 17:48:48,112 - __main__ - WARNING - Failed to compute ESS diagnostics: effective_sample_size() got an unexpected keyword argument 'split_chains'
+2025-10-29 17:48:48,116 - __main__ - WARNING - Traceback (most recent call last):
+  File "/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/experiments/robustness_testing.py", line 2945, in run_factor_stability_analysis
+    ess_W_bulk = effective_sample_size(W_samples, split_chains=True)
+TypeError: effective_sample_size() got an unexpected keyword argument 'split_chains'
+
+2025-10-29 17:48:48,116 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:48,116 - __main__ - INFO - BFMI (BAYESIAN FRACTION OF MISSING INFORMATION)
+2025-10-29 17:48:48,116 - __main__ - INFO - ================================================================================
+2025-10-29 17:48:48,116 - __main__ - WARNING - No potential energy available - skipping BFMI computation
+2025-10-29 17:48:48,919 - __main__ - INFO -   Using stored full chain samples (4 chains) with hyperparameters
+2025-10-29 17:48:49,233 - __main__ - INFO -   ✅ Using ALIGNED W_samples for plots (shape: (4, 10000, 1808, 5))
+2025-10-29 17:48:49,233 - __main__ - INFO -      Accounts for sign/rotation indeterminacy across chains
+2025-10-29 17:48:49,233 - __main__ - INFO -   ✅ Using ALIGNED Z_samples for plots (shape: (4, 10000, 86, 5))
+2025-10-29 17:48:49,233 - __main__ - INFO -      Accounts for sign/rotation indeterminacy across chains
+2025-10-29 17:48:49,233 - __main__ - INFO -   W_samples shape: (4, 10000, 1808, 5)
+2025-10-29 17:48:49,233 - __main__ - INFO -   Z_samples shape: (4, 10000, 86, 5)
+2025-10-29 17:48:49,233 - __main__ - INFO - 📁 Using experiment output dir: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 17:48:49,233 - __main__ - INFO - 📁 Individual plots will be saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots
+2025-10-29 17:48:49,236 - __main__ - INFO -    Created trace diagnostics directory: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots/trace_diagnostics
+2025-10-29 17:48:49,237 - analysis.mcmc_diagnostics - INFO - Creating MCMC trace diagnostic plots...
+2025-10-29 17:48:49,238 - analysis.mcmc_diagnostics - INFO -   Creating W trace plots for 5 factors...
+2025-10-29 17:48:49,335 - analysis.mcmc_diagnostics - INFO -   Creating Z trace plots for 5 factors...
+2025-10-29 17:48:50,651 - analysis.mcmc_diagnostics - INFO -   R-hat for W: max=12.2945, mean=5.6334, median=5.5827
+2025-10-29 17:48:50,651 - analysis.mcmc_diagnostics - INFO -   R-hat for Z: max=132.1965, mean=15.6487, median=6.8358
+2025-10-29 17:48:50,651 - analysis.mcmc_diagnostics - INFO -   Convergence: W=0.0% < 1.1, Z=0.0% < 1.1
+2025-10-29 17:55:37,596 - analysis.mcmc_diagnostics - INFO -   Saving individual R-hat evolution plots to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots/trace_diagnostics
+2025-10-29 17:55:52,494 - analysis.mcmc_diagnostics - INFO -   ✅ Saved 5 individual R-hat evolution plots for W
+2025-10-29 17:55:52,494 - analysis.mcmc_diagnostics - INFO -   ✅ Saved 5 individual R-hat evolution plots for Z
+2025-10-29 17:56:24,245 - analysis.mcmc_diagnostics - INFO -   ✅ Saved 20 individual autocorrelation plots for W
+2025-10-29 17:56:24,245 - analysis.mcmc_diagnostics - INFO -   ✅ Saved 20 individual autocorrelation plots for Z
+2025-10-29 17:56:24,246 - analysis.mcmc_diagnostics - INFO - Creating parameter distribution plots...
+2025-10-29 17:56:30,456 - analysis.mcmc_diagnostics - INFO -   Saving individual W and Z distribution plots to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots/wz_distributions
+2025-10-29 17:56:38,606 - analysis.mcmc_diagnostics - INFO -   ✅ Saved 5 individual W distribution plots
+2025-10-29 17:56:38,606 - analysis.mcmc_diagnostics - INFO -   ✅ Saved 5 individual Z distribution plots
+2025-10-29 17:56:38,607 - analysis.mcmc_diagnostics - INFO - Creating hyperparameter posterior plots...
+2025-10-29 17:56:38,609 - analysis.mcmc_diagnostics - INFO -   Individual plots will be saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots/hyperparameters
+2025-10-29 17:56:38,609 - analysis.mcmc_diagnostics - INFO -   Detected 2 data sources, 5 factors
+2025-10-29 17:56:51,633 - analysis.mcmc_diagnostics - INFO -   ✓ Saved individual plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots/hyperparameters
+2025-10-29 17:56:51,633 - analysis.mcmc_diagnostics - INFO - Creating hyperparameter trace plots...
+2025-10-29 17:56:51,634 - analysis.mcmc_diagnostics - INFO -   Individual trace plots will be saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots/hyperparameters
+2025-10-29 17:56:51,634 - analysis.mcmc_diagnostics - INFO -   Detected 2 views, 5 factors, 10000 samples
+2025-10-29 17:56:51,634 - analysis.mcmc_diagnostics - INFO -   Including sigma (noise precision) traces
+2025-10-29 17:56:51,635 - analysis.mcmc_diagnostics - INFO -   Including cW (slab scale for loadings) traces
+2025-10-29 17:56:51,635 - analysis.mcmc_diagnostics - INFO -   Including cZ (slab scale for factors) traces
+2025-10-29 17:56:56,742 - analysis.mcmc_diagnostics - INFO - 📊 Analyzing factor variance profile (ARD shrinkage assessment)...
+2025-10-29 17:56:56,742 - analysis.mcmc_diagnostics - INFO -    Z_samples shape: 4 chains × 10000 samples × 86 subjects × 5 factors
+2025-10-29 17:56:56,819 - analysis.mcmc_diagnostics - INFO -    Total factors (K): 5
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -    Active factors (var > 0.1): 3
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -    Effective dimensionality (90% variance): 5
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -    Max factor variance: 0.2443
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -    Top 5 factor variances (mean ± std):
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -       Factor #2: 0.2443 ± 0.2032 [95% CI: 0.0515, 0.6017]
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -       Factor #1: 0.1206 ± 0.0330 [95% CI: 0.0515, 0.1616]
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -       Factor #5: 0.1074 ± 0.0472 [95% CI: 0.0397, 0.1616]
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -       Factor #3: 0.0972 ± 0.0618 [95% CI: 0.0039, 0.1616]
+2025-10-29 17:56:56,820 - analysis.mcmc_diagnostics - INFO -       Factor #4: 0.0962 ± 0.0633 [95% CI: 0.0000, 0.1616]
+2025-10-29 17:56:56,908 - __main__ - INFO -    📊 Variance Profile Summary:
+2025-10-29 17:56:56,909 - __main__ - INFO -       Total factors (K): 5
+2025-10-29 17:56:56,909 - __main__ - INFO -       Active factors (var > 0.1): 3
+2025-10-29 17:56:56,909 - __main__ - INFO -       Effective dimensionality (90% var): 5
+2025-10-29 17:56:56,909 - analysis.mcmc_diagnostics - INFO - Creating rank plots for W (Factor Loadings)...
+2025-10-29 17:56:56,915 - analysis.mcmc_diagnostics - INFO -   Input shape: (4, 10000, 10, 3)
+2025-10-29 17:56:56,915 - analysis.mcmc_diagnostics - INFO -   n_chains=4, n_samples=10000, n_params=30
+2025-10-29 17:56:56,989 - analysis.mcmc_diagnostics - INFO -   Plotting ranks for 12 parameters (out of 30 total)
+2025-10-29 17:56:57,943 - analysis.mcmc_diagnostics - INFO -   ✓ Rank plots created successfully
+2025-10-29 17:56:57,943 - analysis.mcmc_diagnostics - INFO - Creating rank plots for Z (Factor Scores)...
+2025-10-29 17:56:57,949 - analysis.mcmc_diagnostics - INFO -   Input shape: (4, 10000, 10, 3)
+2025-10-29 17:56:57,949 - analysis.mcmc_diagnostics - INFO -   n_chains=4, n_samples=10000, n_params=30
+2025-10-29 17:56:58,022 - analysis.mcmc_diagnostics - INFO -   Plotting ranks for 12 parameters (out of 30 total)
+2025-10-29 17:56:58,959 - analysis.mcmc_diagnostics - INFO -   ✓ Rank plots created successfully
+2025-10-29 17:56:58,959 - __main__ - INFO - 📁 Using experiment output dir for plots: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 17:57:23,258 - core.io_utils - INFO - Saved 10 plots individually to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots (0 skipped)
+2025-10-29 17:57:23,258 - core.io_utils - INFO -   Formats: png
+2025-10-29 17:57:23,258 - __main__ - INFO - ✅ Saved 10 individual plots to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/individual_plots
+2025-10-29 17:57:23,258 - __main__ - INFO - ✅ Generated 10 plots
+2025-10-29 17:57:23,258 - __main__ - INFO -    - factor_stability_summary
+2025-10-29 17:57:23,258 - __main__ - INFO -    - enhanced_loading_distributions
+2025-10-29 17:57:23,258 - __main__ - INFO -    - factor_stability_heatmap
+2025-10-29 17:57:23,258 - __main__ - INFO -    - mcmc_trace_diagnostics
+2025-10-29 17:57:23,258 - __main__ - INFO -    - mcmc_parameter_distributions
+2025-10-29 17:57:23,258 - __main__ - INFO -    - hyperparameter_posteriors
+2025-10-29 17:57:23,258 - __main__ - INFO -    - hyperparameter_traces
+2025-10-29 17:57:23,258 - __main__ - INFO -    - factor_variance_profile
+2025-10-29 17:57:23,259 - __main__ - INFO -    - rank_plot_W
+2025-10-29 17:57:23,259 - __main__ - INFO -    - rank_plot_Z
+2025-10-29 17:57:23,259 - __main__ - INFO - ================================================================================
+2025-10-29 17:57:23,259 - __main__ - INFO - ================================================================================
+2025-10-29 17:57:23,259 - __main__ - INFO - Summary:
+2025-10-29 17:57:23,259 - __main__ - INFO -   - 4 chains completed
+2025-10-29 17:57:23,259 - __main__ - INFO -   - 5/5 stable factors
+2025-10-29 17:57:23,259 - __main__ - INFO -   - Stability rate: 100.0%
+2025-10-29 17:57:23,259 - __main__ - INFO -   - Mean effective factors: 5.0
+2025-10-29 17:57:23,259 - __main__ - INFO -   Convergence Diagnostics:
+2025-10-29 17:57:23,259 - __main__ - INFO -     - R-hat (W, aligned) [PRIMARY]: max=12.2945, mean=5.6334 ⚠️ (0.0% < 1.1)
+2025-10-29 17:57:23,259 - __main__ - INFO -     - R-hat (Z, aligned) [PRIMARY]: max=132.1965, mean=15.6487 ⚠️ (0.0% < 1.1)
+2025-10-29 17:57:23,259 - __main__ - INFO -     [Raw R-hat for reference - may be high due to sign/rotation ambiguity]
+2025-10-29 17:57:23,259 - __main__ - INFO -     - R-hat (W, raw): max=184.0549, mean=25.2989 ⚠️
+2025-10-29 17:57:23,259 - __main__ - INFO -     - R-hat (Z, raw): max=161.1529, mean=32.6167 ⚠️
+2025-10-29 17:57:23,259 - __main__ - INFO -   - 10 plots generated
+2025-10-29 17:57:23,259 - __main__ - INFO - ================================================================================
+2025-10-29 17:57:23,259 - __main__ - INFO - SAVING CONSENSUS FACTOR LOADINGS AND SCORES
+2025-10-29 17:57:23,259 - __main__ - INFO - ================================================================================
+2025-10-29 17:57:23,260 - __main__ - INFO - Saving to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 17:57:23,260 - analysis.factor_stability - INFO - Saving stability results to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 17:57:23,289 - analysis.factor_stability - INFO -   ✅ Saved consensus factor loadings (W): (1808, 5)
+2025-10-29 17:57:23,289 - analysis.factor_stability - INFO -   Saving per-view consensus loadings...
+2025-10-29 17:57:23,305 - analysis.factor_stability - INFO -     ✅ Saved volume_sn_voxels loadings (W): (1794, 5)
+2025-10-29 17:57:23,359 - analysis.factor_stability - INFO -     ✅ Saved SN Factor_0 reconstruction: 86 subjects × 1794 voxels
+2025-10-29 17:57:23,413 - analysis.factor_stability - INFO -     ✅ Saved SN Factor_1 reconstruction: 86 subjects × 1794 voxels
+2025-10-29 17:57:23,467 - analysis.factor_stability - INFO -     ✅ Saved SN Factor_2 reconstruction: 86 subjects × 1794 voxels
+2025-10-29 17:57:23,520 - analysis.factor_stability - INFO -     ✅ Saved SN Factor_3 reconstruction: 86 subjects × 1794 voxels
+2025-10-29 17:57:23,574 - analysis.factor_stability - INFO -     ✅ Saved SN Factor_4 reconstruction: 86 subjects × 1794 voxels
+2025-10-29 17:57:23,578 - analysis.factor_stability - INFO -     ✅ Saved clinical loadings (W): (14, 5)
+2025-10-29 17:57:23,584 - analysis.factor_stability - INFO -     ✅ Saved clinical Factor_0 reconstruction: 86 subjects × 14 features
+2025-10-29 17:57:23,589 - analysis.factor_stability - INFO -     ✅ Saved clinical Factor_1 reconstruction: 86 subjects × 14 features
+2025-10-29 17:57:23,594 - analysis.factor_stability - INFO -     ✅ Saved clinical Factor_2 reconstruction: 86 subjects × 14 features
+2025-10-29 17:57:23,598 - analysis.factor_stability - INFO -     ✅ Saved clinical Factor_3 reconstruction: 86 subjects × 14 features
+2025-10-29 17:57:23,603 - analysis.factor_stability - INFO -     ✅ Saved clinical Factor_4 reconstruction: 86 subjects × 14 features
+2025-10-29 17:57:23,607 - analysis.factor_stability - INFO -   ✅ Saved consensus factor scores (Z median): (86, 5)
+2025-10-29 17:57:23,611 - analysis.factor_stability - INFO -   ✅ Saved consensus Z posterior std: (86, 5)
+2025-10-29 17:57:23,616 - analysis.factor_stability - INFO -   ✅ Saved consensus Z 2.5th percentile (lower 95% CI)
+2025-10-29 17:57:23,621 - analysis.factor_stability - INFO -   ✅ Saved consensus Z 97.5th percentile (upper 95% CI)
+2025-10-29 17:57:23,621 - analysis.factor_stability - INFO -   📊 Z posterior uncertainty quantified (Aspect 6: Z Indeterminacy)
+2025-10-29 17:57:23,624 - analysis.factor_stability - INFO -   ✅ Saved similarity matrix: .csv format
+2025-10-29 17:57:23,624 - analysis.factor_stability - INFO - Factor stability results saved successfully
+2025-10-29 17:57:23,624 - __main__ - INFO - ✅ Consensus factor loadings and scores saved successfully
+2025-10-29 17:57:23,624 - __main__ - INFO - Returning ExperimentResult object
+2025-10-29 17:57:23,624 - __main__ - INFO -    ✅ Factor stability analysis COMPLETED
+2025-10-29 17:57:23,624 - __main__ - INFO -    Result type: <class 'experiments.framework.ExperimentResult'>
+2025-10-29 17:57:23,624 - __main__ - INFO -    Result status: completed
+2025-10-29 17:57:23,624 - __main__ - INFO -    Model results keys: ['chain_results', 'stability_results', 'effective_factors']
+2025-10-29 17:57:23,624 - __main__ - INFO -    💾 Saving factor loadings and scores...
+2025-10-29 17:57:23,722 - __main__ - INFO -    Saved R-hat convergence diagnostics to rhat_convergence_diagnostics.json
+2025-10-29 17:57:52,148 - __main__ - INFO -    ✓ Results saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10
+2025-10-29 17:57:52,148 - __main__ - INFO -    ✓ Found 5/5 stable factors
+2025-10-29 17:57:52,148 - __main__ - INFO -    ✓ Stability rate: 100.0%
+2025-10-29 17:57:52,148 - __main__ - INFO -    ✓ Factor loadings (W) and scores (Z) saved for all 4 chains
+2025-10-29 17:57:52,148 - __main__ - INFO - ================================================================================
+2025-10-29 17:57:52,148 - __main__ - INFO - 🔬 Running comprehensive factor analysis diagnostics...
+2025-10-29 17:57:52,148 - __main__ - INFO - ================================================================================
+2025-10-29 17:57:52,154 - __main__ - INFO -   📊 Aspect 2: Procrustes alignment...
+2025-10-29 17:57:52,155 - analysis.factor_stability - INFO - ================================================================================
+2025-10-29 17:57:52,155 - analysis.factor_stability - INFO - ASSESS_FACTOR_STABILITY_PROCRUSTES - START
+2025-10-29 17:57:52,155 - analysis.factor_stability - INFO - ================================================================================
+2025-10-29 17:57:52,155 - analysis.factor_stability - INFO - Analyzing 4 chains using Procrustes alignment
+2025-10-29 17:57:52,155 - analysis.factor_stability - INFO -   Scale normalization: True
+2025-10-29 17:57:52,155 - analysis.factor_stability - INFO -   Disparity threshold: 0.3
+2025-10-29 17:57:52,155 - analysis.factor_stability - INFO -   Min match rate: 0.5
+2025-10-29 17:57:52,155 - __main__ - ERROR - ❌ Factor analysis diagnostics FAILED: 'list' object has no attribute 'shape'
+2025-10-29 17:57:52,164 - __main__ - ERROR - Traceback (most recent call last):
+  File "/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/run_experiments.py", line 1091, in main
+    diagnostics['procrustes_alignment'] = assess_factor_stability_procrustes(
+  File "/cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/analysis/factor_stability.py", line 550, in assess_factor_stability_procrustes
+    N, K = W_chains[0].shape[0], W_chains[0].shape[1]
+AttributeError: 'list' object has no attribute 'shape'
+
+2025-10-29 17:57:52,164 - __main__ - INFO - 🧬 Running PD subtype discovery using consensus factors
+2025-10-29 17:57:56,419 - __main__ - INFO - Auto-configured system: 16.0GB memory limit
+2025-10-29 17:57:56,421 - __main__ - INFO - 📝 Log handler already exists for results/experiments.log - skipping duplicate
+2025-10-29 17:57:56,421 - __main__ - INFO - ExperimentFramework initialized with output dir: results
+2025-10-29 17:57:56,422 - __main__ - INFO - Auto-configured system: 16.0GB memory limit
+2025-10-29 17:57:56,422 - __main__ - INFO - Memory optimizer initialized with 16.0GB limit
+2025-10-29 17:57:56,422 - __main__ - INFO - Data streaming components initialized
+2025-10-29 17:57:56,422 - __main__ - INFO - MCMC memory optimizer initialized
+2025-10-29 17:58:00,566 - __main__ - INFO - Optimal number of PD subtypes: 2
+2025-10-29 17:58:00,566 - __main__ - INFO - Best silhouette score: 0.878
+2025-10-29 17:58:00,566 - __main__ - INFO -    ✓ Discovered 2 subtypes (silhouette=0.878)
+2025-10-29 17:58:00,567 - visualization.subtype_plots - INFO - Creating PD subtype discovery visualizations
+2025-10-29 17:58:05,569 - visualization.subtype_plots - INFO - PD subtype plots saved to /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/02_factor_stability_fixed_K5_percW33_slab4_2_tree10/pd_subtype_discovery
+2025-10-29 17:58:05,570 - __main__ - INFO -    ✓ PD subtype visualization plots generated
+2025-10-29 17:58:05,576 - __main__ - INFO -    ✓ Results saved to: pd_subtype_discovery/
+2025-10-29 17:58:05,578 - __main__ - INFO - 📊 Cache statistics: 0 memory entries, 0 disk entries
+2025-10-29 17:58:05,579 - core.results_cache - INFO - 🗑️  Cache cleared
+2025-10-29 17:58:05,579 - __main__ - INFO - 🗑️  SGFA results cache cleared
+2025-10-29 17:58:05,579 - __main__ - INFO -  All experiments completed!
+2025-10-29 17:58:05,579 - __main__ - INFO -   Total duration: 6:10:38.685666
+2025-10-29 17:58:05,579 - __main__ - INFO -  Results saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726
+2025-10-29 17:58:05,579 - __main__ - INFO - 📋 Creating comprehensive experiment summary...
+2025-10-29 17:58:05,585 - __main__ - INFO - 📋 Comprehensive summary saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/summaries/complete_experiment_summary.yaml
+2025-10-29 17:58:05,585 - __main__ - INFO - 📖 Quick reference saved to: /cs/student/msc/aibh/2024/madhavan/sgfa_qmap-pd/results/all_rois-sn_conf-age+sex+tiv_K5_run_20251029_114726/README.md
