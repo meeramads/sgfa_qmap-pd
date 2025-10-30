@@ -3,7 +3,7 @@ charset-normalizer==3.4.3
 contourpy==1.2.0
 cycler==0.12.1
 fonttools==4.59.2
-h5py==3.10.0
+h5py==3.14.0
 idna==3.4
 jax==0.4.20
 jaxlib==0.4.20
