@@ -1,0 +1,87 @@
+================================================================================
+SUBJECT-LEVEL DATA QUALITY FLAGGING REPORT
+================================================================================
+
+Flagging criterion: >5.0% outlier voxels in any ROI
+Total subjects flagged: 9
+
+FLAGGED SUBJECTS (sorted by severity):
+--------------------------------------------------------------------------------
+
+Subject ID: 852116
+  Index: 78
+  Max outlier percentage: 18.12%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 18.12% ⚠️ FLAGGED
+
+Subject ID: 317718
+  Index: 82
+  Max outlier percentage: 17.73%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 17.73% ⚠️ FLAGGED
+
+Subject ID: 653499
+  Index: 19
+  Max outlier percentage: 14.04%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 14.04% ⚠️ FLAGGED
+
+Subject ID: 720870
+  Index: 48
+  Max outlier percentage: 13.58%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 13.58% ⚠️ FLAGGED
+
+Subject ID: 808484
+  Index: 3
+  Max outlier percentage: 9.89%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 9.89% ⚠️ FLAGGED
+
+Subject ID: 896255
+  Index: 49
+  Max outlier percentage: 7.76%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 7.76% ⚠️ FLAGGED
+
+Subject ID: 247101
+  Index: 66
+  Max outlier percentage: 6.50%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 6.50% ⚠️ FLAGGED
+
+Subject ID: 939241
+  Index: 16
+  Max outlier percentage: 5.75%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 5.75% ⚠️ FLAGGED
+
+Subject ID: 506394
+  Index: 43
+  Max outlier percentage: 5.37%
+  Outlier percentages by ROI:
+    - volume_lentiform_voxels: 5.37% ⚠️ FLAGGED
+
+
+================================================================================
+RECOMMENDATIONS:
+================================================================================
+
+1. INSPECT FLAGGED SUBJECTS:
+   - Review scan acquisition notes for these subject IDs
+   - Check for motion artifacts, scanner issues, or protocol deviations
+
+2. CONSIDER EXCLUSION IF:
+   - Outlier percentage >10% in any ROI (severe quality issues)
+   - Known scan quality problems from acquisition notes
+   - Visual inspection confirms widespread artifacts
+
+3. RETAIN SUBJECTS IF:
+   - Outlier percentage 5-10% (mild issues, may be biological)
+   - No known scan quality problems
+   - Outliers may represent real biological variability (PD subtypes)
+
+4. NEXT STEPS:
+   - For severe cases (>10%), consider exclusion from analysis
+   - For mild cases (5-10%), monitor impact on factor stability
+   - Document exclusion criteria if subjects are removed

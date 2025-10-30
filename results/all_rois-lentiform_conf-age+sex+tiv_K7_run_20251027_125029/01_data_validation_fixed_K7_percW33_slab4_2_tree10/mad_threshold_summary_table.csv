@@ -1,0 +1,7 @@
+ROI,Threshold,Voxels_Retained,Retention_Pct,Voxels_Removed,Variance_Ratio,Correlation_Preservation,Is_Elbow
+volume_lentiform_voxels,2.0,45,0.6249132064990973,7156,1.0,,False
+volume_lentiform_voxels,2.5,877,12.178864046660186,6324,1.0000000000000002,1.0,False
+volume_lentiform_voxels,3.0,2365,32.84266074156367,4836,0.9999999999999999,1.0,False
+volume_lentiform_voxels,3.5,3720,51.65949173725871,3481,1.0000000000000002,1.0,True
+volume_lentiform_voxels,4.0,4674,64.90765171503958,2527,1.0000000000000002,1.0,True
+volume_lentiform_voxels,5.0,5606,77.8502985696431,1595,1.0000000000000002,1.0,False
